@@ -1,0 +1,372 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[02/16] x86/ldt: Rework locking - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [02/16] x86/ldt: Rework locking</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=107">Thomas Gleixner</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Dec. 12, 2017, 5:32 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20171212173333.429772742@linutronix.de&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10107959/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10107959/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10107959/">/patch/10107959/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	E6EB7602C2 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 12 Dec 2017 17:39:28 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id D204328174
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 12 Dec 2017 17:39:28 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id C6DDA291D4; Tue, 12 Dec 2017 17:39:28 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 4220628174
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 12 Dec 2017 17:39:28 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752453AbdLLRjX (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 12 Dec 2017 12:39:23 -0500
+Received: from Galois.linutronix.de ([146.0.238.70]:33771 &quot;EHLO
+	Galois.linutronix.de&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752456AbdLLReT (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 12 Dec 2017 12:34:19 -0500
+Received: from localhost ([127.0.0.1] helo=[127.0.1.1])
+	by Galois.linutronix.de with esmtp (Exim 4.80)
+	(envelope-from &lt;tglx@linutronix.de&gt;)
+	id 1eOoQ7-0005ql-Ci; Tue, 12 Dec 2017 18:32:43 +0100
+Message-Id: &lt;20171212173333.429772742@linutronix.de&gt;
+User-Agent: quilt/0.63-1
+Date: Tue, 12 Dec 2017 18:32:23 +0100
+From: Thomas Gleixner &lt;tglx@linutronix.de&gt;
+To: LKML &lt;linux-kernel@vger.kernel.org&gt;
+Cc: x86@kernel.org, Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Andy Lutomirsky &lt;luto@kernel.org&gt;, Peter Zijlstra &lt;peterz@infradead.org&gt;,
+	Dave Hansen &lt;dave.hansen@intel.com&gt;, Borislav Petkov &lt;bpetkov@suse.de&gt;,
+	Greg KH &lt;gregkh@linuxfoundation.org&gt;, keescook@google.com,
+	hughd@google.com, Brian Gerst &lt;brgerst@gmail.com&gt;,
+	Josh Poimboeuf &lt;jpoimboe@redhat.com&gt;,
+	Denys Vlasenko &lt;dvlasenk@redhat.com&gt;,
+	Boris Ostrovsky &lt;boris.ostrovsky@oracle.com&gt;,
+	Juergen Gross &lt;jgross@suse.com&gt;, David Laight &lt;David.Laight@aculab.com&gt;,
+	Eduardo Valentin &lt;eduval@amazon.com&gt;, aliguori@amazon.com,
+	Will Deacon &lt;will.deacon@arm.com&gt;, linux-mm@kvack.org
+Subject: [patch 02/16] x86/ldt: Rework locking
+References: &lt;20171212173221.496222173@linutronix.de&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Disposition: inline; filename=x86-ldt--Rework-locking.patch
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=107">Thomas Gleixner</a> - Dec. 12, 2017, 5:32 p.m.</div>
+<pre class="content">
+<span class="from">From: Thomas Gleixner &lt;tglx@linutronix.de&gt;</span>
+
+The LDT is duplicated on fork() and on exec(), which is wrong as exec()
+should start from a clean state, i.e. without LDT. To fix this the LDT
+duplication code will be moved into arch_dup_mmap() which is only called
+for fork().
+
+This introduces a locking problem. arch_dup_mmap() holds mmap_sem of the
+parent process, but the LDT duplication code needs to acquire
+mm-&gt;context.lock to access the LDT data safely, which is the reverse lock
+order of write_ldt() where mmap_sem nests into context.lock.
+
+Solve this by introducing a new rw semaphore which serializes the
+read/write_ldt() syscall operations and use context.lock to protect the
+actual installment of the LDT descriptor.
+
+So context.lock stabilizes mm-&gt;context.ldt and can nest inside of the new
+semaphore or mmap_sem.
+<span class="signed-off-by">
+Signed-off-by: Peter Zijlstra (Intel) &lt;peterz@infradead.org&gt;</span>
+<span class="signed-off-by">Signed-off-by: Thomas Gleixner &lt;tglx@linutronix.de&gt;</span>
+---
+ arch/x86/include/asm/mmu.h         |    4 +++-
+ arch/x86/include/asm/mmu_context.h |    2 ++
+ arch/x86/kernel/ldt.c              |   33 +++++++++++++++++++++------------
+ 3 files changed, 26 insertions(+), 13 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- a/arch/x86/include/asm/mmu.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/mmu.h</span>
+<span class="p_chunk">@@ -3,6 +3,7 @@</span> <span class="p_context"></span>
+ #define _ASM_X86_MMU_H
+ 
+ #include &lt;linux/spinlock.h&gt;
+<span class="p_add">+#include &lt;linux/rwsem.h&gt;</span>
+ #include &lt;linux/mutex.h&gt;
+ #include &lt;linux/atomic.h&gt;
+ 
+<span class="p_chunk">@@ -27,7 +28,8 @@</span> <span class="p_context"> typedef struct {</span>
+ 	atomic64_t tlb_gen;
+ 
+ #ifdef CONFIG_MODIFY_LDT_SYSCALL
+<span class="p_del">-	struct ldt_struct *ldt;</span>
+<span class="p_add">+	struct rw_semaphore	ldt_usr_sem;</span>
+<span class="p_add">+	struct ldt_struct	*ldt;</span>
+ #endif
+ 
+ #ifdef CONFIG_X86_64
+<span class="p_header">--- a/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_chunk">@@ -132,6 +132,8 @@</span> <span class="p_context"> void enter_lazy_tlb(struct mm_struct *mm</span>
+ static inline int init_new_context(struct task_struct *tsk,
+ 				   struct mm_struct *mm)
+ {
+<span class="p_add">+	mutex_init(&amp;mm-&gt;context.lock);</span>
+<span class="p_add">+</span>
+ 	mm-&gt;context.ctx_id = atomic64_inc_return(&amp;last_mm_ctx_id);
+ 	atomic64_set(&amp;mm-&gt;context.tlb_gen, 0);
+ 
+<span class="p_header">--- a/arch/x86/kernel/ldt.c</span>
+<span class="p_header">+++ b/arch/x86/kernel/ldt.c</span>
+<span class="p_chunk">@@ -5,6 +5,11 @@</span> <span class="p_context"></span>
+  * Copyright (C) 2002 Andi Kleen
+  *
+  * This handles calls from both 32bit and 64bit mode.
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Lock order:</span>
+<span class="p_add">+ *	contex.ldt_usr_sem</span>
+<span class="p_add">+ *	  mmap_sem</span>
+<span class="p_add">+ *	    context.lock</span>
+  */
+ 
+ #include &lt;linux/errno.h&gt;
+<span class="p_chunk">@@ -42,7 +47,7 @@</span> <span class="p_context"> static void refresh_ldt_segments(void)</span>
+ #endif
+ }
+ 
+<span class="p_del">-/* context.lock is held for us, so we don&#39;t need any locking. */</span>
+<span class="p_add">+/* context.lock is held by the task which issued the smp function call */</span>
+ static void flush_ldt(void *__mm)
+ {
+ 	struct mm_struct *mm = __mm;
+<span class="p_chunk">@@ -99,15 +104,17 @@</span> <span class="p_context"> static void finalize_ldt_struct(struct l</span>
+ 	paravirt_alloc_ldt(ldt-&gt;entries, ldt-&gt;nr_entries);
+ }
+ 
+<span class="p_del">-/* context.lock is held */</span>
+<span class="p_del">-static void install_ldt(struct mm_struct *current_mm,</span>
+<span class="p_del">-			struct ldt_struct *ldt)</span>
+<span class="p_add">+static void install_ldt(struct mm_struct *mm, struct ldt_struct *ldt)</span>
+ {
+<span class="p_add">+	mutex_lock(&amp;mm-&gt;context.lock);</span>
+<span class="p_add">+</span>
+ 	/* Synchronizes with READ_ONCE in load_mm_ldt. */
+<span class="p_del">-	smp_store_release(&amp;current_mm-&gt;context.ldt, ldt);</span>
+<span class="p_add">+	smp_store_release(&amp;mm-&gt;context.ldt, ldt);</span>
+ 
+<span class="p_del">-	/* Activate the LDT for all CPUs using current_mm. */</span>
+<span class="p_del">-	on_each_cpu_mask(mm_cpumask(current_mm), flush_ldt, current_mm, true);</span>
+<span class="p_add">+	/* Activate the LDT for all CPUs using currents mm. */</span>
+<span class="p_add">+	on_each_cpu_mask(mm_cpumask(mm), flush_ldt, mm, true);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	mutex_unlock(&amp;mm-&gt;context.lock);</span>
+ }
+ 
+ static void free_ldt_struct(struct ldt_struct *ldt)
+<span class="p_chunk">@@ -133,7 +140,8 @@</span> <span class="p_context"> int init_new_context_ldt(struct task_str</span>
+ 	struct mm_struct *old_mm;
+ 	int retval = 0;
+ 
+<span class="p_del">-	mutex_init(&amp;mm-&gt;context.lock);</span>
+<span class="p_add">+	init_rwsem(&amp;mm-&gt;context.ldt_usr_sem);</span>
+<span class="p_add">+</span>
+ 	old_mm = current-&gt;mm;
+ 	if (!old_mm) {
+ 		mm-&gt;context.ldt = NULL;
+<span class="p_chunk">@@ -180,7 +188,7 @@</span> <span class="p_context"> static int read_ldt(void __user *ptr, un</span>
+ 	unsigned long entries_size;
+ 	int retval;
+ 
+<span class="p_del">-	mutex_lock(&amp;mm-&gt;context.lock);</span>
+<span class="p_add">+	down_read(&amp;mm-&gt;context.ldt_usr_sem);</span>
+ 
+ 	if (!mm-&gt;context.ldt) {
+ 		retval = 0;
+<span class="p_chunk">@@ -209,7 +217,7 @@</span> <span class="p_context"> static int read_ldt(void __user *ptr, un</span>
+ 	retval = bytecount;
+ 
+ out_unlock:
+<span class="p_del">-	mutex_unlock(&amp;mm-&gt;context.lock);</span>
+<span class="p_add">+	up_read(&amp;mm-&gt;context.ldt_usr_sem);</span>
+ 	return retval;
+ }
+ 
+<span class="p_chunk">@@ -269,7 +277,8 @@</span> <span class="p_context"> static int write_ldt(void __user *ptr, u</span>
+ 			ldt.avl = 0;
+ 	}
+ 
+<span class="p_del">-	mutex_lock(&amp;mm-&gt;context.lock);</span>
+<span class="p_add">+	if (down_write_killable(&amp;mm-&gt;context.ldt_usr_sem))</span>
+<span class="p_add">+		return -EINTR;</span>
+ 
+ 	old_ldt       = mm-&gt;context.ldt;
+ 	old_nr_entries = old_ldt ? old_ldt-&gt;nr_entries : 0;
+<span class="p_chunk">@@ -291,7 +300,7 @@</span> <span class="p_context"> static int write_ldt(void __user *ptr, u</span>
+ 	error = 0;
+ 
+ out_unlock:
+<span class="p_del">-	mutex_unlock(&amp;mm-&gt;context.lock);</span>
+<span class="p_add">+	up_write(&amp;mm-&gt;context.ldt_usr_sem);</span>
+ out:
+ 	return error;
+ }
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,452 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>mm: possible deadlock in mm_take_all_locks - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    mm: possible deadlock in mm_take_all_locks</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=874">Kirill A. Shutemov</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Jan. 8, 2016, 11:23 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20160108232352.GA13046@node.shutemov.name&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7991171/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7991171/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7991171/">/patch/7991171/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id EE2BABEEE5
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  8 Jan 2016 23:24:01 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 5D04F201C0
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  8 Jan 2016 23:24:01 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 56F49201DD
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  8 Jan 2016 23:24:00 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1755923AbcAHXX5 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Fri, 8 Jan 2016 18:23:57 -0500
+Received: from mail-wm0-f45.google.com ([74.125.82.45]:34095 &quot;EHLO
+	mail-wm0-f45.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1754400AbcAHXXz (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Fri, 8 Jan 2016 18:23:55 -0500
+Received: by mail-wm0-f45.google.com with SMTP id u188so154398948wmu.1
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Fri, 08 Jan 2016 15:23:55 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+	h=date:from:to:cc:subject:message-id:references:mime-version
+	:content-type:content-disposition:in-reply-to:user-agent;
+	bh=hB4rPdCbMezwU6r+XiohTAFOcCuH0WHNBqSJQjxVVtI=;
+	b=GC9BX+p41TGRjmm4exG2OcobTJD2bcO1ItqcTJOhVf3wXXlNnNanhXc4YJeLwSg33X
+	CLwDfbeKx6EOHJC26uW+4bGipXoL3B9SFPYv9R/W2dYLf2Y7QzPVKF+9CQ7u3ybn6KCq
+	n9TDVOwW2pEmQu4V1O2pdEqaIEk8l91XXNUSdKrGMNMnWSDEJ7DBlOY68zOvEnlVQuNn
+	F+DWMr4Nb3vN6ktFo5jnUKCkIEp9dAkPQvGJixOCQPOfaVPaQqm3NY4gUIdZ4GYMhRUl
+	g5f43uETJoEv4tZqMyfAOJfZplN4rZ+oFWjxHHbSyUcDwtD7oCOzdUReC+VgAI1M41tQ
+	Z84Q==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20130820;
+	h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+	:mime-version:content-type:content-disposition:in-reply-to
+	:user-agent;
+	bh=hB4rPdCbMezwU6r+XiohTAFOcCuH0WHNBqSJQjxVVtI=;
+	b=ii9gv8gXr6b2kDU3Q9D6AqzoLroz8rYJR1qJc7ASr4C/7bxFX7R6uTVtrZAoZcUFeG
+	5ENnURdSAdZuTydg82wXroqa6SQkSuGG1qI41zv/FBCif2HyZRzbKg9FFyrDoO/DCgYv
+	JhueycelBXeCc4v6rn0r0NTvHMglp9EKgGUbMgfhynb4S0pUkNDh69mVdnhE85BZVrOU
+	w31iR8CpyVk4Foo40cmS9WtGiUy4sBcw4c/jKjjOnCdY0U51jDcvZPtdxi+HydtcuDv+
+	CNVn+t6/rqBEW6lOD/98E/QUuMUEqBJg5F8bX4SKp5QVZZRiUvZUJxZT96DU07Fjzi9/
+	MYhg==
+X-Gm-Message-State: ALoCoQmRvTfAuD4F/O1/Y52XMKwwXPRaCXjxf8GMTL4Eyxyh4sJhuyY9AAi7vUw7W9bOMAp43Zm8qH7ZkQ1CMjrrP620QUd51g==
+X-Received: by 10.28.101.213 with SMTP id z204mr1246719wmb.57.1452295434494; 
+	Fri, 08 Jan 2016 15:23:54 -0800 (PST)
+Received: from node.shutemov.name ([37.44.92.88])
+	by smtp.gmail.com with ESMTPSA id
+	l67sm1216588wmf.11.2016.01.08.15.23.53
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Fri, 08 Jan 2016 15:23:53 -0800 (PST)
+Received: by node.shutemov.name (Postfix, from userid 1000)
+	id 74F5D648D520; Sat,  9 Jan 2016 01:23:52 +0200 (EET)
+Date: Sat, 9 Jan 2016 01:23:52 +0200
+From: &quot;Kirill A. Shutemov&quot; &lt;kirill@shutemov.name&gt;
+To: Dmitry Vyukov &lt;dvyukov@google.com&gt;, Michal Hocko &lt;mhocko@suse.cz&gt;
+Cc: Peter Zijlstra &lt;peterz@infradead.org&gt;, Ingo Molnar &lt;mingo@redhat.com&gt;,
+	LKML &lt;linux-kernel@vger.kernel.org&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	&quot;Kirill A. Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;,
+	Oleg Nesterov &lt;oleg@redhat.com&gt;, Chen Gang &lt;gang.chen.5i5j@gmail.com&gt;,
+	&quot;linux-mm@kvack.org&quot; &lt;linux-mm@kvack.org&gt;,
+	syzkaller &lt;syzkaller@googlegroups.com&gt;,
+	Kostya Serebryany &lt;kcc@google.com&gt;,
+	Alexander Potapenko &lt;glider@google.com&gt;,
+	Eric Dumazet &lt;edumazet@google.com&gt;, Sasha Levin &lt;sasha.levin@oracle.com&gt;
+Subject: Re: mm: possible deadlock in mm_take_all_locks
+Message-ID: &lt;20160108232352.GA13046@node.shutemov.name&gt;
+References: &lt;CACT4Y+Zu95tBs-0EvdiAKzUOsb4tczRRfCRTpLr4bg_OP9HuVg@mail.gmail.com&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: &lt;CACT4Y+Zu95tBs-0EvdiAKzUOsb4tczRRfCRTpLr4bg_OP9HuVg@mail.gmail.com&gt;
+User-Agent: Mutt/1.5.23.1 (2014-03-12)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID,RCVD_IN_DNSWL_HI,RP_MATCHES_RCVD,UNPARSEABLE_RELAY
+	autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=874">Kirill A. Shutemov</a> - Jan. 8, 2016, 11:23 p.m.</div>
+<pre class="content">
+On Fri, Jan 08, 2016 at 05:58:33PM +0100, Dmitry Vyukov wrote:
+<span class="quote">&gt; Hello,</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I&#39;ve hit the following deadlock warning while running syzkaller fuzzer</span>
+<span class="quote">&gt; on commit b06f3a168cdcd80026276898fd1fee443ef25743. As far as I</span>
+<span class="quote">&gt; understand this is a false positive, because both call stacks are</span>
+<span class="quote">&gt; protected by mm_all_locks_mutex.</span>
+
++Michal
+
+I don&#39;t think it&#39;s false positive.
+
+The reason we don&#39;t care about order of taking i_mmap_rwsem is that we
+never takes i_mmap_rwsem under other i_mmap_rwsem, but that&#39;s not true for
+i_mmap_rwsem vs. hugetlbfs_i_mmap_rwsem_key. That&#39;s why we have the
+annotation in the first place.
+
+See commit b610ded71918 (&quot;hugetlb: fix lockdep splat caused by pmd
+sharing&quot;).
+
+Consider totally untested patch below.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=72902">Dmitry Vyukov</a> - Jan. 10, 2016, 8:05 a.m.</div>
+<pre class="content">
+On Sat, Jan 9, 2016 at 12:23 AM, Kirill A. Shutemov
+&lt;kirill@shutemov.name&gt; wrote:
+<span class="quote">&gt; On Fri, Jan 08, 2016 at 05:58:33PM +0100, Dmitry Vyukov wrote:</span>
+<span class="quote">&gt;&gt; Hello,</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; I&#39;ve hit the following deadlock warning while running syzkaller fuzzer</span>
+<span class="quote">&gt;&gt; on commit b06f3a168cdcd80026276898fd1fee443ef25743. As far as I</span>
+<span class="quote">&gt;&gt; understand this is a false positive, because both call stacks are</span>
+<span class="quote">&gt;&gt; protected by mm_all_locks_mutex.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; +Michal</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I don&#39;t think it&#39;s false positive.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; The reason we don&#39;t care about order of taking i_mmap_rwsem is that we</span>
+<span class="quote">&gt; never takes i_mmap_rwsem under other i_mmap_rwsem, but that&#39;s not true for</span>
+<span class="quote">&gt; i_mmap_rwsem vs. hugetlbfs_i_mmap_rwsem_key. That&#39;s why we have the</span>
+<span class="quote">&gt; annotation in the first place.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; See commit b610ded71918 (&quot;hugetlb: fix lockdep splat caused by pmd</span>
+<span class="quote">&gt; sharing&quot;).</span>
+
+Description of b610ded71918 suggests that that code takes hugetlb
+mutex first and them normal page mutex. In this patch you take them in
+the opposite order: normal mutex, then hugetlb mutex. Won&#39;t this patch
+only increase probability of deadlocks? Shouldn&#39;t you take them in the
+opposite order?
+<span class="quote">
+
+&gt; Consider totally untested patch below.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; diff --git a/mm/mmap.c b/mm/mmap.c</span>
+<span class="quote">&gt; index 2ce04a649f6b..63aefcf409e1 100644</span>
+<span class="quote">&gt; --- a/mm/mmap.c</span>
+<span class="quote">&gt; +++ b/mm/mmap.c</span>
+<span class="quote">&gt; @@ -3203,7 +3203,16 @@ int mm_take_all_locks(struct mm_struct *mm)</span>
+<span class="quote">&gt;         for (vma = mm-&gt;mmap; vma; vma = vma-&gt;vm_next) {</span>
+<span class="quote">&gt;                 if (signal_pending(current))</span>
+<span class="quote">&gt;                         goto out_unlock;</span>
+<span class="quote">&gt; -               if (vma-&gt;vm_file &amp;&amp; vma-&gt;vm_file-&gt;f_mapping)</span>
+<span class="quote">&gt; +               if (vma-&gt;vm_file &amp;&amp; vma-&gt;vm_file-&gt;f_mapping &amp;&amp;</span>
+<span class="quote">&gt; +                               !is_vm_hugetlb_page(vma))</span>
+<span class="quote">&gt; +                       vm_lock_mapping(mm, vma-&gt;vm_file-&gt;f_mapping);</span>
+<span class="quote">&gt; +       }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       for (vma = mm-&gt;mmap; vma; vma = vma-&gt;vm_next) {</span>
+<span class="quote">&gt; +               if (signal_pending(current))</span>
+<span class="quote">&gt; +                       goto out_unlock;</span>
+<span class="quote">&gt; +               if (vma-&gt;vm_file &amp;&amp; vma-&gt;vm_file-&gt;f_mapping &amp;&amp;</span>
+<span class="quote">&gt; +                               is_vm_hugetlb_page(vma))</span>
+<span class="quote">&gt;                         vm_lock_mapping(mm, vma-&gt;vm_file-&gt;f_mapping);</span>
+<span class="quote">&gt;         }</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; --</span>
+<span class="quote">&gt;  Kirill A. Shutemov</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=874">Kirill A. Shutemov</a> - Jan. 10, 2016, 8:39 p.m.</div>
+<pre class="content">
+On Sun, Jan 10, 2016 at 09:05:32AM +0100, Dmitry Vyukov wrote:
+<span class="quote">&gt; On Sat, Jan 9, 2016 at 12:23 AM, Kirill A. Shutemov</span>
+<span class="quote">&gt; &lt;kirill@shutemov.name&gt; wrote:</span>
+<span class="quote">&gt; &gt; On Fri, Jan 08, 2016 at 05:58:33PM +0100, Dmitry Vyukov wrote:</span>
+<span class="quote">&gt; &gt;&gt; Hello,</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; I&#39;ve hit the following deadlock warning while running syzkaller fuzzer</span>
+<span class="quote">&gt; &gt;&gt; on commit b06f3a168cdcd80026276898fd1fee443ef25743. As far as I</span>
+<span class="quote">&gt; &gt;&gt; understand this is a false positive, because both call stacks are</span>
+<span class="quote">&gt; &gt;&gt; protected by mm_all_locks_mutex.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; +Michal</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; I don&#39;t think it&#39;s false positive.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; The reason we don&#39;t care about order of taking i_mmap_rwsem is that we</span>
+<span class="quote">&gt; &gt; never takes i_mmap_rwsem under other i_mmap_rwsem, but that&#39;s not true for</span>
+<span class="quote">&gt; &gt; i_mmap_rwsem vs. hugetlbfs_i_mmap_rwsem_key. That&#39;s why we have the</span>
+<span class="quote">&gt; &gt; annotation in the first place.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; See commit b610ded71918 (&quot;hugetlb: fix lockdep splat caused by pmd</span>
+<span class="quote">&gt; &gt; sharing&quot;).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Description of b610ded71918 suggests that that code takes hugetlb</span>
+<span class="quote">&gt; mutex first and them normal page mutex. In this patch you take them in</span>
+<span class="quote">&gt; the opposite order: normal mutex, then hugetlb mutex. Won&#39;t this patch</span>
+<span class="quote">&gt; only increase probability of deadlocks? Shouldn&#39;t you take them in the</span>
+<span class="quote">&gt; opposite order?</span>
+
+You are right. I got it wrong. Conditions should be reversed.
+
+The comment around hugetlbfs_i_mmap_rwsem_key definition is somewhat
+confusing:
+
+&quot;This needs an annotation because huge_pmd_share() does an allocation
+under i_mmap_rwsem.&quot;
+
+I read this as we do hugetlb allocation when i_mmap_rwsem already taken
+and made locking order respectively. I guess i_mmap_rwsem should be
+replaced with hugetlbfs_i_mmap_rwsem_key in the comment.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=72902">Dmitry Vyukov</a> - Jan. 11, 2016, 9:04 a.m.</div>
+<pre class="content">
+On Sun, Jan 10, 2016 at 9:39 PM, Kirill A. Shutemov
+&lt;kirill@shutemov.name&gt; wrote:
+<span class="quote">&gt; On Sun, Jan 10, 2016 at 09:05:32AM +0100, Dmitry Vyukov wrote:</span>
+<span class="quote">&gt;&gt; On Sat, Jan 9, 2016 at 12:23 AM, Kirill A. Shutemov</span>
+<span class="quote">&gt;&gt; &lt;kirill@shutemov.name&gt; wrote:</span>
+<span class="quote">&gt;&gt; &gt; On Fri, Jan 08, 2016 at 05:58:33PM +0100, Dmitry Vyukov wrote:</span>
+<span class="quote">&gt;&gt; &gt;&gt; Hello,</span>
+<span class="quote">&gt;&gt; &gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; I&#39;ve hit the following deadlock warning while running syzkaller fuzzer</span>
+<span class="quote">&gt;&gt; &gt;&gt; on commit b06f3a168cdcd80026276898fd1fee443ef25743. As far as I</span>
+<span class="quote">&gt;&gt; &gt;&gt; understand this is a false positive, because both call stacks are</span>
+<span class="quote">&gt;&gt; &gt;&gt; protected by mm_all_locks_mutex.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; +Michal</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; I don&#39;t think it&#39;s false positive.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; The reason we don&#39;t care about order of taking i_mmap_rwsem is that we</span>
+<span class="quote">&gt;&gt; &gt; never takes i_mmap_rwsem under other i_mmap_rwsem, but that&#39;s not true for</span>
+<span class="quote">&gt;&gt; &gt; i_mmap_rwsem vs. hugetlbfs_i_mmap_rwsem_key. That&#39;s why we have the</span>
+<span class="quote">&gt;&gt; &gt; annotation in the first place.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; See commit b610ded71918 (&quot;hugetlb: fix lockdep splat caused by pmd</span>
+<span class="quote">&gt;&gt; &gt; sharing&quot;).</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Description of b610ded71918 suggests that that code takes hugetlb</span>
+<span class="quote">&gt;&gt; mutex first and them normal page mutex. In this patch you take them in</span>
+<span class="quote">&gt;&gt; the opposite order: normal mutex, then hugetlb mutex. Won&#39;t this patch</span>
+<span class="quote">&gt;&gt; only increase probability of deadlocks? Shouldn&#39;t you take them in the</span>
+<span class="quote">&gt;&gt; opposite order?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; You are right. I got it wrong. Conditions should be reversed.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; The comment around hugetlbfs_i_mmap_rwsem_key definition is somewhat</span>
+<span class="quote">&gt; confusing:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; &quot;This needs an annotation because huge_pmd_share() does an allocation</span>
+<span class="quote">&gt; under i_mmap_rwsem.&quot;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I read this as we do hugetlb allocation when i_mmap_rwsem already taken</span>
+<span class="quote">&gt; and made locking order respectively. I guess i_mmap_rwsem should be</span>
+<span class="quote">&gt; replaced with hugetlbfs_i_mmap_rwsem_key in the comment.</span>
+
+
+Comment on mm_take_all_locks probably also needs updating.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/mmap.c b/mm/mmap.c</span>
+<span class="p_header">index 2ce04a649f6b..63aefcf409e1 100644</span>
+<span class="p_header">--- a/mm/mmap.c</span>
+<span class="p_header">+++ b/mm/mmap.c</span>
+<span class="p_chunk">@@ -3203,7 +3203,16 @@</span> <span class="p_context"> int mm_take_all_locks(struct mm_struct *mm)</span>
+ 	for (vma = mm-&gt;mmap; vma; vma = vma-&gt;vm_next) {
+ 		if (signal_pending(current))
+ 			goto out_unlock;
+<span class="p_del">-		if (vma-&gt;vm_file &amp;&amp; vma-&gt;vm_file-&gt;f_mapping)</span>
+<span class="p_add">+		if (vma-&gt;vm_file &amp;&amp; vma-&gt;vm_file-&gt;f_mapping &amp;&amp;</span>
+<span class="p_add">+				!is_vm_hugetlb_page(vma))</span>
+<span class="p_add">+			vm_lock_mapping(mm, vma-&gt;vm_file-&gt;f_mapping);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for (vma = mm-&gt;mmap; vma; vma = vma-&gt;vm_next) {</span>
+<span class="p_add">+		if (signal_pending(current))</span>
+<span class="p_add">+			goto out_unlock;</span>
+<span class="p_add">+		if (vma-&gt;vm_file &amp;&amp; vma-&gt;vm_file-&gt;f_mapping &amp;&amp;</span>
+<span class="p_add">+				is_vm_hugetlb_page(vma))</span>
+ 			vm_lock_mapping(mm, vma-&gt;vm_file-&gt;f_mapping);
+ 	}
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

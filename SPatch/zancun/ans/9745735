@@ -1,0 +1,338 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[tip:x86/mm] x86/mm: Reimplement flush_tlb_page() using flush_tlb_mm_range() - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [tip:x86/mm] x86/mm: Reimplement flush_tlb_page() using flush_tlb_mm_range()</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=60001">tip-bot for Jacob Shin</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>May 24, 2017, 10:21 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;tip-ca6c99c0794875c6d1db6e22f246699691ab7e6b@git.kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9745735/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9745735/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9745735/">/patch/9745735/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	6F1F760209 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 24 May 2017 10:28:36 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 68F68286B5
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 24 May 2017 10:28:36 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 5D6D928831; Wed, 24 May 2017 10:28:36 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 77D19288A7
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 24 May 2017 10:28:35 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S939501AbdEXK22 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 24 May 2017 06:28:28 -0400
+Received: from terminus.zytor.com ([65.50.211.136]:37745 &quot;EHLO
+	terminus.zytor.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1757594AbdEXK1g (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 24 May 2017 06:27:36 -0400
+Received: from terminus.zytor.com (localhost [127.0.0.1])
+	by terminus.zytor.com (8.15.2/8.15.2) with ESMTP id v4OALjcZ015229;
+	Wed, 24 May 2017 03:21:45 -0700
+Received: (from tipbot@localhost)
+	by terminus.zytor.com (8.15.2/8.15.2/Submit) id v4OALiw1015226;
+	Wed, 24 May 2017 03:21:44 -0700
+Date: Wed, 24 May 2017 03:21:44 -0700
+X-Authentication-Warning: terminus.zytor.com: tipbot set sender to
+	tipbot@zytor.com using -f
+From: tip-bot for Andy Lutomirski &lt;tipbot@zytor.com&gt;
+Message-ID: &lt;tip-ca6c99c0794875c6d1db6e22f246699691ab7e6b@git.kernel.org&gt;
+Cc: mhocko@suse.com, luto@kernel.org, keescook@chromium.org,
+	namit@vmware.com, tglx@linutronix.de, linux-kernel@vger.kernel.org,
+	nadav.amit@gmail.com, mgorman@suse.de, mingo@kernel.org,
+	riel@redhat.com, hpa@zytor.com, torvalds@linux-foundation.org,
+	dave.hansen@intel.com, bpetkov@suse.de, peterz@infradead.org,
+	akpm@linux-foundation.org
+Reply-To: bpetkov@suse.de, peterz@infradead.org, akpm@linux-foundation.org, 
+	riel@redhat.com, hpa@zytor.com, dave.hansen@intel.com,
+	torvalds@linux-foundation.org, keescook@chromium.org,
+	namit@vmware.com, tglx@linutronix.de,
+	linux-kernel@vger.kernel.org, mgorman@suse.de,
+	nadav.amit@gmail.com, mingo@kernel.org, mhocko@suse.com,
+	luto@kernel.org
+In-Reply-To: &lt;3cc3847cf888d8907577569b8bac3f01992ef8f9.1495492063.git.luto@kernel.org&gt;
+References: &lt;3cc3847cf888d8907577569b8bac3f01992ef8f9.1495492063.git.luto@kernel.org&gt;
+To: linux-tip-commits@vger.kernel.org
+Subject: [tip:x86/mm] x86/mm: Reimplement flush_tlb_page() using
+	flush_tlb_mm_range()
+Git-Commit-ID: ca6c99c0794875c6d1db6e22f246699691ab7e6b
+X-Mailer: tip-git-log-daemon
+Robot-ID: &lt;tip-bot.git.kernel.org&gt;
+Robot-Unsubscribe: Contact &lt;mailto:hpa@kernel.org&gt; to get blacklisted from
+	these emails
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=60001">tip-bot for Jacob Shin</a> - May 24, 2017, 10:21 a.m.</div>
+<pre class="content">
+Commit-ID:  ca6c99c0794875c6d1db6e22f246699691ab7e6b
+Gitweb:     http://git.kernel.org/tip/ca6c99c0794875c6d1db6e22f246699691ab7e6b
+Author:     Andy Lutomirski &lt;luto@kernel.org&gt;
+AuthorDate: Mon, 22 May 2017 15:30:01 -0700
+Committer:  Ingo Molnar &lt;mingo@kernel.org&gt;
+CommitDate: Wed, 24 May 2017 10:18:27 +0200
+
+x86/mm: Reimplement flush_tlb_page() using flush_tlb_mm_range()
+
+flush_tlb_page() was very similar to flush_tlb_mm_range() except that
+it had a couple of issues:
+
+ - It was missing an smp_mb() in the case where
+   current-&gt;active_mm != mm.  (This is a longstanding bug reported by Nadav Amit)
+
+ - It was missing tracepoints and vm counter updates.
+
+The only reason that I can see for keeping it at as a separate
+function is that it could avoid a few branches that
+flush_tlb_mm_range() needs to decide to flush just one page.  This
+hardly seems worthwhile.  If we decide we want to get rid of those
+branches again, a better way would be to introduce an
+__flush_tlb_mm_range() helper and make both flush_tlb_page() and
+flush_tlb_mm_range() use it.
+<span class="signed-off-by">
+Signed-off-by: Andy Lutomirski &lt;luto@kernel.org&gt;</span>
+<span class="acked-by">Acked-by: Kees Cook &lt;keescook@chromium.org&gt;</span>
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: Borislav Petkov &lt;bpetkov@suse.de&gt;
+Cc: Dave Hansen &lt;dave.hansen@intel.com&gt;
+Cc: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+Cc: Mel Gorman &lt;mgorman@suse.de&gt;
+Cc: Michal Hocko &lt;mhocko@suse.com&gt;
+Cc: Nadav Amit &lt;nadav.amit@gmail.com&gt;
+Cc: Nadav Amit &lt;namit@vmware.com&gt;
+Cc: Peter Zijlstra &lt;peterz@infradead.org&gt;
+Cc: Rik van Riel &lt;riel@redhat.com&gt;
+Cc: Thomas Gleixner &lt;tglx@linutronix.de&gt;
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/3cc3847cf888d8907577569b8bac3f01992ef8f9.1495492063.git.luto@kernel.org
+<span class="signed-off-by">Signed-off-by: Ingo Molnar &lt;mingo@kernel.org&gt;</span>
+---
+ arch/x86/include/asm/tlbflush.h |  6 +++++-
+ arch/x86/mm/tlb.c               | 27 ---------------------------
+ 2 files changed, 5 insertions(+), 28 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">index 6ed9ea4..b9db0f8fe 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -307,11 +307,15 @@</span> <span class="p_context"> static inline void flush_tlb_kernel_range(unsigned long start,</span>
+ 		flush_tlb_mm_range(vma-&gt;vm_mm, start, end, vma-&gt;vm_flags)
+ 
+ extern void flush_tlb_all(void);
+<span class="p_del">-extern void flush_tlb_page(struct vm_area_struct *, unsigned long);</span>
+ extern void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 				unsigned long end, unsigned long vmflag);
+ extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
+ 
+<span class="p_add">+static inline void flush_tlb_page(struct vm_area_struct *vma, unsigned long a)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	flush_tlb_mm_range(vma-&gt;vm_mm, a, a + PAGE_SIZE, VM_NONE);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ void native_flush_tlb_others(const struct cpumask *cpumask,
+ 				struct mm_struct *mm,
+ 				unsigned long start, unsigned long end);
+<span class="p_header">diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c</span>
+<span class="p_header">index 6e7bedf..fe64711 100644</span>
+<span class="p_header">--- a/arch/x86/mm/tlb.c</span>
+<span class="p_header">+++ b/arch/x86/mm/tlb.c</span>
+<span class="p_chunk">@@ -354,33 +354,6 @@</span> <span class="p_context"> out:</span>
+ 	preempt_enable();
+ }
+ 
+<span class="p_del">-void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	struct mm_struct *mm = vma-&gt;vm_mm;</span>
+<span class="p_del">-</span>
+<span class="p_del">-	preempt_disable();</span>
+<span class="p_del">-</span>
+<span class="p_del">-	if (current-&gt;active_mm == mm) {</span>
+<span class="p_del">-		if (current-&gt;mm) {</span>
+<span class="p_del">-			/*</span>
+<span class="p_del">-			 * Implicit full barrier (INVLPG) that synchronizes</span>
+<span class="p_del">-			 * with switch_mm.</span>
+<span class="p_del">-			 */</span>
+<span class="p_del">-			__flush_tlb_one(start);</span>
+<span class="p_del">-		} else {</span>
+<span class="p_del">-			leave_mm(smp_processor_id());</span>
+<span class="p_del">-</span>
+<span class="p_del">-			/* Synchronize with switch_mm. */</span>
+<span class="p_del">-			smp_mb();</span>
+<span class="p_del">-		}</span>
+<span class="p_del">-	}</span>
+<span class="p_del">-</span>
+<span class="p_del">-	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) &lt; nr_cpu_ids)</span>
+<span class="p_del">-		flush_tlb_others(mm_cpumask(mm), mm, start, start + PAGE_SIZE);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	preempt_enable();</span>
+<span class="p_del">-}</span>
+<span class="p_del">-</span>
+ static void do_flush_tlb_all(void *info)
+ {
+ 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

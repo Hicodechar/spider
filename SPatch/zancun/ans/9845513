@@ -1,0 +1,412 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>mm, mprotect: Flush TLB if potentially racing with a parallel reclaim leaving stale TLB entries - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    mm, mprotect: Flush TLB if potentially racing with a parallel reclaim leaving stale TLB entries</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=24451">Mel Gorman</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>July 17, 2017, 3:55 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170717155523.emckq2esjro6hf3z@suse.de&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9845513/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9845513/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9845513/">/patch/9845513/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	CBF7A60386 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 17 Jul 2017 15:55:31 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id BDD0E205FC
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 17 Jul 2017 15:55:31 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id B2C8E212E8; Mon, 17 Jul 2017 15:55:31 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 09829205FC
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 17 Jul 2017 15:55:31 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751420AbdGQPz2 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 17 Jul 2017 11:55:28 -0400
+Received: from mx2.suse.de ([195.135.220.15]:48097 &quot;EHLO mx1.suse.de&quot;
+	rhost-flags-OK-OK-OK-FAIL) by vger.kernel.org with ESMTP
+	id S1751286AbdGQPz0 (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 17 Jul 2017 11:55:26 -0400
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay1.suse.de (charybdis-ext.suse.de [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 4E6D4AAB9;
+	Mon, 17 Jul 2017 15:55:25 +0000 (UTC)
+Date: Mon, 17 Jul 2017 16:55:23 +0100
+From: Mel Gorman &lt;mgorman@suse.de&gt;
+To: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: Nadav Amit &lt;nadav.amit@gmail.com&gt;,
+	Andy Lutomirski &lt;luto@kernel.org&gt;, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH] mm, mprotect: Flush TLB if potentially racing with a
+	parallel reclaim leaving stale TLB entries
+Message-ID: &lt;20170717155523.emckq2esjro6hf3z@suse.de&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+User-Agent: NeoMutt/20170421 (1.8.2)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=24451">Mel Gorman</a> - July 17, 2017, 3:55 p.m.</div>
+<pre class="content">
+Nadav Amit identified a theoritical race between page reclaim and mprotect
+due to TLB flushes being batched outside of the PTL being held. He described
+the race as follows
+
+        CPU0                            CPU1
+        ----                            ----
+                                        user accesses memory using RW PTE
+                                        [PTE now cached in TLB]
+        try_to_unmap_one()
+        ==&gt; ptep_get_and_clear()
+        ==&gt; set_tlb_ubc_flush_pending()
+                                        mprotect(addr, PROT_READ)
+                                        ==&gt; change_pte_range()
+                                        ==&gt; [ PTE non-present - no flush ]
+
+                                        user writes using cached RW PTE
+        ...
+
+        try_to_unmap_flush()
+
+The same type of race exists for reads when protecting for PROT_NONE and
+also exists for operations that can leave an old TLB entry behind such as
+munmap, mremap and madvise.
+
+For some operations like mprotect, it&#39;s not necessarily a data integrity
+issue but it is a correctness issue as there is a window where an mprotect
+that limits access still allows access. For munmap, it&#39;s potentially a data
+integrity issue although the race is massive as an munmap, mmap and return to
+userspace must all complete between the window when reclaim drops the PTL and
+flushes the TLB. However, it&#39;s theoritically possible so handle this issue
+by flushing the mm if reclaim is potentially currently batching TLB flushes.
+
+Other instances where a flush is required for a present pte should be
+ok as either the page lock is held preventing parallel reclaim or a
+page reference count is elevated preventing a parallel free leading to
+corruption. In the case of page_mkclean there isn&#39;t an obvious path that
+userspace could take advantage of without using the operations that are
+guarded by this patch. Other users such as gup as a race with reclaim
+looks just at PTEs. huge page variants should be ok as they don&#39;t race
+with reclaim.  mincore only looks at PTEs. userfault also should be ok as
+if a parallel reclaim takes place, it will either fault the page back in
+or read some of the data before the flush occurs triggering a fault.
+
+Note that a variant of this patch was acked by Andy Lutomirski but this
+was for the x86 parts on top of his PCID work which didn&#39;t make the 4.13
+merge window as expected. His ack is dropped from this version and there
+will be a follow-on patch on top of PCID that will include his ack.
+
+Reported-by: Nadav Amit &lt;nadav.amit@gmail.com&gt;
+<span class="signed-off-by">Signed-off-by: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+Cc: stable@vger.kernel.org # v4.4+
+---
+ include/linux/mm_types.h |  4 ++++
+ mm/internal.h            |  5 ++++-
+ mm/madvise.c             |  1 +
+ mm/memory.c              |  1 +
+ mm/mprotect.c            |  1 +
+ mm/mremap.c              |  1 +
+ mm/rmap.c                | 36 ++++++++++++++++++++++++++++++++++++
+ 7 files changed, 48 insertions(+), 1 deletion(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h</span>
+<span class="p_header">index 45cdb27791a3..ab8f7e11c160 100644</span>
+<span class="p_header">--- a/include/linux/mm_types.h</span>
+<span class="p_header">+++ b/include/linux/mm_types.h</span>
+<span class="p_chunk">@@ -495,6 +495,10 @@</span> <span class="p_context"> struct mm_struct {</span>
+ 	 */
+ 	bool tlb_flush_pending;
+ #endif
+<span class="p_add">+#ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH</span>
+<span class="p_add">+	/* See flush_tlb_batched_pending() */</span>
+<span class="p_add">+	bool tlb_flush_batched;</span>
+<span class="p_add">+#endif</span>
+ 	struct uprobes_state uprobes_state;
+ #ifdef CONFIG_HUGETLB_PAGE
+ 	atomic_long_t hugetlb_usage;
+<span class="p_header">diff --git a/mm/internal.h b/mm/internal.h</span>
+<span class="p_header">index 0e4f558412fb..9c8a2bfb975c 100644</span>
+<span class="p_header">--- a/mm/internal.h</span>
+<span class="p_header">+++ b/mm/internal.h</span>
+<span class="p_chunk">@@ -498,6 +498,7 @@</span> <span class="p_context"> extern struct workqueue_struct *mm_percpu_wq;</span>
+ #ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
+ void try_to_unmap_flush(void);
+ void try_to_unmap_flush_dirty(void);
+<span class="p_add">+void flush_tlb_batched_pending(struct mm_struct *mm);</span>
+ #else
+ static inline void try_to_unmap_flush(void)
+ {
+<span class="p_chunk">@@ -505,7 +506,9 @@</span> <span class="p_context"> static inline void try_to_unmap_flush(void)</span>
+ static inline void try_to_unmap_flush_dirty(void)
+ {
+ }
+<span class="p_del">-</span>
+<span class="p_add">+static inline void flush_tlb_batched_pending(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+ #endif /* CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH */
+ 
+ extern const struct trace_print_flags pageflag_names[];
+<span class="p_header">diff --git a/mm/madvise.c b/mm/madvise.c</span>
+<span class="p_header">index 25b78ee4fc2c..75d2cffbe61d 100644</span>
+<span class="p_header">--- a/mm/madvise.c</span>
+<span class="p_header">+++ b/mm/madvise.c</span>
+<span class="p_chunk">@@ -320,6 +320,7 @@</span> <span class="p_context"> static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,</span>
+ 
+ 	tlb_remove_check_page_size_change(tlb, PAGE_SIZE);
+ 	orig_pte = pte = pte_offset_map_lock(mm, pmd, addr, &amp;ptl);
+<span class="p_add">+	flush_tlb_batched_pending(mm);</span>
+ 	arch_enter_lazy_mmu_mode();
+ 	for (; addr != end; pte++, addr += PAGE_SIZE) {
+ 		ptent = *pte;
+<span class="p_header">diff --git a/mm/memory.c b/mm/memory.c</span>
+<span class="p_header">index bb11c474857e..b0c3d1556a94 100644</span>
+<span class="p_header">--- a/mm/memory.c</span>
+<span class="p_header">+++ b/mm/memory.c</span>
+<span class="p_chunk">@@ -1197,6 +1197,7 @@</span> <span class="p_context"> static unsigned long zap_pte_range(struct mmu_gather *tlb,</span>
+ 	init_rss_vec(rss);
+ 	start_pte = pte_offset_map_lock(mm, pmd, addr, &amp;ptl);
+ 	pte = start_pte;
+<span class="p_add">+	flush_tlb_batched_pending(mm);</span>
+ 	arch_enter_lazy_mmu_mode();
+ 	do {
+ 		pte_t ptent = *pte;
+<span class="p_header">diff --git a/mm/mprotect.c b/mm/mprotect.c</span>
+<span class="p_header">index 8edd0d576254..f42749e6bf4e 100644</span>
+<span class="p_header">--- a/mm/mprotect.c</span>
+<span class="p_header">+++ b/mm/mprotect.c</span>
+<span class="p_chunk">@@ -66,6 +66,7 @@</span> <span class="p_context"> static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,</span>
+ 	    atomic_read(&amp;vma-&gt;vm_mm-&gt;mm_users) == 1)
+ 		target_node = numa_node_id();
+ 
+<span class="p_add">+	flush_tlb_batched_pending(vma-&gt;vm_mm);</span>
+ 	arch_enter_lazy_mmu_mode();
+ 	do {
+ 		oldpte = *pte;
+<span class="p_header">diff --git a/mm/mremap.c b/mm/mremap.c</span>
+<span class="p_header">index cd8a1b199ef9..6e3d857458de 100644</span>
+<span class="p_header">--- a/mm/mremap.c</span>
+<span class="p_header">+++ b/mm/mremap.c</span>
+<span class="p_chunk">@@ -152,6 +152,7 @@</span> <span class="p_context"> static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,</span>
+ 	new_ptl = pte_lockptr(mm, new_pmd);
+ 	if (new_ptl != old_ptl)
+ 		spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
+<span class="p_add">+	flush_tlb_batched_pending(vma-&gt;vm_mm);</span>
+ 	arch_enter_lazy_mmu_mode();
+ 
+ 	for (; old_addr &lt; old_end; old_pte++, old_addr += PAGE_SIZE,
+<span class="p_header">diff --git a/mm/rmap.c b/mm/rmap.c</span>
+<span class="p_header">index d405f0e0ee96..c0e64b7b0daf 100644</span>
+<span class="p_header">--- a/mm/rmap.c</span>
+<span class="p_header">+++ b/mm/rmap.c</span>
+<span class="p_chunk">@@ -617,6 +617,13 @@</span> <span class="p_context"> static void set_tlb_ubc_flush_pending(struct mm_struct *mm, bool writable)</span>
+ 	tlb_ubc-&gt;flush_required = true;
+ 
+ 	/*
+<span class="p_add">+	 * Ensure compiler does not re-order the setting ot tlb_flush_batched</span>
+<span class="p_add">+	 * before the PTE is cleared.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	barrier();</span>
+<span class="p_add">+	mm-&gt;tlb_flush_batched = true;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+ 	 * If the PTE was dirty then it&#39;s best to assume it&#39;s writable. The
+ 	 * caller must use try_to_unmap_flush_dirty() or try_to_unmap_flush()
+ 	 * before the page is queued for IO.
+<span class="p_chunk">@@ -643,6 +650,35 @@</span> <span class="p_context"> static bool should_defer_flush(struct mm_struct *mm, enum ttu_flags flags)</span>
+ 
+ 	return should_defer;
+ }
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Reclaim unmaps pages under the PTL but does not flush the TLB prior to</span>
+<span class="p_add">+ * releasing the PTL if TLB flushes are batched. It&#39;s possible a parallel</span>
+<span class="p_add">+ * operation such as mprotect or munmap to race between reclaim unmapping</span>
+<span class="p_add">+ * the page and flushing the page If this race occurs, it potentially allows</span>
+<span class="p_add">+ * access to data via a stale TLB entry. Tracking all mm&#39;s that have TLB</span>
+<span class="p_add">+ * batching in flight would be expensive during reclaim so instead track</span>
+<span class="p_add">+ * whether TLB batching occured in the past and if so then do a flush here</span>
+<span class="p_add">+ * if required. This will cost one additional flush per reclaim cycle paid</span>
+<span class="p_add">+ * by the first operation at risk such as mprotect and mumap.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This must be called under the PTL so that accesses to tlb_flush_batched</span>
+<span class="p_add">+ * that is potentially a &quot;reclaim vs mprotect/munmap/etc&quot; race will</span>
+<span class="p_add">+ * synchronise via the PTL.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+void flush_tlb_batched_pending(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (mm-&gt;tlb_flush_batched) {</span>
+<span class="p_add">+		flush_tlb_mm(mm);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Do not allow the compiler to re-order the clearing of</span>
+<span class="p_add">+		 * tlb_flush_batched before the tlb is flushed.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		barrier();</span>
+<span class="p_add">+		mm-&gt;tlb_flush_batched = false;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+ #else
+ static void set_tlb_ubc_flush_pending(struct mm_struct *mm, bool writable)
+ {
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

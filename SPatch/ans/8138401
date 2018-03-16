@@ -1,0 +1,376 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[4.1,012/127] x86/mm: Add barriers and document switch_mm()-vs-flush synchronization - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [4.1,012/127] x86/mm: Add barriers and document switch_mm()-vs-flush synchronization</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=37061">gregkh@linuxfoundation.org</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Jan. 27, 2016, 6:12 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20160127180806.256263248@linuxfoundation.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/8138401/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/8138401/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/8138401/">/patch/8138401/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork1.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork1.web.kernel.org (Postfix) with ESMTP id EED3E9F440
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 27 Jan 2016 19:07:28 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id E64D8202E6
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 27 Jan 2016 19:07:27 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id EF9E820142
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 27 Jan 2016 19:07:24 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S965681AbcA0THO (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 27 Jan 2016 14:07:14 -0500
+Received: from mail.linuxfoundation.org ([140.211.169.12]:54878 &quot;EHLO
+	mail.linuxfoundation.org&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S965582AbcA0TG4 (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 27 Jan 2016 14:06:56 -0500
+Received: from localhost (unknown [104.135.8.89])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 326551110;
+	Wed, 27 Jan 2016 19:06:53 +0000 (UTC)
+From: Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;,
+	stable@vger.kernel.org, Andy Lutomirski &lt;luto@kernel.org&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Andy Lutomirski &lt;luto@amacapital.net&gt;, Borislav Petkov &lt;bp@alien8.de&gt;,
+	Brian Gerst &lt;brgerst@gmail.com&gt;,
+	Dave Hansen &lt;dave.hansen@linux.intel.com&gt;,
+	Denys Vlasenko &lt;dvlasenk@redhat.com&gt;, &quot;H. Peter Anvin&quot; &lt;hpa@zytor.com&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Peter Zijlstra &lt;peterz@infradead.org&gt;, Rik van Riel &lt;riel@redhat.com&gt;,
+	Thomas Gleixner &lt;tglx@linutronix.de&gt;, linux-mm@kvack.org,
+	Ingo Molnar &lt;mingo@kernel.org&gt;
+Subject: [PATCH 4.1 012/127] x86/mm: Add barriers and document
+	switch_mm()-vs-flush synchronization
+Date: Wed, 27 Jan 2016 10:12:56 -0800
+Message-Id: &lt;20160127180806.256263248@linuxfoundation.org&gt;
+X-Mailer: git-send-email 2.7.0
+In-Reply-To: &lt;20160127180805.624425994@linuxfoundation.org&gt;
+References: &lt;20160127180805.624425994@linuxfoundation.org&gt;
+User-Agent: quilt/0.64
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-15
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=37061">gregkh@linuxfoundation.org</a> - Jan. 27, 2016, 6:12 p.m.</div>
+<pre class="content">
+4.1-stable review patch.  If anyone has any objections, please let me know.
+
+------------------
+<span class="from">
+From: Andy Lutomirski &lt;luto@kernel.org&gt;</span>
+
+commit 71b3c126e61177eb693423f2e18a1914205b165e upstream.
+
+When switch_mm() activates a new PGD, it also sets a bit that
+tells other CPUs that the PGD is in use so that TLB flush IPIs
+will be sent.  In order for that to work correctly, the bit
+needs to be visible prior to loading the PGD and therefore
+starting to fill the local TLB.
+
+Document all the barriers that make this work correctly and add
+a couple that were missing.
+<span class="signed-off-by">
+Signed-off-by: Andy Lutomirski &lt;luto@kernel.org&gt;</span>
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: Andy Lutomirski &lt;luto@amacapital.net&gt;
+Cc: Borislav Petkov &lt;bp@alien8.de&gt;
+Cc: Brian Gerst &lt;brgerst@gmail.com&gt;
+Cc: Dave Hansen &lt;dave.hansen@linux.intel.com&gt;
+Cc: Denys Vlasenko &lt;dvlasenk@redhat.com&gt;
+Cc: H. Peter Anvin &lt;hpa@zytor.com&gt;
+Cc: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+Cc: Peter Zijlstra &lt;peterz@infradead.org&gt;
+Cc: Rik van Riel &lt;riel@redhat.com&gt;
+Cc: Thomas Gleixner &lt;tglx@linutronix.de&gt;
+Cc: linux-mm@kvack.org
+<span class="signed-off-by">Signed-off-by: Ingo Molnar &lt;mingo@kernel.org&gt;</span>
+<span class="signed-off-by">Signed-off-by: Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;</span>
+
+---
+ arch/x86/include/asm/mmu_context.h |   33 ++++++++++++++++++++++++++++++++-
+ arch/x86/mm/tlb.c                  |   29 ++++++++++++++++++++++++++---
+ 2 files changed, 58 insertions(+), 4 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- a/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_chunk">@@ -104,8 +104,34 @@</span> <span class="p_context"> static inline void switch_mm(struct mm_s</span>
+ #endif
+ 		cpumask_set_cpu(cpu, mm_cpumask(next));
+ 
+<span class="p_del">-		/* Re-load page tables */</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Re-load page tables.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * This logic has an ordering constraint:</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 *  CPU 0: Write to a PTE for &#39;next&#39;</span>
+<span class="p_add">+		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.</span>
+<span class="p_add">+		 *  CPU 1: set bit 1 in next&#39;s mm_cpumask</span>
+<span class="p_add">+		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * We need to prevent an outcome in which CPU 1 observes</span>
+<span class="p_add">+		 * the new PTE value and CPU 0 observes bit 1 clear in</span>
+<span class="p_add">+		 * mm_cpumask.  (If that occurs, then the IPI will never</span>
+<span class="p_add">+		 * be sent, and CPU 0&#39;s TLB will contain a stale entry.)</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * The bad outcome can occur if either CPU&#39;s load is</span>
+<span class="p_add">+		 * reordered before that CPU&#39;s store, so both CPUs much</span>
+<span class="p_add">+		 * execute full barriers to prevent this from happening.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * Thus, switch_mm needs a full barrier between the</span>
+<span class="p_add">+		 * store to mm_cpumask and any operation that could load</span>
+<span class="p_add">+		 * from next-&gt;pgd.  This barrier synchronizes with</span>
+<span class="p_add">+		 * remote TLB flushers.  Fortunately, load_cr3 is</span>
+<span class="p_add">+		 * serializing and thus acts as a full barrier.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 */</span>
+ 		load_cr3(next-&gt;pgd);
+<span class="p_add">+</span>
+ 		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
+ 
+ 		/* Stop flush ipis for the previous mm */
+<span class="p_chunk">@@ -142,10 +168,15 @@</span> <span class="p_context"> static inline void switch_mm(struct mm_s</span>
+ 			 * schedule, protecting us from simultaneous changes.
+ 			 */
+ 			cpumask_set_cpu(cpu, mm_cpumask(next));
+<span class="p_add">+</span>
+ 			/*
+ 			 * We were in lazy tlb mode and leave_mm disabled
+ 			 * tlb flush IPI delivery. We must reload CR3
+ 			 * to make sure to use no freed page tables.
+<span class="p_add">+			 *</span>
+<span class="p_add">+			 * As above, this is a barrier that forces</span>
+<span class="p_add">+			 * TLB repopulation to be ordered after the</span>
+<span class="p_add">+			 * store to mm_cpumask.</span>
+ 			 */
+ 			load_cr3(next-&gt;pgd);
+ 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
+<span class="p_header">--- a/arch/x86/mm/tlb.c</span>
+<span class="p_header">+++ b/arch/x86/mm/tlb.c</span>
+<span class="p_chunk">@@ -160,7 +160,10 @@</span> <span class="p_context"> void flush_tlb_current_task(void)</span>
+ 	preempt_disable();
+ 
+ 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+<span class="p_add">+</span>
+<span class="p_add">+	/* This is an implicit full barrier that synchronizes with switch_mm. */</span>
+ 	local_flush_tlb();
+<span class="p_add">+</span>
+ 	trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) &lt; nr_cpu_ids)
+ 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
+<span class="p_chunk">@@ -187,17 +190,29 @@</span> <span class="p_context"> void flush_tlb_mm_range(struct mm_struct</span>
+ 	unsigned long base_pages_to_flush = TLB_FLUSH_ALL;
+ 
+ 	preempt_disable();
+<span class="p_del">-	if (current-&gt;active_mm != mm)</span>
+<span class="p_add">+	if (current-&gt;active_mm != mm) {</span>
+<span class="p_add">+		/* Synchronize with switch_mm. */</span>
+<span class="p_add">+		smp_mb();</span>
+<span class="p_add">+</span>
+ 		goto out;
+<span class="p_add">+	}</span>
+ 
+ 	if (!current-&gt;mm) {
+ 		leave_mm(smp_processor_id());
+<span class="p_add">+</span>
+<span class="p_add">+		/* Synchronize with switch_mm. */</span>
+<span class="p_add">+		smp_mb();</span>
+<span class="p_add">+</span>
+ 		goto out;
+ 	}
+ 
+ 	if ((end != TLB_FLUSH_ALL) &amp;&amp; !(vmflag &amp; VM_HUGETLB))
+ 		base_pages_to_flush = (end - start) &gt;&gt; PAGE_SHIFT;
+ 
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Both branches below are implicit full barriers (MOV to CR or</span>
+<span class="p_add">+	 * INVLPG) that synchronize with switch_mm.</span>
+<span class="p_add">+	 */</span>
+ 	if (base_pages_to_flush &gt; tlb_single_page_flush_ceiling) {
+ 		base_pages_to_flush = TLB_FLUSH_ALL;
+ 		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+<span class="p_chunk">@@ -227,10 +242,18 @@</span> <span class="p_context"> void flush_tlb_page(struct vm_area_struc</span>
+ 	preempt_disable();
+ 
+ 	if (current-&gt;active_mm == mm) {
+<span class="p_del">-		if (current-&gt;mm)</span>
+<span class="p_add">+		if (current-&gt;mm) {</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * Implicit full barrier (INVLPG) that synchronizes</span>
+<span class="p_add">+			 * with switch_mm.</span>
+<span class="p_add">+			 */</span>
+ 			__flush_tlb_one(start);
+<span class="p_del">-		else</span>
+<span class="p_add">+		} else {</span>
+ 			leave_mm(smp_processor_id());
+<span class="p_add">+</span>
+<span class="p_add">+			/* Synchronize with switch_mm. */</span>
+<span class="p_add">+			smp_mb();</span>
+<span class="p_add">+		}</span>
+ 	}
+ 
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) &lt; nr_cpu_ids)
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

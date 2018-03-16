@@ -1,0 +1,1680 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[3/3] x86/efi: Use efi_switch_mm() rather than manually twiddling with cr3 - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [3/3] x86/efi: Use efi_switch_mm() rather than manually twiddling with cr3</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=144541">Sai Praneeth Prakhya</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Aug. 15, 2017, 7:18 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1502824706-30762-4-git-send-email-sai.praneeth.prakhya@intel.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9902421/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9902421/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9902421/">/patch/9902421/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	E314E60230 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 15 Aug 2017 19:23:05 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id D577E288DA
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 15 Aug 2017 19:23:05 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id CA50C288DD; Tue, 15 Aug 2017 19:23:05 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 39CCC288DA
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 15 Aug 2017 19:23:05 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753304AbdHOTXB (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 15 Aug 2017 15:23:01 -0400
+Received: from mga14.intel.com ([192.55.52.115]:28219 &quot;EHLO mga14.intel.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1753148AbdHOTW6 (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 15 Aug 2017 15:22:58 -0400
+Received: from orsmga004.jf.intel.com ([10.7.209.38])
+	by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384;
+	15 Aug 2017 12:22:57 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i=&quot;5.41,379,1498546800&quot;; d=&quot;scan&#39;208&quot;;a=&quot;119330114&quot;
+Received: from saipraneeth.sc.intel.com ([143.183.140.145])
+	by orsmga004.jf.intel.com with ESMTP; 15 Aug 2017 12:22:57 -0700
+From: Sai Praneeth Prakhya &lt;sai.praneeth.prakhya@intel.com&gt;
+To: linux-efi@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: jlee@suse.com, bp@alien8.de, luto@kernel.org, mst@redhat.com,
+	ricardo.neri@intel.com, matt@codeblueprint.co.uk,
+	ard.biesheuvel@linaro.org, ravi.v.shankar@intel.com,
+	Sai Praneeth &lt;sai.praneeth.prakhya@intel.com&gt;
+Subject: [PATCH 3/3] x86/efi: Use efi_switch_mm() rather than manually
+	twiddling with cr3
+Date: Tue, 15 Aug 2017 12:18:26 -0700
+Message-Id: &lt;1502824706-30762-4-git-send-email-sai.praneeth.prakhya@intel.com&gt;
+X-Mailer: git-send-email 2.1.4
+In-Reply-To: &lt;1502824706-30762-1-git-send-email-sai.praneeth.prakhya@intel.com&gt;
+References: &lt;1502824706-30762-1-git-send-email-sai.praneeth.prakhya@intel.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=144541">Sai Praneeth Prakhya</a> - Aug. 15, 2017, 7:18 p.m.</div>
+<pre class="content">
+<span class="from">From: Sai Praneeth &lt;sai.praneeth.prakhya@intel.com&gt;</span>
+
+Use helper function (efi_switch_mm()) to switch to/from efi_mm. We
+switch to efi_mm before calling
+1. efi_set_virtual_address_map() and
+2. Invoking any efi_runtime_service()
+
+Likewise, we need to switch back to previous mm (mm context stolen by
+efi_mm) after the above calls return successfully. We can use
+efi_switch_mm() only with x86_64 kernel and &quot;efi=old_map&quot; disabled
+because, x86_32 and efi=old_map doesn&#39;t use efi_pgd, rather they use
+swapper_pg_dir.
+<span class="signed-off-by">
+Signed-off-by: Sai Praneeth Prakhya &lt;sai.praneeth.prakhya@intel.com&gt;</span>
+Cc: Lee, Chun-Yi &lt;jlee@suse.com&gt;
+Cc: Borislav Petkov &lt;bp@alien8.de&gt;
+Cc: Andy Lutomirski &lt;luto@kernel.org&gt;
+Cc: Michael S. Tsirkin &lt;mst@redhat.com&gt;
+Cc: Ricardo Neri &lt;ricardo.neri@intel.com&gt;
+Cc: Matt Fleming &lt;matt@codeblueprint.co.uk&gt;
+Cc: Ard Biesheuvel &lt;ard.biesheuvel@linaro.org&gt;
+Cc: Ravi Shankar &lt;ravi.v.shankar@intel.com&gt;
+---
+ arch/x86/include/asm/efi.h           | 30 +++++++++++++-------------
+ arch/x86/platform/efi/efi_64.c       | 41 ++++++++++++++++++++++++------------
+ arch/x86/platform/efi/efi_thunk_64.S |  2 +-
+ 3 files changed, 43 insertions(+), 30 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - Aug. 15, 2017, 9:46 p.m.</div>
+<pre class="content">
+On Tue, Aug 15, 2017 at 12:18 PM, Sai Praneeth Prakhya
+&lt;sai.praneeth.prakhya@intel.com&gt; wrote:
+<span class="quote">&gt; +/*</span>
+<span class="quote">&gt; + * Makes the calling kernel thread switch to/from efi_mm context</span>
+<span class="quote">&gt; + * Can be used from SetVirtualAddressMap() or during efi runtime calls</span>
+<span class="quote">&gt; + * (Note: This routine is heavily inspired from use_mm)</span>
+<span class="quote">&gt; + */</span>
+<span class="quote">&gt; +void efi_switch_mm(struct mm_struct *mm)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +       struct task_struct *tsk = current;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       task_lock(tsk);</span>
+<span class="quote">&gt; +       efi_scratch.prev_mm = tsk-&gt;active_mm;</span>
+<span class="quote">&gt; +       if (efi_scratch.prev_mm != mm) {</span>
+<span class="quote">&gt; +               mmgrab(mm);</span>
+<span class="quote">&gt; +               tsk-&gt;active_mm = mm;</span>
+<span class="quote">&gt; +       }</span>
+<span class="quote">&gt; +       switch_mm(efi_scratch.prev_mm, mm, NULL);</span>
+<span class="quote">&gt; +       task_unlock(tsk);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (efi_scratch.prev_mm != mm)</span>
+<span class="quote">&gt; +               mmdrop(efi_scratch.prev_mm);</span>
+
+I&#39;m confused.  You&#39;re mmdropping an mm that you are still keeping a
+pointer to.  This is also a bit confusing in the case where you do
+efi_switch_mm(efi_scratch.prev_mm).
+
+This whole manipulation seems fairly dangerous to me for another
+reason -- you&#39;re taking a user thread (I think) and swapping out its
+mm to something that the user in question should *not* have access to.
+What if a perf interrupt happens while you&#39;re in the alternate mm?
+What if you segfault and dump core?  Should we maybe just have a flag
+that says &quot;this cpu is using a funny mm&quot;, assert that the flag is
+clear when scheduling, and teach perf, coredumps, etc not to touch
+user memory when the flag is set?
+
+Admittedly, the latter problem may well have existed even before these patches.
+<span class="quote">
+&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">
+
+
+&gt;  #ifdef CONFIG_EFI_MIXED</span>
+<span class="quote">&gt;  extern efi_status_t efi64_thunk(u32, ...);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; @@ -649,16 +665,13 @@ efi_status_t efi_thunk_set_virtual_address_map(</span>
+<span class="quote">&gt;         efi_sync_low_kernel_mappings();</span>
+<span class="quote">&gt;         local_irq_save(flags);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; -       efi_scratch.prev_cr3 = read_cr3();</span>
+<span class="quote">&gt; -       write_cr3((unsigned long)efi_scratch.efi_pgt);</span>
+<span class="quote">&gt; -       __flush_tlb_all();</span>
+<span class="quote">&gt; +       efi_switch_mm(&amp;efi_mm);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;         func = (u32)(unsigned long)phys_set_virtual_address_map;</span>
+<span class="quote">&gt;         status = efi64_thunk(func, memory_map_size, descriptor_size,</span>
+<span class="quote">&gt;                              descriptor_version, virtual_map);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; -       write_cr3(efi_scratch.prev_cr3);</span>
+<span class="quote">&gt; -       __flush_tlb_all();</span>
+<span class="quote">&gt; +       efi_switch_mm(efi_scratch.prev_mm);</span>
+<span class="quote">&gt;         local_irq_restore(flags);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;         return status;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=30282">Mark Rutland</a> - Aug. 15, 2017, 10:35 p.m.</div>
+<pre class="content">
+On Wed, Aug 16, 2017 at 09:14:41AM -0700, Andy Lutomirski wrote:
+<span class="quote">&gt; On Wed, Aug 16, 2017 at 5:57 AM, Matt Fleming &lt;matt@codeblueprint.co.uk&gt; wrote:</span>
+<span class="quote">&gt; &gt; On Wed, 16 Aug, at 12:03:22PM, Mark Rutland wrote:</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; I&#39;d expect we&#39;d abort at a higher level, not taking any sample. i.e.</span>
+<span class="quote">&gt; &gt;&gt; we&#39;d have the core overflow handler check in_funny_mm(), and if so, skip</span>
+<span class="quote">&gt; &gt;&gt; the sample, as with the skid case.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; FYI, this is my preferred solution for x86 too.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; One option for the &quot;funny mm&quot; flag would be literally the condition</span>
+<span class="quote">&gt; current-&gt;mm != current-&gt;active_mm.  I *think* this gets all the cases</span>
+<span class="quote">&gt; right as long as efi_switch_mm is careful with its ordering and that</span>
+<span class="quote">&gt; the arch switch_mm() code can handle the resulting ordering.  (x86&#39;s</span>
+<span class="quote">&gt; can now, I think, or at least will be able to in 4.14 -- not sure</span>
+<span class="quote">&gt; about other arches).</span>
+
+For arm64 we&#39;d have to rework things a bit to get the ordering right
+(especially when we flip to/from the idmap), but otherwise this sounds sane to
+me.
+<span class="quote">
+&gt; That being said, there&#39;s a totally different solution: run EFI</span>
+<span class="quote">&gt; callbacks in a kernel thread.  This has other benefits: we could run</span>
+<span class="quote">&gt; those callbacks in user mode some day, and doing *that* in a user</span>
+<span class="quote">&gt; thread seems like a mistake.</span>
+
+I think that wouldn&#39;t work for CPU-bound perf events (which are not
+ctx-switched with the task).
+
+It might be desireable to do that anyway, though.
+
+Thanks,
+Mark.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=144541">Sai Praneeth Prakhya</a> - Aug. 16, 2017, 12:23 a.m.</div>
+<pre class="content">
+On Tue, 2017-08-15 at 14:46 -0700, Andy Lutomirski wrote:
+<span class="quote">&gt; On Tue, Aug 15, 2017 at 12:18 PM, Sai Praneeth Prakhya</span>
+<span class="quote">&gt; &lt;sai.praneeth.prakhya@intel.com&gt; wrote:</span>
+<span class="quote">&gt; &gt; +/*</span>
+<span class="quote">&gt; &gt; + * Makes the calling kernel thread switch to/from efi_mm context</span>
+<span class="quote">&gt; &gt; + * Can be used from SetVirtualAddressMap() or during efi runtime calls</span>
+<span class="quote">&gt; &gt; + * (Note: This routine is heavily inspired from use_mm)</span>
+<span class="quote">&gt; &gt; + */</span>
+<span class="quote">&gt; &gt; +void efi_switch_mm(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt; +{</span>
+<span class="quote">&gt; &gt; +       struct task_struct *tsk = current;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       task_lock(tsk);</span>
+<span class="quote">&gt; &gt; +       efi_scratch.prev_mm = tsk-&gt;active_mm;</span>
+<span class="quote">&gt; &gt; +       if (efi_scratch.prev_mm != mm) {</span>
+<span class="quote">&gt; &gt; +               mmgrab(mm);</span>
+<span class="quote">&gt; &gt; +               tsk-&gt;active_mm = mm;</span>
+<span class="quote">&gt; &gt; +       }</span>
+<span class="quote">&gt; &gt; +       switch_mm(efi_scratch.prev_mm, mm, NULL);</span>
+<span class="quote">&gt; &gt; +       task_unlock(tsk);</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       if (efi_scratch.prev_mm != mm)</span>
+<span class="quote">&gt; &gt; +               mmdrop(efi_scratch.prev_mm);</span>
+<span class="quote">&gt; </span>
+
+Thanks for the quick review Andy,
+<span class="quote">
+&gt; I&#39;m confused.  You&#39;re mmdropping an mm that you are still keeping a</span>
+<span class="quote">&gt; pointer to.  This is also a bit confusing in the case where you do</span>
+<span class="quote">&gt; efi_switch_mm(efi_scratch.prev_mm).</span>
+<span class="quote">&gt; </span>
+
+This makes sense, I will look into it.
+<span class="quote">
+&gt; This whole manipulation seems fairly dangerous to me for another</span>
+<span class="quote">&gt; reason -- you&#39;re taking a user thread (I think) and swapping out its</span>
+<span class="quote">&gt; mm to something that the user in question should *not* have access to.</span>
+
+We are switching to efi_mm from user mm_struct because
+EFI_RUNTIME_SERVICES like efi_set_variable()/efi_get_variable() are
+accessible only through efi_pgd. The user thread calls ioctl() which in
+turn calls efi_call() and thus efi_switch_mm(). So, I think, the user
+still does not have direct access to EFI_RUNTIME_SERVICES memory regions
+but accesses them through sys call.
+<span class="quote">
+&gt; What if a perf interrupt happens while you&#39;re in the alternate mm?</span>
+
+Since we are disabling/enabling interrupts around switching, I think we
+are safe. We do these in following functions
+phys_efi_set_virtual_address_map()
+efi_thunk_set_virtual_address_map()
+efi_call_virt_pointer()
+<span class="quote">
+&gt; What if you segfault and dump core?</span>
+
+We could seg fault only if firmware touches regions which it shouldn&#39;t.
+i.e. Firmware touching regions outside EFI_RUNTIME_SERVICES (this is a
+UEFI Spec violation). So, in this case of buggy firmware, we panic (this
+is an existing problem). We also map EFI_BOOT_TIME_SERVICES into efi_pgd
+because we know some buggy firmware touches these regions.
+<span class="quote">
+&gt;  Should we maybe just have a flag</span>
+<span class="quote">&gt; that says &quot;this cpu is using a funny mm&quot;, assert that the flag is</span>
+<span class="quote">&gt; clear when scheduling, and teach perf, coredumps, etc not to touch</span>
+<span class="quote">&gt; user memory when the flag is set?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Admittedly, the latter problem may well have existed even before these patches.</span>
+
+Please let me know if you think otherwise.
+
+Matt,
+Please feel free to correct my understanding.
+
+Regards,
+Sai
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - Aug. 16, 2017, 12:47 a.m.</div>
+<pre class="content">
+On Tue, Aug 15, 2017 at 5:23 PM, Sai Praneeth Prakhya
+&lt;sai.praneeth.prakhya@intel.com&gt; wrote:
+<span class="quote">&gt; On Tue, 2017-08-15 at 14:46 -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; On Tue, Aug 15, 2017 at 12:18 PM, Sai Praneeth Prakhya</span>
+<span class="quote">&gt;&gt; &lt;sai.praneeth.prakhya@intel.com&gt; wrote:</span>
+<span class="quote">&gt;&gt; &gt; +/*</span>
+<span class="quote">&gt;&gt; &gt; + * Makes the calling kernel thread switch to/from efi_mm context</span>
+<span class="quote">&gt;&gt; &gt; + * Can be used from SetVirtualAddressMap() or during efi runtime calls</span>
+<span class="quote">&gt;&gt; &gt; + * (Note: This routine is heavily inspired from use_mm)</span>
+<span class="quote">&gt;&gt; &gt; + */</span>
+<span class="quote">&gt;&gt; &gt; +void efi_switch_mm(struct mm_struct *mm)</span>
+<span class="quote">&gt;&gt; &gt; +{</span>
+<span class="quote">&gt;&gt; &gt; +       struct task_struct *tsk = current;</span>
+<span class="quote">&gt;&gt; &gt; +</span>
+<span class="quote">&gt;&gt; &gt; +       task_lock(tsk);</span>
+<span class="quote">&gt;&gt; &gt; +       efi_scratch.prev_mm = tsk-&gt;active_mm;</span>
+<span class="quote">&gt;&gt; &gt; +       if (efi_scratch.prev_mm != mm) {</span>
+<span class="quote">&gt;&gt; &gt; +               mmgrab(mm);</span>
+<span class="quote">&gt;&gt; &gt; +               tsk-&gt;active_mm = mm;</span>
+<span class="quote">&gt;&gt; &gt; +       }</span>
+<span class="quote">&gt;&gt; &gt; +       switch_mm(efi_scratch.prev_mm, mm, NULL);</span>
+<span class="quote">&gt;&gt; &gt; +       task_unlock(tsk);</span>
+<span class="quote">&gt;&gt; &gt; +</span>
+<span class="quote">&gt;&gt; &gt; +       if (efi_scratch.prev_mm != mm)</span>
+<span class="quote">&gt;&gt; &gt; +               mmdrop(efi_scratch.prev_mm);</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Thanks for the quick review Andy,</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; I&#39;m confused.  You&#39;re mmdropping an mm that you are still keeping a</span>
+<span class="quote">&gt;&gt; pointer to.  This is also a bit confusing in the case where you do</span>
+<span class="quote">&gt;&gt; efi_switch_mm(efi_scratch.prev_mm).</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; This makes sense, I will look into it.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; This whole manipulation seems fairly dangerous to me for another</span>
+<span class="quote">&gt;&gt; reason -- you&#39;re taking a user thread (I think) and swapping out its</span>
+<span class="quote">&gt;&gt; mm to something that the user in question should *not* have access to.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; We are switching to efi_mm from user mm_struct because</span>
+<span class="quote">&gt; EFI_RUNTIME_SERVICES like efi_set_variable()/efi_get_variable() are</span>
+<span class="quote">&gt; accessible only through efi_pgd. The user thread calls ioctl() which in</span>
+<span class="quote">&gt; turn calls efi_call() and thus efi_switch_mm(). So, I think, the user</span>
+<span class="quote">&gt; still does not have direct access to EFI_RUNTIME_SERVICES memory regions</span>
+<span class="quote">&gt; but accesses them through sys call.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; What if a perf interrupt happens while you&#39;re in the alternate mm?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Since we are disabling/enabling interrupts around switching, I think we</span>
+<span class="quote">&gt; are safe. We do these in following functions</span>
+<span class="quote">&gt; phys_efi_set_virtual_address_map()</span>
+<span class="quote">&gt; efi_thunk_set_virtual_address_map()</span>
+<span class="quote">&gt; efi_call_virt_pointer()</span>
+
+perf uses NMI, so this doesn&#39;t help.
+
+Perhaps the sequence could look like this:
+
+local_irq_disable();
+current-&gt;active_mm = efi_mm;
+switch_to();
+
+...
+
+switch_to(back to old mm);
+current-&gt;active_mm = old mm;
+
+and make perf know that current-&gt;active_mm != current-&gt;mm means that
+user memory is off limits.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=66681">Ard Biesheuvel</a> - Aug. 16, 2017, 9:31 a.m.</div>
+<pre class="content">
+(+ Mark, Will)
+
+On 15 August 2017 at 22:46, Andy Lutomirski &lt;luto@kernel.org&gt; wrote:
+<span class="quote">&gt; On Tue, Aug 15, 2017 at 12:18 PM, Sai Praneeth Prakhya</span>
+<span class="quote">&gt; &lt;sai.praneeth.prakhya@intel.com&gt; wrote:</span>
+<span class="quote">&gt;&gt; +/*</span>
+<span class="quote">&gt;&gt; + * Makes the calling kernel thread switch to/from efi_mm context</span>
+<span class="quote">&gt;&gt; + * Can be used from SetVirtualAddressMap() or during efi runtime calls</span>
+<span class="quote">&gt;&gt; + * (Note: This routine is heavily inspired from use_mm)</span>
+<span class="quote">&gt;&gt; + */</span>
+<span class="quote">&gt;&gt; +void efi_switch_mm(struct mm_struct *mm)</span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +       struct task_struct *tsk = current;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +       task_lock(tsk);</span>
+<span class="quote">&gt;&gt; +       efi_scratch.prev_mm = tsk-&gt;active_mm;</span>
+<span class="quote">&gt;&gt; +       if (efi_scratch.prev_mm != mm) {</span>
+<span class="quote">&gt;&gt; +               mmgrab(mm);</span>
+<span class="quote">&gt;&gt; +               tsk-&gt;active_mm = mm;</span>
+<span class="quote">&gt;&gt; +       }</span>
+<span class="quote">&gt;&gt; +       switch_mm(efi_scratch.prev_mm, mm, NULL);</span>
+<span class="quote">&gt;&gt; +       task_unlock(tsk);</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +       if (efi_scratch.prev_mm != mm)</span>
+<span class="quote">&gt;&gt; +               mmdrop(efi_scratch.prev_mm);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I&#39;m confused.  You&#39;re mmdropping an mm that you are still keeping a</span>
+<span class="quote">&gt; pointer to.  This is also a bit confusing in the case where you do</span>
+<span class="quote">&gt; efi_switch_mm(efi_scratch.prev_mm).</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; This whole manipulation seems fairly dangerous to me for another</span>
+<span class="quote">&gt; reason -- you&#39;re taking a user thread (I think) and swapping out its</span>
+<span class="quote">&gt; mm to something that the user in question should *not* have access to.</span>
+<span class="quote">&gt; What if a perf interrupt happens while you&#39;re in the alternate mm?</span>
+<span class="quote">&gt; What if you segfault and dump core?  Should we maybe just have a flag</span>
+<span class="quote">&gt; that says &quot;this cpu is using a funny mm&quot;, assert that the flag is</span>
+<span class="quote">&gt; clear when scheduling, and teach perf, coredumps, etc not to touch</span>
+<span class="quote">&gt; user memory when the flag is set?</span>
+<span class="quote">&gt;</span>
+
+It appears we may have introduced this exact issue on arm64 and ARM by
+starting to run the UEFI runtime services with interrupts enabled.
+(perf does not use NMI on ARM, so the issue did not exist beforehand)
+
+Mark, Will, any thoughts?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=30282">Mark Rutland</a> - Aug. 16, 2017, 9:53 a.m.</div>
+<pre class="content">
+On Wed, Aug 16, 2017 at 10:31:12AM +0100, Ard Biesheuvel wrote:
+<span class="quote">&gt; (+ Mark, Will)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; On 15 August 2017 at 22:46, Andy Lutomirski &lt;luto@kernel.org&gt; wrote:</span>
+<span class="quote">&gt; &gt; On Tue, Aug 15, 2017 at 12:18 PM, Sai Praneeth Prakhya</span>
+<span class="quote">&gt; &gt; &lt;sai.praneeth.prakhya@intel.com&gt; wrote:</span>
+<span class="quote">&gt; &gt;&gt; +/*</span>
+<span class="quote">&gt; &gt;&gt; + * Makes the calling kernel thread switch to/from efi_mm context</span>
+<span class="quote">&gt; &gt;&gt; + * Can be used from SetVirtualAddressMap() or during efi runtime calls</span>
+<span class="quote">&gt; &gt;&gt; + * (Note: This routine is heavily inspired from use_mm)</span>
+<span class="quote">&gt; &gt;&gt; + */</span>
+<span class="quote">&gt; &gt;&gt; +void efi_switch_mm(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt;&gt; +{</span>
+<span class="quote">&gt; &gt;&gt; +       struct task_struct *tsk = current;</span>
+<span class="quote">&gt; &gt;&gt; +</span>
+<span class="quote">&gt; &gt;&gt; +       task_lock(tsk);</span>
+<span class="quote">&gt; &gt;&gt; +       efi_scratch.prev_mm = tsk-&gt;active_mm;</span>
+<span class="quote">&gt; &gt;&gt; +       if (efi_scratch.prev_mm != mm) {</span>
+<span class="quote">&gt; &gt;&gt; +               mmgrab(mm);</span>
+<span class="quote">&gt; &gt;&gt; +               tsk-&gt;active_mm = mm;</span>
+<span class="quote">&gt; &gt;&gt; +       }</span>
+<span class="quote">&gt; &gt;&gt; +       switch_mm(efi_scratch.prev_mm, mm, NULL);</span>
+<span class="quote">&gt; &gt;&gt; +       task_unlock(tsk);</span>
+<span class="quote">&gt; &gt;&gt; +</span>
+<span class="quote">&gt; &gt;&gt; +       if (efi_scratch.prev_mm != mm)</span>
+<span class="quote">&gt; &gt;&gt; +               mmdrop(efi_scratch.prev_mm);</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; I&#39;m confused.  You&#39;re mmdropping an mm that you are still keeping a</span>
+<span class="quote">&gt; &gt; pointer to.  This is also a bit confusing in the case where you do</span>
+<span class="quote">&gt; &gt; efi_switch_mm(efi_scratch.prev_mm).</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; This whole manipulation seems fairly dangerous to me for another</span>
+<span class="quote">&gt; &gt; reason -- you&#39;re taking a user thread (I think) and swapping out its</span>
+<span class="quote">&gt; &gt; mm to something that the user in question should *not* have access to.</span>
+<span class="quote">&gt; &gt; What if a perf interrupt happens while you&#39;re in the alternate mm?</span>
+<span class="quote">&gt; &gt; What if you segfault and dump core?  Should we maybe just have a flag</span>
+<span class="quote">&gt; &gt; that says &quot;this cpu is using a funny mm&quot;, assert that the flag is</span>
+<span class="quote">&gt; &gt; clear when scheduling, and teach perf, coredumps, etc not to touch</span>
+<span class="quote">&gt; &gt; user memory when the flag is set?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It appears we may have introduced this exact issue on arm64 and ARM by</span>
+<span class="quote">&gt; starting to run the UEFI runtime services with interrupts enabled.</span>
+<span class="quote">&gt; (perf does not use NMI on ARM, so the issue did not exist beforehand)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Mark, Will, any thoughts?</span>
+
+Yup, I can cause perf to take samples from the EFI FW code, so that&#39;s
+less than ideal.
+
+The &quot;funny mm&quot; flag sounds like a good idea to me, though given recent
+pain with sampling in the case of skid, I don&#39;t know exactly what we
+should do if/when we take an overflow interrupt while in EFI.
+
+Mark.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - Aug. 16, 2017, 10:07 a.m.</div>
+<pre class="content">
+On Wed, Aug 16, 2017 at 10:53:38AM +0100, Mark Rutland wrote:
+<span class="quote">&gt; On Wed, Aug 16, 2017 at 10:31:12AM +0100, Ard Biesheuvel wrote:</span>
+<span class="quote">&gt; &gt; (+ Mark, Will)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; On 15 August 2017 at 22:46, Andy Lutomirski &lt;luto@kernel.org&gt; wrote:</span>
+<span class="quote">&gt; &gt; &gt; On Tue, Aug 15, 2017 at 12:18 PM, Sai Praneeth Prakhya</span>
+<span class="quote">&gt; &gt; &gt; &lt;sai.praneeth.prakhya@intel.com&gt; wrote:</span>
+<span class="quote">&gt; &gt; &gt;&gt; +/*</span>
+<span class="quote">&gt; &gt; &gt;&gt; + * Makes the calling kernel thread switch to/from efi_mm context</span>
+<span class="quote">&gt; &gt; &gt;&gt; + * Can be used from SetVirtualAddressMap() or during efi runtime calls</span>
+<span class="quote">&gt; &gt; &gt;&gt; + * (Note: This routine is heavily inspired from use_mm)</span>
+<span class="quote">&gt; &gt; &gt;&gt; + */</span>
+<span class="quote">&gt; &gt; &gt;&gt; +void efi_switch_mm(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt; &gt;&gt; +{</span>
+<span class="quote">&gt; &gt; &gt;&gt; +       struct task_struct *tsk = current;</span>
+<span class="quote">&gt; &gt; &gt;&gt; +</span>
+<span class="quote">&gt; &gt; &gt;&gt; +       task_lock(tsk);</span>
+<span class="quote">&gt; &gt; &gt;&gt; +       efi_scratch.prev_mm = tsk-&gt;active_mm;</span>
+<span class="quote">&gt; &gt; &gt;&gt; +       if (efi_scratch.prev_mm != mm) {</span>
+<span class="quote">&gt; &gt; &gt;&gt; +               mmgrab(mm);</span>
+<span class="quote">&gt; &gt; &gt;&gt; +               tsk-&gt;active_mm = mm;</span>
+<span class="quote">&gt; &gt; &gt;&gt; +       }</span>
+<span class="quote">&gt; &gt; &gt;&gt; +       switch_mm(efi_scratch.prev_mm, mm, NULL);</span>
+<span class="quote">&gt; &gt; &gt;&gt; +       task_unlock(tsk);</span>
+<span class="quote">&gt; &gt; &gt;&gt; +</span>
+<span class="quote">&gt; &gt; &gt;&gt; +       if (efi_scratch.prev_mm != mm)</span>
+<span class="quote">&gt; &gt; &gt;&gt; +               mmdrop(efi_scratch.prev_mm);</span>
+<span class="quote">&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; I&#39;m confused.  You&#39;re mmdropping an mm that you are still keeping a</span>
+<span class="quote">&gt; &gt; &gt; pointer to.  This is also a bit confusing in the case where you do</span>
+<span class="quote">&gt; &gt; &gt; efi_switch_mm(efi_scratch.prev_mm).</span>
+<span class="quote">&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; This whole manipulation seems fairly dangerous to me for another</span>
+<span class="quote">&gt; &gt; &gt; reason -- you&#39;re taking a user thread (I think) and swapping out its</span>
+<span class="quote">&gt; &gt; &gt; mm to something that the user in question should *not* have access to.</span>
+<span class="quote">&gt; &gt; &gt; What if a perf interrupt happens while you&#39;re in the alternate mm?</span>
+<span class="quote">&gt; &gt; &gt; What if you segfault and dump core?  Should we maybe just have a flag</span>
+<span class="quote">&gt; &gt; &gt; that says &quot;this cpu is using a funny mm&quot;, assert that the flag is</span>
+<span class="quote">&gt; &gt; &gt; clear when scheduling, and teach perf, coredumps, etc not to touch</span>
+<span class="quote">&gt; &gt; &gt; user memory when the flag is set?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; It appears we may have introduced this exact issue on arm64 and ARM by</span>
+<span class="quote">&gt; &gt; starting to run the UEFI runtime services with interrupts enabled.</span>
+<span class="quote">&gt; &gt; (perf does not use NMI on ARM, so the issue did not exist beforehand)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Mark, Will, any thoughts?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yup, I can cause perf to take samples from the EFI FW code, so that&#39;s</span>
+<span class="quote">&gt; less than ideal.</span>
+
+But that should only happen if you&#39;re profiling EL1, right, which needs
+root privileges? (assuming the skid issue is solved -- not sure what
+happened to those patches after they broke criu).
+<span class="quote">
+&gt; The &quot;funny mm&quot; flag sounds like a good idea to me, though given recent</span>
+<span class="quote">&gt; pain with sampling in the case of skid, I don&#39;t know exactly what we</span>
+<span class="quote">&gt; should do if/when we take an overflow interrupt while in EFI.</span>
+
+I don&#39;t think special-casing perf interrupts is the right thing to do here.
+If we&#39;re concerned about user-accesses being made off the back of interrupts
+taken whilst in EFI, then we should probably either swizzle back in the
+user page table on the IRQ path or postpone handling it until we&#39;re done
+with the firmware. Having a flag feels a bit weird: would the uaccess
+routines return -EFAULT if it&#39;s set?
+
+Will
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=30282">Mark Rutland</a> - Aug. 16, 2017, 11:03 a.m.</div>
+<pre class="content">
+On Wed, Aug 16, 2017 at 11:07:10AM +0100, Will Deacon wrote:
+<span class="quote">&gt; On Wed, Aug 16, 2017 at 10:53:38AM +0100, Mark Rutland wrote:</span>
+<span class="quote">&gt; &gt; On Wed, Aug 16, 2017 at 10:31:12AM +0100, Ard Biesheuvel wrote:</span>
+<span class="quote">&gt; &gt; &gt; (+ Mark, Will)</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; On 15 August 2017 at 22:46, Andy Lutomirski &lt;luto@kernel.org&gt; wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; On Tue, Aug 15, 2017 at 12:18 PM, Sai Praneeth Prakhya</span>
+<span class="quote">&gt; &gt; &gt; &gt; &lt;sai.praneeth.prakhya@intel.com&gt; wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; +/*</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; + * Makes the calling kernel thread switch to/from efi_mm context</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; + * Can be used from SetVirtualAddressMap() or during efi runtime calls</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; + * (Note: This routine is heavily inspired from use_mm)</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; + */</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; +void efi_switch_mm(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; +{</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; +       struct task_struct *tsk = current;</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; +</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; +       task_lock(tsk);</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; +       efi_scratch.prev_mm = tsk-&gt;active_mm;</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; +       if (efi_scratch.prev_mm != mm) {</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; +               mmgrab(mm);</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; +               tsk-&gt;active_mm = mm;</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; +       }</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; +       switch_mm(efi_scratch.prev_mm, mm, NULL);</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; +       task_unlock(tsk);</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; +</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; +       if (efi_scratch.prev_mm != mm)</span>
+<span class="quote">&gt; &gt; &gt; &gt;&gt; +               mmdrop(efi_scratch.prev_mm);</span>
+<span class="quote">&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; I&#39;m confused.  You&#39;re mmdropping an mm that you are still keeping a</span>
+<span class="quote">&gt; &gt; &gt; &gt; pointer to.  This is also a bit confusing in the case where you do</span>
+<span class="quote">&gt; &gt; &gt; &gt; efi_switch_mm(efi_scratch.prev_mm).</span>
+<span class="quote">&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; This whole manipulation seems fairly dangerous to me for another</span>
+<span class="quote">&gt; &gt; &gt; &gt; reason -- you&#39;re taking a user thread (I think) and swapping out its</span>
+<span class="quote">&gt; &gt; &gt; &gt; mm to something that the user in question should *not* have access to.</span>
+<span class="quote">&gt; &gt; &gt; &gt; What if a perf interrupt happens while you&#39;re in the alternate mm?</span>
+<span class="quote">&gt; &gt; &gt; &gt; What if you segfault and dump core?  Should we maybe just have a flag</span>
+<span class="quote">&gt; &gt; &gt; &gt; that says &quot;this cpu is using a funny mm&quot;, assert that the flag is</span>
+<span class="quote">&gt; &gt; &gt; &gt; clear when scheduling, and teach perf, coredumps, etc not to touch</span>
+<span class="quote">&gt; &gt; &gt; &gt; user memory when the flag is set?</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; It appears we may have introduced this exact issue on arm64 and ARM by</span>
+<span class="quote">&gt; &gt; &gt; starting to run the UEFI runtime services with interrupts enabled.</span>
+<span class="quote">&gt; &gt; &gt; (perf does not use NMI on ARM, so the issue did not exist beforehand)</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Mark, Will, any thoughts?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Yup, I can cause perf to take samples from the EFI FW code, so that&#39;s</span>
+<span class="quote">&gt; &gt; less than ideal.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; But that should only happen if you&#39;re profiling EL1, right, which needs</span>
+<span class="quote">&gt; root privileges? (assuming the skid issue is solved -- not sure what</span>
+<span class="quote">&gt; happened to those patches after they broke criu).</span>
+
+I *think* that only needs perf_event_paranoid &lt; 1, rather than root.
+
+It&#39;s certianly not accessible by default to most users (e.g. my Ubuntu
+fs sets this to 2, and IIRC Debian go to a much more stringent
+non-upstream paranoid level).
+<span class="quote"> 
+&gt; &gt; The &quot;funny mm&quot; flag sounds like a good idea to me, though given recent</span>
+<span class="quote">&gt; &gt; pain with sampling in the case of skid, I don&#39;t know exactly what we</span>
+<span class="quote">&gt; &gt; should do if/when we take an overflow interrupt while in EFI.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I don&#39;t think special-casing perf interrupts is the right thing to do here.</span>
+<span class="quote">&gt; If we&#39;re concerned about user-accesses being made off the back of interrupts</span>
+<span class="quote">&gt; taken whilst in EFI, then we should probably either swizzle back in the</span>
+<span class="quote">&gt; user page table on the IRQ path or postpone handling it until we&#39;re done</span>
+<span class="quote">&gt; with the firmware.</span>
+
+Doing that for every IRQ feels odd, especially as the result would be
+sampling something that wasn&#39;t executed, potentially repeatedly, giveing
+bogus info.
+<span class="quote">
+&gt; Having a flag feels a bit weird: would the uaccess routines return</span>
+<span class="quote">&gt; -EFAULT if it&#39;s set?</span>
+
+I&#39;d expect we&#39;d abort at a higher level, not taking any sample. i.e.
+we&#39;d have the core overflow handler check in_funny_mm(), and if so, skip
+the sample, as with the skid case.
+
+Thanks,
+Mark.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=119821">Matt Fleming</a> - Aug. 16, 2017, 12:57 p.m.</div>
+<pre class="content">
+On Wed, 16 Aug, at 12:03:22PM, Mark Rutland wrote:
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I&#39;d expect we&#39;d abort at a higher level, not taking any sample. i.e.</span>
+<span class="quote">&gt; we&#39;d have the core overflow handler check in_funny_mm(), and if so, skip</span>
+<span class="quote">&gt; the sample, as with the skid case.</span>
+
+FYI, this is my preferred solution for x86 too.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - Aug. 16, 2017, 4:14 p.m.</div>
+<pre class="content">
+On Wed, Aug 16, 2017 at 5:57 AM, Matt Fleming &lt;matt@codeblueprint.co.uk&gt; wrote:
+<span class="quote">&gt; On Wed, 16 Aug, at 12:03:22PM, Mark Rutland wrote:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; I&#39;d expect we&#39;d abort at a higher level, not taking any sample. i.e.</span>
+<span class="quote">&gt;&gt; we&#39;d have the core overflow handler check in_funny_mm(), and if so, skip</span>
+<span class="quote">&gt;&gt; the sample, as with the skid case.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; FYI, this is my preferred solution for x86 too.</span>
+
+One option for the &quot;funny mm&quot; flag would be literally the condition
+current-&gt;mm != current-&gt;active_mm.  I *think* this gets all the cases
+right as long as efi_switch_mm is careful with its ordering and that
+the arch switch_mm() code can handle the resulting ordering.  (x86&#39;s
+can now, I think, or at least will be able to in 4.14 -- not sure
+about other arches).
+
+That being said, there&#39;s a totally different solution: run EFI
+callbacks in a kernel thread.  This has other benefits: we could run
+those callbacks in user mode some day, and doing *that* in a user
+thread seems like a mistake.
+
+--Andy
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - Aug. 17, 2017, 10:35 a.m.</div>
+<pre class="content">
+On Tue, Aug 15, 2017 at 11:35:41PM +0100, Mark Rutland wrote:
+<span class="quote">&gt; On Wed, Aug 16, 2017 at 09:14:41AM -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt; &gt; On Wed, Aug 16, 2017 at 5:57 AM, Matt Fleming &lt;matt@codeblueprint.co.uk&gt; wrote:</span>
+<span class="quote">&gt; &gt; &gt; On Wed, 16 Aug, at 12:03:22PM, Mark Rutland wrote:</span>
+<span class="quote">&gt; &gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt; &gt;&gt; I&#39;d expect we&#39;d abort at a higher level, not taking any sample. i.e.</span>
+<span class="quote">&gt; &gt; &gt;&gt; we&#39;d have the core overflow handler check in_funny_mm(), and if so, skip</span>
+<span class="quote">&gt; &gt; &gt;&gt; the sample, as with the skid case.</span>
+<span class="quote">&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; FYI, this is my preferred solution for x86 too.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; One option for the &quot;funny mm&quot; flag would be literally the condition</span>
+<span class="quote">&gt; &gt; current-&gt;mm != current-&gt;active_mm.  I *think* this gets all the cases</span>
+<span class="quote">&gt; &gt; right as long as efi_switch_mm is careful with its ordering and that</span>
+<span class="quote">&gt; &gt; the arch switch_mm() code can handle the resulting ordering.  (x86&#39;s</span>
+<span class="quote">&gt; &gt; can now, I think, or at least will be able to in 4.14 -- not sure</span>
+<span class="quote">&gt; &gt; about other arches).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; For arm64 we&#39;d have to rework things a bit to get the ordering right</span>
+<span class="quote">&gt; (especially when we flip to/from the idmap), but otherwise this sounds sane to</span>
+<span class="quote">&gt; me.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; That being said, there&#39;s a totally different solution: run EFI</span>
+<span class="quote">&gt; &gt; callbacks in a kernel thread.  This has other benefits: we could run</span>
+<span class="quote">&gt; &gt; those callbacks in user mode some day, and doing *that* in a user</span>
+<span class="quote">&gt; &gt; thread seems like a mistake.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I think that wouldn&#39;t work for CPU-bound perf events (which are not</span>
+<span class="quote">&gt; ctx-switched with the task).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It might be desireable to do that anyway, though.</span>
+
+I&#39;m still concerned that we&#39;re treating perf specially here -- are we
+absolutely sure that nobody else is going to attempt user accesses off the
+back of an interrupt? If not, then I&#39;d much prefer a solution that catches
+anybody doing that with the EFI page table installed, rather than trying
+to play whack-a-mole like this.
+
+Will
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - Aug. 17, 2017, 3:52 p.m.</div>
+<pre class="content">
+On Thu, Aug 17, 2017 at 3:35 AM, Will Deacon &lt;will.deacon@arm.com&gt; wrote:
+<span class="quote">&gt; On Tue, Aug 15, 2017 at 11:35:41PM +0100, Mark Rutland wrote:</span>
+<span class="quote">&gt;&gt; On Wed, Aug 16, 2017 at 09:14:41AM -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; &gt; On Wed, Aug 16, 2017 at 5:57 AM, Matt Fleming &lt;matt@codeblueprint.co.uk&gt; wrote:</span>
+<span class="quote">&gt;&gt; &gt; &gt; On Wed, 16 Aug, at 12:03:22PM, Mark Rutland wrote:</span>
+<span class="quote">&gt;&gt; &gt; &gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt; &gt;&gt; I&#39;d expect we&#39;d abort at a higher level, not taking any sample. i.e.</span>
+<span class="quote">&gt;&gt; &gt; &gt;&gt; we&#39;d have the core overflow handler check in_funny_mm(), and if so, skip</span>
+<span class="quote">&gt;&gt; &gt; &gt;&gt; the sample, as with the skid case.</span>
+<span class="quote">&gt;&gt; &gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; &gt; FYI, this is my preferred solution for x86 too.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; One option for the &quot;funny mm&quot; flag would be literally the condition</span>
+<span class="quote">&gt;&gt; &gt; current-&gt;mm != current-&gt;active_mm.  I *think* this gets all the cases</span>
+<span class="quote">&gt;&gt; &gt; right as long as efi_switch_mm is careful with its ordering and that</span>
+<span class="quote">&gt;&gt; &gt; the arch switch_mm() code can handle the resulting ordering.  (x86&#39;s</span>
+<span class="quote">&gt;&gt; &gt; can now, I think, or at least will be able to in 4.14 -- not sure</span>
+<span class="quote">&gt;&gt; &gt; about other arches).</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; For arm64 we&#39;d have to rework things a bit to get the ordering right</span>
+<span class="quote">&gt;&gt; (especially when we flip to/from the idmap), but otherwise this sounds sane to</span>
+<span class="quote">&gt;&gt; me.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt; That being said, there&#39;s a totally different solution: run EFI</span>
+<span class="quote">&gt;&gt; &gt; callbacks in a kernel thread.  This has other benefits: we could run</span>
+<span class="quote">&gt;&gt; &gt; those callbacks in user mode some day, and doing *that* in a user</span>
+<span class="quote">&gt;&gt; &gt; thread seems like a mistake.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; I think that wouldn&#39;t work for CPU-bound perf events (which are not</span>
+<span class="quote">&gt;&gt; ctx-switched with the task).</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; It might be desireable to do that anyway, though.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I&#39;m still concerned that we&#39;re treating perf specially here -- are we</span>
+<span class="quote">&gt; absolutely sure that nobody else is going to attempt user accesses off the</span>
+<span class="quote">&gt; back of an interrupt?</span>
+
+Reasonably sure?  If nothing else, an interrupt taken while mmap_sem()
+is held for write that tries to access user memory is asking for
+serious trouble.  There are still a few callers of pagefault_disable()
+and copy...inatomic(), though.
+<span class="quote">
+&gt; If not, then I&#39;d much prefer a solution that catches</span>
+<span class="quote">&gt; anybody doing that with the EFI page table installed, rather than trying</span>
+<span class="quote">&gt; to play whack-a-mole like this.</span>
+
+Using a kernel thread solves the problem for real.  Anything that
+blindly accesses user memory in kernel thread context is terminally
+broken no matter what.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt; Will</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 21, 2017, 10:33 a.m.</div>
+<pre class="content">
+On Thu, Aug 17, 2017 at 08:52:38AM -0700, Andy Lutomirski wrote:
+<span class="quote">&gt; On Thu, Aug 17, 2017 at 3:35 AM, Will Deacon &lt;will.deacon@arm.com&gt; wrote:</span>
+<span class="quote">
+&gt; &gt; I&#39;m still concerned that we&#39;re treating perf specially here -- are we</span>
+<span class="quote">&gt; &gt; absolutely sure that nobody else is going to attempt user accesses off the</span>
+<span class="quote">&gt; &gt; back of an interrupt?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Reasonably sure?  If nothing else, an interrupt taken while mmap_sem()</span>
+<span class="quote">&gt; is held for write that tries to access user memory is asking for</span>
+<span class="quote">&gt; serious trouble.  There are still a few callers of pagefault_disable()</span>
+<span class="quote">&gt; and copy...inatomic(), though.</span>
+
+I&#39;m not immediately seeing how holding mmap_sem for writing is a
+problem.
+<span class="quote">
+&gt; &gt; If not, then I&#39;d much prefer a solution that catches</span>
+<span class="quote">&gt; &gt; anybody doing that with the EFI page table installed, rather than trying</span>
+<span class="quote">&gt; &gt; to play whack-a-mole like this.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Using a kernel thread solves the problem for real.  Anything that</span>
+<span class="quote">&gt; blindly accesses user memory in kernel thread context is terminally</span>
+<span class="quote">&gt; broken no matter what.</span>
+
+So perf-callchain doesn&#39;t do it &#39;blindly&#39;, it wants either:
+
+ - user_mode(regs) true, or
+ - task_pt_regs() set.
+
+However I&#39;m thinking that if the kernel thread has -&gt;mm == &amp;efi_mm, the
+EFI code running could very well have user_mode(regs) being true.
+
+intel_pmu_pebs_fixup() OTOH &#39;blindly&#39; assumes that the LBR addresses are
+accessible. It bails on error though. So while its careful, it does
+attempt to access the &#39;user&#39; mapping directly. Which should also trigger
+with the EFI code.
+
+And I&#39;m not seeing anything particularly broken with either. The PEBS
+fixup relies on the CPU having just executed the code, and if it could
+fetch and execute the code, why shouldn&#39;t it be able to fetch and read?
+(eXecute implies Read assumed). And like said, it if triggers a fault,
+it bails, no worries.
+
+It really doesn&#39;t care if the task is a kernel thread or not. Same for
+the unwinder, if we get an interrupt register set that points into
+&#39;userspace&#39; we try and unwind it.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41531">Andy Lutomirski</a> - Aug. 21, 2017, 1:56 p.m.</div>
+<pre class="content">
+<span class="quote">&gt; On Aug 21, 2017, at 3:33 AM, Peter Zijlstra &lt;peterz@infradead.org&gt; wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; On Thu, Aug 17, 2017 at 08:52:38AM -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; On Thu, Aug 17, 2017 at 3:35 AM, Will Deacon &lt;will.deacon@arm.com&gt; wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt;&gt; I&#39;m still concerned that we&#39;re treating perf specially here -- are we</span>
+<span class="quote">&gt;&gt;&gt; absolutely sure that nobody else is going to attempt user accesses off the</span>
+<span class="quote">&gt;&gt;&gt; back of an interrupt?</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; Reasonably sure?  If nothing else, an interrupt taken while mmap_sem()</span>
+<span class="quote">&gt;&gt; is held for write that tries to access user memory is asking for</span>
+<span class="quote">&gt;&gt; serious trouble.  There are still a few callers of pagefault_disable()</span>
+<span class="quote">&gt;&gt; and copy...inatomic(), though.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I&#39;m not immediately seeing how holding mmap_sem for writing is a</span>
+<span class="quote">&gt; problem.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt;&gt; If not, then I&#39;d much prefer a solution that catches</span>
+<span class="quote">&gt;&gt;&gt; anybody doing that with the EFI page table installed, rather than trying</span>
+<span class="quote">&gt;&gt;&gt; to play whack-a-mole like this.</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; Using a kernel thread solves the problem for real.  Anything that</span>
+<span class="quote">&gt;&gt; blindly accesses user memory in kernel thread context is terminally</span>
+<span class="quote">&gt;&gt; broken no matter what.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So perf-callchain doesn&#39;t do it &#39;blindly&#39;, it wants either:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; - user_mode(regs) true, or</span>
+<span class="quote">&gt; - task_pt_regs() set.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; However I&#39;m thinking that if the kernel thread has -&gt;mm == &amp;efi_mm, the</span>
+<span class="quote">&gt; EFI code running could very well have user_mode(regs) being true.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; intel_pmu_pebs_fixup() OTOH &#39;blindly&#39; assumes that the LBR addresses are</span>
+<span class="quote">&gt; accessible. It bails on error though. So while its careful, it does</span>
+<span class="quote">&gt; attempt to access the &#39;user&#39; mapping directly. Which should also trigger</span>
+<span class="quote">&gt; with the EFI code.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; And I&#39;m not seeing anything particularly broken with either. The PEBS</span>
+<span class="quote">&gt; fixup relies on the CPU having just executed the code, and if it could</span>
+<span class="quote">&gt; fetch and execute the code, why shouldn&#39;t it be able to fetch and read?</span>
+
+There are two ways this could be a problem.  One is that u privileged user apps shouldn&#39;t be able to read from EFI memory.  The other is that, if EFI were to have IO memory mapped at a &quot;user&quot; address, perf could end up reading it.
+<span class="quote">
+&gt; (eXecute implies Read assumed). And like said, it if triggers a fault,</span>
+<span class="quote">&gt; it bails, no worries.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It really doesn&#39;t care if the task is a kernel thread or not. Same for</span>
+<span class="quote">&gt; the unwinder, if we get an interrupt register set that points into</span>
+<span class="quote">&gt; &#39;userspace&#39; we try and unwind it.</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 21, 2017, 2:08 p.m.</div>
+<pre class="content">
+On Mon, Aug 21, 2017 at 06:56:01AM -0700, Andy Lutomirski wrote:
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; On Aug 21, 2017, at 3:33 AM, Peter Zijlstra &lt;peterz@infradead.org&gt; wrote:</span>
+<span class="quote">
+&gt; &gt;&gt; </span>
+<span class="quote">&gt; &gt;&gt; Using a kernel thread solves the problem for real.  Anything that</span>
+<span class="quote">&gt; &gt;&gt; blindly accesses user memory in kernel thread context is terminally</span>
+<span class="quote">&gt; &gt;&gt; broken no matter what.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; So perf-callchain doesn&#39;t do it &#39;blindly&#39;, it wants either:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; - user_mode(regs) true, or</span>
+<span class="quote">&gt; &gt; - task_pt_regs() set.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; However I&#39;m thinking that if the kernel thread has -&gt;mm == &amp;efi_mm, the</span>
+<span class="quote">&gt; &gt; EFI code running could very well have user_mode(regs) being true.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; intel_pmu_pebs_fixup() OTOH &#39;blindly&#39; assumes that the LBR addresses are</span>
+<span class="quote">&gt; &gt; accessible. It bails on error though. So while its careful, it does</span>
+<span class="quote">&gt; &gt; attempt to access the &#39;user&#39; mapping directly. Which should also trigger</span>
+<span class="quote">&gt; &gt; with the EFI code.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; And I&#39;m not seeing anything particularly broken with either. The PEBS</span>
+<span class="quote">&gt; &gt; fixup relies on the CPU having just executed the code, and if it could</span>
+<span class="quote">&gt; &gt; fetch and execute the code, why shouldn&#39;t it be able to fetch and read?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; There are two ways this could be a problem.  One is that u privileged</span>
+<span class="quote">&gt; user apps shouldn&#39;t be able to read from EFI memory.</span>
+
+Ah, but only root can create per-cpu events or attach events to kernel
+threads (with sensible paranoia levels).
+<span class="quote">
+&gt; The other is that, if EFI were to have IO memory mapped at a &quot;user&quot;</span>
+<span class="quote">&gt; address, perf could end up reading it.</span>
+
+Ah, but in neither mode does perf assume much, the LBR follows branches
+the CPU took and thus we _know_ there was code there, not MMIO. And the
+stack unwind simply follows the stack up, although I suppose it could be
+&#39;tricked&#39; into probing MMIO. We can certainly add an &quot;-&gt;mm !=
+-&gt;active_mm&quot; escape clause to the unwind code.
+
+Although I don&#39;t see how we&#39;re currently avoiding the same problem with
+existing userspace unwinds, userspace can equally have MMIO mapped.
+
+But neither will use pre-existing user addresses in the efi_mm I think.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41531">Andy Lutomirski</a> - Aug. 21, 2017, 3:23 p.m.</div>
+<pre class="content">
+<span class="quote">&gt; On Aug 21, 2017, at 7:08 AM, Peter Zijlstra &lt;peterz@infradead.org&gt; wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; On Mon, Aug 21, 2017 at 06:56:01AM -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt;&gt; On Aug 21, 2017, at 3:33 AM, Peter Zijlstra &lt;peterz@infradead.org&gt; wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt;&gt;&gt; </span>
+<span class="quote">&gt;&gt;&gt;&gt; Using a kernel thread solves the problem for real.  Anything that</span>
+<span class="quote">&gt;&gt;&gt;&gt; blindly accesses user memory in kernel thread context is terminally</span>
+<span class="quote">&gt;&gt;&gt;&gt; broken no matter what.</span>
+<span class="quote">&gt;&gt;&gt; </span>
+<span class="quote">&gt;&gt;&gt; So perf-callchain doesn&#39;t do it &#39;blindly&#39;, it wants either:</span>
+<span class="quote">&gt;&gt;&gt; </span>
+<span class="quote">&gt;&gt;&gt; - user_mode(regs) true, or</span>
+<span class="quote">&gt;&gt;&gt; - task_pt_regs() set.</span>
+<span class="quote">&gt;&gt;&gt; </span>
+<span class="quote">&gt;&gt;&gt; However I&#39;m thinking that if the kernel thread has -&gt;mm == &amp;efi_mm, the</span>
+<span class="quote">&gt;&gt;&gt; EFI code running could very well have user_mode(regs) being true.</span>
+<span class="quote">&gt;&gt;&gt; </span>
+<span class="quote">&gt;&gt;&gt; intel_pmu_pebs_fixup() OTOH &#39;blindly&#39; assumes that the LBR addresses are</span>
+<span class="quote">&gt;&gt;&gt; accessible. It bails on error though. So while its careful, it does</span>
+<span class="quote">&gt;&gt;&gt; attempt to access the &#39;user&#39; mapping directly. Which should also trigger</span>
+<span class="quote">&gt;&gt;&gt; with the EFI code.</span>
+<span class="quote">&gt;&gt;&gt; </span>
+<span class="quote">&gt;&gt;&gt; And I&#39;m not seeing anything particularly broken with either. The PEBS</span>
+<span class="quote">&gt;&gt;&gt; fixup relies on the CPU having just executed the code, and if it could</span>
+<span class="quote">&gt;&gt;&gt; fetch and execute the code, why shouldn&#39;t it be able to fetch and read?</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; There are two ways this could be a problem.  One is that u privileged</span>
+<span class="quote">&gt;&gt; user apps shouldn&#39;t be able to read from EFI memory.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Ah, but only root can create per-cpu events or attach events to kernel</span>
+<span class="quote">&gt; threads (with sensible paranoia levels).</span>
+
+But this may not need to be percpu.  If a non root user can trigger, say, an EFI variable read in their own thread context, boom.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; The other is that, if EFI were to have IO memory mapped at a &quot;user&quot;</span>
+<span class="quote">&gt;&gt; address, perf could end up reading it.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Ah, but in neither mode does perf assume much, the LBR follows branches</span>
+<span class="quote">&gt; the CPU took and thus we _know_ there was code there, not MMIO. And the</span>
+<span class="quote">&gt; stack unwind simply follows the stack up, although I suppose it could be</span>
+<span class="quote">&gt; &#39;tricked&#39; into probing MMIO. We can certainly add an &quot;-&gt;mm !=</span>
+<span class="quote">&gt; -&gt;active_mm&quot; escape clause to the unwind code.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Although I don&#39;t see how we&#39;re currently avoiding the same problem with</span>
+<span class="quote">&gt; existing userspace unwinds, userspace can equally have MMIO mapped.</span>
+
+But user space at least only has IO mapped to which the user program in question has rights.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; But neither will use pre-existing user addresses in the efi_mm I think.</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 21, 2017, 3:59 p.m.</div>
+<pre class="content">
+On Mon, Aug 21, 2017 at 08:23:10AM -0700, Andy Lutomirski wrote:
+<span class="quote">&gt; &gt; Ah, but only root can create per-cpu events or attach events to kernel</span>
+<span class="quote">&gt; &gt; threads (with sensible paranoia levels).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; But this may not need to be percpu.  If a non root user can trigger, say, an EFI variable read in their own thread context, boom.</span>
+
+I was going by the proposed: &quot;everything EFI in a kthread&quot; model. But
+yes, if that&#39;s not done, then you&#39;re quite right.
+<span class="quote">
+&gt; &gt; </span>
+<span class="quote">&gt; &gt;&gt; The other is that, if EFI were to have IO memory mapped at a &quot;user&quot;</span>
+<span class="quote">&gt; &gt;&gt; address, perf could end up reading it.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Ah, but in neither mode does perf assume much, the LBR follows branches</span>
+<span class="quote">&gt; &gt; the CPU took and thus we _know_ there was code there, not MMIO. And the</span>
+<span class="quote">&gt; &gt; stack unwind simply follows the stack up, although I suppose it could be</span>
+<span class="quote">&gt; &gt; &#39;tricked&#39; into probing MMIO. We can certainly add an &quot;-&gt;mm !=</span>
+<span class="quote">&gt; &gt; -&gt;active_mm&quot; escape clause to the unwind code.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Although I don&#39;t see how we&#39;re currently avoiding the same problem with</span>
+<span class="quote">&gt; &gt; existing userspace unwinds, userspace can equally have MMIO mapped.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; But user space at least only has IO mapped to which the user program in question has rights.</span>
+
+Still, we should not mess it up just because we&#39;re trying to unwind
+stacks.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=66681">Ard Biesheuvel</a> - Aug. 21, 2017, 4:08 p.m.</div>
+<pre class="content">
+On 21 August 2017 at 16:59, Peter Zijlstra &lt;peterz@infradead.org&gt; wrote:
+<span class="quote">&gt; On Mon, Aug 21, 2017 at 08:23:10AM -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; &gt; Ah, but only root can create per-cpu events or attach events to kernel</span>
+<span class="quote">&gt;&gt; &gt; threads (with sensible paranoia levels).</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; But this may not need to be percpu.  If a non root user can trigger, say, an EFI variable read in their own thread context, boom.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I was going by the proposed: &quot;everything EFI in a kthread&quot; model. But</span>
+<span class="quote">&gt; yes, if that&#39;s not done, then you&#39;re quite right.</span>
+<span class="quote">&gt;</span>
+
+How does this work in cases where we need to call into UEFI from
+non-process context? Or at least from a context where current != EFI&#39;s
+kthread. We have EFI pstore code, for instance, that records panic
+data. Should we make an exception for those?
+
+I&#39;m happy to have a stab at implementing the EFI kthread, but I&#39;d like
+to get some of these details clarified first.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 21, 2017, 5:24 p.m.</div>
+<pre class="content">
+On Mon, Aug 21, 2017 at 06:56:01AM -0700, Andy Lutomirski wrote:
+<span class="quote">&gt; There are two ways this could be a problem.  One is that u privileged</span>
+<span class="quote">&gt; user apps shouldn&#39;t be able to read from EFI memory.  The other is</span>
+<span class="quote">&gt; that, if EFI were to have IO memory mapped at a &quot;user&quot; address, perf</span>
+<span class="quote">&gt; could end up reading it.</span>
+
+So assuming the efi_switch_mm() case from the calling thread context, I
+don&#39;t see how we can avoid it at all.
+
+Suppose we have a free running PEBS counter (PEBS puts samples in DS
+buffer and only raises PMI when &#39;full&#39;). This can easily cover the
+entire efi_switch_mm() and back swizzle, and then we have &#39;userspace&#39;
+samples that don&#39;t correspond to actual userspace.
+
+EFI (pretending to be userspace) is a giant trainwreck.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=144541">Sai Praneeth Prakhya</a> - Aug. 23, 2017, 10:52 p.m.</div>
+<pre class="content">
+On Mon, 2017-08-21 at 08:23 -0700, Andy Lutomirski wrote:
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; On Aug 21, 2017, at 7:08 AM, Peter Zijlstra &lt;peterz@infradead.org&gt; wrote:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;&gt; On Mon, Aug 21, 2017 at 06:56:01AM -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt; &gt;&gt; </span>
+<span class="quote">&gt; &gt;&gt; </span>
+<span class="quote">&gt; &gt;&gt;&gt; On Aug 21, 2017, at 3:33 AM, Peter Zijlstra &lt;peterz@infradead.org&gt; wrote:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;&gt;&gt;&gt; </span>
+<span class="quote">&gt; &gt;&gt;&gt;&gt; Using a kernel thread solves the problem for real.  Anything that</span>
+<span class="quote">&gt; &gt;&gt;&gt;&gt; blindly accesses user memory in kernel thread context is terminally</span>
+<span class="quote">&gt; &gt;&gt;&gt;&gt; broken no matter what.</span>
+<span class="quote">&gt; &gt;&gt;&gt; </span>
+<span class="quote">&gt; &gt;&gt;&gt; So perf-callchain doesn&#39;t do it &#39;blindly&#39;, it wants either:</span>
+<span class="quote">&gt; &gt;&gt;&gt; </span>
+<span class="quote">&gt; &gt;&gt;&gt; - user_mode(regs) true, or</span>
+<span class="quote">&gt; &gt;&gt;&gt; - task_pt_regs() set.</span>
+<span class="quote">&gt; &gt;&gt;&gt; </span>
+<span class="quote">&gt; &gt;&gt;&gt; However I&#39;m thinking that if the kernel thread has -&gt;mm == &amp;efi_mm, the</span>
+<span class="quote">&gt; &gt;&gt;&gt; EFI code running could very well have user_mode(regs) being true.</span>
+<span class="quote">&gt; &gt;&gt;&gt; </span>
+<span class="quote">&gt; &gt;&gt;&gt; intel_pmu_pebs_fixup() OTOH &#39;blindly&#39; assumes that the LBR addresses are</span>
+<span class="quote">&gt; &gt;&gt;&gt; accessible. It bails on error though. So while its careful, it does</span>
+<span class="quote">&gt; &gt;&gt;&gt; attempt to access the &#39;user&#39; mapping directly. Which should also trigger</span>
+<span class="quote">&gt; &gt;&gt;&gt; with the EFI code.</span>
+<span class="quote">&gt; &gt;&gt;&gt; </span>
+<span class="quote">&gt; &gt;&gt;&gt; And I&#39;m not seeing anything particularly broken with either. The PEBS</span>
+<span class="quote">&gt; &gt;&gt;&gt; fixup relies on the CPU having just executed the code, and if it could</span>
+<span class="quote">&gt; &gt;&gt;&gt; fetch and execute the code, why shouldn&#39;t it be able to fetch and read?</span>
+<span class="quote">&gt; &gt;&gt; </span>
+<span class="quote">&gt; &gt;&gt; There are two ways this could be a problem.  One is that u privileged</span>
+<span class="quote">&gt; &gt;&gt; user apps shouldn&#39;t be able to read from EFI memory.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Ah, but only root can create per-cpu events or attach events to kernel</span>
+<span class="quote">&gt; &gt; threads (with sensible paranoia levels).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; But this may not need to be percpu.  If a non root user can trigger, say, an EFI variable read in their own thread context, boom.</span>
+<span class="quote">&gt; </span>
++ Tony
+
+Hi Andi,
+
+I am trying to reproduce the issue that we are discussing and hence
+tried an experiment like this:
+A user process continuously reads efi variable by
+&quot;cat /sys/firmware/efi/efivars/Boot0000-8be4df61-93ca-11d2-aa0d-00e098032b8c&quot; for specified time (Eg: 100 seconds) and simultaneously I ran &quot;perf top&quot; as root (which I suppose should trigger NMI&#39;s). I see that everything is fine, no lockups, no kernel crash, no warnings/errors in dmesg.
+
+I see that perf top reports 50% of time is spent in efi function
+(probably efi_get_variable()).
+Overhead	Shared Object	Symbol
+50%		[unknown]	[k] 0xfffffffeea967416
+
+50% is max, on avg it&#39;s 35%.
+
+I have tested this on two kernels v4.12 and v3.19. My machine has 8
+cores and to stress test, I further offlined all cpus except cpu0.
+
+Could you please let me know a way to reproduce the issue that we are
+discussing here.
+I think the issue we are concerned here is, when kernel is in efi
+context and an NMI happens and if the NMI handler tries to access user
+space, boom! we don&#39;t have user space in efi context. Am I right in
+understanding the issue or is it something else?
+
+Regards,
+Sai
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=144541">Sai Praneeth Prakhya</a> - Aug. 25, 2017, 2:36 a.m.</div>
+<pre class="content">
+On Tue, 2017-08-15 at 14:46 -0700, Andy Lutomirski wrote:
+<span class="quote">&gt; On Tue, Aug 15, 2017 at 12:18 PM, Sai Praneeth Prakhya</span>
+<span class="quote">&gt; &lt;sai.praneeth.prakhya@intel.com&gt; wrote:</span>
+<span class="quote">&gt; &gt; +/*</span>
+<span class="quote">&gt; &gt; + * Makes the calling kernel thread switch to/from efi_mm context</span>
+<span class="quote">&gt; &gt; + * Can be used from SetVirtualAddressMap() or during efi runtime calls</span>
+<span class="quote">&gt; &gt; + * (Note: This routine is heavily inspired from use_mm)</span>
+<span class="quote">&gt; &gt; + */</span>
+<span class="quote">&gt; &gt; +void efi_switch_mm(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt; +{</span>
+<span class="quote">&gt; &gt; +       struct task_struct *tsk = current;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       task_lock(tsk);</span>
+<span class="quote">&gt; &gt; +       efi_scratch.prev_mm = tsk-&gt;active_mm;</span>
+<span class="quote">&gt; &gt; +       if (efi_scratch.prev_mm != mm) {</span>
+<span class="quote">&gt; &gt; +               mmgrab(mm);</span>
+<span class="quote">&gt; &gt; +               tsk-&gt;active_mm = mm;</span>
+<span class="quote">&gt; &gt; +       }</span>
+<span class="quote">&gt; &gt; +       switch_mm(efi_scratch.prev_mm, mm, NULL);</span>
+<span class="quote">&gt; &gt; +       task_unlock(tsk);</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       if (efi_scratch.prev_mm != mm)</span>
+<span class="quote">&gt; &gt; +               mmdrop(efi_scratch.prev_mm);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I&#39;m confused.  You&#39;re mmdropping an mm that you are still keeping a</span>
+<span class="quote">&gt; pointer to.  This is also a bit confusing in the case where you do</span>
+<span class="quote">&gt; efi_switch_mm(efi_scratch.prev_mm).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This whole manipulation seems fairly dangerous to me for another</span>
+<span class="quote">&gt; reason -- you&#39;re taking a user thread (I think) and swapping out its</span>
+<span class="quote">&gt; mm to something that the user in question should *not* have access to.</span>
+<span class="quote">&gt; What if a perf interrupt happens while you&#39;re in the alternate mm?</span>
+<span class="quote">&gt; What if you segfault and dump core?  Should we maybe just have a flag</span>
+<span class="quote">&gt; that says &quot;this cpu is using a funny mm&quot;, assert that the flag is</span>
+<span class="quote">&gt; clear when scheduling, and teach perf, coredumps, etc not to touch</span>
+<span class="quote">&gt; user memory when the flag is set?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Admittedly, the latter problem may well have existed even before these patches.</span>
+
+Hi All,
+
+Could we please decouple the above issue from this patch set, so that we
+could have common efi_mm between x86 and ARM and also improve
+readability and maintainability for x86/efi.
+
+As it seems that &quot;Everything EFI as kthread&quot; might solve the above issue
+for real (which might take quite some time to implement, taking into
+consideration the complexity involved and some special case with
+pstore), do you think this patch set seems OK?
+
+If so, I will send out a V2 addressing the mmdropping issue.
+
+Regards,
+Sai
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41531">Andy Lutomirski</a> - Aug. 25, 2017, 3:13 p.m.</div>
+<pre class="content">
+On Wed, Aug 23, 2017 at 3:52 PM, Sai Praneeth Prakhya
+&lt;sai.praneeth.prakhya@intel.com&gt; wrote:
+<span class="quote">&gt; On Mon, 2017-08-21 at 08:23 -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt; On Aug 21, 2017, at 7:08 AM, Peter Zijlstra &lt;peterz@infradead.org&gt; wrote:</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; On Mon, Aug 21, 2017 at 06:56:01AM -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; &gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt; On Aug 21, 2017, at 3:33 AM, Peter Zijlstra &lt;peterz@infradead.org&gt; wrote:</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt;&gt; Using a kernel thread solves the problem for real.  Anything that</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt;&gt; blindly accesses user memory in kernel thread context is terminally</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt;&gt; broken no matter what.</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt; So perf-callchain doesn&#39;t do it &#39;blindly&#39;, it wants either:</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt; - user_mode(regs) true, or</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt; - task_pt_regs() set.</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt; However I&#39;m thinking that if the kernel thread has -&gt;mm == &amp;efi_mm, the</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt; EFI code running could very well have user_mode(regs) being true.</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt; intel_pmu_pebs_fixup() OTOH &#39;blindly&#39; assumes that the LBR addresses are</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt; accessible. It bails on error though. So while its careful, it does</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt; attempt to access the &#39;user&#39; mapping directly. Which should also trigger</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt; with the EFI code.</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt; And I&#39;m not seeing anything particularly broken with either. The PEBS</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt; fixup relies on the CPU having just executed the code, and if it could</span>
+<span class="quote">&gt;&gt; &gt;&gt;&gt; fetch and execute the code, why shouldn&#39;t it be able to fetch and read?</span>
+<span class="quote">&gt;&gt; &gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; There are two ways this could be a problem.  One is that u privileged</span>
+<span class="quote">&gt;&gt; &gt;&gt; user apps shouldn&#39;t be able to read from EFI memory.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; Ah, but only root can create per-cpu events or attach events to kernel</span>
+<span class="quote">&gt;&gt; &gt; threads (with sensible paranoia levels).</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; But this may not need to be percpu.  If a non root user can trigger, say, an EFI variable read in their own thread context, boom.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt; + Tony</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Hi Andi,</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I am trying to reproduce the issue that we are discussing and hence</span>
+<span class="quote">&gt; tried an experiment like this:</span>
+<span class="quote">&gt; A user process continuously reads efi variable by</span>
+<span class="quote">&gt; &quot;cat /sys/firmware/efi/efivars/Boot0000-8be4df61-93ca-11d2-aa0d-00e098032b8c&quot; for specified time (Eg: 100 seconds) and simultaneously I ran &quot;perf top&quot; as root (which I suppose should trigger NMI&#39;s). I see that everything is fine, no lockups, no kernel crash, no warnings/errors in dmesg.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I see that perf top reports 50% of time is spent in efi function</span>
+<span class="quote">&gt; (probably efi_get_variable()).</span>
+<span class="quote">&gt; Overhead        Shared Object   Symbol</span>
+<span class="quote">&gt; 50%             [unknown]       [k] 0xfffffffeea967416</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; 50% is max, on avg it&#39;s 35%.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I have tested this on two kernels v4.12 and v3.19. My machine has 8</span>
+<span class="quote">&gt; cores and to stress test, I further offlined all cpus except cpu0.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Could you please let me know a way to reproduce the issue that we are</span>
+<span class="quote">&gt; discussing here.</span>
+<span class="quote">&gt; I think the issue we are concerned here is, when kernel is in efi</span>
+<span class="quote">&gt; context and an NMI happens and if the NMI handler tries to access user</span>
+<span class="quote">&gt; space, boom! we don&#39;t have user space in efi context. Am I right in</span>
+<span class="quote">&gt; understanding the issue or is it something else?</span>
+
+The boom isn&#39;t a crash, though -- it&#39;ll be (potentially) sensitive
+information that shows up in the perf record.
+
+As long as EFI isn&#39;t using low addresses, there may not be an issue.
+But EFI should (maybe) use low addresses, and this&#39;ll be more
+important.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - Aug. 25, 2017, 3:13 p.m.</div>
+<pre class="content">
+On Thu, Aug 24, 2017 at 7:36 PM, Sai Praneeth Prakhya
+&lt;sai.praneeth.prakhya@intel.com&gt; wrote:
+<span class="quote">&gt; On Tue, 2017-08-15 at 14:46 -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; On Tue, Aug 15, 2017 at 12:18 PM, Sai Praneeth Prakhya</span>
+<span class="quote">&gt;&gt; &lt;sai.praneeth.prakhya@intel.com&gt; wrote:</span>
+<span class="quote">&gt;&gt; &gt; +/*</span>
+<span class="quote">&gt;&gt; &gt; + * Makes the calling kernel thread switch to/from efi_mm context</span>
+<span class="quote">&gt;&gt; &gt; + * Can be used from SetVirtualAddressMap() or during efi runtime calls</span>
+<span class="quote">&gt;&gt; &gt; + * (Note: This routine is heavily inspired from use_mm)</span>
+<span class="quote">&gt;&gt; &gt; + */</span>
+<span class="quote">&gt;&gt; &gt; +void efi_switch_mm(struct mm_struct *mm)</span>
+<span class="quote">&gt;&gt; &gt; +{</span>
+<span class="quote">&gt;&gt; &gt; +       struct task_struct *tsk = current;</span>
+<span class="quote">&gt;&gt; &gt; +</span>
+<span class="quote">&gt;&gt; &gt; +       task_lock(tsk);</span>
+<span class="quote">&gt;&gt; &gt; +       efi_scratch.prev_mm = tsk-&gt;active_mm;</span>
+<span class="quote">&gt;&gt; &gt; +       if (efi_scratch.prev_mm != mm) {</span>
+<span class="quote">&gt;&gt; &gt; +               mmgrab(mm);</span>
+<span class="quote">&gt;&gt; &gt; +               tsk-&gt;active_mm = mm;</span>
+<span class="quote">&gt;&gt; &gt; +       }</span>
+<span class="quote">&gt;&gt; &gt; +       switch_mm(efi_scratch.prev_mm, mm, NULL);</span>
+<span class="quote">&gt;&gt; &gt; +       task_unlock(tsk);</span>
+<span class="quote">&gt;&gt; &gt; +</span>
+<span class="quote">&gt;&gt; &gt; +       if (efi_scratch.prev_mm != mm)</span>
+<span class="quote">&gt;&gt; &gt; +               mmdrop(efi_scratch.prev_mm);</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; I&#39;m confused.  You&#39;re mmdropping an mm that you are still keeping a</span>
+<span class="quote">&gt;&gt; pointer to.  This is also a bit confusing in the case where you do</span>
+<span class="quote">&gt;&gt; efi_switch_mm(efi_scratch.prev_mm).</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; This whole manipulation seems fairly dangerous to me for another</span>
+<span class="quote">&gt;&gt; reason -- you&#39;re taking a user thread (I think) and swapping out its</span>
+<span class="quote">&gt;&gt; mm to something that the user in question should *not* have access to.</span>
+<span class="quote">&gt;&gt; What if a perf interrupt happens while you&#39;re in the alternate mm?</span>
+<span class="quote">&gt;&gt; What if you segfault and dump core?  Should we maybe just have a flag</span>
+<span class="quote">&gt;&gt; that says &quot;this cpu is using a funny mm&quot;, assert that the flag is</span>
+<span class="quote">&gt;&gt; clear when scheduling, and teach perf, coredumps, etc not to touch</span>
+<span class="quote">&gt;&gt; user memory when the flag is set?</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Admittedly, the latter problem may well have existed even before these patches.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Hi All,</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Could we please decouple the above issue from this patch set, so that we</span>
+<span class="quote">&gt; could have common efi_mm between x86 and ARM and also improve</span>
+<span class="quote">&gt; readability and maintainability for x86/efi.</span>
+
+I don&#39;t see why not.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt; As it seems that &quot;Everything EFI as kthread&quot; might solve the above issue</span>
+<span class="quote">&gt; for real (which might take quite some time to implement, taking into</span>
+<span class="quote">&gt; consideration the complexity involved and some special case with</span>
+<span class="quote">&gt; pstore), do you think this patch set seems OK?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; If so, I will send out a V2 addressing the mmdropping issue.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Regards,</span>
+<span class="quote">&gt; Sai</span>
+<span class="quote">&gt;</span>
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/include/asm/efi.h b/arch/x86/include/asm/efi.h</span>
+<span class="p_header">index 2f77bcefe6b4..aa38b546e842 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/efi.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/efi.h</span>
+<span class="p_chunk">@@ -1,10 +1,14 @@</span> <span class="p_context"></span>
+ #ifndef _ASM_X86_EFI_H
+ #define _ASM_X86_EFI_H
+ 
+<span class="p_add">+#include &lt;linux/sched/mm.h&gt;</span>
+<span class="p_add">+#include &lt;linux/sched/task.h&gt;</span>
+<span class="p_add">+</span>
+ #include &lt;asm/fpu/api.h&gt;
+ #include &lt;asm/pgtable.h&gt;
+ #include &lt;asm/processor-flags.h&gt;
+ #include &lt;asm/tlb.h&gt;
+<span class="p_add">+#include &lt;asm/mmu_context.h&gt;</span>
+ 
+ /*
+  * We map the EFI regions needed for runtime services non-contiguously,
+<span class="p_chunk">@@ -57,14 +61,14 @@</span> <span class="p_context"> extern u64 asmlinkage efi_call(void *fp, ...);</span>
+ #define efi_call_phys(f, args...)		efi_call((f), args)
+ 
+ /*
+<span class="p_del">- * Scratch space used for switching the pagetable in the EFI stub</span>
+<span class="p_add">+ * struct efi_scratch - Scratch space used while switching to/from efi_mm</span>
+<span class="p_add">+ * @phys_stack:	stack used during EFI Mixed Mode</span>
+<span class="p_add">+ * @prev_mm:		store/restore stolen mm_struct while switching</span>
+<span class="p_add">+ * 			to/from efi_mm</span>
+  */
+ struct efi_scratch {
+<span class="p_del">-	u64	r15;</span>
+<span class="p_del">-	u64	prev_cr3;</span>
+<span class="p_del">-	pgd_t	*efi_pgt;</span>
+<span class="p_del">-	bool	use_pgd;</span>
+<span class="p_del">-	u64	phys_stack;</span>
+<span class="p_add">+	u64			phys_stack;</span>
+<span class="p_add">+	struct mm_struct 	*prev_mm;</span>
+ } __packed;
+ 
+ #define arch_efi_call_virt_setup()					\
+<span class="p_chunk">@@ -73,11 +77,8 @@</span> <span class="p_context"> struct efi_scratch {</span>
+ 	preempt_disable();						\
+ 	__kernel_fpu_begin();						\
+ 									\
+<span class="p_del">-	if (efi_scratch.use_pgd) {					\</span>
+<span class="p_del">-		efi_scratch.prev_cr3 = read_cr3();			\</span>
+<span class="p_del">-		write_cr3((unsigned long)efi_scratch.efi_pgt);		\</span>
+<span class="p_del">-		__flush_tlb_all();					\</span>
+<span class="p_del">-	}								\</span>
+<span class="p_add">+	if (!efi_enabled(EFI_OLD_MEMMAP))				\</span>
+<span class="p_add">+		efi_switch_mm(&amp;efi_mm);					\</span>
+ })
+ 
+ #define arch_efi_call_virt(p, f, args...)				\
+<span class="p_chunk">@@ -85,10 +86,8 @@</span> <span class="p_context"> struct efi_scratch {</span>
+ 
+ #define arch_efi_call_virt_teardown()					\
+ ({									\
+<span class="p_del">-	if (efi_scratch.use_pgd) {					\</span>
+<span class="p_del">-		write_cr3(efi_scratch.prev_cr3);			\</span>
+<span class="p_del">-		__flush_tlb_all();					\</span>
+<span class="p_del">-	}								\</span>
+<span class="p_add">+	if (!efi_enabled(EFI_OLD_MEMMAP))				\</span>
+<span class="p_add">+		efi_switch_mm(efi_scratch.prev_mm);			\</span>
+ 									\
+ 	__kernel_fpu_end();						\
+ 	preempt_enable();						\
+<span class="p_chunk">@@ -130,6 +129,7 @@</span> <span class="p_context"> extern void __init efi_dump_pagetable(void);</span>
+ extern void __init efi_apply_memmap_quirks(void);
+ extern int __init efi_reuse_config(u64 tables, int nr_tables);
+ extern void efi_delete_dummy_variable(void);
+<span class="p_add">+extern void efi_switch_mm(struct mm_struct *mm);</span>
+ 
+ struct efi_setup_data {
+ 	u64 fw_vendor;
+<span class="p_header">diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c</span>
+<span class="p_header">index 0bb98c35e178..3be94480c1ce 100644</span>
+<span class="p_header">--- a/arch/x86/platform/efi/efi_64.c</span>
+<span class="p_header">+++ b/arch/x86/platform/efi/efi_64.c</span>
+<span class="p_chunk">@@ -80,9 +80,8 @@</span> <span class="p_context"> pgd_t * __init efi_call_phys_prolog(void)</span>
+ 	int n_pgds, i, j;
+ 
+ 	if (!efi_enabled(EFI_OLD_MEMMAP)) {
+<span class="p_del">-		save_pgd = (pgd_t *)read_cr3();</span>
+<span class="p_del">-		write_cr3((unsigned long)efi_scratch.efi_pgt);</span>
+<span class="p_del">-		goto out;</span>
+<span class="p_add">+		efi_switch_mm(&amp;efi_mm);</span>
+<span class="p_add">+		return NULL;</span>
+ 	}
+ 
+ 	early_code_mapping_set_exec(1);
+<span class="p_chunk">@@ -152,8 +151,7 @@</span> <span class="p_context"> void __init efi_call_phys_epilog(pgd_t *save_pgd)</span>
+ 	pud_t *pud;
+ 
+ 	if (!efi_enabled(EFI_OLD_MEMMAP)) {
+<span class="p_del">-		write_cr3((unsigned long)save_pgd);</span>
+<span class="p_del">-		__flush_tlb_all();</span>
+<span class="p_add">+		efi_switch_mm(efi_scratch.prev_mm);</span>
+ 		return;
+ 	}
+ 
+<span class="p_chunk">@@ -336,8 +334,6 @@</span> <span class="p_context"> int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)</span>
+ 	if (efi_enabled(EFI_OLD_MEMMAP))
+ 		return 0;
+ 
+<span class="p_del">-	efi_scratch.efi_pgt = (pgd_t *)__pa(pgd);</span>
+<span class="p_del">-</span>
+ 	/*
+ 	 * It can happen that the physical address of new_memmap lands in memory
+ 	 * which is not mapped in the EFI page table. Therefore we need to go
+<span class="p_chunk">@@ -350,8 +346,6 @@</span> <span class="p_context"> int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)</span>
+ 		return 1;
+ 	}
+ 
+<span class="p_del">-	efi_scratch.use_pgd = true;</span>
+<span class="p_del">-</span>
+ 	/*
+ 	 * Certain firmware versions are way too sentimential and still believe
+ 	 * they are exclusive and unquestionable owners of the first physical page,
+<span class="p_chunk">@@ -596,6 +590,28 @@</span> <span class="p_context"> void __init efi_dump_pagetable(void)</span>
+ #endif
+ }
+ 
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Makes the calling kernel thread switch to/from efi_mm context</span>
+<span class="p_add">+ * Can be used from SetVirtualAddressMap() or during efi runtime calls</span>
+<span class="p_add">+ * (Note: This routine is heavily inspired from use_mm)</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+void efi_switch_mm(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+       struct task_struct *tsk = current;</span>
+<span class="p_add">+</span>
+<span class="p_add">+       task_lock(tsk);</span>
+<span class="p_add">+       efi_scratch.prev_mm = tsk-&gt;active_mm;</span>
+<span class="p_add">+       if (efi_scratch.prev_mm != mm) {</span>
+<span class="p_add">+               mmgrab(mm);</span>
+<span class="p_add">+               tsk-&gt;active_mm = mm;</span>
+<span class="p_add">+       }</span>
+<span class="p_add">+       switch_mm(efi_scratch.prev_mm, mm, NULL);</span>
+<span class="p_add">+       task_unlock(tsk);</span>
+<span class="p_add">+</span>
+<span class="p_add">+       if (efi_scratch.prev_mm != mm)</span>
+<span class="p_add">+               mmdrop(efi_scratch.prev_mm);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ #ifdef CONFIG_EFI_MIXED
+ extern efi_status_t efi64_thunk(u32, ...);
+ 
+<span class="p_chunk">@@ -649,16 +665,13 @@</span> <span class="p_context"> efi_status_t efi_thunk_set_virtual_address_map(</span>
+ 	efi_sync_low_kernel_mappings();
+ 	local_irq_save(flags);
+ 
+<span class="p_del">-	efi_scratch.prev_cr3 = read_cr3();</span>
+<span class="p_del">-	write_cr3((unsigned long)efi_scratch.efi_pgt);</span>
+<span class="p_del">-	__flush_tlb_all();</span>
+<span class="p_add">+	efi_switch_mm(&amp;efi_mm);</span>
+ 
+ 	func = (u32)(unsigned long)phys_set_virtual_address_map;
+ 	status = efi64_thunk(func, memory_map_size, descriptor_size,
+ 			     descriptor_version, virtual_map);
+ 
+<span class="p_del">-	write_cr3(efi_scratch.prev_cr3);</span>
+<span class="p_del">-	__flush_tlb_all();</span>
+<span class="p_add">+	efi_switch_mm(efi_scratch.prev_mm);</span>
+ 	local_irq_restore(flags);
+ 
+ 	return status;
+<span class="p_header">diff --git a/arch/x86/platform/efi/efi_thunk_64.S b/arch/x86/platform/efi/efi_thunk_64.S</span>
+<span class="p_header">index ff85d28c50f2..5cdc72ebbc82 100644</span>
+<span class="p_header">--- a/arch/x86/platform/efi/efi_thunk_64.S</span>
+<span class="p_header">+++ b/arch/x86/platform/efi/efi_thunk_64.S</span>
+<span class="p_chunk">@@ -32,7 +32,7 @@</span> <span class="p_context"> ENTRY(efi64_thunk)</span>
+ 	 * Switch to 1:1 mapped 32-bit stack pointer.
+ 	 */
+ 	movq	%rsp, efi_saved_sp(%rip)
+<span class="p_del">-	movq	efi_scratch+25(%rip), %rsp</span>
+<span class="p_add">+	movq	efi_scratch(%rip), %rsp</span>
+ 
+ 	/*
+ 	 * Calculate the physical address of the kernel text.
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

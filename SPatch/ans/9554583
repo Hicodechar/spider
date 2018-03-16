@@ -1,0 +1,525 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v2,03/23] openrisc: tlb miss handler optimizations - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v2,03/23] openrisc: tlb miss handler optimizations</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=153221">Stafford Horne</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Feb. 3, 2017, 3:48 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;745f70b22ab988fc3728ef36ca189f7c9f2f373f.1486135912.git.shorne@gmail.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9554583/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9554583/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9554583/">/patch/9554583/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	0BABD604A7 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  3 Feb 2017 15:56:23 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id D4D691FF1E
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  3 Feb 2017 15:56:22 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id C87A326242; Fri,  3 Feb 2017 15:56:22 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.5 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID, DKIM_VALID_AU, FREEMAIL_FROM, RCVD_IN_DNSWL_HI,
+	RCVD_IN_SORBS_SPAM autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 116201FF1E
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  3 Feb 2017 15:56:22 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751064AbdBCPtQ (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Fri, 3 Feb 2017 10:49:16 -0500
+Received: from mail-pf0-f194.google.com ([209.85.192.194]:33392 &quot;EHLO
+	mail-pf0-f194.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751026AbdBCPtN (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Fri, 3 Feb 2017 10:49:13 -0500
+Received: by mail-pf0-f194.google.com with SMTP id e4so1817049pfg.0
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Fri, 03 Feb 2017 07:49:13 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=gmail.com; s=20161025;
+	h=from:to:cc:subject:date:message-id:in-reply-to:references
+	:in-reply-to:references;
+	bh=9Xa1KCTqK6LZNfh8cKas48H+TwmhoEgjO0FeHrk5vK0=;
+	b=jLcer3XEfN7fBeKcjbvG1IM9RHQa3hjm8AeiBNH0Iu/K59gIQWoJDkisxQDRlxCA6s
+	zmrRxrGGWd5Hqe4wkQE0c1+vG+7oKoTeiNy7TLltu7HsYe/xlsIbDejgJ9YlmMd2oG5Z
+	YXGuBQUnRAfLIentpwHupGshSH+jTc/ezscIEOuealV/R6SbCR+T9SETK2/s8u22tHBI
+	T57iIlqGRHI0O4UEgDK0zue696lo8oHwsgnKmd0cfJ0EubVsEunyP9Hyuw7a9BXya3Fi
+	ozXc4/54csByw5nnFB7TY5wQe8jvlxKgGAzjodnm75J9/E+fDIQotsLCCEX0rAK3asYl
+	3z2A==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+	:references:in-reply-to:references;
+	bh=9Xa1KCTqK6LZNfh8cKas48H+TwmhoEgjO0FeHrk5vK0=;
+	b=GcbpNdo7kim8McP2TfqRtVur7K20hOT26kbdAlFzfn7pvaVWJsO4DNkoG7X5HXwOOp
+	ENIiJh68CnnyJIaPlMZNboWvPLyhVSAGCR4jZ1SBmG5T9/9XGNmabJZwrfkbC62pY9fo
+	pwcrbQSZTEcpZ3iyLUqgw8Xr5rRLlg10X1yKVfs8wrAUIDd7Mq2J0xEn2D4fDEw0XnnS
+	ozzMl7FLGLMpSwrrx0/8sCWIDN2AtBBgJQQJyd1FKoL5qLkAGkS5Up9rM1hcaQdL8NWR
+	rmwNjGeYcRenjU3gJuuCeJUbTzA2ZnQbz7wYrmymx+neXmG454UoJY1rIjOiv1TB1VlN
+	nG6Q==
+X-Gm-Message-State: AIkVDXJsQvQgR433zhQU5PNavJlSwCzy4apwcMCz+N1/K6skXzCvXvy+qc49iiTjt4WwZg==
+X-Received: by 10.84.233.206 with SMTP id m14mr22038085pln.104.1486136952949;
+	Fri, 03 Feb 2017 07:49:12 -0800 (PST)
+Received: from localhost (z166.58-98-172.ppp.wakwak.ne.jp. [58.98.172.166])
+	by smtp.gmail.com with ESMTPSA id
+	t15sm68681345pgn.18.2017.02.03.07.49.11
+	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+	Fri, 03 Feb 2017 07:49:12 -0800 (PST)
+From: Stafford Horne &lt;shorne@gmail.com&gt;
+To: Jonas Bonn &lt;jonas@southpole.se&gt;,
+	Stefan Kristiansson &lt;stefan.kristiansson@saunalahti.fi&gt;
+Cc: linux@roeck-us.net, openrisc@lists.librecores.org,
+	linux-kernel@vger.kernel.org, Stafford Horne &lt;shorne@gmail.com&gt;
+Subject: [PATCH v2 03/23] openrisc: tlb miss handler optimizations
+Date: Sat,  4 Feb 2017 00:48:27 +0900
+Message-Id: &lt;745f70b22ab988fc3728ef36ca189f7c9f2f373f.1486135912.git.shorne@gmail.com&gt;
+X-Mailer: git-send-email 2.9.3
+In-Reply-To: &lt;cover.1486135912.git.shorne@gmail.com&gt;
+References: &lt;cover.1486135912.git.shorne@gmail.com&gt;
+In-Reply-To: &lt;cover.1486135912.git.shorne@gmail.com&gt;
+References: &lt;cover.1486135912.git.shorne@gmail.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=153221">Stafford Horne</a> - Feb. 3, 2017, 3:48 p.m.</div>
+<pre class="content">
+<span class="from">From: Stefan Kristiansson &lt;stefan.kristiansson@saunalahti.fi&gt;</span>
+
+By slightly reorganizing the code, the number of registers
+used in the tlb miss handlers can be reduced by two,
+thus removing the need to save them to memory.
+
+Also, some dead and commented out code is removed.
+
+No functional change.
+<span class="signed-off-by">
+Signed-off-by: Stefan Kristiansson &lt;stefan.kristiansson@saunalahti.fi&gt;</span>
+<span class="signed-off-by">Signed-off-by: Jonas Bonn &lt;jonas@southpole.se&gt;</span>
+<span class="signed-off-by">Signed-off-by: Stafford Horne &lt;shorne@gmail.com&gt;</span>
+---
+ arch/openrisc/kernel/head.S | 141 +++++++++++++++-----------------------------
+ 1 file changed, 46 insertions(+), 95 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/openrisc/kernel/head.S b/arch/openrisc/kernel/head.S</span>
+<span class="p_header">index f147933..2346c5b 100644</span>
+<span class="p_header">--- a/arch/openrisc/kernel/head.S</span>
+<span class="p_header">+++ b/arch/openrisc/kernel/head.S</span>
+<span class="p_chunk">@@ -971,8 +971,6 @@</span> <span class="p_context"> ENTRY(dtlb_miss_handler)</span>
+ 	EXCEPTION_STORE_GPR2
+ 	EXCEPTION_STORE_GPR3
+ 	EXCEPTION_STORE_GPR4
+<span class="p_del">-	EXCEPTION_STORE_GPR5</span>
+<span class="p_del">-	EXCEPTION_STORE_GPR6</span>
+ 	/*
+ 	 * get EA of the miss
+ 	 */
+<span class="p_chunk">@@ -980,91 +978,70 @@</span> <span class="p_context"> ENTRY(dtlb_miss_handler)</span>
+ 	/*
+ 	 * pmd = (pmd_t *)(current_pgd + pgd_index(daddr));
+ 	 */
+<span class="p_del">-	GET_CURRENT_PGD(r3,r5)		// r3 is current_pgd, r5 is temp</span>
+<span class="p_add">+	GET_CURRENT_PGD(r3,r4)		// r3 is current_pgd, r4 is temp</span>
+ 	l.srli	r4,r2,0x18		// &gt;&gt; PAGE_SHIFT + (PAGE_SHIFT - 2)
+ 	l.slli	r4,r4,0x2		// to get address &lt;&lt; 2
+<span class="p_del">-	l.add	r5,r4,r3		// r4 is pgd_index(daddr)</span>
+<span class="p_add">+	l.add	r3,r4,r3		// r4 is pgd_index(daddr)</span>
+ 	/*
+ 	 * if (pmd_none(*pmd))
+ 	 *   goto pmd_none:
+ 	 */
+<span class="p_del">-	tophys	(r4,r5)</span>
+<span class="p_add">+	tophys	(r4,r3)</span>
+ 	l.lwz	r3,0x0(r4)		// get *pmd value
+ 	l.sfne	r3,r0
+ 	l.bnf	d_pmd_none
+<span class="p_del">-	 l.andi	r3,r3,~PAGE_MASK //0x1fff		// ~PAGE_MASK</span>
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * if (pmd_bad(*pmd))</span>
+<span class="p_del">-	 *   pmd_clear(pmd)</span>
+<span class="p_del">-	 *   goto pmd_bad:</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-//	l.sfeq	r3,r0			// check *pmd value</span>
+<span class="p_del">-//	l.bf	d_pmd_good</span>
+<span class="p_del">-	l.addi	r3,r0,0xffffe000	// PAGE_MASK</span>
+<span class="p_del">-//	l.j	d_pmd_bad</span>
+<span class="p_del">-//	l.sw	0x0(r4),r0		// clear pmd</span>
+<span class="p_add">+	 l.addi	r3,r0,0xffffe000	// PAGE_MASK</span>
+<span class="p_add">+</span>
+ d_pmd_good:
+ 	/*
+ 	 * pte = *pte_offset(pmd, daddr);
+ 	 */
+ 	l.lwz	r4,0x0(r4)		// get **pmd value
+ 	l.and	r4,r4,r3		// &amp; PAGE_MASK
+<span class="p_del">-	l.srli	r5,r2,0xd		// &gt;&gt; PAGE_SHIFT, r2 == EEAR</span>
+<span class="p_del">-	l.andi	r3,r5,0x7ff		// (1UL &lt;&lt; PAGE_SHIFT - 2) - 1</span>
+<span class="p_add">+	l.srli	r2,r2,0xd		// &gt;&gt; PAGE_SHIFT, r2 == EEAR</span>
+<span class="p_add">+	l.andi	r3,r2,0x7ff		// (1UL &lt;&lt; PAGE_SHIFT - 2) - 1</span>
+ 	l.slli	r3,r3,0x2		// to get address &lt;&lt; 2
+ 	l.add	r3,r3,r4
+<span class="p_del">-	l.lwz	r2,0x0(r3)		// this is pte at last</span>
+<span class="p_add">+	l.lwz	r3,0x0(r3)		// this is pte at last</span>
+ 	/*
+ 	 * if (!pte_present(pte))
+ 	 */
+<span class="p_del">-	l.andi	r4,r2,0x1</span>
+<span class="p_add">+	l.andi	r4,r3,0x1</span>
+ 	l.sfne	r4,r0			// is pte present
+ 	l.bnf	d_pte_not_present
+<span class="p_del">-	l.addi	r3,r0,0xffffe3fa	// PAGE_MASK | DTLB_UP_CONVERT_MASK</span>
+<span class="p_add">+	l.addi	r4,r0,0xffffe3fa	// PAGE_MASK | DTLB_UP_CONVERT_MASK</span>
+ 	/*
+ 	 * fill DTLB TR register
+ 	 */
+<span class="p_del">-	l.and	r4,r2,r3		// apply the mask</span>
+<span class="p_add">+	l.and	r4,r3,r4		// apply the mask</span>
+ 	// Determine number of DMMU sets
+<span class="p_del">-	l.mfspr r6, r0, SPR_DMMUCFGR</span>
+<span class="p_del">-	l.andi	r6, r6, SPR_DMMUCFGR_NTS</span>
+<span class="p_del">-	l.srli	r6, r6, SPR_DMMUCFGR_NTS_OFF</span>
+<span class="p_add">+	l.mfspr r2, r0, SPR_DMMUCFGR</span>
+<span class="p_add">+	l.andi	r2, r2, SPR_DMMUCFGR_NTS</span>
+<span class="p_add">+	l.srli	r2, r2, SPR_DMMUCFGR_NTS_OFF</span>
+ 	l.ori	r3, r0, 0x1
+<span class="p_del">-	l.sll	r3, r3, r6 	// r3 = number DMMU sets DMMUCFGR</span>
+<span class="p_del">-	l.addi	r6, r3, -1  	// r6 = nsets mask</span>
+<span class="p_del">-	l.and	r5, r5, r6	// calc offset:	 &amp; (NUM_TLB_ENTRIES-1)</span>
+<span class="p_add">+	l.sll	r3, r3, r2 	// r3 = number DMMU sets DMMUCFGR</span>
+<span class="p_add">+	l.addi	r2, r3, -1  	// r2 = nsets mask</span>
+<span class="p_add">+	l.mfspr	r3, r0, SPR_EEAR_BASE</span>
+<span class="p_add">+	l.srli	r3, r3, 0xd	// &gt;&gt; PAGE_SHIFT</span>
+<span class="p_add">+	l.and	r2, r3, r2	// calc offset:	 &amp; (NUM_TLB_ENTRIES-1)</span>
+ 	                                                   //NUM_TLB_ENTRIES
+<span class="p_del">-	l.mtspr	r5,r4,SPR_DTLBTR_BASE(0)</span>
+<span class="p_add">+	l.mtspr	r2,r4,SPR_DTLBTR_BASE(0)</span>
+ 	/*
+ 	 * fill DTLB MR register
+ 	 */
+<span class="p_del">-	l.mfspr	r2,r0,SPR_EEAR_BASE</span>
+<span class="p_del">-	l.addi	r3,r0,0xffffe000	// PAGE_MASK</span>
+<span class="p_del">-	l.and	r4,r2,r3		// apply PAGE_MASK to EA (__PHX__ do we really need this?)</span>
+<span class="p_del">-	l.ori	r4,r4,0x1		// set hardware valid bit: DTBL_MR entry</span>
+<span class="p_del">-	l.mtspr	r5,r4,SPR_DTLBMR_BASE(0)</span>
+<span class="p_add">+	l.slli	r3, r3, 0xd		/* &lt;&lt; PAGE_SHIFT =&gt; EA &amp; PAGE_MASK */</span>
+<span class="p_add">+	l.ori	r4,r3,0x1		// set hardware valid bit: DTBL_MR entry</span>
+<span class="p_add">+	l.mtspr	r2,r4,SPR_DTLBMR_BASE(0)</span>
+ 
+ 	EXCEPTION_LOAD_GPR2
+ 	EXCEPTION_LOAD_GPR3
+ 	EXCEPTION_LOAD_GPR4
+<span class="p_del">-	EXCEPTION_LOAD_GPR5</span>
+<span class="p_del">-	EXCEPTION_LOAD_GPR6</span>
+<span class="p_del">-	l.rfe</span>
+<span class="p_del">-d_pmd_bad:</span>
+<span class="p_del">-	l.nop	1</span>
+<span class="p_del">-	EXCEPTION_LOAD_GPR2</span>
+<span class="p_del">-	EXCEPTION_LOAD_GPR3</span>
+<span class="p_del">-	EXCEPTION_LOAD_GPR4</span>
+<span class="p_del">-	EXCEPTION_LOAD_GPR5</span>
+<span class="p_del">-	EXCEPTION_LOAD_GPR6</span>
+ 	l.rfe
+ d_pmd_none:
+ d_pte_not_present:
+ 	EXCEPTION_LOAD_GPR2
+ 	EXCEPTION_LOAD_GPR3
+ 	EXCEPTION_LOAD_GPR4
+<span class="p_del">-	EXCEPTION_LOAD_GPR5</span>
+<span class="p_del">-	EXCEPTION_LOAD_GPR6</span>
+ 	EXCEPTION_HANDLE(_dtlb_miss_page_fault_handler)
+ 
+ /* ==============================================[ ITLB miss handler ]=== */
+<span class="p_chunk">@@ -1072,8 +1049,6 @@</span> <span class="p_context"> ENTRY(itlb_miss_handler)</span>
+ 	EXCEPTION_STORE_GPR2
+ 	EXCEPTION_STORE_GPR3
+ 	EXCEPTION_STORE_GPR4
+<span class="p_del">-	EXCEPTION_STORE_GPR5</span>
+<span class="p_del">-	EXCEPTION_STORE_GPR6</span>
+ 	/*
+ 	 * get EA of the miss
+ 	 */
+<span class="p_chunk">@@ -1083,30 +1058,19 @@</span> <span class="p_context"> ENTRY(itlb_miss_handler)</span>
+ 	 * pmd = (pmd_t *)(current_pgd + pgd_index(daddr));
+ 	 *
+ 	 */
+<span class="p_del">-	GET_CURRENT_PGD(r3,r5)		// r3 is current_pgd, r5 is temp</span>
+<span class="p_add">+	GET_CURRENT_PGD(r3,r4)		// r3 is current_pgd, r5 is temp</span>
+ 	l.srli	r4,r2,0x18		// &gt;&gt; PAGE_SHIFT + (PAGE_SHIFT - 2)
+ 	l.slli	r4,r4,0x2		// to get address &lt;&lt; 2
+<span class="p_del">-	l.add	r5,r4,r3		// r4 is pgd_index(daddr)</span>
+<span class="p_add">+	l.add	r3,r4,r3		// r4 is pgd_index(daddr)</span>
+ 	/*
+ 	 * if (pmd_none(*pmd))
+ 	 *   goto pmd_none:
+ 	 */
+<span class="p_del">-	tophys	(r4,r5)</span>
+<span class="p_add">+	tophys	(r4,r3)</span>
+ 	l.lwz	r3,0x0(r4)		// get *pmd value
+ 	l.sfne	r3,r0
+ 	l.bnf	i_pmd_none
+<span class="p_del">-	l.andi	r3,r3,0x1fff		// ~PAGE_MASK</span>
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * if (pmd_bad(*pmd))</span>
+<span class="p_del">-	 *   pmd_clear(pmd)</span>
+<span class="p_del">-	 *   goto pmd_bad:</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-</span>
+<span class="p_del">-//	l.sfeq	r3,r0			// check *pmd value</span>
+<span class="p_del">-//	l.bf	i_pmd_good</span>
+<span class="p_del">-	l.addi	r3,r0,0xffffe000	// PAGE_MASK</span>
+<span class="p_del">-//	l.j	i_pmd_bad</span>
+<span class="p_del">-//	l.sw	0x0(r4),r0		// clear pmd</span>
+<span class="p_add">+	 l.addi	r3,r0,0xffffe000	// PAGE_MASK</span>
+ 
+ i_pmd_good:
+ 	/*
+<span class="p_chunk">@@ -1115,35 +1079,36 @@</span> <span class="p_context"> i_pmd_good:</span>
+ 	 */
+ 	l.lwz	r4,0x0(r4)		// get **pmd value
+ 	l.and	r4,r4,r3		// &amp; PAGE_MASK
+<span class="p_del">-	l.srli	r5,r2,0xd		// &gt;&gt; PAGE_SHIFT, r2 == EEAR</span>
+<span class="p_del">-	l.andi	r3,r5,0x7ff		// (1UL &lt;&lt; PAGE_SHIFT - 2) - 1</span>
+<span class="p_add">+	l.srli	r2,r2,0xd		// &gt;&gt; PAGE_SHIFT, r2 == EEAR</span>
+<span class="p_add">+	l.andi	r3,r2,0x7ff		// (1UL &lt;&lt; PAGE_SHIFT - 2) - 1</span>
+ 	l.slli	r3,r3,0x2		// to get address &lt;&lt; 2
+ 	l.add	r3,r3,r4
+<span class="p_del">-	l.lwz	r2,0x0(r3)		// this is pte at last</span>
+<span class="p_add">+	l.lwz	r3,0x0(r3)		// this is pte at last</span>
+ 	/*
+ 	 * if (!pte_present(pte))
+ 	 *
+ 	 */
+<span class="p_del">-	l.andi	r4,r2,0x1</span>
+<span class="p_add">+	l.andi	r4,r3,0x1</span>
+ 	l.sfne	r4,r0			// is pte present
+ 	l.bnf	i_pte_not_present
+<span class="p_del">-	l.addi	r3,r0,0xffffe03a	// PAGE_MASK | ITLB_UP_CONVERT_MASK</span>
+<span class="p_add">+	 l.addi	r4,r0,0xffffe03a	// PAGE_MASK | ITLB_UP_CONVERT_MASK</span>
+ 	/*
+ 	 * fill ITLB TR register
+ 	 */
+<span class="p_del">-	l.and	r4,r2,r3		// apply the mask</span>
+<span class="p_del">-	l.andi	r3,r2,0x7c0		// _PAGE_EXEC | _PAGE_SRE | _PAGE_SWE |  _PAGE_URE | _PAGE_UWE</span>
+<span class="p_del">-//	l.andi	r3,r2,0x400		// _PAGE_EXEC</span>
+<span class="p_add">+	l.and	r4,r3,r4		// apply the mask</span>
+<span class="p_add">+	l.andi	r3,r3,0x7c0		// _PAGE_EXEC | _PAGE_SRE | _PAGE_SWE |  _PAGE_URE | _PAGE_UWE</span>
+ 	l.sfeq	r3,r0
+ 	l.bf	itlb_tr_fill //_workaround
+ 	// Determine number of IMMU sets
+<span class="p_del">-	l.mfspr r6, r0, SPR_IMMUCFGR</span>
+<span class="p_del">-	l.andi	r6, r6, SPR_IMMUCFGR_NTS</span>
+<span class="p_del">-	l.srli	r6, r6, SPR_IMMUCFGR_NTS_OFF</span>
+<span class="p_add">+	l.mfspr r2, r0, SPR_IMMUCFGR</span>
+<span class="p_add">+	l.andi	r2, r2, SPR_IMMUCFGR_NTS</span>
+<span class="p_add">+	l.srli	r2, r2, SPR_IMMUCFGR_NTS_OFF</span>
+ 	l.ori	r3, r0, 0x1
+<span class="p_del">-	l.sll	r3, r3, r6 	// r3 = number IMMU sets IMMUCFGR</span>
+<span class="p_del">-	l.addi	r6, r3, -1  	// r6 = nsets mask</span>
+<span class="p_del">-	l.and	r5, r5, r6	// calc offset:	 &amp; (NUM_TLB_ENTRIES-1)</span>
+<span class="p_add">+	l.sll	r3, r3, r2 	// r3 = number IMMU sets IMMUCFGR</span>
+<span class="p_add">+	l.addi	r2, r3, -1  	// r2 = nsets mask</span>
+<span class="p_add">+	l.mfspr	r3, r0, SPR_EEAR_BASE</span>
+<span class="p_add">+	l.srli	r3, r3, 0xd	// &gt;&gt; PAGE_SHIFT</span>
+<span class="p_add">+	l.and	r2, r3, r2	// calc offset:	 &amp; (NUM_TLB_ENTRIES-1)</span>
+ 
+ /*
+  * __PHX__ :: fixme
+<span class="p_chunk">@@ -1155,38 +1120,24 @@</span> <span class="p_context"> i_pmd_good:</span>
+ itlb_tr_fill_workaround:
+ 	l.ori	r4,r4,0xc0		// | (SPR_ITLBTR_UXE | ITLBTR_SXE)
+ itlb_tr_fill:
+<span class="p_del">-	l.mtspr	r5,r4,SPR_ITLBTR_BASE(0)</span>
+<span class="p_add">+	l.mtspr	r2,r4,SPR_ITLBTR_BASE(0)</span>
+ 	/*
+ 	 * fill DTLB MR register
+ 	 */
+<span class="p_del">-	l.mfspr	r2,r0,SPR_EEAR_BASE</span>
+<span class="p_del">-	l.addi	r3,r0,0xffffe000	// PAGE_MASK</span>
+<span class="p_del">-	l.and	r4,r2,r3		// apply PAGE_MASK to EA (__PHX__ do we really need this?)</span>
+<span class="p_del">-	l.ori	r4,r4,0x1		// set hardware valid bit: DTBL_MR entry</span>
+<span class="p_del">-	l.mtspr	r5,r4,SPR_ITLBMR_BASE(0)</span>
+<span class="p_add">+	l.slli	r3, r3, 0xd		/* &lt;&lt; PAGE_SHIFT =&gt; EA &amp; PAGE_MASK */</span>
+<span class="p_add">+	l.ori	r4,r3,0x1		// set hardware valid bit: ITBL_MR entry</span>
+<span class="p_add">+	l.mtspr	r2,r4,SPR_ITLBMR_BASE(0)</span>
+ 
+ 	EXCEPTION_LOAD_GPR2
+ 	EXCEPTION_LOAD_GPR3
+ 	EXCEPTION_LOAD_GPR4
+<span class="p_del">-	EXCEPTION_LOAD_GPR5</span>
+<span class="p_del">-	EXCEPTION_LOAD_GPR6</span>
+ 	l.rfe
+ 
+<span class="p_del">-i_pmd_bad:</span>
+<span class="p_del">-	l.nop	1</span>
+<span class="p_del">-	EXCEPTION_LOAD_GPR2</span>
+<span class="p_del">-	EXCEPTION_LOAD_GPR3</span>
+<span class="p_del">-	EXCEPTION_LOAD_GPR4</span>
+<span class="p_del">-	EXCEPTION_LOAD_GPR5</span>
+<span class="p_del">-	EXCEPTION_LOAD_GPR6</span>
+<span class="p_del">-	l.rfe</span>
+ i_pmd_none:
+ i_pte_not_present:
+ 	EXCEPTION_LOAD_GPR2
+ 	EXCEPTION_LOAD_GPR3
+ 	EXCEPTION_LOAD_GPR4
+<span class="p_del">-	EXCEPTION_LOAD_GPR5</span>
+<span class="p_del">-	EXCEPTION_LOAD_GPR6</span>
+ 	EXCEPTION_HANDLE(_itlb_miss_page_fault_handler)
+ 
+ /* ==============================================[ boot tlb handlers ]=== */
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

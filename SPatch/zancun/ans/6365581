@@ -1,0 +1,818 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[tip:locking/core] locking/pvqspinlock, x86: Implement the paravirt qspinlock call patching - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [tip:locking/core] locking/pvqspinlock, x86: Implement the paravirt qspinlock call patching</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=60001">tip-bot for Jacob Shin</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>May 8, 2015, 1:27 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;tip-f233f7f1581e78fd9b4023f2e7d8c1ed89020cc9@git.kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/6365581/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/6365581/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/6365581/">/patch/6365581/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id 95744BEEE1
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  8 May 2015 13:29:38 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 24E4A20254
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  8 May 2015 13:29:37 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 8F66F200D0
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  8 May 2015 13:29:35 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S932303AbbEHN30 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Fri, 8 May 2015 09:29:26 -0400
+Received: from terminus.zytor.com ([198.137.202.10]:48578 &quot;EHLO
+	terminus.zytor.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751167AbbEHN3T (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Fri, 8 May 2015 09:29:19 -0400
+Received: from terminus.zytor.com (localhost [127.0.0.1])
+	by terminus.zytor.com (8.14.8/8.14.7) with ESMTP id t48DRxd1011268;
+	Fri, 8 May 2015 06:28:04 -0700
+Received: (from tipbot@localhost)
+	by terminus.zytor.com (8.14.8/8.14.7/Submit) id t48DRxqD011264;
+	Fri, 8 May 2015 06:27:59 -0700
+Date: Fri, 8 May 2015 06:27:59 -0700
+X-Authentication-Warning: terminus.zytor.com: tipbot set sender to
+	tipbot@zytor.com using -f
+From: &quot;tip-bot for Peter Zijlstra (Intel)&quot; &lt;tipbot@zytor.com&gt;
+Message-ID: &lt;tip-f233f7f1581e78fd9b4023f2e7d8c1ed89020cc9@git.kernel.org&gt;
+Cc: linux-kernel@vger.kernel.org, bp@alien8.de, daniel@numascale.com,
+	scott.norton@hp.com, riel@redhat.com, doug.hatch@hp.com,
+	hpa@zytor.com, oleg@redhat.com, peterz@infradead.org,
+	raghavendra.kt@linux.vnet.ibm.com, konrad.wilk@oracle.com,
+	torvalds@linux-foundation.org, mingo@kernel.org,
+	akpm@linux-foundation.org, tglx@linutronix.de,
+	david.vrabel@citrix.com, boris.ostrovsky@oracle.com,
+	Waiman.Long@hp.com, paolo.bonzini@gmail.com, paulmck@linux.vnet.ibm.com
+Reply-To: hpa@zytor.com, doug.hatch@hp.com, oleg@redhat.com,
+	raghavendra.kt@linux.vnet.ibm.com, peterz@infradead.org,
+	bp@alien8.de, linux-kernel@vger.kernel.org, riel@redhat.com,
+	daniel@numascale.com, scott.norton@hp.com,
+	boris.ostrovsky@oracle.com, akpm@linux-foundation.org,
+	tglx@linutronix.de, david.vrabel@citrix.com,
+	paolo.bonzini@gmail.com, Waiman.Long@hp.com,
+	paulmck@linux.vnet.ibm.com, torvalds@linux-foundation.org,
+	konrad.wilk@oracle.com, mingo@kernel.org
+In-Reply-To: &lt;1429901803-29771-10-git-send-email-Waiman.Long@hp.com&gt;
+References: &lt;1429901803-29771-10-git-send-email-Waiman.Long@hp.com&gt;
+To: linux-tip-commits@vger.kernel.org
+Subject: [tip:locking/core] locking/pvqspinlock, x86:
+	Implement the paravirt qspinlock call patching
+Git-Commit-ID: f233f7f1581e78fd9b4023f2e7d8c1ed89020cc9
+X-Mailer: tip-git-log-daemon
+Robot-ID: &lt;tip-bot.git.kernel.org&gt;
+Robot-Unsubscribe: Contact &lt;mailto:hpa@kernel.org&gt;
+	to get blacklisted from these emails
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	T_RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=60001">tip-bot for Jacob Shin</a> - May 8, 2015, 1:27 p.m.</div>
+<pre class="content">
+Commit-ID:  f233f7f1581e78fd9b4023f2e7d8c1ed89020cc9
+Gitweb:     http://git.kernel.org/tip/f233f7f1581e78fd9b4023f2e7d8c1ed89020cc9
+Author:     Peter Zijlstra (Intel) &lt;peterz@infradead.org&gt;
+AuthorDate: Fri, 24 Apr 2015 14:56:38 -0400
+Committer:  Ingo Molnar &lt;mingo@kernel.org&gt;
+CommitDate: Fri, 8 May 2015 12:37:09 +0200
+
+locking/pvqspinlock, x86: Implement the paravirt qspinlock call patching
+
+We use the regular paravirt call patching to switch between:
+
+  native_queued_spin_lock_slowpath()	__pv_queued_spin_lock_slowpath()
+  native_queued_spin_unlock()		__pv_queued_spin_unlock()
+
+We use a callee saved call for the unlock function which reduces the
+i-cache footprint and allows &#39;inlining&#39; of SPIN_UNLOCK functions
+again.
+
+We further optimize the unlock path by patching the direct call with a
+&quot;movb $0,%arg1&quot; if we are indeed using the native unlock code. This
+makes the unlock code almost as fast as the !PARAVIRT case.
+
+This significantly lowers the overhead of having
+CONFIG_PARAVIRT_SPINLOCKS enabled, even for native code.
+<span class="signed-off-by">
+Signed-off-by: Peter Zijlstra (Intel) &lt;peterz@infradead.org&gt;</span>
+<span class="signed-off-by">Signed-off-by: Waiman Long &lt;Waiman.Long@hp.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Peter Zijlstra (Intel) &lt;peterz@infradead.org&gt;</span>
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: Boris Ostrovsky &lt;boris.ostrovsky@oracle.com&gt;
+Cc: Borislav Petkov &lt;bp@alien8.de&gt;
+Cc: Daniel J Blueman &lt;daniel@numascale.com&gt;
+Cc: David Vrabel &lt;david.vrabel@citrix.com&gt;
+Cc: Douglas Hatch &lt;doug.hatch@hp.com&gt;
+Cc: H. Peter Anvin &lt;hpa@zytor.com&gt;
+Cc: Konrad Rzeszutek Wilk &lt;konrad.wilk@oracle.com&gt;
+Cc: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+Cc: Oleg Nesterov &lt;oleg@redhat.com&gt;
+Cc: Paolo Bonzini &lt;paolo.bonzini@gmail.com&gt;
+Cc: Paul E. McKenney &lt;paulmck@linux.vnet.ibm.com&gt;
+Cc: Peter Zijlstra &lt;peterz@infradead.org&gt;
+Cc: Raghavendra K T &lt;raghavendra.kt@linux.vnet.ibm.com&gt;
+Cc: Rik van Riel &lt;riel@redhat.com&gt;
+Cc: Scott J Norton &lt;scott.norton@hp.com&gt;
+Cc: Thomas Gleixner &lt;tglx@linutronix.de&gt;
+Cc: virtualization@lists.linux-foundation.org
+Cc: xen-devel@lists.xenproject.org
+Link: http://lkml.kernel.org/r/1429901803-29771-10-git-send-email-Waiman.Long@hp.com
+<span class="signed-off-by">Signed-off-by: Ingo Molnar &lt;mingo@kernel.org&gt;</span>
+---
+ arch/x86/Kconfig                          |  2 +-
+ arch/x86/include/asm/paravirt.h           | 29 ++++++++++++++++++++++++++++-
+ arch/x86/include/asm/paravirt_types.h     | 10 ++++++++++
+ arch/x86/include/asm/qspinlock.h          | 25 ++++++++++++++++++++++++-
+ arch/x86/include/asm/qspinlock_paravirt.h |  6 ++++++
+ arch/x86/kernel/paravirt-spinlocks.c      | 24 +++++++++++++++++++++++-
+ arch/x86/kernel/paravirt_patch_32.c       | 22 ++++++++++++++++++----
+ arch/x86/kernel/paravirt_patch_64.c       | 22 ++++++++++++++++++----
+ 8 files changed, 128 insertions(+), 12 deletions(-)
+
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=49271">Sasha Levin</a> - May 30, 2015, 4:09 a.m.</div>
+<pre class="content">
+On 05/08/2015 09:27 AM, tip-bot for Peter Zijlstra (Intel) wrote:
+<span class="quote">&gt; Commit-ID:  f233f7f1581e78fd9b4023f2e7d8c1ed89020cc9</span>
+<span class="quote">&gt; Gitweb:     http://git.kernel.org/tip/f233f7f1581e78fd9b4023f2e7d8c1ed89020cc9</span>
+<span class="quote">&gt; Author:     Peter Zijlstra (Intel) &lt;peterz@infradead.org&gt;</span>
+<span class="quote">&gt; AuthorDate: Fri, 24 Apr 2015 14:56:38 -0400</span>
+<span class="quote">&gt; Committer:  Ingo Molnar &lt;mingo@kernel.org&gt;</span>
+<span class="quote">&gt; CommitDate: Fri, 8 May 2015 12:37:09 +0200</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; locking/pvqspinlock, x86: Implement the paravirt qspinlock call patching</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; We use the regular paravirt call patching to switch between:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   native_queued_spin_lock_slowpath()	__pv_queued_spin_lock_slowpath()</span>
+<span class="quote">&gt;   native_queued_spin_unlock()		__pv_queued_spin_unlock()</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; We use a callee saved call for the unlock function which reduces the</span>
+<span class="quote">&gt; i-cache footprint and allows &#39;inlining&#39; of SPIN_UNLOCK functions</span>
+<span class="quote">&gt; again.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; We further optimize the unlock path by patching the direct call with a</span>
+<span class="quote">&gt; &quot;movb $0,%arg1&quot; if we are indeed using the native unlock code. This</span>
+<span class="quote">&gt; makes the unlock code almost as fast as the !PARAVIRT case.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This significantly lowers the overhead of having</span>
+<span class="quote">&gt; CONFIG_PARAVIRT_SPINLOCKS enabled, even for native code.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Peter Zijlstra (Intel) &lt;peterz@infradead.org&gt;</span>
+<span class="quote">&gt; Signed-off-by: Waiman Long &lt;Waiman.Long@hp.com&gt;</span>
+<span class="quote">&gt; Signed-off-by: Peter Zijlstra (Intel) &lt;peterz@infradead.org&gt;</span>
+<span class="quote">&gt; Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;</span>
+<span class="quote">&gt; Cc: Boris Ostrovsky &lt;boris.ostrovsky@oracle.com&gt;</span>
+<span class="quote">&gt; Cc: Borislav Petkov &lt;bp@alien8.de&gt;</span>
+<span class="quote">&gt; Cc: Daniel J Blueman &lt;daniel@numascale.com&gt;</span>
+<span class="quote">&gt; Cc: David Vrabel &lt;david.vrabel@citrix.com&gt;</span>
+<span class="quote">&gt; Cc: Douglas Hatch &lt;doug.hatch@hp.com&gt;</span>
+<span class="quote">&gt; Cc: H. Peter Anvin &lt;hpa@zytor.com&gt;</span>
+<span class="quote">&gt; Cc: Konrad Rzeszutek Wilk &lt;konrad.wilk@oracle.com&gt;</span>
+<span class="quote">&gt; Cc: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;</span>
+<span class="quote">&gt; Cc: Oleg Nesterov &lt;oleg@redhat.com&gt;</span>
+<span class="quote">&gt; Cc: Paolo Bonzini &lt;paolo.bonzini@gmail.com&gt;</span>
+<span class="quote">&gt; Cc: Paul E. McKenney &lt;paulmck@linux.vnet.ibm.com&gt;</span>
+<span class="quote">&gt; Cc: Peter Zijlstra &lt;peterz@infradead.org&gt;</span>
+<span class="quote">&gt; Cc: Raghavendra K T &lt;raghavendra.kt@linux.vnet.ibm.com&gt;</span>
+<span class="quote">&gt; Cc: Rik van Riel &lt;riel@redhat.com&gt;</span>
+<span class="quote">&gt; Cc: Scott J Norton &lt;scott.norton@hp.com&gt;</span>
+<span class="quote">&gt; Cc: Thomas Gleixner &lt;tglx@linutronix.de&gt;</span>
+<span class="quote">&gt; Cc: virtualization@lists.linux-foundation.org</span>
+<span class="quote">&gt; Cc: xen-devel@lists.xenproject.org</span>
+<span class="quote">&gt; Link: http://lkml.kernel.org/r/1429901803-29771-10-git-send-email-Waiman.Long@hp.com</span>
+<span class="quote">&gt; Signed-off-by: Ingo Molnar &lt;mingo@kernel.org&gt;</span>
+
+Hey Peter,
+
+I&#39;m seeing this on the latest -next kernel:
+
+[ 8693.503262] BUG: KASan: out of bounds access in __pv_queued_spin_lock_slowpath+0x84e/0x8c0 at addr ffffffffb9495950
+[ 8693.503271] Read of size 8 by task swapper/9/0
+[ 8693.503289] Address belongs to variable pv_lock_ops+0x10/0x240
+[ 8693.503301] CPU: 9 PID: 0 Comm: swapper/9 Tainted: G      D         4.1.0-rc5-next-20150529-sasha-00039-g7fd455d-dirty #2263
+[ 8693.503335]  ffffffffb6a1423a b6f92731d7a76ba3 ffff8802b349f918 ffffffffb6a1423a
+[ 8693.503355]  0000000000000000 ffff8802b349f9a8 ffff8802b349f998 ffffffffad5c70ee
+[ 8693.503375]  ffffffffad2eb58e 0000000000000004 0000000000000086 1ffff1011953cbb4
+[ 8693.503379] Call Trace:
+[ 8693.503409] ? dump_stack (lib/dump_stack.c:52)
+[ 8693.503426] dump_stack (lib/dump_stack.c:52)
+[ 8693.503454] kasan_report_error (mm/kasan/report.c:132 mm/kasan/report.c:193)
+[ 8693.503463] ? __pv_queued_spin_lock_slowpath (./arch/x86/include/asm/paravirt.h:730 kernel/locking/qspinlock.c:410)
+[ 8693.503474] ? kasan_report_error (mm/kasan/report.c:186)
+[ 8693.503488] ? trace_hardirqs_off_caller (./arch/x86/include/asm/current.h:14 kernel/locking/lockdep.c:2652)
+[ 8693.503504] __asan_report_load8_noabort (mm/kasan/report.c:230 mm/kasan/report.c:251)
+[ 8693.503517] ? __pv_queued_spin_lock_slowpath (./arch/x86/include/asm/paravirt.h:730 kernel/locking/qspinlock.c:410)
+[ 8693.503526] __pv_queued_spin_lock_slowpath (./arch/x86/include/asm/paravirt.h:730 kernel/locking/qspinlock.c:410)
+[ 8693.503541] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.503557] ? trace_hardirqs_off_thunk (arch/x86/lib/thunk_64.S:43)
+[ 8693.503566] ? trace_hardirqs_off_caller (./arch/x86/include/asm/current.h:14 kernel/locking/lockdep.c:2652)
+[ 8693.503578] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.503589] ? trace_hardirqs_off_thunk (arch/x86/lib/thunk_64.S:43)
+[ 8693.503605] ? native_iret (arch/x86/kernel/entry_64.S:806)
+[ 8693.503614] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.503623] ? trace_hardirqs_off_thunk (arch/x86/lib/thunk_64.S:43)
+[ 8693.503631] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.503639] ? async_page_fault (arch/x86/kernel/entry_64.S:1261)
+[ 8693.503663] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.503681] ? native_iret (arch/x86/kernel/entry_64.S:806)
+[ 8693.503691] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.503699] ? trace_hardirqs_off_thunk (arch/x86/lib/thunk_64.S:43)
+[ 8693.503730] ? trace_hardirqs_off_caller (./arch/x86/include/asm/current.h:14 kernel/locking/lockdep.c:2652)
+[ 8693.503743] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.503754] ? trace_hardirqs_off_thunk (arch/x86/lib/thunk_64.S:43)
+[ 8693.503772] ? native_iret (arch/x86/kernel/entry_64.S:806)
+[ 8693.503784] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.503794] ? trace_hardirqs_off_thunk (arch/x86/lib/thunk_64.S:43)
+[ 8693.503802] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.503814] ? async_page_fault (arch/x86/kernel/entry_64.S:1261)
+[ 8693.503829] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.503845] ? native_iret (arch/x86/kernel/entry_64.S:806)
+[ 8693.503854] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.503863] ? trace_hardirqs_off_thunk (arch/x86/lib/thunk_64.S:43)
+[ 8693.503872] ? trace_hardirqs_off_caller (./arch/x86/include/asm/current.h:14 kernel/locking/lockdep.c:2652)
+[ 8693.503888] ? async_page_fault (arch/x86/kernel/entry_64.S:1261)
+[ 8693.503897] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.503907] ? trace_hardirqs_off_thunk (arch/x86/lib/thunk_64.S:43)
+[ 8693.503922] ? native_iret (arch/x86/kernel/entry_64.S:806)
+[ 8693.503935] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.503943] ? trace_hardirqs_off_thunk (arch/x86/lib/thunk_64.S:43)
+[ 8693.503962] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.503970] ? async_page_fault (arch/x86/kernel/entry_64.S:1261)
+[ 8693.503980] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.503994] ? native_iret (arch/x86/kernel/entry_64.S:806)
+[ 8693.504002] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.504014] ? trace_hardirqs_off_thunk (arch/x86/lib/thunk_64.S:43)
+[ 8693.504029] ? trace_hardirqs_off_caller (./arch/x86/include/asm/current.h:14 kernel/locking/lockdep.c:2652)
+[ 8693.504042] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.504052] ? trace_hardirqs_off_thunk (arch/x86/lib/thunk_64.S:43)
+[ 8693.504064] ? native_iret (arch/x86/kernel/entry_64.S:806)
+[ 8693.504077] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.504086] ? trace_hardirqs_off_thunk (arch/x86/lib/thunk_64.S:43)
+[ 8693.504093] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.504102] ? async_page_fault (arch/x86/kernel/entry_64.S:1261)
+[ 8693.504112] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.504126] ? native_iret (arch/x86/kernel/entry_64.S:806)
+[ 8693.504135] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.504146] ? trace_hardirqs_off_thunk (arch/x86/lib/thunk_64.S:43)
+[ 8693.504161] ? trace_hardirqs_off_caller (./arch/x86/include/asm/current.h:14 kernel/locking/lockdep.c:2652)
+[ 8693.504172] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.504185] ? trace_hardirqs_off_thunk (arch/x86/lib/thunk_64.S:43)
+[ 8693.504201] ? native_iret (arch/x86/kernel/entry_64.S:806)
+[ 8693.504224] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.504233] ? trace_hardirqs_off_thunk (arch/x86/lib/thunk_64.S:43)
+[ 8693.504240] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.504252] ? async_page_fault (arch/x86/kernel/entry_64.S:1261)
+[ 8693.504263] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.504276] ? native_iret (arch/x86/kernel/entry_64.S:806)
+[ 8693.504295] ? error_sti (arch/x86/kernel/entry_64.S:1334)
+[ 8693.504303] ? trace_hardirqs_off_thunk (arch/x86/lib/thunk_64.S:43)
+[ 8693.504311] Memory state around the buggy address:
+[ 8693.504320]  ffffffffb9495800: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+[ 8693.504326]  ffffffffb9495880: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+[ 8693.504337] &gt;ffffffffb9495900: 00 00 00 00 00 00 00 00 00 00 00 00 fa fa fa fa
+[ 8693.504347]                                                     ^
+[ 8693.504353]  ffffffffb9495980: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+[ 8693.504363]  ffffffffb9495a00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+
+Thanks,
+Sasha
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=60141">Waiman Long</a> - May 31, 2015, 6:29 p.m.</div>
+<pre class="content">
+On 05/30/2015 12:09 AM, Sasha Levin wrote:
+<span class="quote">&gt; On 05/08/2015 09:27 AM, tip-bot for Peter Zijlstra (Intel) wrote:</span>
+<span class="quote">&gt;&gt; Commit-ID:  f233f7f1581e78fd9b4023f2e7d8c1ed89020cc9</span>
+<span class="quote">&gt;&gt; Gitweb:     http://git.kernel.org/tip/f233f7f1581e78fd9b4023f2e7d8c1ed89020cc9</span>
+<span class="quote">&gt;&gt; Author:     Peter Zijlstra (Intel)&lt;peterz@infradead.org&gt;</span>
+<span class="quote">&gt;&gt; AuthorDate: Fri, 24 Apr 2015 14:56:38 -0400</span>
+<span class="quote">&gt;&gt; Committer:  Ingo Molnar&lt;mingo@kernel.org&gt;</span>
+<span class="quote">&gt;&gt; CommitDate: Fri, 8 May 2015 12:37:09 +0200</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; locking/pvqspinlock, x86: Implement the paravirt qspinlock call patching</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; We use the regular paravirt call patching to switch between:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;    native_queued_spin_lock_slowpath()	__pv_queued_spin_lock_slowpath()</span>
+<span class="quote">&gt;&gt;    native_queued_spin_unlock()		__pv_queued_spin_unlock()</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; We use a callee saved call for the unlock function which reduces the</span>
+<span class="quote">&gt;&gt; i-cache footprint and allows &#39;inlining&#39; of SPIN_UNLOCK functions</span>
+<span class="quote">&gt;&gt; again.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; We further optimize the unlock path by patching the direct call with a</span>
+<span class="quote">&gt;&gt; &quot;movb $0,%arg1&quot; if we are indeed using the native unlock code. This</span>
+<span class="quote">&gt;&gt; makes the unlock code almost as fast as the !PARAVIRT case.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; This significantly lowers the overhead of having</span>
+<span class="quote">&gt;&gt; CONFIG_PARAVIRT_SPINLOCKS enabled, even for native code.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Signed-off-by: Peter Zijlstra (Intel)&lt;peterz@infradead.org&gt;</span>
+<span class="quote">&gt;&gt; Signed-off-by: Waiman Long&lt;Waiman.Long@hp.com&gt;</span>
+<span class="quote">&gt;&gt; Signed-off-by: Peter Zijlstra (Intel)&lt;peterz@infradead.org&gt;</span>
+<span class="quote">&gt;&gt; Cc: Andrew Morton&lt;akpm@linux-foundation.org&gt;</span>
+<span class="quote">&gt;&gt; Cc: Boris Ostrovsky&lt;boris.ostrovsky@oracle.com&gt;</span>
+<span class="quote">&gt;&gt; Cc: Borislav Petkov&lt;bp@alien8.de&gt;</span>
+<span class="quote">&gt;&gt; Cc: Daniel J Blueman&lt;daniel@numascale.com&gt;</span>
+<span class="quote">&gt;&gt; Cc: David Vrabel&lt;david.vrabel@citrix.com&gt;</span>
+<span class="quote">&gt;&gt; Cc: Douglas Hatch&lt;doug.hatch@hp.com&gt;</span>
+<span class="quote">&gt;&gt; Cc: H. Peter Anvin&lt;hpa@zytor.com&gt;</span>
+<span class="quote">&gt;&gt; Cc: Konrad Rzeszutek Wilk&lt;konrad.wilk@oracle.com&gt;</span>
+<span class="quote">&gt;&gt; Cc: Linus Torvalds&lt;torvalds@linux-foundation.org&gt;</span>
+<span class="quote">&gt;&gt; Cc: Oleg Nesterov&lt;oleg@redhat.com&gt;</span>
+<span class="quote">&gt;&gt; Cc: Paolo Bonzini&lt;paolo.bonzini@gmail.com&gt;</span>
+<span class="quote">&gt;&gt; Cc: Paul E. McKenney&lt;paulmck@linux.vnet.ibm.com&gt;</span>
+<span class="quote">&gt;&gt; Cc: Peter Zijlstra&lt;peterz@infradead.org&gt;</span>
+<span class="quote">&gt;&gt; Cc: Raghavendra K T&lt;raghavendra.kt@linux.vnet.ibm.com&gt;</span>
+<span class="quote">&gt;&gt; Cc: Rik van Riel&lt;riel@redhat.com&gt;</span>
+<span class="quote">&gt;&gt; Cc: Scott J Norton&lt;scott.norton@hp.com&gt;</span>
+<span class="quote">&gt;&gt; Cc: Thomas Gleixner&lt;tglx@linutronix.de&gt;</span>
+<span class="quote">&gt;&gt; Cc: virtualization@lists.linux-foundation.org</span>
+<span class="quote">&gt;&gt; Cc: xen-devel@lists.xenproject.org</span>
+<span class="quote">&gt;&gt; Link: http://lkml.kernel.org/r/1429901803-29771-10-git-send-email-Waiman.Long@hp.com</span>
+<span class="quote">&gt;&gt; Signed-off-by: Ingo Molnar&lt;mingo@kernel.org&gt;</span>
+<span class="quote">&gt; Hey Peter,</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I&#39;m seeing this on the latest -next kernel:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; [ 8693.503262] BUG: KASan: out of bounds access in __pv_queued_spin_lock_slowpath+0x84e/0x8c0 at addr ffffffffb9495950</span>
+<span class="quote">&gt; [ 8693.503271] Read of size 8 by task swapper/9/0</span>
+<span class="quote">&gt; [ 8693.503289] Address belongs to variable pv_lock_ops+0x10/0x240</span>
+
+I would like to clarify what the message means. pv_locks_ops + 0x10 
+should be the pv_wait function pointer. Also the structure should be 
+just 32 bytes in size and so what does the &quot;/0x240&quot; mean?
+
+Cheers,
+Longman
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig</span>
+<span class="p_header">index 90b1b54..50ec043 100644</span>
+<span class="p_header">--- a/arch/x86/Kconfig</span>
+<span class="p_header">+++ b/arch/x86/Kconfig</span>
+<span class="p_chunk">@@ -667,7 +667,7 @@</span> <span class="p_context"> config PARAVIRT_DEBUG</span>
+ config PARAVIRT_SPINLOCKS
+ 	bool &quot;Paravirtualization layer for spinlocks&quot;
+ 	depends on PARAVIRT &amp;&amp; SMP
+<span class="p_del">-	select UNINLINE_SPIN_UNLOCK</span>
+<span class="p_add">+	select UNINLINE_SPIN_UNLOCK if !QUEUED_SPINLOCK</span>
+ 	---help---
+ 	  Paravirtualized spinlocks allow a pvops backend to replace the
+ 	  spinlock implementation with something virtualization-friendly
+<span class="p_header">diff --git a/arch/x86/include/asm/paravirt.h b/arch/x86/include/asm/paravirt.h</span>
+<span class="p_header">index 8957810..266c353 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/paravirt.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/paravirt.h</span>
+<span class="p_chunk">@@ -712,6 +712,31 @@</span> <span class="p_context"> static inline void __set_fixmap(unsigned /* enum fixed_addresses */ idx,</span>
+ 
+ #if defined(CONFIG_SMP) &amp;&amp; defined(CONFIG_PARAVIRT_SPINLOCKS)
+ 
+<span class="p_add">+#ifdef CONFIG_QUEUED_SPINLOCK</span>
+<span class="p_add">+</span>
+<span class="p_add">+static __always_inline void pv_queued_spin_lock_slowpath(struct qspinlock *lock,</span>
+<span class="p_add">+							u32 val)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	PVOP_VCALL2(pv_lock_ops.queued_spin_lock_slowpath, lock, val);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static __always_inline void pv_queued_spin_unlock(struct qspinlock *lock)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	PVOP_VCALLEE1(pv_lock_ops.queued_spin_unlock, lock);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static __always_inline void pv_wait(u8 *ptr, u8 val)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	PVOP_VCALL2(pv_lock_ops.wait, ptr, val);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static __always_inline void pv_kick(int cpu)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	PVOP_VCALL1(pv_lock_ops.kick, cpu);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#else /* !CONFIG_QUEUED_SPINLOCK */</span>
+<span class="p_add">+</span>
+ static __always_inline void __ticket_lock_spinning(struct arch_spinlock *lock,
+ 							__ticket_t ticket)
+ {
+<span class="p_chunk">@@ -724,7 +749,9 @@</span> <span class="p_context"> static __always_inline void __ticket_unlock_kick(struct arch_spinlock *lock,</span>
+ 	PVOP_VCALL2(pv_lock_ops.unlock_kick, lock, ticket);
+ }
+ 
+<span class="p_del">-#endif</span>
+<span class="p_add">+#endif /* CONFIG_QUEUED_SPINLOCK */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#endif /* SMP &amp;&amp; PARAVIRT_SPINLOCKS */</span>
+ 
+ #ifdef CONFIG_X86_32
+ #define PV_SAVE_REGS &quot;pushl %ecx; pushl %edx;&quot;
+<span class="p_header">diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h</span>
+<span class="p_header">index f7b0b5c..76cd684 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/paravirt_types.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/paravirt_types.h</span>
+<span class="p_chunk">@@ -333,9 +333,19 @@</span> <span class="p_context"> struct arch_spinlock;</span>
+ typedef u16 __ticket_t;
+ #endif
+ 
+<span class="p_add">+struct qspinlock;</span>
+<span class="p_add">+</span>
+ struct pv_lock_ops {
+<span class="p_add">+#ifdef CONFIG_QUEUED_SPINLOCK</span>
+<span class="p_add">+	void (*queued_spin_lock_slowpath)(struct qspinlock *lock, u32 val);</span>
+<span class="p_add">+	struct paravirt_callee_save queued_spin_unlock;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	void (*wait)(u8 *ptr, u8 val);</span>
+<span class="p_add">+	void (*kick)(int cpu);</span>
+<span class="p_add">+#else /* !CONFIG_QUEUED_SPINLOCK */</span>
+ 	struct paravirt_callee_save lock_spinning;
+ 	void (*unlock_kick)(struct arch_spinlock *lock, __ticket_t ticket);
+<span class="p_add">+#endif /* !CONFIG_QUEUED_SPINLOCK */</span>
+ };
+ 
+ /* This contains all the paravirt structures: we get a convenient
+<span class="p_header">diff --git a/arch/x86/include/asm/qspinlock.h b/arch/x86/include/asm/qspinlock.h</span>
+<span class="p_header">index f079b70..9d51fae 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/qspinlock.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/qspinlock.h</span>
+<span class="p_chunk">@@ -3,6 +3,7 @@</span> <span class="p_context"></span>
+ 
+ #include &lt;asm/cpufeature.h&gt;
+ #include &lt;asm-generic/qspinlock_types.h&gt;
+<span class="p_add">+#include &lt;asm/paravirt.h&gt;</span>
+ 
+ #define	queued_spin_unlock queued_spin_unlock
+ /**
+<span class="p_chunk">@@ -11,11 +12,33 @@</span> <span class="p_context"></span>
+  *
+  * A smp_store_release() on the least-significant byte.
+  */
+<span class="p_del">-static inline void queued_spin_unlock(struct qspinlock *lock)</span>
+<span class="p_add">+static inline void native_queued_spin_unlock(struct qspinlock *lock)</span>
+ {
+ 	smp_store_release((u8 *)lock, 0);
+ }
+ 
+<span class="p_add">+#ifdef CONFIG_PARAVIRT_SPINLOCKS</span>
+<span class="p_add">+extern void native_queued_spin_lock_slowpath(struct qspinlock *lock, u32 val);</span>
+<span class="p_add">+extern void __pv_init_lock_hash(void);</span>
+<span class="p_add">+extern void __pv_queued_spin_lock_slowpath(struct qspinlock *lock, u32 val);</span>
+<span class="p_add">+extern void __raw_callee_save___pv_queued_spin_unlock(struct qspinlock *lock);</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void queued_spin_lock_slowpath(struct qspinlock *lock, u32 val)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	pv_queued_spin_lock_slowpath(lock, val);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void queued_spin_unlock(struct qspinlock *lock)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	pv_queued_spin_unlock(lock);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+#else</span>
+<span class="p_add">+static inline void queued_spin_unlock(struct qspinlock *lock)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	native_queued_spin_unlock(lock);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ #define virt_queued_spin_lock virt_queued_spin_lock
+ 
+ static inline bool virt_queued_spin_lock(struct qspinlock *lock)
+<span class="p_header">diff --git a/arch/x86/include/asm/qspinlock_paravirt.h b/arch/x86/include/asm/qspinlock_paravirt.h</span>
+new file mode 100644
+<span class="p_header">index 0000000..b002e71</span>
+<span class="p_header">--- /dev/null</span>
+<span class="p_header">+++ b/arch/x86/include/asm/qspinlock_paravirt.h</span>
+<span class="p_chunk">@@ -0,0 +1,6 @@</span> <span class="p_context"></span>
+<span class="p_add">+#ifndef __ASM_QSPINLOCK_PARAVIRT_H</span>
+<span class="p_add">+#define __ASM_QSPINLOCK_PARAVIRT_H</span>
+<span class="p_add">+</span>
+<span class="p_add">+PV_CALLEE_SAVE_REGS_THUNK(__pv_queued_spin_unlock);</span>
+<span class="p_add">+</span>
+<span class="p_add">+#endif</span>
+<span class="p_header">diff --git a/arch/x86/kernel/paravirt-spinlocks.c b/arch/x86/kernel/paravirt-spinlocks.c</span>
+<span class="p_header">index bbb6c73..a33f1eb 100644</span>
+<span class="p_header">--- a/arch/x86/kernel/paravirt-spinlocks.c</span>
+<span class="p_header">+++ b/arch/x86/kernel/paravirt-spinlocks.c</span>
+<span class="p_chunk">@@ -8,11 +8,33 @@</span> <span class="p_context"></span>
+ 
+ #include &lt;asm/paravirt.h&gt;
+ 
+<span class="p_add">+#ifdef CONFIG_QUEUED_SPINLOCK</span>
+<span class="p_add">+__visible void __native_queued_spin_unlock(struct qspinlock *lock)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	native_queued_spin_unlock(lock);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+PV_CALLEE_SAVE_REGS_THUNK(__native_queued_spin_unlock);</span>
+<span class="p_add">+</span>
+<span class="p_add">+bool pv_is_native_spin_unlock(void)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return pv_lock_ops.queued_spin_unlock.func ==</span>
+<span class="p_add">+		__raw_callee_save___native_queued_spin_unlock;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ struct pv_lock_ops pv_lock_ops = {
+ #ifdef CONFIG_SMP
+<span class="p_add">+#ifdef CONFIG_QUEUED_SPINLOCK</span>
+<span class="p_add">+	.queued_spin_lock_slowpath = native_queued_spin_lock_slowpath,</span>
+<span class="p_add">+	.queued_spin_unlock = PV_CALLEE_SAVE(__native_queued_spin_unlock),</span>
+<span class="p_add">+	.wait = paravirt_nop,</span>
+<span class="p_add">+	.kick = paravirt_nop,</span>
+<span class="p_add">+#else /* !CONFIG_QUEUED_SPINLOCK */</span>
+ 	.lock_spinning = __PV_IS_CALLEE_SAVE(paravirt_nop),
+ 	.unlock_kick = paravirt_nop,
+<span class="p_del">-#endif</span>
+<span class="p_add">+#endif /* !CONFIG_QUEUED_SPINLOCK */</span>
+<span class="p_add">+#endif /* SMP */</span>
+ };
+ EXPORT_SYMBOL(pv_lock_ops);
+ 
+<span class="p_header">diff --git a/arch/x86/kernel/paravirt_patch_32.c b/arch/x86/kernel/paravirt_patch_32.c</span>
+<span class="p_header">index d9f32e6..e1b0136 100644</span>
+<span class="p_header">--- a/arch/x86/kernel/paravirt_patch_32.c</span>
+<span class="p_header">+++ b/arch/x86/kernel/paravirt_patch_32.c</span>
+<span class="p_chunk">@@ -12,6 +12,10 @@</span> <span class="p_context"> DEF_NATIVE(pv_mmu_ops, read_cr3, &quot;mov %cr3, %eax&quot;);</span>
+ DEF_NATIVE(pv_cpu_ops, clts, &quot;clts&quot;);
+ DEF_NATIVE(pv_cpu_ops, read_tsc, &quot;rdtsc&quot;);
+ 
+<span class="p_add">+#if defined(CONFIG_PARAVIRT_SPINLOCKS) &amp;&amp; defined(CONFIG_QUEUED_SPINLOCKS)</span>
+<span class="p_add">+DEF_NATIVE(pv_lock_ops, queued_spin_unlock, &quot;movb $0, (%eax)&quot;);</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ unsigned paravirt_patch_ident_32(void *insnbuf, unsigned len)
+ {
+ 	/* arg in %eax, return in %eax */
+<span class="p_chunk">@@ -24,6 +28,8 @@</span> <span class="p_context"> unsigned paravirt_patch_ident_64(void *insnbuf, unsigned len)</span>
+ 	return 0;
+ }
+ 
+<span class="p_add">+extern bool pv_is_native_spin_unlock(void);</span>
+<span class="p_add">+</span>
+ unsigned native_patch(u8 type, u16 clobbers, void *ibuf,
+ 		      unsigned long addr, unsigned len)
+ {
+<span class="p_chunk">@@ -47,14 +53,22 @@</span> <span class="p_context"> unsigned native_patch(u8 type, u16 clobbers, void *ibuf,</span>
+ 		PATCH_SITE(pv_mmu_ops, write_cr3);
+ 		PATCH_SITE(pv_cpu_ops, clts);
+ 		PATCH_SITE(pv_cpu_ops, read_tsc);
+<span class="p_del">-</span>
+<span class="p_del">-	patch_site:</span>
+<span class="p_del">-		ret = paravirt_patch_insns(ibuf, len, start, end);</span>
+<span class="p_del">-		break;</span>
+<span class="p_add">+#if defined(CONFIG_PARAVIRT_SPINLOCKS) &amp;&amp; defined(CONFIG_QUEUED_SPINLOCKS)</span>
+<span class="p_add">+		case PARAVIRT_PATCH(pv_lock_ops.queued_spin_unlock):</span>
+<span class="p_add">+			if (pv_is_native_spin_unlock()) {</span>
+<span class="p_add">+				start = start_pv_lock_ops_queued_spin_unlock;</span>
+<span class="p_add">+				end   = end_pv_lock_ops_queued_spin_unlock;</span>
+<span class="p_add">+				goto patch_site;</span>
+<span class="p_add">+			}</span>
+<span class="p_add">+#endif</span>
+ 
+ 	default:
+ 		ret = paravirt_patch_default(type, clobbers, ibuf, addr, len);
+ 		break;
+<span class="p_add">+</span>
+<span class="p_add">+patch_site:</span>
+<span class="p_add">+		ret = paravirt_patch_insns(ibuf, len, start, end);</span>
+<span class="p_add">+		break;</span>
+ 	}
+ #undef PATCH_SITE
+ 	return ret;
+<span class="p_header">diff --git a/arch/x86/kernel/paravirt_patch_64.c b/arch/x86/kernel/paravirt_patch_64.c</span>
+<span class="p_header">index a1da673..e0fb41c 100644</span>
+<span class="p_header">--- a/arch/x86/kernel/paravirt_patch_64.c</span>
+<span class="p_header">+++ b/arch/x86/kernel/paravirt_patch_64.c</span>
+<span class="p_chunk">@@ -21,6 +21,10 @@</span> <span class="p_context"> DEF_NATIVE(pv_cpu_ops, swapgs, &quot;swapgs&quot;);</span>
+ DEF_NATIVE(, mov32, &quot;mov %edi, %eax&quot;);
+ DEF_NATIVE(, mov64, &quot;mov %rdi, %rax&quot;);
+ 
+<span class="p_add">+#if defined(CONFIG_PARAVIRT_SPINLOCKS) &amp;&amp; defined(CONFIG_QUEUED_SPINLOCK)</span>
+<span class="p_add">+DEF_NATIVE(pv_lock_ops, queued_spin_unlock, &quot;movb $0, (%rdi)&quot;);</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ unsigned paravirt_patch_ident_32(void *insnbuf, unsigned len)
+ {
+ 	return paravirt_patch_insns(insnbuf, len,
+<span class="p_chunk">@@ -33,6 +37,8 @@</span> <span class="p_context"> unsigned paravirt_patch_ident_64(void *insnbuf, unsigned len)</span>
+ 				    start__mov64, end__mov64);
+ }
+ 
+<span class="p_add">+extern bool pv_is_native_spin_unlock(void);</span>
+<span class="p_add">+</span>
+ unsigned native_patch(u8 type, u16 clobbers, void *ibuf,
+ 		      unsigned long addr, unsigned len)
+ {
+<span class="p_chunk">@@ -59,14 +65,22 @@</span> <span class="p_context"> unsigned native_patch(u8 type, u16 clobbers, void *ibuf,</span>
+ 		PATCH_SITE(pv_cpu_ops, clts);
+ 		PATCH_SITE(pv_mmu_ops, flush_tlb_single);
+ 		PATCH_SITE(pv_cpu_ops, wbinvd);
+<span class="p_del">-</span>
+<span class="p_del">-	patch_site:</span>
+<span class="p_del">-		ret = paravirt_patch_insns(ibuf, len, start, end);</span>
+<span class="p_del">-		break;</span>
+<span class="p_add">+#if defined(CONFIG_PARAVIRT_SPINLOCKS) &amp;&amp; defined(CONFIG_QUEUED_SPINLOCK)</span>
+<span class="p_add">+		case PARAVIRT_PATCH(pv_lock_ops.queued_spin_unlock):</span>
+<span class="p_add">+			if (pv_is_native_spin_unlock()) {</span>
+<span class="p_add">+				start = start_pv_lock_ops_queued_spin_unlock;</span>
+<span class="p_add">+				end   = end_pv_lock_ops_queued_spin_unlock;</span>
+<span class="p_add">+				goto patch_site;</span>
+<span class="p_add">+			}</span>
+<span class="p_add">+#endif</span>
+ 
+ 	default:
+ 		ret = paravirt_patch_default(type, clobbers, ibuf, addr, len);
+ 		break;
+<span class="p_add">+</span>
+<span class="p_add">+patch_site:</span>
+<span class="p_add">+		ret = paravirt_patch_insns(ibuf, len, start, end);</span>
+<span class="p_add">+		break;</span>
+ 	}
+ #undef PATCH_SITE
+ 	return ret;
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

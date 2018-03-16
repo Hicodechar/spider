@@ -1,0 +1,560 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,V2,02/12] mm: Isolate HugeTLB allocations away from CDM nodes - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,V2,02/12] mm: Isolate HugeTLB allocations away from CDM nodes</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=36302">Anshuman Khandual</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Jan. 30, 2017, 3:35 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170130033602.12275-3-khandual@linux.vnet.ibm.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9544379/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9544379/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9544379/">/patch/9544379/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	E6F9A604DF for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 30 Jan 2017 03:38:17 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id D7BA923B24
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 30 Jan 2017 03:38:17 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id CC7B025D99; Mon, 30 Jan 2017 03:38:17 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 8826228338
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 30 Jan 2017 03:38:16 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751984AbdA3DiE (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Sun, 29 Jan 2017 22:38:04 -0500
+Received: from mx0a-001b2d01.pphosted.com ([148.163.156.1]:49092 &quot;EHLO
+	mx0a-001b2d01.pphosted.com&quot; rhost-flags-OK-OK-OK-OK)
+	by vger.kernel.org with ESMTP id S1751794AbdA3Dhb (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Sun, 29 Jan 2017 22:37:31 -0500
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.20/8.16.0.20) with SMTP id
+	v0U3YMfP002890
+	for &lt;linux-kernel@vger.kernel.org&gt;; Sun, 29 Jan 2017 22:37:30 -0500
+Received: from e23smtp03.au.ibm.com (e23smtp03.au.ibm.com [202.81.31.145])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 288rb77kj9-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for &lt;linux-kernel@vger.kernel.org&gt;; Sun, 29 Jan 2017 22:37:30 -0500
+Received: from localhost
+	by e23smtp03.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use
+	Only! Violators will be prosecuted
+	for &lt;linux-kernel@vger.kernel.org&gt; from &lt;khandual@linux.vnet.ibm.com&gt;;
+	Mon, 30 Jan 2017 13:37:27 +1000
+Received: from d23dlp02.au.ibm.com (202.81.31.213)
+	by e23smtp03.au.ibm.com (202.81.31.209) with IBM ESMTP SMTP Gateway:
+	Authorized Use Only! Violators will be prosecuted; 
+	Mon, 30 Jan 2017 13:37:24 +1000
+Received: from d23relay09.au.ibm.com (d23relay09.au.ibm.com [9.185.63.181])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id D48E62BB0045
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Mon, 30 Jan 2017 14:37:23 +1100 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay09.au.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id
+	v0U3bFMu5701882
+	for &lt;linux-kernel@vger.kernel.org&gt;; Mon, 30 Jan 2017 14:37:23 +1100
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id
+	v0U3aoHp019782
+	for &lt;linux-kernel@vger.kernel.org&gt;; Mon, 30 Jan 2017 14:36:51 +1100
+Received: from localhost.in.ibm.com ([9.79.190.46])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVin) with ESMTP id
+	v0U3aOKg018792; Mon, 30 Jan 2017 14:36:43 +1100
+From: Anshuman Khandual &lt;khandual@linux.vnet.ibm.com&gt;
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: mhocko@suse.com, vbabka@suse.cz, mgorman@suse.de,
+	minchan@kernel.org, aneesh.kumar@linux.vnet.ibm.com,
+	bsingharora@gmail.com, srikar@linux.vnet.ibm.com,
+	haren@linux.vnet.ibm.com, jglisse@redhat.com,
+	dave.hansen@intel.com, dan.j.williams@intel.com
+Subject: [RFC V2 02/12] mm: Isolate HugeTLB allocations away from CDM nodes
+Date: Mon, 30 Jan 2017 09:05:43 +0530
+X-Mailer: git-send-email 2.9.3
+In-Reply-To: &lt;20170130033602.12275-1-khandual@linux.vnet.ibm.com&gt;
+References: &lt;20170130033602.12275-1-khandual@linux.vnet.ibm.com&gt;
+X-TM-AS-MML: disable
+X-Content-Scanned: Fidelis XPS MAILER
+x-cbid: 17013003-0008-0000-0000-00000105025B
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 17013003-0009-0000-0000-000008F7DCE5
+Message-Id: &lt;20170130033602.12275-3-khandual@linux.vnet.ibm.com&gt;
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10432:, ,
+	definitions=2017-01-30_02:, , signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0
+	spamscore=0 suspectscore=2
+	malwarescore=0 phishscore=0 adultscore=0 bulkscore=0 classifier=spam
+	adjust=0 reason=mlx scancount=1 engine=8.0.1-1612050000
+	definitions=main-1701300038
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=36302">Anshuman Khandual</a> - Jan. 30, 2017, 3:35 a.m.</div>
+<pre class="content">
+HugeTLB allocation/release/accounting currently spans across all the nodes
+under N_MEMORY node mask. Coherent memory nodes should not be part of these
+allocations. So use system_ram() call to fetch system RAM only nodes on the
+platform which can then be used for HugeTLB allocation purpose instead of
+N_MEMORY node mask. This isolates coherent device memory nodes from HugeTLB
+allocations.
+<span class="signed-off-by">
+Signed-off-by: Anshuman Khandual &lt;khandual@linux.vnet.ibm.com&gt;</span>
+---
+ mm/hugetlb.c | 25 ++++++++++++++++---------
+ 1 file changed, 16 insertions(+), 9 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=65121">Dave Hansen</a> - Jan. 30, 2017, 5:19 p.m.</div>
+<pre class="content">
+On 01/29/2017 07:35 PM, Anshuman Khandual wrote:
+<span class="quote">&gt; HugeTLB allocation/release/accounting currently spans across all the nodes</span>
+<span class="quote">&gt; under N_MEMORY node mask. Coherent memory nodes should not be part of these</span>
+<span class="quote">&gt; allocations. So use system_ram() call to fetch system RAM only nodes on the</span>
+<span class="quote">&gt; platform which can then be used for HugeTLB allocation purpose instead of</span>
+<span class="quote">&gt; N_MEMORY node mask. This isolates coherent device memory nodes from HugeTLB</span>
+<span class="quote">&gt; allocations.</span>
+
+Does this end up making it impossible to use hugetlbfs to access device
+memory?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=36302">Anshuman Khandual</a> - Jan. 31, 2017, 1:03 a.m.</div>
+<pre class="content">
+On 01/30/2017 10:49 PM, Dave Hansen wrote:
+<span class="quote">&gt; On 01/29/2017 07:35 PM, Anshuman Khandual wrote:</span>
+<span class="quote">&gt;&gt; HugeTLB allocation/release/accounting currently spans across all the nodes</span>
+<span class="quote">&gt;&gt; under N_MEMORY node mask. Coherent memory nodes should not be part of these</span>
+<span class="quote">&gt;&gt; allocations. So use system_ram() call to fetch system RAM only nodes on the</span>
+<span class="quote">&gt;&gt; platform which can then be used for HugeTLB allocation purpose instead of</span>
+<span class="quote">&gt;&gt; N_MEMORY node mask. This isolates coherent device memory nodes from HugeTLB</span>
+<span class="quote">&gt;&gt; allocations.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Does this end up making it impossible to use hugetlbfs to access device</span>
+<span class="quote">&gt; memory?</span>
+
+Right, thats the implementation at the moment. But going forward if we need
+to have HugeTLB pages on the CDM node, then we can implement through the
+sysfs interface from individual NUMA node paths instead of changing the
+generic HugeTLB path. I wrote this up in the cover letter but should also
+have mentioned in the comment section of this patch as well. Does this
+approach look okay ?
+
+&quot;Now, we ensure complete HugeTLB allocation isolation from CDM nodes. Going
+forward if we need to support HugeTLB allocation on CDM nodes on targeted
+basis, then we would have to enable those allocations through the
+/sys/devices/system/node/nodeN/hugepages/hugepages-16384kB/nr_hugepages
+interface while still ensuring isolation from other generic sysctl and
+/sys/kernel/mm/hugepages/hugepages-16384kB/nr_hugepages interfaces.&quot;
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=65121">Dave Hansen</a> - Jan. 31, 2017, 1:37 a.m.</div>
+<pre class="content">
+On 01/30/2017 05:03 PM, Anshuman Khandual wrote:
+<span class="quote">&gt; On 01/30/2017 10:49 PM, Dave Hansen wrote:</span>
+<span class="quote">&gt;&gt; On 01/29/2017 07:35 PM, Anshuman Khandual wrote:</span>
+<span class="quote">&gt;&gt;&gt; HugeTLB allocation/release/accounting currently spans across all the nodes</span>
+<span class="quote">&gt;&gt;&gt; under N_MEMORY node mask. Coherent memory nodes should not be part of these</span>
+<span class="quote">&gt;&gt;&gt; allocations. So use system_ram() call to fetch system RAM only nodes on the</span>
+<span class="quote">&gt;&gt;&gt; platform which can then be used for HugeTLB allocation purpose instead of</span>
+<span class="quote">&gt;&gt;&gt; N_MEMORY node mask. This isolates coherent device memory nodes from HugeTLB</span>
+<span class="quote">&gt;&gt;&gt; allocations.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Does this end up making it impossible to use hugetlbfs to access device</span>
+<span class="quote">&gt;&gt; memory?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Right, thats the implementation at the moment. But going forward if we need</span>
+<span class="quote">&gt; to have HugeTLB pages on the CDM node, then we can implement through the</span>
+<span class="quote">&gt; sysfs interface from individual NUMA node paths instead of changing the</span>
+<span class="quote">&gt; generic HugeTLB path. I wrote this up in the cover letter but should also</span>
+<span class="quote">&gt; have mentioned in the comment section of this patch as well. Does this</span>
+<span class="quote">&gt; approach look okay ?</span>
+
+The cover letter is not the most approachable document I&#39;ve ever seen. :)
+<span class="quote">
+&gt; &quot;Now, we ensure complete HugeTLB allocation isolation from CDM nodes. Going</span>
+<span class="quote">&gt; forward if we need to support HugeTLB allocation on CDM nodes on targeted</span>
+<span class="quote">&gt; basis, then we would have to enable those allocations through the</span>
+<span class="quote">&gt; /sys/devices/system/node/nodeN/hugepages/hugepages-16384kB/nr_hugepages</span>
+<span class="quote">&gt; interface while still ensuring isolation from other generic sysctl and</span>
+<span class="quote">&gt; /sys/kernel/mm/hugepages/hugepages-16384kB/nr_hugepages interfaces.&quot;</span>
+
+That would be passable if that&#39;s the only way you can allocate hugetlbfs
+pages.  But we also have the fault-based allocations that can pull stuff
+right out of the buddy allocator.  This approach would break that path
+entirely.
+
+FWIW, I think you really need to separate the true &quot;CDM&quot; stuff that&#39;s
+*really* device-specific from the parts of this from which you really
+just want to implement isolation.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=36302">Anshuman Khandual</a> - Feb. 1, 2017, 1:59 p.m.</div>
+<pre class="content">
+On 01/31/2017 07:07 AM, Dave Hansen wrote:
+<span class="quote">&gt; On 01/30/2017 05:03 PM, Anshuman Khandual wrote:</span>
+<span class="quote">&gt;&gt; On 01/30/2017 10:49 PM, Dave Hansen wrote:</span>
+<span class="quote">&gt;&gt;&gt; On 01/29/2017 07:35 PM, Anshuman Khandual wrote:</span>
+<span class="quote">&gt;&gt;&gt;&gt; HugeTLB allocation/release/accounting currently spans across all the nodes</span>
+<span class="quote">&gt;&gt;&gt;&gt; under N_MEMORY node mask. Coherent memory nodes should not be part of these</span>
+<span class="quote">&gt;&gt;&gt;&gt; allocations. So use system_ram() call to fetch system RAM only nodes on the</span>
+<span class="quote">&gt;&gt;&gt;&gt; platform which can then be used for HugeTLB allocation purpose instead of</span>
+<span class="quote">&gt;&gt;&gt;&gt; N_MEMORY node mask. This isolates coherent device memory nodes from HugeTLB</span>
+<span class="quote">&gt;&gt;&gt;&gt; allocations.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; Does this end up making it impossible to use hugetlbfs to access device</span>
+<span class="quote">&gt;&gt;&gt; memory?</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Right, thats the implementation at the moment. But going forward if we need</span>
+<span class="quote">&gt;&gt; to have HugeTLB pages on the CDM node, then we can implement through the</span>
+<span class="quote">&gt;&gt; sysfs interface from individual NUMA node paths instead of changing the</span>
+<span class="quote">&gt;&gt; generic HugeTLB path. I wrote this up in the cover letter but should also</span>
+<span class="quote">&gt;&gt; have mentioned in the comment section of this patch as well. Does this</span>
+<span class="quote">&gt;&gt; approach look okay ?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The cover letter is not the most approachable document I&#39;ve ever seen. :)</span>
+
+Hmm,
+
+So shall we write all these details in the comment section for each
+patch after the SOB statement to be more visible ? Or some where
+in-code documentation as FIXME or XXX or something. These are little
+large paragraphs, hence was wondering.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; &quot;Now, we ensure complete HugeTLB allocation isolation from CDM nodes. Going</span>
+<span class="quote">&gt;&gt; forward if we need to support HugeTLB allocation on CDM nodes on targeted</span>
+<span class="quote">&gt;&gt; basis, then we would have to enable those allocations through the</span>
+<span class="quote">&gt;&gt; /sys/devices/system/node/nodeN/hugepages/hugepages-16384kB/nr_hugepages</span>
+<span class="quote">&gt;&gt; interface while still ensuring isolation from other generic sysctl and</span>
+<span class="quote">&gt;&gt; /sys/kernel/mm/hugepages/hugepages-16384kB/nr_hugepages interfaces.&quot;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; That would be passable if that&#39;s the only way you can allocate hugetlbfs</span>
+<span class="quote">&gt; pages.  But we also have the fault-based allocations that can pull stuff</span>
+<span class="quote">&gt; right out of the buddy allocator.  This approach would break that path</span>
+<span class="quote">&gt; entirely.</span>
+
+There two distinct points which I think will prevent the problem you just
+mentioned.
+
+* No regular node has CDM memory in their fallback zone list. Hence any
+  allocation attempt without __GFP_THISNODE will never go into CDM memory
+  zones. If the allocation happens with __GFP_THISNODE flag it will only
+  happen from the exact node. Remember we have removed CDM nodes from the
+  global nodemask iterators. Then how can pre allocated reserve HugeTLB
+  pages can come from CDM nodes ?
+
+* Page faults (which will probably use __GFP_THISNODE) cannot come from the
+  CDM nodes as they dont have any CPUs.
+
+I did a quick scan of all the allocation paths leading upto the allocation
+functions alloc_pages_node() and __alloc_pages_node() inside the hugetlb.c
+file. Might be missing something here.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; FWIW, I think you really need to separate the true &quot;CDM&quot; stuff that&#39;s</span>
+<span class="quote">&gt; *really* device-specific from the parts of this from which you really</span>
+<span class="quote">&gt; just want to implement isolation.</span>
+
+IIUC, are you suggesting something like a pure CDM HugeTLB implementation
+which is completely separated from the generic one ?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=65121">Dave Hansen</a> - Feb. 1, 2017, 7:01 p.m.</div>
+<pre class="content">
+On 02/01/2017 05:59 AM, Anshuman Khandual wrote:
+<span class="quote">&gt; So shall we write all these details in the comment section for each</span>
+<span class="quote">&gt; patch after the SOB statement to be more visible ? Or some where</span>
+<span class="quote">&gt; in-code documentation as FIXME or XXX or something. These are little</span>
+<span class="quote">&gt; large paragraphs, hence was wondering.</span>
+
+I would make an effort to convey a maximum amount of content in a
+minimal amount of words. :)
+
+But, yeah, it is pretty obvious that you&#39;ve got too much in the cover
+letter and not enough in the patches descriptions.
+
+...
+<span class="quote">&gt; * Page faults (which will probably use __GFP_THISNODE) cannot come from the</span>
+<span class="quote">&gt;   CDM nodes as they dont have any CPUs.</span>
+
+Page faults happen on CPUs but they happen on VMAs that could be bound
+to a CDM node.  We allocate based on the VMA policy first, the fall back
+to the default policy which is based on the CPU doing the fault if the
+VMA doesn&#39;t have a specific policy.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="p_header">index c7025c1..698af91 100644</span>
+<span class="p_header">--- a/mm/hugetlb.c</span>
+<span class="p_header">+++ b/mm/hugetlb.c</span>
+<span class="p_chunk">@@ -1790,6 +1790,7 @@</span> <span class="p_context"> static void return_unused_surplus_pages(struct hstate *h,</span>
+ 					unsigned long unused_resv_pages)
+ {
+ 	unsigned long nr_pages;
+<span class="p_add">+	nodemask_t ram_nodes = ram_nodemask();</span>
+ 
+ 	/* Cannot return gigantic pages currently */
+ 	if (hstate_is_gigantic(h))
+<span class="p_chunk">@@ -1816,7 +1817,7 @@</span> <span class="p_context"> static void return_unused_surplus_pages(struct hstate *h,</span>
+ 	while (nr_pages--) {
+ 		h-&gt;resv_huge_pages--;
+ 		unused_resv_pages--;
+<span class="p_del">-		if (!free_pool_huge_page(h, &amp;node_states[N_MEMORY], 1))</span>
+<span class="p_add">+		if (!free_pool_huge_page(h, &amp;ram_nodes, 1))</span>
+ 			goto out;
+ 		cond_resched_lock(&amp;hugetlb_lock);
+ 	}
+<span class="p_chunk">@@ -2107,8 +2108,9 @@</span> <span class="p_context"> int __weak alloc_bootmem_huge_page(struct hstate *h)</span>
+ {
+ 	struct huge_bootmem_page *m;
+ 	int nr_nodes, node;
+<span class="p_add">+	nodemask_t ram_nodes = ram_nodemask();</span>
+ 
+<span class="p_del">-	for_each_node_mask_to_alloc(h, nr_nodes, node, &amp;node_states[N_MEMORY]) {</span>
+<span class="p_add">+	for_each_node_mask_to_alloc(h, nr_nodes, node, &amp;ram_nodes) {</span>
+ 		void *addr;
+ 
+ 		addr = memblock_virt_alloc_try_nid_nopanic(
+<span class="p_chunk">@@ -2177,13 +2179,14 @@</span> <span class="p_context"> static void __init gather_bootmem_prealloc(void)</span>
+ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
+ {
+ 	unsigned long i;
+<span class="p_add">+	nodemask_t ram_nodes = ram_nodemask();</span>
+<span class="p_add">+</span>
+ 
+ 	for (i = 0; i &lt; h-&gt;max_huge_pages; ++i) {
+ 		if (hstate_is_gigantic(h)) {
+ 			if (!alloc_bootmem_huge_page(h))
+ 				break;
+<span class="p_del">-		} else if (!alloc_fresh_huge_page(h,</span>
+<span class="p_del">-					 &amp;node_states[N_MEMORY]))</span>
+<span class="p_add">+		} else if (!alloc_fresh_huge_page(h, &amp;ram_nodes))</span>
+ 			break;
+ 	}
+ 	h-&gt;max_huge_pages = i;
+<span class="p_chunk">@@ -2420,6 +2423,8 @@</span> <span class="p_context"> static ssize_t __nr_hugepages_store_common(bool obey_mempolicy,</span>
+ 					   unsigned long count, size_t len)
+ {
+ 	int err;
+<span class="p_add">+	nodemask_t ram_nodes = ram_nodemask();</span>
+<span class="p_add">+</span>
+ 	NODEMASK_ALLOC(nodemask_t, nodes_allowed, GFP_KERNEL | __GFP_NORETRY);
+ 
+ 	if (hstate_is_gigantic(h) &amp;&amp; !gigantic_page_supported()) {
+<span class="p_chunk">@@ -2434,7 +2439,7 @@</span> <span class="p_context"> static ssize_t __nr_hugepages_store_common(bool obey_mempolicy,</span>
+ 		if (!(obey_mempolicy &amp;&amp;
+ 				init_nodemask_of_mempolicy(nodes_allowed))) {
+ 			NODEMASK_FREE(nodes_allowed);
+<span class="p_del">-			nodes_allowed = &amp;node_states[N_MEMORY];</span>
+<span class="p_add">+			nodes_allowed = &amp;ram_nodes;</span>
+ 		}
+ 	} else if (nodes_allowed) {
+ 		/*
+<span class="p_chunk">@@ -2444,11 +2449,11 @@</span> <span class="p_context"> static ssize_t __nr_hugepages_store_common(bool obey_mempolicy,</span>
+ 		count += h-&gt;nr_huge_pages - h-&gt;nr_huge_pages_node[nid];
+ 		init_nodemask_of_node(nodes_allowed, nid);
+ 	} else
+<span class="p_del">-		nodes_allowed = &amp;node_states[N_MEMORY];</span>
+<span class="p_add">+		nodes_allowed = &amp;ram_nodes;</span>
+ 
+ 	h-&gt;max_huge_pages = set_max_huge_pages(h, count, nodes_allowed);
+ 
+<span class="p_del">-	if (nodes_allowed != &amp;node_states[N_MEMORY])</span>
+<span class="p_add">+	if (nodes_allowed != &amp;ram_nodes)</span>
+ 		NODEMASK_FREE(nodes_allowed);
+ 
+ 	return len;
+<span class="p_chunk">@@ -2745,9 +2750,10 @@</span> <span class="p_context"> static void hugetlb_register_node(struct node *node)</span>
+  */
+ static void __init hugetlb_register_all_nodes(void)
+ {
+<span class="p_add">+	nodemask_t nodes = ram_nodemask();</span>
+ 	int nid;
+ 
+<span class="p_del">-	for_each_node_state(nid, N_MEMORY) {</span>
+<span class="p_add">+	for_each_node_mask(nid, nodes) {</span>
+ 		struct node *node = node_devices[nid];
+ 		if (node-&gt;dev.id == nid)
+ 			hugetlb_register_node(node);
+<span class="p_chunk">@@ -3019,11 +3025,12 @@</span> <span class="p_context"> void hugetlb_show_meminfo(void)</span>
+ {
+ 	struct hstate *h;
+ 	int nid;
+<span class="p_add">+	nodemask_t ram_nodes = ram_nodemask();</span>
+ 
+ 	if (!hugepages_supported())
+ 		return;
+ 
+<span class="p_del">-	for_each_node_state(nid, N_MEMORY)</span>
+<span class="p_add">+	for_each_node_mask(nid, ram_nodes)</span>
+ 		for_each_hstate(h)
+ 			pr_info(&quot;Node %d hugepages_total=%u hugepages_free=%u hugepages_surp=%u hugepages_size=%lukB\n&quot;,
+ 				nid,
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

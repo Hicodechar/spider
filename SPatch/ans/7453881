@@ -1,0 +1,305 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>mm, hugetlbfs: optimize when NUMA=n - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    mm, hugetlbfs: optimize when NUMA=n</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=2302">Dave Hansen</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Oct. 20, 2015, 11:56 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20151020235611.A30DC32F@viggo.jf.intel.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7453881/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7453881/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7453881/">/patch/7453881/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id D8A72BEEA4
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 20 Oct 2015 23:56:31 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id D8B34208BA
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 20 Oct 2015 23:56:30 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id E9270208AD
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 20 Oct 2015 23:56:19 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752897AbbJTX4Q (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 20 Oct 2015 19:56:16 -0400
+Received: from mga01.intel.com ([192.55.52.88]:17988 &quot;EHLO mga01.intel.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1750910AbbJTX4M (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 20 Oct 2015 19:56:12 -0400
+Received: from orsmga001.jf.intel.com ([10.7.209.18])
+	by fmsmga101.fm.intel.com with ESMTP; 20 Oct 2015 16:56:12 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i=&quot;5.17,709,1437462000&quot;; d=&quot;scan&#39;208&quot;;a=&quot;798586070&quot;
+Received: from viggo.jf.intel.com (HELO localhost.localdomain)
+	([10.54.39.19])
+	by orsmga001.jf.intel.com with ESMTP; 20 Oct 2015 16:56:12 -0700
+Subject: [PATCH] mm, hugetlbfs: optimize when NUMA=n
+To: dave@sr71.net
+Cc: akpm@linux-foundation.org, n-horiguchi@ah.jp.nec.com,
+	mike.kravetz@oracle.com, hillf.zj@alibaba-inc.com,
+	rientjes@google.com, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, dave.hansen@linux.intel.com
+From: Dave Hansen &lt;dave@sr71.net&gt;
+Date: Tue, 20 Oct 2015 16:56:12 -0700
+Message-Id: &lt;20151020235611.A30DC32F@viggo.jf.intel.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=2302">Dave Hansen</a> - Oct. 20, 2015, 11:56 p.m.</div>
+<pre class="content">
+<span class="from">From: Dave Hansen &lt;dave.hansen@linux.intel.com&gt;</span>
+
+My recent patch &quot;mm, hugetlb: use memory policy when available&quot; added some
+bloat to hugetlb.o.  This patch aims to get some of the bloat back,
+especially when NUMA is not in play.
+
+It does this with an implicit #ifdef and marking some things static that
+should have been static in my first patch.  It also makes the warnings
+only VM_WARN_ON()s.  They were responsible for a pretty big chunk of the
+bloat.
+
+Doing this gets our NUMA=n text size back to a wee bit _below_ where we
+started before the original patch.
+
+It also shaves a bit of space off the NUMA=y case, but not much.  Enforcing
+the mempolicy definitely takes some text and it&#39;s hard to avoid.
+
+size(1) output:
+
+   text	   data	    bss	    dec	    hex	filename
+  30745	   3433	   2492	  36670	   8f3e	hugetlb.o.nonuma.baseline
+  31305	   3755	   2492	  37552	   92b0	hugetlb.o.nonuma.patch1
+  30713	   3433	   2492	  36638	   8f1e	hugetlb.o.nonuma.patch2 (this patch)
+  25235	    473	  41276	  66984	  105a8	hugetlb.o.numa.baseline
+  25715	    475	  41276	  67466	  1078a	hugetlb.o.numa.patch1
+  25491	    473	  41276	  67240	  106a8	hugetlb.o.numa.patch2 (this patch)
+
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;
+Cc: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+Cc: Hillf Danton &lt;hillf.zj@alibaba-inc.com&gt;
+Cc: David Rientjes &lt;rientjes@google.com&gt;
+Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
+<span class="signed-off-by">Signed-off-by: Dave Hansen &lt;dave.hansen@linux.intel.com&gt;</span>
+---
+
+ b/mm/hugetlb.c |   18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff -puN mm/hugetlb.c~hugetlbfs-decrapify-with-no-numa mm/hugetlb.c</span>
+<span class="p_header">--- a/mm/hugetlb.c~hugetlbfs-decrapify-with-no-numa	2015-10-20 16:47:24.501877643 -0700</span>
+<span class="p_header">+++ b/mm/hugetlb.c	2015-10-20 16:52:33.060946354 -0700</span>
+<span class="p_chunk">@@ -1455,9 +1455,14 @@</span> <span class="p_context"> static struct page *__hugetlb_alloc_budd</span>
+ 
+ 	/*
+ 	 * We need a VMA to get a memory policy.  If we do not
+<span class="p_del">-	 * have one, we use the &#39;nid&#39; argument</span>
+<span class="p_add">+	 * have one, we use the &#39;nid&#39; argument.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * The mempolicy stuff below has some non-inlined bits</span>
+<span class="p_add">+	 * and calls -&gt;vm_ops.  That makes it hard to optimize at</span>
+<span class="p_add">+	 * compile-time, even when NUMA is off and it does</span>
+<span class="p_add">+	 * nothing.  This helps the compiler optimize it out.</span>
+ 	 */
+<span class="p_del">-	if (!vma) {</span>
+<span class="p_add">+	if (!IS_ENABLED(CONFIG_NUMA) || !vma) {</span>
+ 		/*
+ 		 * If a specific node is requested, make sure to
+ 		 * get memory from there, but only when a node
+<span class="p_chunk">@@ -1474,7 +1479,8 @@</span> <span class="p_context"> static struct page *__hugetlb_alloc_budd</span>
+ 
+ 	/*
+ 	 * OK, so we have a VMA.  Fetch the mempolicy and try to
+<span class="p_del">-	 * allocate a huge page with it.</span>
+<span class="p_add">+	 * allocate a huge page with it.  We will only reach this</span>
+<span class="p_add">+	 * when CONFIG_NUMA=y.</span>
+ 	 */
+ 	do {
+ 		struct page *page;
+<span class="p_chunk">@@ -1515,8 +1521,8 @@</span> <span class="p_context"> static struct page *__alloc_buddy_huge_p</span>
+ 		return NULL;
+ 
+ 	if (vma || addr) {
+<span class="p_del">-		WARN_ON_ONCE(!addr || addr == -1);</span>
+<span class="p_del">-		WARN_ON_ONCE(nid != NUMA_NO_NODE);</span>
+<span class="p_add">+		VM_WARN_ON_ONCE(!addr || addr == -1);</span>
+<span class="p_add">+		VM_WARN_ON_ONCE(nid != NUMA_NO_NODE);</span>
+ 	}
+ 	/*
+ 	 * Assume we will successfully allocate the surplus page to
+<span class="p_chunk">@@ -1580,6 +1586,7 @@</span> <span class="p_context"> static struct page *__alloc_buddy_huge_p</span>
+  * NUMA_NO_NODE, which means that it may be allocated
+  * anywhere.
+  */
+<span class="p_add">+static</span>
+ struct page *__alloc_buddy_huge_page_no_mpol(struct hstate *h, int nid)
+ {
+ 	unsigned long addr = -1;
+<span class="p_chunk">@@ -1590,6 +1597,7 @@</span> <span class="p_context"> struct page *__alloc_buddy_huge_page_no_</span>
+ /*
+  * Use the VMA&#39;s mpolicy to allocate a huge page from the buddy.
+  */
+<span class="p_add">+static</span>
+ struct page *__alloc_buddy_huge_page_with_mpol(struct hstate *h,
+ 		struct vm_area_struct *vma, unsigned long addr)
+ {
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,2259 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,1/2] arm64: mm: Use READ_ONCE/WRITE_ONCE when accessing page tables - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,1/2] arm64: mm: Use READ_ONCE/WRITE_ONCE when accessing page tables</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=7096">Will Deacon</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Sept. 27, 2017, 3:49 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1506527369-19535-2-git-send-email-will.deacon@arm.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9974329/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9974329/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9974329/">/patch/9974329/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	9968C6037F for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 27 Sep 2017 15:54:37 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 878A428BBB
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 27 Sep 2017 15:54:37 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 7C16E28F1A; Wed, 27 Sep 2017 15:54:37 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id BC03F28F1E
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 27 Sep 2017 15:54:34 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S932165AbdI0Pyc (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 27 Sep 2017 11:54:32 -0400
+Received: from usa-sjc-mx-foss1.foss.arm.com ([217.140.101.70]:47404 &quot;EHLO
+	foss.arm.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1752494AbdI0Pxw (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 27 Sep 2017 11:53:52 -0400
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 2769415BF;
+	Wed, 27 Sep 2017 08:53:52 -0700 (PDT)
+Received: from edgewater-inn.cambridge.arm.com
+	(usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id
+	A64473F59E; Wed, 27 Sep 2017 08:53:51 -0700 (PDT)
+Received: by edgewater-inn.cambridge.arm.com (Postfix, from userid 1000)
+	id E61031AE2DD7; Wed, 27 Sep 2017 16:54:05 +0100 (BST)
+From: Will Deacon &lt;will.deacon@arm.com&gt;
+To: peterz@infradead.org, paulmck@linux.vnet.ibm.com,
+	kirill.shutemov@linux.intel.com
+Cc: linux-kernel@vger.kernel.org, ynorov@caviumnetworks.com,
+	rruigrok@codeaurora.org, linux-arch@vger.kernel.org,
+	akpm@linux-foundation.org, catalin.marinas@arm.com,
+	Will Deacon &lt;will.deacon@arm.com&gt;
+Subject: [RFC PATCH 1/2] arm64: mm: Use READ_ONCE/WRITE_ONCE when accessing
+	page tables
+Date: Wed, 27 Sep 2017 16:49:28 +0100
+Message-Id: &lt;1506527369-19535-2-git-send-email-will.deacon@arm.com&gt;
+X-Mailer: git-send-email 2.1.4
+In-Reply-To: &lt;1506527369-19535-1-git-send-email-will.deacon@arm.com&gt;
+References: &lt;1506527369-19535-1-git-send-email-will.deacon@arm.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - Sept. 27, 2017, 3:49 p.m.</div>
+<pre class="content">
+In many cases, page tables can be accessed concurrently by either another
+CPU (due to things like fast gup) or by the hardware page table walker
+itself, which may set access/dirty bits. In such cases, it is important
+to use READ_ONCE/WRITE_ONCE when accessing page table entries so that
+entries cannot be torn, merged or subject to apparent loss of coherence.
+
+Whilst there are some scenarios where this cannot happen (e.g. pinned
+kernel mappings for the linear region), the overhead of using READ_ONCE
+/WRITE_ONCE everywhere is minimal and makes the code an awful lot easier
+to reason about. This patch consistently uses these macros in the arch
+code, as well as explicitly namespacing pointers to page table entries
+from the entries themselves by using adopting a &#39;p&#39; suffix for the former
+(as is sometimes used elsewhere in the kernel source).
+<span class="signed-off-by">
+Signed-off-by: Will Deacon &lt;will.deacon@arm.com&gt;</span>
+---
+ arch/arm64/include/asm/hugetlb.h     |   2 +-
+ arch/arm64/include/asm/kvm_mmu.h     |  18 +--
+ arch/arm64/include/asm/mmu_context.h |   4 +-
+ arch/arm64/include/asm/pgalloc.h     |  42 +++---
+ arch/arm64/include/asm/pgtable.h     |  29 ++--
+ arch/arm64/kernel/hibernate.c        | 148 +++++++++---------
+ arch/arm64/mm/dump.c                 |  54 ++++---
+ arch/arm64/mm/fault.c                |  44 +++---
+ arch/arm64/mm/hugetlbpage.c          |  94 ++++++------
+ arch/arm64/mm/kasan_init.c           |  62 ++++----
+ arch/arm64/mm/mmu.c                  | 281 ++++++++++++++++++-----------------
+ arch/arm64/mm/pageattr.c             |  30 ++--
+ 12 files changed, 417 insertions(+), 391 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Sept. 28, 2017, 8:38 a.m.</div>
+<pre class="content">
+On Wed, Sep 27, 2017 at 04:49:28PM +0100, Will Deacon wrote:
+<span class="quote">&gt; In many cases, page tables can be accessed concurrently by either another</span>
+<span class="quote">&gt; CPU (due to things like fast gup) or by the hardware page table walker</span>
+<span class="quote">&gt; itself, which may set access/dirty bits. In such cases, it is important</span>
+<span class="quote">&gt; to use READ_ONCE/WRITE_ONCE when accessing page table entries so that</span>
+<span class="quote">&gt; entries cannot be torn, merged or subject to apparent loss of coherence.</span>
+
+In fact, we should use lockless_dereference() for many of them. Yes
+Alpha is the only one that cares about the difference between that and
+READ_ONCE() and they do have the extra barrier, but if we&#39;re going to do
+this, we might as well do it &#39;right&#39; :-)
+
+Also, a very long standing item on my TODO list is to see how much of it
+we can unify across the various architectures, because there&#39;s a giant
+amount of boiler plate involved with all this.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - Sept. 28, 2017, 8:45 a.m.</div>
+<pre class="content">
+On Thu, Sep 28, 2017 at 10:38:01AM +0200, Peter Zijlstra wrote:
+<span class="quote">&gt; On Wed, Sep 27, 2017 at 04:49:28PM +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; In many cases, page tables can be accessed concurrently by either another</span>
+<span class="quote">&gt; &gt; CPU (due to things like fast gup) or by the hardware page table walker</span>
+<span class="quote">&gt; &gt; itself, which may set access/dirty bits. In such cases, it is important</span>
+<span class="quote">&gt; &gt; to use READ_ONCE/WRITE_ONCE when accessing page table entries so that</span>
+<span class="quote">&gt; &gt; entries cannot be torn, merged or subject to apparent loss of coherence.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; In fact, we should use lockless_dereference() for many of them. Yes</span>
+<span class="quote">&gt; Alpha is the only one that cares about the difference between that and</span>
+<span class="quote">&gt; READ_ONCE() and they do have the extra barrier, but if we&#39;re going to do</span>
+<span class="quote">&gt; this, we might as well do it &#39;right&#39; :-)</span>
+
+I know this sounds daft, but I think one of the big reasons why
+lockless_dereference() doesn&#39;t get an awful lot of use is because it&#39;s
+such a mouthful! Why don&#39;t we just move the smp_read_barrier_depends()
+into READ_ONCE? Would anybody actually care about the potential impact on
+Alpha (which, frankly, is treading on thin ice given the low adoption of
+lockless_dereference())?
+<span class="quote">
+&gt; Also, a very long standing item on my TODO list is to see how much of it</span>
+<span class="quote">&gt; we can unify across the various architectures, because there&#39;s a giant</span>
+<span class="quote">&gt; amount of boiler plate involved with all this.</span>
+
+Yeah, I&#39;d be happy to help with that as a separate series. I already tripped
+over 5 or 6 page table walkers in arch/arm64/ alone :(
+
+Will
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=61">Paul E. McKenney</a> - Sept. 28, 2017, 3:43 p.m.</div>
+<pre class="content">
+On Thu, Sep 28, 2017 at 09:45:35AM +0100, Will Deacon wrote:
+<span class="quote">&gt; On Thu, Sep 28, 2017 at 10:38:01AM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; On Wed, Sep 27, 2017 at 04:49:28PM +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; &gt; In many cases, page tables can be accessed concurrently by either another</span>
+<span class="quote">&gt; &gt; &gt; CPU (due to things like fast gup) or by the hardware page table walker</span>
+<span class="quote">&gt; &gt; &gt; itself, which may set access/dirty bits. In such cases, it is important</span>
+<span class="quote">&gt; &gt; &gt; to use READ_ONCE/WRITE_ONCE when accessing page table entries so that</span>
+<span class="quote">&gt; &gt; &gt; entries cannot be torn, merged or subject to apparent loss of coherence.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; In fact, we should use lockless_dereference() for many of them. Yes</span>
+<span class="quote">&gt; &gt; Alpha is the only one that cares about the difference between that and</span>
+<span class="quote">&gt; &gt; READ_ONCE() and they do have the extra barrier, but if we&#39;re going to do</span>
+<span class="quote">&gt; &gt; this, we might as well do it &#39;right&#39; :-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I know this sounds daft, but I think one of the big reasons why</span>
+<span class="quote">&gt; lockless_dereference() doesn&#39;t get an awful lot of use is because it&#39;s</span>
+<span class="quote">&gt; such a mouthful! Why don&#39;t we just move the smp_read_barrier_depends()</span>
+<span class="quote">&gt; into READ_ONCE? Would anybody actually care about the potential impact on</span>
+<span class="quote">&gt; Alpha (which, frankly, is treading on thin ice given the low adoption of</span>
+<span class="quote">&gt; lockless_dereference())?</span>
+
+This is my cue to ask my usual question...  ;-)
+
+Are people still running mainline kernels on Alpha?  (Added Alpha folks.)
+
+As always, if anyone is, we must continue to support Alpha, but sounds
+like time to check again.
+
+							Thanx, Paul
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - Sept. 28, 2017, 3:49 p.m.</div>
+<pre class="content">
+On Thu, Sep 28, 2017 at 08:43:54AM -0700, Paul E. McKenney wrote:
+<span class="quote">&gt; On Thu, Sep 28, 2017 at 09:45:35AM +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; On Thu, Sep 28, 2017 at 10:38:01AM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; &gt; On Wed, Sep 27, 2017 at 04:49:28PM +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; In many cases, page tables can be accessed concurrently by either another</span>
+<span class="quote">&gt; &gt; &gt; &gt; CPU (due to things like fast gup) or by the hardware page table walker</span>
+<span class="quote">&gt; &gt; &gt; &gt; itself, which may set access/dirty bits. In such cases, it is important</span>
+<span class="quote">&gt; &gt; &gt; &gt; to use READ_ONCE/WRITE_ONCE when accessing page table entries so that</span>
+<span class="quote">&gt; &gt; &gt; &gt; entries cannot be torn, merged or subject to apparent loss of coherence.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; In fact, we should use lockless_dereference() for many of them. Yes</span>
+<span class="quote">&gt; &gt; &gt; Alpha is the only one that cares about the difference between that and</span>
+<span class="quote">&gt; &gt; &gt; READ_ONCE() and they do have the extra barrier, but if we&#39;re going to do</span>
+<span class="quote">&gt; &gt; &gt; this, we might as well do it &#39;right&#39; :-)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I know this sounds daft, but I think one of the big reasons why</span>
+<span class="quote">&gt; &gt; lockless_dereference() doesn&#39;t get an awful lot of use is because it&#39;s</span>
+<span class="quote">&gt; &gt; such a mouthful! Why don&#39;t we just move the smp_read_barrier_depends()</span>
+<span class="quote">&gt; &gt; into READ_ONCE? Would anybody actually care about the potential impact on</span>
+<span class="quote">&gt; &gt; Alpha (which, frankly, is treading on thin ice given the low adoption of</span>
+<span class="quote">&gt; &gt; lockless_dereference())?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This is my cue to ask my usual question...  ;-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Are people still running mainline kernels on Alpha?  (Added Alpha folks.)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; As always, if anyone is, we must continue to support Alpha, but sounds</span>
+<span class="quote">&gt; like time to check again.</span>
+
+I&#39;ll be honest and say that I haven&#39;t updated mine for a while, but I do
+have a soft spot for those machines :(
+
+Will
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=61">Paul E. McKenney</a> - Sept. 28, 2017, 4:07 p.m.</div>
+<pre class="content">
+On Thu, Sep 28, 2017 at 04:49:54PM +0100, Will Deacon wrote:
+<span class="quote">&gt; On Thu, Sep 28, 2017 at 08:43:54AM -0700, Paul E. McKenney wrote:</span>
+<span class="quote">&gt; &gt; On Thu, Sep 28, 2017 at 09:45:35AM +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; &gt; On Thu, Sep 28, 2017 at 10:38:01AM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; On Wed, Sep 27, 2017 at 04:49:28PM +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; In many cases, page tables can be accessed concurrently by either another</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; CPU (due to things like fast gup) or by the hardware page table walker</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; itself, which may set access/dirty bits. In such cases, it is important</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; to use READ_ONCE/WRITE_ONCE when accessing page table entries so that</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; entries cannot be torn, merged or subject to apparent loss of coherence.</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; In fact, we should use lockless_dereference() for many of them. Yes</span>
+<span class="quote">&gt; &gt; &gt; &gt; Alpha is the only one that cares about the difference between that and</span>
+<span class="quote">&gt; &gt; &gt; &gt; READ_ONCE() and they do have the extra barrier, but if we&#39;re going to do</span>
+<span class="quote">&gt; &gt; &gt; &gt; this, we might as well do it &#39;right&#39; :-)</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; I know this sounds daft, but I think one of the big reasons why</span>
+<span class="quote">&gt; &gt; &gt; lockless_dereference() doesn&#39;t get an awful lot of use is because it&#39;s</span>
+<span class="quote">&gt; &gt; &gt; such a mouthful! Why don&#39;t we just move the smp_read_barrier_depends()</span>
+<span class="quote">&gt; &gt; &gt; into READ_ONCE? Would anybody actually care about the potential impact on</span>
+<span class="quote">&gt; &gt; &gt; Alpha (which, frankly, is treading on thin ice given the low adoption of</span>
+<span class="quote">&gt; &gt; &gt; lockless_dereference())?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; This is my cue to ask my usual question...  ;-)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Are people still running mainline kernels on Alpha?  (Added Alpha folks.)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; As always, if anyone is, we must continue to support Alpha, but sounds</span>
+<span class="quote">&gt; &gt; like time to check again.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I&#39;ll be honest and say that I haven&#39;t updated mine for a while, but I do</span>
+<span class="quote">&gt; have a soft spot for those machines :(</span>
+
+Let&#39;s see what the Alpha folks say.  I myself have had a close
+relationship with Alpha for almost 20 years, but I suspect that in
+my case it is more a hard spot on my head rather than a soft spot in
+my heart.  ;-)
+
+								Thanx,
+								Paul
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=3741">Michael Cree</a> - Sept. 28, 2017, 6:59 p.m.</div>
+<pre class="content">
+On Thu, Sep 28, 2017 at 08:43:54AM -0700, Paul E. McKenney wrote:
+<span class="quote">&gt; On Thu, Sep 28, 2017 at 09:45:35AM +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; On Thu, Sep 28, 2017 at 10:38:01AM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; &gt; On Wed, Sep 27, 2017 at 04:49:28PM +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; In many cases, page tables can be accessed concurrently by either another</span>
+<span class="quote">&gt; &gt; &gt; &gt; CPU (due to things like fast gup) or by the hardware page table walker</span>
+<span class="quote">&gt; &gt; &gt; &gt; itself, which may set access/dirty bits. In such cases, it is important</span>
+<span class="quote">&gt; &gt; &gt; &gt; to use READ_ONCE/WRITE_ONCE when accessing page table entries so that</span>
+<span class="quote">&gt; &gt; &gt; &gt; entries cannot be torn, merged or subject to apparent loss of coherence.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; In fact, we should use lockless_dereference() for many of them. Yes</span>
+<span class="quote">&gt; &gt; &gt; Alpha is the only one that cares about the difference between that and</span>
+<span class="quote">&gt; &gt; &gt; READ_ONCE() and they do have the extra barrier, but if we&#39;re going to do</span>
+<span class="quote">&gt; &gt; &gt; this, we might as well do it &#39;right&#39; :-)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I know this sounds daft, but I think one of the big reasons why</span>
+<span class="quote">&gt; &gt; lockless_dereference() doesn&#39;t get an awful lot of use is because it&#39;s</span>
+<span class="quote">&gt; &gt; such a mouthful! Why don&#39;t we just move the smp_read_barrier_depends()</span>
+<span class="quote">&gt; &gt; into READ_ONCE? Would anybody actually care about the potential impact on</span>
+<span class="quote">&gt; &gt; Alpha (which, frankly, is treading on thin ice given the low adoption of</span>
+<span class="quote">&gt; &gt; lockless_dereference())?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This is my cue to ask my usual question...  ;-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Are people still running mainline kernels on Alpha?  (Added Alpha folks.)</span>
+
+Yes.  I run two Alpha build daemons that build the unofficial
+debian-alpha port.  Debian popcon reports nine machines running
+Alpha, which are likely to be running the 4.12.y kernel which
+is currently in debian-alpha, (and presumably soon to be 4.13.y
+which is now built on Alpha in experimental).
+
+Cheers
+Michael
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=88391">Timur Tabi</a> - Sept. 28, 2017, 7:18 p.m.</div>
+<pre class="content">
+On Wed, Sep 27, 2017 at 10:49 AM, Will Deacon &lt;will.deacon@arm.com&gt; wrote:
+<span class="quote">&gt; This patch consistently uses these macros in the arch</span>
+<span class="quote">&gt; code, as well as explicitly namespacing pointers to page table entries</span>
+<span class="quote">&gt; from the entries themselves by using adopting a &#39;p&#39; suffix for the former</span>
+<span class="quote">&gt; (as is sometimes used elsewhere in the kernel source).</span>
+
+Would you consider splitting up this patch into two, where the second
+patch makes all the cosmetic changes?  That would make the &quot;meatier&quot;
+patch easier to back-port and review.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=61">Paul E. McKenney</a> - Sept. 29, 2017, 12:58 a.m.</div>
+<pre class="content">
+On Fri, Sep 29, 2017 at 07:59:09AM +1300, Michael Cree wrote:
+<span class="quote">&gt; On Thu, Sep 28, 2017 at 08:43:54AM -0700, Paul E. McKenney wrote:</span>
+<span class="quote">&gt; &gt; On Thu, Sep 28, 2017 at 09:45:35AM +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; &gt; On Thu, Sep 28, 2017 at 10:38:01AM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; On Wed, Sep 27, 2017 at 04:49:28PM +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; In many cases, page tables can be accessed concurrently by either another</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; CPU (due to things like fast gup) or by the hardware page table walker</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; itself, which may set access/dirty bits. In such cases, it is important</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; to use READ_ONCE/WRITE_ONCE when accessing page table entries so that</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; entries cannot be torn, merged or subject to apparent loss of coherence.</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; In fact, we should use lockless_dereference() for many of them. Yes</span>
+<span class="quote">&gt; &gt; &gt; &gt; Alpha is the only one that cares about the difference between that and</span>
+<span class="quote">&gt; &gt; &gt; &gt; READ_ONCE() and they do have the extra barrier, but if we&#39;re going to do</span>
+<span class="quote">&gt; &gt; &gt; &gt; this, we might as well do it &#39;right&#39; :-)</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; I know this sounds daft, but I think one of the big reasons why</span>
+<span class="quote">&gt; &gt; &gt; lockless_dereference() doesn&#39;t get an awful lot of use is because it&#39;s</span>
+<span class="quote">&gt; &gt; &gt; such a mouthful! Why don&#39;t we just move the smp_read_barrier_depends()</span>
+<span class="quote">&gt; &gt; &gt; into READ_ONCE? Would anybody actually care about the potential impact on</span>
+<span class="quote">&gt; &gt; &gt; Alpha (which, frankly, is treading on thin ice given the low adoption of</span>
+<span class="quote">&gt; &gt; &gt; lockless_dereference())?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; This is my cue to ask my usual question...  ;-)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Are people still running mainline kernels on Alpha?  (Added Alpha folks.)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yes.  I run two Alpha build daemons that build the unofficial</span>
+<span class="quote">&gt; debian-alpha port.  Debian popcon reports nine machines running</span>
+<span class="quote">&gt; Alpha, which are likely to be running the 4.12.y kernel which</span>
+<span class="quote">&gt; is currently in debian-alpha, (and presumably soon to be 4.13.y</span>
+<span class="quote">&gt; which is now built on Alpha in experimental).</span>
+
+I salute your dedication to Alpha!  ;-)
+
+							Thanx, Paul
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/arm64/include/asm/hugetlb.h b/arch/arm64/include/asm/hugetlb.h</span>
+<span class="p_header">index 1dca41bea16a..e73f68569624 100644</span>
+<span class="p_header">--- a/arch/arm64/include/asm/hugetlb.h</span>
+<span class="p_header">+++ b/arch/arm64/include/asm/hugetlb.h</span>
+<span class="p_chunk">@@ -22,7 +22,7 @@</span> <span class="p_context"></span>
+ 
+ static inline pte_t huge_ptep_get(pte_t *ptep)
+ {
+<span class="p_del">-	return *ptep;</span>
+<span class="p_add">+	return READ_ONCE(*ptep);</span>
+ }
+ 
+ 
+<span class="p_header">diff --git a/arch/arm64/include/asm/kvm_mmu.h b/arch/arm64/include/asm/kvm_mmu.h</span>
+<span class="p_header">index 672c8684d5c2..670d20fc80d9 100644</span>
+<span class="p_header">--- a/arch/arm64/include/asm/kvm_mmu.h</span>
+<span class="p_header">+++ b/arch/arm64/include/asm/kvm_mmu.h</span>
+<span class="p_chunk">@@ -173,32 +173,32 @@</span> <span class="p_context"> static inline pmd_t kvm_s2pmd_mkwrite(pmd_t pmd)</span>
+ 	return pmd;
+ }
+ 
+<span class="p_del">-static inline void kvm_set_s2pte_readonly(pte_t *pte)</span>
+<span class="p_add">+static inline void kvm_set_s2pte_readonly(pte_t *ptep)</span>
+ {
+ 	pteval_t old_pteval, pteval;
+ 
+<span class="p_del">-	pteval = READ_ONCE(pte_val(*pte));</span>
+<span class="p_add">+	pteval = READ_ONCE(pte_val(*ptep));</span>
+ 	do {
+ 		old_pteval = pteval;
+ 		pteval &amp;= ~PTE_S2_RDWR;
+ 		pteval |= PTE_S2_RDONLY;
+<span class="p_del">-		pteval = cmpxchg_relaxed(&amp;pte_val(*pte), old_pteval, pteval);</span>
+<span class="p_add">+		pteval = cmpxchg_relaxed(&amp;pte_val(*ptep), old_pteval, pteval);</span>
+ 	} while (pteval != old_pteval);
+ }
+ 
+<span class="p_del">-static inline bool kvm_s2pte_readonly(pte_t *pte)</span>
+<span class="p_add">+static inline bool kvm_s2pte_readonly(pte_t *ptep)</span>
+ {
+<span class="p_del">-	return (pte_val(*pte) &amp; PTE_S2_RDWR) == PTE_S2_RDONLY;</span>
+<span class="p_add">+	return (READ_ONCE(pte_val(*ptep)) &amp; PTE_S2_RDWR) == PTE_S2_RDONLY;</span>
+ }
+ 
+<span class="p_del">-static inline void kvm_set_s2pmd_readonly(pmd_t *pmd)</span>
+<span class="p_add">+static inline void kvm_set_s2pmd_readonly(pmd_t *pmdp)</span>
+ {
+<span class="p_del">-	kvm_set_s2pte_readonly((pte_t *)pmd);</span>
+<span class="p_add">+	kvm_set_s2pte_readonly((pte_t *)pmdp);</span>
+ }
+ 
+<span class="p_del">-static inline bool kvm_s2pmd_readonly(pmd_t *pmd)</span>
+<span class="p_add">+static inline bool kvm_s2pmd_readonly(pmd_t *pmdp)</span>
+ {
+<span class="p_del">-	return kvm_s2pte_readonly((pte_t *)pmd);</span>
+<span class="p_add">+	return kvm_s2pte_readonly((pte_t *)pmdp);</span>
+ }
+ 
+ static inline bool kvm_page_empty(void *ptr)
+<span class="p_header">diff --git a/arch/arm64/include/asm/mmu_context.h b/arch/arm64/include/asm/mmu_context.h</span>
+<span class="p_header">index 3257895a9b5e..b90c6e9582b4 100644</span>
+<span class="p_header">--- a/arch/arm64/include/asm/mmu_context.h</span>
+<span class="p_header">+++ b/arch/arm64/include/asm/mmu_context.h</span>
+<span class="p_chunk">@@ -127,13 +127,13 @@</span> <span class="p_context"> static inline void cpu_install_idmap(void)</span>
+  * Atomically replaces the active TTBR1_EL1 PGD with a new VA-compatible PGD,
+  * avoiding the possibility of conflicting TLB entries being allocated.
+  */
+<span class="p_del">-static inline void cpu_replace_ttbr1(pgd_t *pgd)</span>
+<span class="p_add">+static inline void cpu_replace_ttbr1(pgd_t *pgdp)</span>
+ {
+ 	typedef void (ttbr_replace_func)(phys_addr_t);
+ 	extern ttbr_replace_func idmap_cpu_replace_ttbr1;
+ 	ttbr_replace_func *replace_phys;
+ 
+<span class="p_del">-	phys_addr_t pgd_phys = virt_to_phys(pgd);</span>
+<span class="p_add">+	phys_addr_t pgd_phys = virt_to_phys(pgdp);</span>
+ 
+ 	replace_phys = (void *)__pa_symbol(idmap_cpu_replace_ttbr1);
+ 
+<span class="p_header">diff --git a/arch/arm64/include/asm/pgalloc.h b/arch/arm64/include/asm/pgalloc.h</span>
+<span class="p_header">index d25f4f137c2a..91cad40b1ddf 100644</span>
+<span class="p_header">--- a/arch/arm64/include/asm/pgalloc.h</span>
+<span class="p_header">+++ b/arch/arm64/include/asm/pgalloc.h</span>
+<span class="p_chunk">@@ -36,23 +36,23 @@</span> <span class="p_context"> static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)</span>
+ 	return (pmd_t *)__get_free_page(PGALLOC_GFP);
+ }
+ 
+<span class="p_del">-static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)</span>
+<span class="p_add">+static inline void pmd_free(struct mm_struct *mm, pmd_t *pmdp)</span>
+ {
+<span class="p_del">-	BUG_ON((unsigned long)pmd &amp; (PAGE_SIZE-1));</span>
+<span class="p_del">-	free_page((unsigned long)pmd);</span>
+<span class="p_add">+	BUG_ON((unsigned long)pmdp &amp; (PAGE_SIZE-1));</span>
+<span class="p_add">+	free_page((unsigned long)pmdp);</span>
+ }
+ 
+<span class="p_del">-static inline void __pud_populate(pud_t *pud, phys_addr_t pmd, pudval_t prot)</span>
+<span class="p_add">+static inline void __pud_populate(pud_t *pudp, phys_addr_t pmdp, pudval_t prot)</span>
+ {
+<span class="p_del">-	set_pud(pud, __pud(pmd | prot));</span>
+<span class="p_add">+	set_pud(pudp, __pud(pmdp | prot));</span>
+ }
+ 
+<span class="p_del">-static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)</span>
+<span class="p_add">+static inline void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmdp)</span>
+ {
+<span class="p_del">-	__pud_populate(pud, __pa(pmd), PMD_TYPE_TABLE);</span>
+<span class="p_add">+	__pud_populate(pudp, __pa(pmdp), PMD_TYPE_TABLE);</span>
+ }
+ #else
+<span class="p_del">-static inline void __pud_populate(pud_t *pud, phys_addr_t pmd, pudval_t prot)</span>
+<span class="p_add">+static inline void __pud_populate(pud_t *pudp, phys_addr_t pmd, pudval_t prot)</span>
+ {
+ 	BUILD_BUG();
+ }
+<span class="p_chunk">@@ -65,20 +65,20 @@</span> <span class="p_context"> static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)</span>
+ 	return (pud_t *)__get_free_page(PGALLOC_GFP);
+ }
+ 
+<span class="p_del">-static inline void pud_free(struct mm_struct *mm, pud_t *pud)</span>
+<span class="p_add">+static inline void pud_free(struct mm_struct *mm, pud_t *pudp)</span>
+ {
+<span class="p_del">-	BUG_ON((unsigned long)pud &amp; (PAGE_SIZE-1));</span>
+<span class="p_del">-	free_page((unsigned long)pud);</span>
+<span class="p_add">+	BUG_ON((unsigned long)pudp &amp; (PAGE_SIZE-1));</span>
+<span class="p_add">+	free_page((unsigned long)pudp);</span>
+ }
+ 
+<span class="p_del">-static inline void __pgd_populate(pgd_t *pgdp, phys_addr_t pud, pgdval_t prot)</span>
+<span class="p_add">+static inline void __pgd_populate(pgd_t *pgdp, phys_addr_t pudp, pgdval_t prot)</span>
+ {
+<span class="p_del">-	set_pgd(pgdp, __pgd(pud | prot));</span>
+<span class="p_add">+	set_pgd(pgdp, __pgd(pudp | prot));</span>
+ }
+ 
+<span class="p_del">-static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)</span>
+<span class="p_add">+static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgdp, pud_t *pudp)</span>
+ {
+<span class="p_del">-	__pgd_populate(pgd, __pa(pud), PUD_TYPE_TABLE);</span>
+<span class="p_add">+	__pgd_populate(pgdp, __pa(pudp), PUD_TYPE_TABLE);</span>
+ }
+ #else
+ static inline void __pgd_populate(pgd_t *pgdp, phys_addr_t pud, pgdval_t prot)
+<span class="p_chunk">@@ -88,7 +88,7 @@</span> <span class="p_context"> static inline void __pgd_populate(pgd_t *pgdp, phys_addr_t pud, pgdval_t prot)</span>
+ #endif	/* CONFIG_PGTABLE_LEVELS &gt; 3 */
+ 
+ extern pgd_t *pgd_alloc(struct mm_struct *mm);
+<span class="p_del">-extern void pgd_free(struct mm_struct *mm, pgd_t *pgd);</span>
+<span class="p_add">+extern void pgd_free(struct mm_struct *mm, pgd_t *pgdp);</span>
+ 
+ static inline pte_t *
+ pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr)
+<span class="p_chunk">@@ -114,10 +114,10 @@</span> <span class="p_context"> pte_alloc_one(struct mm_struct *mm, unsigned long addr)</span>
+ /*
+  * Free a PTE table.
+  */
+<span class="p_del">-static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)</span>
+<span class="p_add">+static inline void pte_free_kernel(struct mm_struct *mm, pte_t *ptep)</span>
+ {
+<span class="p_del">-	if (pte)</span>
+<span class="p_del">-		free_page((unsigned long)pte);</span>
+<span class="p_add">+	if (ptep)</span>
+<span class="p_add">+		free_page((unsigned long)ptep);</span>
+ }
+ 
+ static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
+<span class="p_chunk">@@ -126,10 +126,10 @@</span> <span class="p_context"> static inline void pte_free(struct mm_struct *mm, pgtable_t pte)</span>
+ 	__free_page(pte);
+ }
+ 
+<span class="p_del">-static inline void __pmd_populate(pmd_t *pmdp, phys_addr_t pte,</span>
+<span class="p_add">+static inline void __pmd_populate(pmd_t *pmdp, phys_addr_t ptep,</span>
+ 				  pmdval_t prot)
+ {
+<span class="p_del">-	set_pmd(pmdp, __pmd(pte | prot));</span>
+<span class="p_add">+	set_pmd(pmdp, __pmd(ptep | prot));</span>
+ }
+ 
+ /*
+<span class="p_header">diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h</span>
+<span class="p_header">index bc4e92337d16..c36571bbfe92 100644</span>
+<span class="p_header">--- a/arch/arm64/include/asm/pgtable.h</span>
+<span class="p_header">+++ b/arch/arm64/include/asm/pgtable.h</span>
+<span class="p_chunk">@@ -181,7 +181,7 @@</span> <span class="p_context"> static inline pmd_t pmd_mkcont(pmd_t pmd)</span>
+ 
+ static inline void set_pte(pte_t *ptep, pte_t pte)
+ {
+<span class="p_del">-	*ptep = pte;</span>
+<span class="p_add">+	WRITE_ONCE(*ptep, pte);</span>
+ 
+ 	/*
+ 	 * Only if the new pte is valid and kernel, otherwise TLB maintenance
+<span class="p_chunk">@@ -216,6 +216,8 @@</span> <span class="p_context"> extern void __sync_icache_dcache(pte_t pteval, unsigned long addr);</span>
+ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
+ 			      pte_t *ptep, pte_t pte)
+ {
+<span class="p_add">+	pte_t old_pte;</span>
+<span class="p_add">+</span>
+ 	if (pte_present(pte) &amp;&amp; pte_user_exec(pte) &amp;&amp; !pte_special(pte))
+ 		__sync_icache_dcache(pte, addr);
+ 
+<span class="p_chunk">@@ -224,13 +226,14 @@</span> <span class="p_context"> static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,</span>
+ 	 * hardware updates of the pte (ptep_set_access_flags safely changes
+ 	 * valid ptes without going through an invalid entry).
+ 	 */
+<span class="p_del">-	if (pte_valid(*ptep) &amp;&amp; pte_valid(pte)) {</span>
+<span class="p_add">+	old_pte = READ_ONCE(*ptep);</span>
+<span class="p_add">+	if (pte_valid(old_pte) &amp;&amp; pte_valid(pte)) {</span>
+ 		VM_WARN_ONCE(!pte_young(pte),
+ 			     &quot;%s: racy access flag clearing: 0x%016llx -&gt; 0x%016llx&quot;,
+<span class="p_del">-			     __func__, pte_val(*ptep), pte_val(pte));</span>
+<span class="p_del">-		VM_WARN_ONCE(pte_write(*ptep) &amp;&amp; !pte_dirty(pte),</span>
+<span class="p_add">+			     __func__, pte_val(old_pte), pte_val(pte));</span>
+<span class="p_add">+		VM_WARN_ONCE(pte_write(old_pte) &amp;&amp; !pte_dirty(pte),</span>
+ 			     &quot;%s: racy dirty state clearing: 0x%016llx -&gt; 0x%016llx&quot;,
+<span class="p_del">-			     __func__, pte_val(*ptep), pte_val(pte));</span>
+<span class="p_add">+			     __func__, pte_val(old_pte), pte_val(pte));</span>
+ 	}
+ 
+ 	set_pte(ptep, pte);
+<span class="p_chunk">@@ -383,7 +386,7 @@</span> <span class="p_context"> extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,</span>
+ 
+ static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)
+ {
+<span class="p_del">-	*pmdp = pmd;</span>
+<span class="p_add">+	WRITE_ONCE(*pmdp, pmd);</span>
+ 	dsb(ishst);
+ 	isb();
+ }
+<span class="p_chunk">@@ -401,7 +404,7 @@</span> <span class="p_context"> static inline phys_addr_t pmd_page_paddr(pmd_t pmd)</span>
+ /* Find an entry in the third-level page table. */
+ #define pte_index(addr)		(((addr) &gt;&gt; PAGE_SHIFT) &amp; (PTRS_PER_PTE - 1))
+ 
+<span class="p_del">-#define pte_offset_phys(dir,addr)	(pmd_page_paddr(*(dir)) + pte_index(addr) * sizeof(pte_t))</span>
+<span class="p_add">+#define pte_offset_phys(dir,addr)	(pmd_page_paddr(READ_ONCE(*(dir))) + pte_index(addr) * sizeof(pte_t))</span>
+ #define pte_offset_kernel(dir,addr)	((pte_t *)__va(pte_offset_phys((dir), (addr))))
+ 
+ #define pte_offset_map(dir,addr)	pte_offset_kernel((dir), (addr))
+<span class="p_chunk">@@ -434,7 +437,7 @@</span> <span class="p_context"> static inline phys_addr_t pmd_page_paddr(pmd_t pmd)</span>
+ 
+ static inline void set_pud(pud_t *pudp, pud_t pud)
+ {
+<span class="p_del">-	*pudp = pud;</span>
+<span class="p_add">+	WRITE_ONCE(*pudp, pud);</span>
+ 	dsb(ishst);
+ 	isb();
+ }
+<span class="p_chunk">@@ -452,7 +455,7 @@</span> <span class="p_context"> static inline phys_addr_t pud_page_paddr(pud_t pud)</span>
+ /* Find an entry in the second-level page table. */
+ #define pmd_index(addr)		(((addr) &gt;&gt; PMD_SHIFT) &amp; (PTRS_PER_PMD - 1))
+ 
+<span class="p_del">-#define pmd_offset_phys(dir, addr)	(pud_page_paddr(*(dir)) + pmd_index(addr) * sizeof(pmd_t))</span>
+<span class="p_add">+#define pmd_offset_phys(dir, addr)	(pud_page_paddr(READ_ONCE(*(dir))) + pmd_index(addr) * sizeof(pmd_t))</span>
+ #define pmd_offset(dir, addr)		((pmd_t *)__va(pmd_offset_phys((dir), (addr))))
+ 
+ #define pmd_set_fixmap(addr)		((pmd_t *)set_fixmap_offset(FIX_PMD, addr))
+<span class="p_chunk">@@ -487,7 +490,7 @@</span> <span class="p_context"> static inline phys_addr_t pud_page_paddr(pud_t pud)</span>
+ 
+ static inline void set_pgd(pgd_t *pgdp, pgd_t pgd)
+ {
+<span class="p_del">-	*pgdp = pgd;</span>
+<span class="p_add">+	WRITE_ONCE(*pgdp, pgd);</span>
+ 	dsb(ishst);
+ }
+ 
+<span class="p_chunk">@@ -504,7 +507,7 @@</span> <span class="p_context"> static inline phys_addr_t pgd_page_paddr(pgd_t pgd)</span>
+ /* Find an entry in the frst-level page table. */
+ #define pud_index(addr)		(((addr) &gt;&gt; PUD_SHIFT) &amp; (PTRS_PER_PUD - 1))
+ 
+<span class="p_del">-#define pud_offset_phys(dir, addr)	(pgd_page_paddr(*(dir)) + pud_index(addr) * sizeof(pud_t))</span>
+<span class="p_add">+#define pud_offset_phys(dir, addr)	(pgd_page_paddr(READ_ONCE(*(dir))) + pud_index(addr) * sizeof(pud_t))</span>
+ #define pud_offset(dir, addr)		((pud_t *)__va(pud_offset_phys((dir), (addr))))
+ 
+ #define pud_set_fixmap(addr)		((pud_t *)set_fixmap_offset(FIX_PUD, addr))
+<span class="p_chunk">@@ -645,9 +648,9 @@</span> <span class="p_context"> static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addres</span>
+ 	 * dirty state: clearing of PTE_RDONLY when PTE_WRITE (a.k.a. PTE_DBM)
+ 	 * is set.
+ 	 */
+<span class="p_del">-	VM_WARN_ONCE(pte_write(*ptep) &amp;&amp; !pte_dirty(*ptep),</span>
+<span class="p_del">-		     &quot;%s: potential race with hardware DBM&quot;, __func__);</span>
+ 	pte = READ_ONCE(*ptep);
+<span class="p_add">+	VM_WARN_ONCE(pte_write(pte) &amp;&amp; !pte_dirty(pte),</span>
+<span class="p_add">+		     &quot;%s: potential race with hardware DBM&quot;, __func__);</span>
+ 	do {
+ 		old_pte = pte;
+ 		pte = pte_wrprotect(pte);
+<span class="p_header">diff --git a/arch/arm64/kernel/hibernate.c b/arch/arm64/kernel/hibernate.c</span>
+<span class="p_header">index 095d3c170f5d..04c56d1e0b70 100644</span>
+<span class="p_header">--- a/arch/arm64/kernel/hibernate.c</span>
+<span class="p_header">+++ b/arch/arm64/kernel/hibernate.c</span>
+<span class="p_chunk">@@ -201,10 +201,10 @@</span> <span class="p_context"> static int create_safe_exec_page(void *src_start, size_t length,</span>
+ 				 gfp_t mask)
+ {
+ 	int rc = 0;
+<span class="p_del">-	pgd_t *pgd;</span>
+<span class="p_del">-	pud_t *pud;</span>
+<span class="p_del">-	pmd_t *pmd;</span>
+<span class="p_del">-	pte_t *pte;</span>
+<span class="p_add">+	pgd_t *pgdp;</span>
+<span class="p_add">+	pud_t *pudp;</span>
+<span class="p_add">+	pmd_t *pmdp;</span>
+<span class="p_add">+	pte_t *ptep;</span>
+ 	unsigned long dst = (unsigned long)allocator(mask);
+ 
+ 	if (!dst) {
+<span class="p_chunk">@@ -215,38 +215,38 @@</span> <span class="p_context"> static int create_safe_exec_page(void *src_start, size_t length,</span>
+ 	memcpy((void *)dst, src_start, length);
+ 	flush_icache_range(dst, dst + length);
+ 
+<span class="p_del">-	pgd = pgd_offset_raw(allocator(mask), dst_addr);</span>
+<span class="p_del">-	if (pgd_none(*pgd)) {</span>
+<span class="p_del">-		pud = allocator(mask);</span>
+<span class="p_del">-		if (!pud) {</span>
+<span class="p_add">+	pgdp = pgd_offset_raw(allocator(mask), dst_addr);</span>
+<span class="p_add">+	if (pgd_none(READ_ONCE(*pgdp))) {</span>
+<span class="p_add">+		pudp = allocator(mask);</span>
+<span class="p_add">+		if (!pudp) {</span>
+ 			rc = -ENOMEM;
+ 			goto out;
+ 		}
+<span class="p_del">-		pgd_populate(&amp;init_mm, pgd, pud);</span>
+<span class="p_add">+		pgd_populate(&amp;init_mm, pgdp, pudp);</span>
+ 	}
+ 
+<span class="p_del">-	pud = pud_offset(pgd, dst_addr);</span>
+<span class="p_del">-	if (pud_none(*pud)) {</span>
+<span class="p_del">-		pmd = allocator(mask);</span>
+<span class="p_del">-		if (!pmd) {</span>
+<span class="p_add">+	pudp = pud_offset(pgdp, dst_addr);</span>
+<span class="p_add">+	if (pud_none(READ_ONCE(*pudp))) {</span>
+<span class="p_add">+		pmdp = allocator(mask);</span>
+<span class="p_add">+		if (!pmdp) {</span>
+ 			rc = -ENOMEM;
+ 			goto out;
+ 		}
+<span class="p_del">-		pud_populate(&amp;init_mm, pud, pmd);</span>
+<span class="p_add">+		pud_populate(&amp;init_mm, pudp, pmdp);</span>
+ 	}
+ 
+<span class="p_del">-	pmd = pmd_offset(pud, dst_addr);</span>
+<span class="p_del">-	if (pmd_none(*pmd)) {</span>
+<span class="p_del">-		pte = allocator(mask);</span>
+<span class="p_del">-		if (!pte) {</span>
+<span class="p_add">+	pmdp = pmd_offset(pudp, dst_addr);</span>
+<span class="p_add">+	if (pmd_none(READ_ONCE(*pmdp))) {</span>
+<span class="p_add">+		ptep = allocator(mask);</span>
+<span class="p_add">+		if (!ptep) {</span>
+ 			rc = -ENOMEM;
+ 			goto out;
+ 		}
+<span class="p_del">-		pmd_populate_kernel(&amp;init_mm, pmd, pte);</span>
+<span class="p_add">+		pmd_populate_kernel(&amp;init_mm, pmdp, ptep);</span>
+ 	}
+ 
+<span class="p_del">-	pte = pte_offset_kernel(pmd, dst_addr);</span>
+<span class="p_del">-	set_pte(pte, __pte(virt_to_phys((void *)dst) |</span>
+<span class="p_add">+	ptep = pte_offset_kernel(pmdp, dst_addr);</span>
+<span class="p_add">+	set_pte(ptep, __pte(virt_to_phys((void *)dst) |</span>
+ 			 pgprot_val(PAGE_KERNEL_EXEC)));
+ 
+ 	/*
+<span class="p_chunk">@@ -263,7 +263,7 @@</span> <span class="p_context"> static int create_safe_exec_page(void *src_start, size_t length,</span>
+ 	 */
+ 	cpu_set_reserved_ttbr0();
+ 	local_flush_tlb_all();
+<span class="p_del">-	write_sysreg(virt_to_phys(pgd), ttbr0_el1);</span>
+<span class="p_add">+	write_sysreg(virt_to_phys(pgdp), ttbr0_el1);</span>
+ 	isb();
+ 
+ 	*phys_dst_addr = virt_to_phys((void *)dst);
+<span class="p_chunk">@@ -320,9 +320,9 @@</span> <span class="p_context"> int swsusp_arch_suspend(void)</span>
+ 	return ret;
+ }
+ 
+<span class="p_del">-static void _copy_pte(pte_t *dst_pte, pte_t *src_pte, unsigned long addr)</span>
+<span class="p_add">+static void _copy_pte(pte_t *dst_ptep, pte_t *src_ptep, unsigned long addr)</span>
+ {
+<span class="p_del">-	pte_t pte = *src_pte;</span>
+<span class="p_add">+	pte_t pte = READ_ONCE(*src_ptep);</span>
+ 
+ 	if (pte_valid(pte)) {
+ 		/*
+<span class="p_chunk">@@ -330,7 +330,7 @@</span> <span class="p_context"> static void _copy_pte(pte_t *dst_pte, pte_t *src_pte, unsigned long addr)</span>
+ 		 * read only (code, rodata). Clear the RDONLY bit from
+ 		 * the temporary mappings we use during restore.
+ 		 */
+<span class="p_del">-		set_pte(dst_pte, pte_mkwrite(pte));</span>
+<span class="p_add">+		set_pte(dst_ptep, pte_mkwrite(pte));</span>
+ 	} else if (debug_pagealloc_enabled() &amp;&amp; !pte_none(pte)) {
+ 		/*
+ 		 * debug_pagealloc will removed the PTE_VALID bit if
+<span class="p_chunk">@@ -343,112 +343,116 @@</span> <span class="p_context"> static void _copy_pte(pte_t *dst_pte, pte_t *src_pte, unsigned long addr)</span>
+ 		 */
+ 		BUG_ON(!pfn_valid(pte_pfn(pte)));
+ 
+<span class="p_del">-		set_pte(dst_pte, pte_mkpresent(pte_mkwrite(pte)));</span>
+<span class="p_add">+		set_pte(dst_ptep, pte_mkpresent(pte_mkwrite(pte)));</span>
+ 	}
+ }
+ 
+<span class="p_del">-static int copy_pte(pmd_t *dst_pmd, pmd_t *src_pmd, unsigned long start,</span>
+<span class="p_add">+static int copy_pte(pmd_t *dst_pmdp, pmd_t *src_pmdp, unsigned long start,</span>
+ 		    unsigned long end)
+ {
+<span class="p_del">-	pte_t *src_pte;</span>
+<span class="p_del">-	pte_t *dst_pte;</span>
+<span class="p_add">+	pte_t *src_ptep;</span>
+<span class="p_add">+	pte_t *dst_ptep;</span>
+ 	unsigned long addr = start;
+ 
+<span class="p_del">-	dst_pte = (pte_t *)get_safe_page(GFP_ATOMIC);</span>
+<span class="p_del">-	if (!dst_pte)</span>
+<span class="p_add">+	dst_ptep = (pte_t *)get_safe_page(GFP_ATOMIC);</span>
+<span class="p_add">+	if (!dst_ptep)</span>
+ 		return -ENOMEM;
+<span class="p_del">-	pmd_populate_kernel(&amp;init_mm, dst_pmd, dst_pte);</span>
+<span class="p_del">-	dst_pte = pte_offset_kernel(dst_pmd, start);</span>
+<span class="p_add">+	pmd_populate_kernel(&amp;init_mm, dst_pmdp, dst_ptep);</span>
+<span class="p_add">+	dst_ptep = pte_offset_kernel(dst_pmdp, start);</span>
+ 
+<span class="p_del">-	src_pte = pte_offset_kernel(src_pmd, start);</span>
+<span class="p_add">+	src_ptep = pte_offset_kernel(src_pmdp, start);</span>
+ 	do {
+<span class="p_del">-		_copy_pte(dst_pte, src_pte, addr);</span>
+<span class="p_del">-	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);</span>
+<span class="p_add">+		_copy_pte(dst_ptep, src_ptep, addr);</span>
+<span class="p_add">+	} while (dst_ptep++, src_ptep++, addr += PAGE_SIZE, addr != end);</span>
+ 
+ 	return 0;
+ }
+ 
+<span class="p_del">-static int copy_pmd(pud_t *dst_pud, pud_t *src_pud, unsigned long start,</span>
+<span class="p_add">+static int copy_pmd(pud_t *dst_pudp, pud_t *src_pudp, unsigned long start,</span>
+ 		    unsigned long end)
+ {
+<span class="p_del">-	pmd_t *src_pmd;</span>
+<span class="p_del">-	pmd_t *dst_pmd;</span>
+<span class="p_add">+	pmd_t *src_pmdp;</span>
+<span class="p_add">+	pmd_t *dst_pmdp;</span>
+ 	unsigned long next;
+ 	unsigned long addr = start;
+ 
+<span class="p_del">-	if (pud_none(*dst_pud)) {</span>
+<span class="p_del">-		dst_pmd = (pmd_t *)get_safe_page(GFP_ATOMIC);</span>
+<span class="p_del">-		if (!dst_pmd)</span>
+<span class="p_add">+	if (pud_none(READ_ONCE(*dst_pudp))) {</span>
+<span class="p_add">+		dst_pmdp = (pmd_t *)get_safe_page(GFP_ATOMIC);</span>
+<span class="p_add">+		if (!dst_pmdp)</span>
+ 			return -ENOMEM;
+<span class="p_del">-		pud_populate(&amp;init_mm, dst_pud, dst_pmd);</span>
+<span class="p_add">+		pud_populate(&amp;init_mm, dst_pudp, dst_pmdp);</span>
+ 	}
+<span class="p_del">-	dst_pmd = pmd_offset(dst_pud, start);</span>
+<span class="p_add">+	dst_pmdp = pmd_offset(dst_pudp, start);</span>
+ 
+<span class="p_del">-	src_pmd = pmd_offset(src_pud, start);</span>
+<span class="p_add">+	src_pmdp = pmd_offset(src_pudp, start);</span>
+ 	do {
+<span class="p_add">+		pmd_t pmd = READ_ONCE(*src_pmdp);</span>
+<span class="p_add">+</span>
+ 		next = pmd_addr_end(addr, end);
+<span class="p_del">-		if (pmd_none(*src_pmd))</span>
+<span class="p_add">+		if (pmd_none(pmd))</span>
+ 			continue;
+<span class="p_del">-		if (pmd_table(*src_pmd)) {</span>
+<span class="p_del">-			if (copy_pte(dst_pmd, src_pmd, addr, next))</span>
+<span class="p_add">+		if (pmd_table(pmd)) {</span>
+<span class="p_add">+			if (copy_pte(dst_pmdp, src_pmdp, addr, next))</span>
+ 				return -ENOMEM;
+ 		} else {
+<span class="p_del">-			set_pmd(dst_pmd,</span>
+<span class="p_del">-				__pmd(pmd_val(*src_pmd) &amp; ~PMD_SECT_RDONLY));</span>
+<span class="p_add">+			set_pmd(dst_pmdp,</span>
+<span class="p_add">+				__pmd(pmd_val(pmd) &amp; ~PMD_SECT_RDONLY));</span>
+ 		}
+<span class="p_del">-	} while (dst_pmd++, src_pmd++, addr = next, addr != end);</span>
+<span class="p_add">+	} while (dst_pmdp++, src_pmdp++, addr = next, addr != end);</span>
+ 
+ 	return 0;
+ }
+ 
+<span class="p_del">-static int copy_pud(pgd_t *dst_pgd, pgd_t *src_pgd, unsigned long start,</span>
+<span class="p_add">+static int copy_pud(pgd_t *dst_pgdp, pgd_t *src_pgdp, unsigned long start,</span>
+ 		    unsigned long end)
+ {
+<span class="p_del">-	pud_t *dst_pud;</span>
+<span class="p_del">-	pud_t *src_pud;</span>
+<span class="p_add">+	pud_t *dst_pudp;</span>
+<span class="p_add">+	pud_t *src_pudp;</span>
+ 	unsigned long next;
+ 	unsigned long addr = start;
+ 
+<span class="p_del">-	if (pgd_none(*dst_pgd)) {</span>
+<span class="p_del">-		dst_pud = (pud_t *)get_safe_page(GFP_ATOMIC);</span>
+<span class="p_del">-		if (!dst_pud)</span>
+<span class="p_add">+	if (pgd_none(READ_ONCE(*dst_pgdp))) {</span>
+<span class="p_add">+		dst_pudp = (pud_t *)get_safe_page(GFP_ATOMIC);</span>
+<span class="p_add">+		if (!dst_pudp)</span>
+ 			return -ENOMEM;
+<span class="p_del">-		pgd_populate(&amp;init_mm, dst_pgd, dst_pud);</span>
+<span class="p_add">+		pgd_populate(&amp;init_mm, dst_pgdp, dst_pudp);</span>
+ 	}
+<span class="p_del">-	dst_pud = pud_offset(dst_pgd, start);</span>
+<span class="p_add">+	dst_pudp = pud_offset(dst_pgdp, start);</span>
+ 
+<span class="p_del">-	src_pud = pud_offset(src_pgd, start);</span>
+<span class="p_add">+	src_pudp = pud_offset(src_pgdp, start);</span>
+ 	do {
+<span class="p_add">+		pud_t pud = READ_ONCE(*src_pudp);</span>
+<span class="p_add">+</span>
+ 		next = pud_addr_end(addr, end);
+<span class="p_del">-		if (pud_none(*src_pud))</span>
+<span class="p_add">+		if (pud_none(pud))</span>
+ 			continue;
+<span class="p_del">-		if (pud_table(*(src_pud))) {</span>
+<span class="p_del">-			if (copy_pmd(dst_pud, src_pud, addr, next))</span>
+<span class="p_add">+		if (pud_table(pud)) {</span>
+<span class="p_add">+			if (copy_pmd(dst_pudp, src_pudp, addr, next))</span>
+ 				return -ENOMEM;
+ 		} else {
+<span class="p_del">-			set_pud(dst_pud,</span>
+<span class="p_del">-				__pud(pud_val(*src_pud) &amp; ~PMD_SECT_RDONLY));</span>
+<span class="p_add">+			set_pud(dst_pudp,</span>
+<span class="p_add">+				__pud(pud_val(pud) &amp; ~PMD_SECT_RDONLY));</span>
+ 		}
+<span class="p_del">-	} while (dst_pud++, src_pud++, addr = next, addr != end);</span>
+<span class="p_add">+	} while (dst_pudp++, src_pudp++, addr = next, addr != end);</span>
+ 
+ 	return 0;
+ }
+ 
+<span class="p_del">-static int copy_page_tables(pgd_t *dst_pgd, unsigned long start,</span>
+<span class="p_add">+static int copy_page_tables(pgd_t *dst_pgdp, unsigned long start,</span>
+ 			    unsigned long end)
+ {
+ 	unsigned long next;
+ 	unsigned long addr = start;
+<span class="p_del">-	pgd_t *src_pgd = pgd_offset_k(start);</span>
+<span class="p_add">+	pgd_t *src_pgdp = pgd_offset_k(start);</span>
+ 
+<span class="p_del">-	dst_pgd = pgd_offset_raw(dst_pgd, start);</span>
+<span class="p_add">+	dst_pgdp = pgd_offset_raw(dst_pgdp, start);</span>
+ 	do {
+ 		next = pgd_addr_end(addr, end);
+<span class="p_del">-		if (pgd_none(*src_pgd))</span>
+<span class="p_add">+		if (pgd_none(READ_ONCE(*src_pgdp)))</span>
+ 			continue;
+<span class="p_del">-		if (copy_pud(dst_pgd, src_pgd, addr, next))</span>
+<span class="p_add">+		if (copy_pud(dst_pgdp, src_pgdp, addr, next))</span>
+ 			return -ENOMEM;
+<span class="p_del">-	} while (dst_pgd++, src_pgd++, addr = next, addr != end);</span>
+<span class="p_add">+	} while (dst_pgdp++, src_pgdp++, addr = next, addr != end);</span>
+ 
+ 	return 0;
+ }
+<span class="p_header">diff --git a/arch/arm64/mm/dump.c b/arch/arm64/mm/dump.c</span>
+<span class="p_header">index ca74a2aace42..691a8b2f51fd 100644</span>
+<span class="p_header">--- a/arch/arm64/mm/dump.c</span>
+<span class="p_header">+++ b/arch/arm64/mm/dump.c</span>
+<span class="p_chunk">@@ -286,48 +286,52 @@</span> <span class="p_context"> static void note_page(struct pg_state *st, unsigned long addr, unsigned level,</span>
+ 
+ }
+ 
+<span class="p_del">-static void walk_pte(struct pg_state *st, pmd_t *pmd, unsigned long start)</span>
+<span class="p_add">+static void walk_pte(struct pg_state *st, pmd_t *pmdp, unsigned long start)</span>
+ {
+<span class="p_del">-	pte_t *pte = pte_offset_kernel(pmd, 0UL);</span>
+<span class="p_add">+	pte_t *ptep = pte_offset_kernel(pmdp, 0UL);</span>
+ 	unsigned long addr;
+ 	unsigned i;
+ 
+<span class="p_del">-	for (i = 0; i &lt; PTRS_PER_PTE; i++, pte++) {</span>
+<span class="p_add">+	for (i = 0; i &lt; PTRS_PER_PTE; i++, ptep++) {</span>
+ 		addr = start + i * PAGE_SIZE;
+<span class="p_del">-		note_page(st, addr, 4, pte_val(*pte));</span>
+<span class="p_add">+		note_page(st, addr, 4, READ_ONCE(pte_val(*ptep)));</span>
+ 	}
+ }
+ 
+<span class="p_del">-static void walk_pmd(struct pg_state *st, pud_t *pud, unsigned long start)</span>
+<span class="p_add">+static void walk_pmd(struct pg_state *st, pud_t *pudp, unsigned long start)</span>
+ {
+<span class="p_del">-	pmd_t *pmd = pmd_offset(pud, 0UL);</span>
+<span class="p_add">+	pmd_t *pmdp = pmd_offset(pudp, 0UL);</span>
+ 	unsigned long addr;
+ 	unsigned i;
+ 
+<span class="p_del">-	for (i = 0; i &lt; PTRS_PER_PMD; i++, pmd++) {</span>
+<span class="p_add">+	for (i = 0; i &lt; PTRS_PER_PMD; i++, pmdp++) {</span>
+<span class="p_add">+		pmd_t pmd = READ_ONCE(*pmdp);</span>
+<span class="p_add">+</span>
+ 		addr = start + i * PMD_SIZE;
+<span class="p_del">-		if (pmd_none(*pmd) || pmd_sect(*pmd)) {</span>
+<span class="p_del">-			note_page(st, addr, 3, pmd_val(*pmd));</span>
+<span class="p_add">+		if (pmd_none(pmd) || pmd_sect(pmd)) {</span>
+<span class="p_add">+			note_page(st, addr, 3, pmd_val(pmd));</span>
+ 		} else {
+<span class="p_del">-			BUG_ON(pmd_bad(*pmd));</span>
+<span class="p_del">-			walk_pte(st, pmd, addr);</span>
+<span class="p_add">+			BUG_ON(pmd_bad(pmd));</span>
+<span class="p_add">+			walk_pte(st, pmdp, addr);</span>
+ 		}
+ 	}
+ }
+ 
+<span class="p_del">-static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)</span>
+<span class="p_add">+static void walk_pud(struct pg_state *st, pgd_t *pgdp, unsigned long start)</span>
+ {
+<span class="p_del">-	pud_t *pud = pud_offset(pgd, 0UL);</span>
+<span class="p_add">+	pud_t *pudp = pud_offset(pgdp, 0UL);</span>
+ 	unsigned long addr;
+ 	unsigned i;
+ 
+<span class="p_del">-	for (i = 0; i &lt; PTRS_PER_PUD; i++, pud++) {</span>
+<span class="p_add">+	for (i = 0; i &lt; PTRS_PER_PUD; i++, pudp++) {</span>
+<span class="p_add">+		pud_t pud = READ_ONCE(*pudp);</span>
+<span class="p_add">+</span>
+ 		addr = start + i * PUD_SIZE;
+<span class="p_del">-		if (pud_none(*pud) || pud_sect(*pud)) {</span>
+<span class="p_del">-			note_page(st, addr, 2, pud_val(*pud));</span>
+<span class="p_add">+		if (pud_none(pud) || pud_sect(pud)) {</span>
+<span class="p_add">+			note_page(st, addr, 2, pud_val(pud));</span>
+ 		} else {
+<span class="p_del">-			BUG_ON(pud_bad(*pud));</span>
+<span class="p_del">-			walk_pmd(st, pud, addr);</span>
+<span class="p_add">+			BUG_ON(pud_bad(pud));</span>
+<span class="p_add">+			walk_pmd(st, pudp, addr);</span>
+ 		}
+ 	}
+ }
+<span class="p_chunk">@@ -335,17 +339,19 @@</span> <span class="p_context"> static void walk_pud(struct pg_state *st, pgd_t *pgd, unsigned long start)</span>
+ static void walk_pgd(struct pg_state *st, struct mm_struct *mm,
+ 		     unsigned long start)
+ {
+<span class="p_del">-	pgd_t *pgd = pgd_offset(mm, 0UL);</span>
+<span class="p_add">+	pgd_t *pgdp = pgd_offset(mm, 0UL);</span>
+ 	unsigned i;
+ 	unsigned long addr;
+ 
+<span class="p_del">-	for (i = 0; i &lt; PTRS_PER_PGD; i++, pgd++) {</span>
+<span class="p_add">+	for (i = 0; i &lt; PTRS_PER_PGD; i++, pgdp++) {</span>
+<span class="p_add">+		pgd_t pgd = READ_ONCE(*pgdp);</span>
+<span class="p_add">+</span>
+ 		addr = start + i * PGDIR_SIZE;
+<span class="p_del">-		if (pgd_none(*pgd)) {</span>
+<span class="p_del">-			note_page(st, addr, 1, pgd_val(*pgd));</span>
+<span class="p_add">+		if (pgd_none(pgd)) {</span>
+<span class="p_add">+			note_page(st, addr, 1, pgd_val(pgd));</span>
+ 		} else {
+<span class="p_del">-			BUG_ON(pgd_bad(*pgd));</span>
+<span class="p_del">-			walk_pud(st, pgd, addr);</span>
+<span class="p_add">+			BUG_ON(pgd_bad(pgd));</span>
+<span class="p_add">+			walk_pud(st, pgdp, addr);</span>
+ 		}
+ 	}
+ }
+<span class="p_header">diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c</span>
+<span class="p_header">index 89993c4be1be..85e5be801b2f 100644</span>
+<span class="p_header">--- a/arch/arm64/mm/fault.c</span>
+<span class="p_header">+++ b/arch/arm64/mm/fault.c</span>
+<span class="p_chunk">@@ -132,7 +132,8 @@</span> <span class="p_context"> static void mem_abort_decode(unsigned int esr)</span>
+ void show_pte(unsigned long addr)
+ {
+ 	struct mm_struct *mm;
+<span class="p_del">-	pgd_t *pgd;</span>
+<span class="p_add">+	pgd_t *pgdp;</span>
+<span class="p_add">+	pgd_t pgd;</span>
+ 
+ 	if (addr &lt; TASK_SIZE) {
+ 		/* TTBR0 */
+<span class="p_chunk">@@ -151,33 +152,37 @@</span> <span class="p_context"> void show_pte(unsigned long addr)</span>
+ 		return;
+ 	}
+ 
+<span class="p_del">-	pr_alert(&quot;%s pgtable: %luk pages, %u-bit VAs, pgd = %p\n&quot;,</span>
+<span class="p_add">+	pr_alert(&quot;%s pgtable: %luk pages, %u-bit VAs, pgdp = %p\n&quot;,</span>
+ 		 mm == &amp;init_mm ? &quot;swapper&quot; : &quot;user&quot;, PAGE_SIZE / SZ_1K,
+ 		 VA_BITS, mm-&gt;pgd);
+<span class="p_del">-	pgd = pgd_offset(mm, addr);</span>
+<span class="p_del">-	pr_alert(&quot;[%016lx] *pgd=%016llx&quot;, addr, pgd_val(*pgd));</span>
+<span class="p_add">+	pgdp = pgd_offset(mm, addr);</span>
+<span class="p_add">+	pgd = READ_ONCE(*pgdp);</span>
+<span class="p_add">+	pr_alert(&quot;[%016lx] pgd=%016llx&quot;, addr, pgd_val(pgd));</span>
+ 
+ 	do {
+<span class="p_del">-		pud_t *pud;</span>
+<span class="p_del">-		pmd_t *pmd;</span>
+<span class="p_del">-		pte_t *pte;</span>
+<span class="p_add">+		pud_t *pudp, pud;</span>
+<span class="p_add">+		pmd_t *pmdp, pmd;</span>
+<span class="p_add">+		pte_t *ptep, pte;</span>
+ 
+<span class="p_del">-		if (pgd_none(*pgd) || pgd_bad(*pgd))</span>
+<span class="p_add">+		if (pgd_none(pgd) || pgd_bad(pgd))</span>
+ 			break;
+ 
+<span class="p_del">-		pud = pud_offset(pgd, addr);</span>
+<span class="p_del">-		pr_cont(&quot;, *pud=%016llx&quot;, pud_val(*pud));</span>
+<span class="p_del">-		if (pud_none(*pud) || pud_bad(*pud))</span>
+<span class="p_add">+		pudp = pud_offset(pgdp, addr);</span>
+<span class="p_add">+		pud = READ_ONCE(*pudp);</span>
+<span class="p_add">+		pr_cont(&quot;, pud=%016llx&quot;, pud_val(pud));</span>
+<span class="p_add">+		if (pud_none(pud) || pud_bad(pud))</span>
+ 			break;
+ 
+<span class="p_del">-		pmd = pmd_offset(pud, addr);</span>
+<span class="p_del">-		pr_cont(&quot;, *pmd=%016llx&quot;, pmd_val(*pmd));</span>
+<span class="p_del">-		if (pmd_none(*pmd) || pmd_bad(*pmd))</span>
+<span class="p_add">+		pmdp = pmd_offset(pudp, addr);</span>
+<span class="p_add">+		pmd = READ_ONCE(*pmdp);</span>
+<span class="p_add">+		pr_cont(&quot;, pmd=%016llx&quot;, pmd_val(pmd));</span>
+<span class="p_add">+		if (pmd_none(pmd) || pmd_bad(pmd))</span>
+ 			break;
+ 
+<span class="p_del">-		pte = pte_offset_map(pmd, addr);</span>
+<span class="p_del">-		pr_cont(&quot;, *pte=%016llx&quot;, pte_val(*pte));</span>
+<span class="p_del">-		pte_unmap(pte);</span>
+<span class="p_add">+		ptep = pte_offset_map(pmdp, addr);</span>
+<span class="p_add">+		pte = READ_ONCE(*ptep);</span>
+<span class="p_add">+		pr_cont(&quot;, pte=%016llx&quot;, pte_val(pte));</span>
+<span class="p_add">+		pte_unmap(ptep);</span>
+ 	} while(0);
+ 
+ 	pr_cont(&quot;\n&quot;);
+<span class="p_chunk">@@ -198,8 +203,9 @@</span> <span class="p_context"> int ptep_set_access_flags(struct vm_area_struct *vma,</span>
+ 			  pte_t entry, int dirty)
+ {
+ 	pteval_t old_pteval, pteval;
+<span class="p_add">+	pte_t pte = READ_ONCE(*ptep);</span>
+ 
+<span class="p_del">-	if (pte_same(*ptep, entry))</span>
+<span class="p_add">+	if (pte_same(pte, entry))</span>
+ 		return 0;
+ 
+ 	/* only preserve the access flags and write permission */
+<span class="p_chunk">@@ -212,7 +218,7 @@</span> <span class="p_context"> int ptep_set_access_flags(struct vm_area_struct *vma,</span>
+ 	 * (calculated as: a &amp; b == ~(~a | ~b)).
+ 	 */
+ 	pte_val(entry) ^= PTE_RDONLY;
+<span class="p_del">-	pteval = READ_ONCE(pte_val(*ptep));</span>
+<span class="p_add">+	pteval = pte_val(pte);</span>
+ 	do {
+ 		old_pteval = pteval;
+ 		pteval ^= PTE_RDONLY;
+<span class="p_header">diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c</span>
+<span class="p_header">index 6cb0fa92a651..ecc6818191df 100644</span>
+<span class="p_header">--- a/arch/arm64/mm/hugetlbpage.c</span>
+<span class="p_header">+++ b/arch/arm64/mm/hugetlbpage.c</span>
+<span class="p_chunk">@@ -54,14 +54,14 @@</span> <span class="p_context"> static inline pgprot_t pte_pgprot(pte_t pte)</span>
+ static int find_num_contig(struct mm_struct *mm, unsigned long addr,
+ 			   pte_t *ptep, size_t *pgsize)
+ {
+<span class="p_del">-	pgd_t *pgd = pgd_offset(mm, addr);</span>
+<span class="p_del">-	pud_t *pud;</span>
+<span class="p_del">-	pmd_t *pmd;</span>
+<span class="p_add">+	pgd_t *pgdp = pgd_offset(mm, addr);</span>
+<span class="p_add">+	pud_t *pudp;</span>
+<span class="p_add">+	pmd_t *pmdp;</span>
+ 
+ 	*pgsize = PAGE_SIZE;
+<span class="p_del">-	pud = pud_offset(pgd, addr);</span>
+<span class="p_del">-	pmd = pmd_offset(pud, addr);</span>
+<span class="p_del">-	if ((pte_t *)pmd == ptep) {</span>
+<span class="p_add">+	pudp = pud_offset(pgdp, addr);</span>
+<span class="p_add">+	pmdp = pmd_offset(pudp, addr);</span>
+<span class="p_add">+	if ((pte_t *)pmdp == ptep) {</span>
+ 		*pgsize = PMD_SIZE;
+ 		return CONT_PMDS;
+ 	}
+<span class="p_chunk">@@ -181,11 +181,8 @@</span> <span class="p_context"> void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,</span>
+ 
+ 	clear_flush(mm, addr, ptep, pgsize, ncontig);
+ 
+<span class="p_del">-	for (i = 0; i &lt; ncontig; i++, ptep++, addr += pgsize, pfn += dpfn) {</span>
+<span class="p_del">-		pr_debug(&quot;%s: set pte %p to 0x%llx\n&quot;, __func__, ptep,</span>
+<span class="p_del">-			 pte_val(pfn_pte(pfn, hugeprot)));</span>
+<span class="p_add">+	for (i = 0; i &lt; ncontig; i++, ptep++, addr += pgsize, pfn += dpfn)</span>
+ 		set_pte_at(mm, addr, ptep, pfn_pte(pfn, hugeprot));
+<span class="p_del">-	}</span>
+ }
+ 
+ void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr,
+<span class="p_chunk">@@ -203,20 +200,20 @@</span> <span class="p_context"> void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr,</span>
+ pte_t *huge_pte_alloc(struct mm_struct *mm,
+ 		      unsigned long addr, unsigned long sz)
+ {
+<span class="p_del">-	pgd_t *pgd;</span>
+<span class="p_del">-	pud_t *pud;</span>
+<span class="p_del">-	pte_t *pte = NULL;</span>
+<span class="p_del">-</span>
+<span class="p_del">-	pr_debug(&quot;%s: addr:0x%lx sz:0x%lx\n&quot;, __func__, addr, sz);</span>
+<span class="p_del">-	pgd = pgd_offset(mm, addr);</span>
+<span class="p_del">-	pud = pud_alloc(mm, pgd, addr);</span>
+<span class="p_del">-	if (!pud)</span>
+<span class="p_add">+	pgd_t *pgdp;</span>
+<span class="p_add">+	pud_t *pudp;</span>
+<span class="p_add">+	pmd_t *pmdp;</span>
+<span class="p_add">+	pte_t *ptep = NULL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pgdp = pgd_offset(mm, addr);</span>
+<span class="p_add">+	pudp = pud_alloc(mm, pgdp, addr);</span>
+<span class="p_add">+	if (!pudp)</span>
+ 		return NULL;
+ 
+ 	if (sz == PUD_SIZE) {
+<span class="p_del">-		pte = (pte_t *)pud;</span>
+<span class="p_add">+		ptep = (pte_t *)pudp;</span>
+ 	} else if (sz == (PAGE_SIZE * CONT_PTES)) {
+<span class="p_del">-		pmd_t *pmd = pmd_alloc(mm, pud, addr);</span>
+<span class="p_add">+		pmdp = pmd_alloc(mm, pudp, addr);</span>
+ 
+ 		WARN_ON(addr &amp; (sz - 1));
+ 		/*
+<span class="p_chunk">@@ -226,60 +223,55 @@</span> <span class="p_context"> pte_t *huge_pte_alloc(struct mm_struct *mm,</span>
+ 		 * will be no pte_unmap() to correspond with this
+ 		 * pte_alloc_map().
+ 		 */
+<span class="p_del">-		pte = pte_alloc_map(mm, pmd, addr);</span>
+<span class="p_add">+		ptep = pte_alloc_map(mm, pmdp, addr);</span>
+ 	} else if (sz == PMD_SIZE) {
+ 		if (IS_ENABLED(CONFIG_ARCH_WANT_HUGE_PMD_SHARE) &amp;&amp;
+<span class="p_del">-		    pud_none(*pud))</span>
+<span class="p_del">-			pte = huge_pmd_share(mm, addr, pud);</span>
+<span class="p_add">+		    pud_none(READ_ONCE(*pudp)))</span>
+<span class="p_add">+			ptep = huge_pmd_share(mm, addr, pudp);</span>
+ 		else
+<span class="p_del">-			pte = (pte_t *)pmd_alloc(mm, pud, addr);</span>
+<span class="p_add">+			ptep = (pte_t *)pmd_alloc(mm, pudp, addr);</span>
+ 	} else if (sz == (PMD_SIZE * CONT_PMDS)) {
+<span class="p_del">-		pmd_t *pmd;</span>
+<span class="p_del">-</span>
+<span class="p_del">-		pmd = pmd_alloc(mm, pud, addr);</span>
+<span class="p_add">+		pmdp = pmd_alloc(mm, pudp, addr);</span>
+ 		WARN_ON(addr &amp; (sz - 1));
+<span class="p_del">-		return (pte_t *)pmd;</span>
+<span class="p_add">+		return (pte_t *)pmdp;</span>
+ 	}
+ 
+<span class="p_del">-	pr_debug(&quot;%s: addr:0x%lx sz:0x%lx ret pte=%p/0x%llx\n&quot;, __func__, addr,</span>
+<span class="p_del">-	       sz, pte, pte_val(*pte));</span>
+<span class="p_del">-	return pte;</span>
+<span class="p_add">+	return ptep;</span>
+ }
+ 
+ pte_t *huge_pte_offset(struct mm_struct *mm,
+ 		       unsigned long addr, unsigned long sz)
+ {
+<span class="p_del">-	pgd_t *pgd;</span>
+<span class="p_del">-	pud_t *pud;</span>
+<span class="p_del">-	pmd_t *pmd;</span>
+<span class="p_add">+	pgd_t *pgdp;</span>
+<span class="p_add">+	pud_t *pudp, pud;</span>
+<span class="p_add">+	pmd_t *pmdp, pmd;</span>
+ 
+<span class="p_del">-	pgd = pgd_offset(mm, addr);</span>
+<span class="p_del">-	pr_debug(&quot;%s: addr:0x%lx pgd:%p\n&quot;, __func__, addr, pgd);</span>
+<span class="p_del">-	if (!pgd_present(*pgd))</span>
+<span class="p_add">+	pgdp = pgd_offset(mm, addr);</span>
+<span class="p_add">+	if (!pgd_present(READ_ONCE(*pgdp)))</span>
+ 		return NULL;
+ 
+<span class="p_del">-	pud = pud_offset(pgd, addr);</span>
+<span class="p_del">-	if (sz != PUD_SIZE &amp;&amp; pud_none(*pud))</span>
+<span class="p_add">+	pudp = pud_offset(pgdp, addr);</span>
+<span class="p_add">+	pud = READ_ONCE(*pudp);</span>
+<span class="p_add">+	if (sz != PUD_SIZE &amp;&amp; pud_none(pud))</span>
+ 		return NULL;
+ 	/* hugepage or swap? */
+<span class="p_del">-	if (pud_huge(*pud) || !pud_present(*pud))</span>
+<span class="p_del">-		return (pte_t *)pud;</span>
+<span class="p_add">+	if (pud_huge(pud) || !pud_present(pud))</span>
+<span class="p_add">+		return (pte_t *)pudp;</span>
+ 	/* table; check the next level */
+ 
+ 	if (sz == CONT_PMD_SIZE)
+ 		addr &amp;= CONT_PMD_MASK;
+ 
+<span class="p_del">-	pmd = pmd_offset(pud, addr);</span>
+<span class="p_add">+	pmdp = pmd_offset(pudp, addr);</span>
+<span class="p_add">+	pmd = READ_ONCE(*pmdp);</span>
+ 	if (!(sz == PMD_SIZE || sz == CONT_PMD_SIZE) &amp;&amp;
+<span class="p_del">-	    pmd_none(*pmd))</span>
+<span class="p_add">+	    pmd_none(pmd))</span>
+ 		return NULL;
+<span class="p_del">-	if (pmd_huge(*pmd) || !pmd_present(*pmd))</span>
+<span class="p_del">-		return (pte_t *)pmd;</span>
+<span class="p_add">+	if (pmd_huge(pmd) || !pmd_present(pmd))</span>
+<span class="p_add">+		return (pte_t *)pmdp;</span>
+ 
+<span class="p_del">-	if (sz == CONT_PTE_SIZE) {</span>
+<span class="p_del">-		pte_t *pte = pte_offset_kernel(pmd, (addr &amp; CONT_PTE_MASK));</span>
+<span class="p_del">-		return pte;</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+	if (sz == CONT_PTE_SIZE)</span>
+<span class="p_add">+		return pte_offset_kernel(pmdp, (addr &amp; CONT_PTE_MASK));</span>
+ 
+ 	return NULL;
+ }
+<span class="p_chunk">@@ -367,7 +359,7 @@</span> <span class="p_context"> void huge_ptep_set_wrprotect(struct mm_struct *mm,</span>
+ 	size_t pgsize;
+ 	pte_t pte;
+ 
+<span class="p_del">-	if (!pte_cont(*ptep)) {</span>
+<span class="p_add">+	if (!pte_cont(READ_ONCE(*ptep))) {</span>
+ 		ptep_set_wrprotect(mm, addr, ptep);
+ 		return;
+ 	}
+<span class="p_chunk">@@ -391,7 +383,7 @@</span> <span class="p_context"> void huge_ptep_clear_flush(struct vm_area_struct *vma,</span>
+ 	size_t pgsize;
+ 	int ncontig;
+ 
+<span class="p_del">-	if (!pte_cont(*ptep)) {</span>
+<span class="p_add">+	if (!pte_cont(READ_ONCE(*ptep))) {</span>
+ 		ptep_clear_flush(vma, addr, ptep);
+ 		return;
+ 	}
+<span class="p_header">diff --git a/arch/arm64/mm/kasan_init.c b/arch/arm64/mm/kasan_init.c</span>
+<span class="p_header">index 81f03959a4ab..7c0c1bb1bc4b 100644</span>
+<span class="p_header">--- a/arch/arm64/mm/kasan_init.c</span>
+<span class="p_header">+++ b/arch/arm64/mm/kasan_init.c</span>
+<span class="p_chunk">@@ -35,55 +35,55 @@</span> <span class="p_context"> static pgd_t tmp_pg_dir[PTRS_PER_PGD] __initdata __aligned(PGD_SIZE);</span>
+  * with the physical address from __pa_symbol.
+  */
+ 
+<span class="p_del">-static void __init kasan_early_pte_populate(pmd_t *pmd, unsigned long addr,</span>
+<span class="p_add">+static void __init kasan_early_pte_populate(pmd_t *pmdp, unsigned long addr,</span>
+ 					unsigned long end)
+ {
+<span class="p_del">-	pte_t *pte;</span>
+<span class="p_add">+	pte_t *ptep;</span>
+ 	unsigned long next;
+ 
+<span class="p_del">-	if (pmd_none(*pmd))</span>
+<span class="p_del">-		__pmd_populate(pmd, __pa_symbol(kasan_zero_pte), PMD_TYPE_TABLE);</span>
+<span class="p_add">+	if (pmd_none(READ_ONCE(*pmdp)))</span>
+<span class="p_add">+		__pmd_populate(pmdp, __pa_symbol(kasan_zero_pte), PMD_TYPE_TABLE);</span>
+ 
+<span class="p_del">-	pte = pte_offset_kimg(pmd, addr);</span>
+<span class="p_add">+	ptep = pte_offset_kimg(pmdp, addr);</span>
+ 	do {
+ 		next = addr + PAGE_SIZE;
+<span class="p_del">-		set_pte(pte, pfn_pte(sym_to_pfn(kasan_zero_page),</span>
+<span class="p_add">+		set_pte(ptep, pfn_pte(sym_to_pfn(kasan_zero_page),</span>
+ 					PAGE_KERNEL));
+<span class="p_del">-	} while (pte++, addr = next, addr != end &amp;&amp; pte_none(*pte));</span>
+<span class="p_add">+	} while (ptep++, addr = next, addr != end &amp;&amp; pte_none(READ_ONCE(*ptep)));</span>
+ }
+ 
+<span class="p_del">-static void __init kasan_early_pmd_populate(pud_t *pud,</span>
+<span class="p_add">+static void __init kasan_early_pmd_populate(pud_t *pudp,</span>
+ 					unsigned long addr,
+ 					unsigned long end)
+ {
+<span class="p_del">-	pmd_t *pmd;</span>
+<span class="p_add">+	pmd_t *pmdp;</span>
+ 	unsigned long next;
+ 
+<span class="p_del">-	if (pud_none(*pud))</span>
+<span class="p_del">-		__pud_populate(pud, __pa_symbol(kasan_zero_pmd), PMD_TYPE_TABLE);</span>
+<span class="p_add">+	if (pud_none(READ_ONCE(*pudp)))</span>
+<span class="p_add">+		__pud_populate(pudp, __pa_symbol(kasan_zero_pmd), PMD_TYPE_TABLE);</span>
+ 
+<span class="p_del">-	pmd = pmd_offset_kimg(pud, addr);</span>
+<span class="p_add">+	pmdp = pmd_offset_kimg(pudp, addr);</span>
+ 	do {
+ 		next = pmd_addr_end(addr, end);
+<span class="p_del">-		kasan_early_pte_populate(pmd, addr, next);</span>
+<span class="p_del">-	} while (pmd++, addr = next, addr != end &amp;&amp; pmd_none(*pmd));</span>
+<span class="p_add">+		kasan_early_pte_populate(pmdp, addr, next);</span>
+<span class="p_add">+	} while (pmdp++, addr = next, addr != end &amp;&amp; pmd_none(READ_ONCE(*pmdp)));</span>
+ }
+ 
+<span class="p_del">-static void __init kasan_early_pud_populate(pgd_t *pgd,</span>
+<span class="p_add">+static void __init kasan_early_pud_populate(pgd_t *pgdp,</span>
+ 					unsigned long addr,
+ 					unsigned long end)
+ {
+<span class="p_del">-	pud_t *pud;</span>
+<span class="p_add">+	pud_t *pudp;</span>
+ 	unsigned long next;
+ 
+<span class="p_del">-	if (pgd_none(*pgd))</span>
+<span class="p_del">-		__pgd_populate(pgd, __pa_symbol(kasan_zero_pud), PUD_TYPE_TABLE);</span>
+<span class="p_add">+	if (pgd_none(READ_ONCE(*pgdp)))</span>
+<span class="p_add">+		__pgd_populate(pgdp, __pa_symbol(kasan_zero_pud), PUD_TYPE_TABLE);</span>
+ 
+<span class="p_del">-	pud = pud_offset_kimg(pgd, addr);</span>
+<span class="p_add">+	pudp = pud_offset_kimg(pgdp, addr);</span>
+ 	do {
+ 		next = pud_addr_end(addr, end);
+<span class="p_del">-		kasan_early_pmd_populate(pud, addr, next);</span>
+<span class="p_del">-	} while (pud++, addr = next, addr != end &amp;&amp; pud_none(*pud));</span>
+<span class="p_add">+		kasan_early_pmd_populate(pudp, addr, next);</span>
+<span class="p_add">+	} while (pudp++, addr = next, addr != end &amp;&amp; pud_none(READ_ONCE(*pudp)));</span>
+ }
+ 
+ static void __init kasan_map_early_shadow(void)
+<span class="p_chunk">@@ -91,13 +91,13 @@</span> <span class="p_context"> static void __init kasan_map_early_shadow(void)</span>
+ 	unsigned long addr = KASAN_SHADOW_START;
+ 	unsigned long end = KASAN_SHADOW_END;
+ 	unsigned long next;
+<span class="p_del">-	pgd_t *pgd;</span>
+<span class="p_add">+	pgd_t *pgdp;</span>
+ 
+<span class="p_del">-	pgd = pgd_offset_k(addr);</span>
+<span class="p_add">+	pgdp = pgd_offset_k(addr);</span>
+ 	do {
+ 		next = pgd_addr_end(addr, end);
+<span class="p_del">-		kasan_early_pud_populate(pgd, addr, next);</span>
+<span class="p_del">-	} while (pgd++, addr = next, addr != end);</span>
+<span class="p_add">+		kasan_early_pud_populate(pgdp, addr, next);</span>
+<span class="p_add">+	} while (pgdp++, addr = next, addr != end);</span>
+ }
+ 
+ asmlinkage void __init kasan_early_init(void)
+<span class="p_chunk">@@ -113,14 +113,14 @@</span> <span class="p_context"> asmlinkage void __init kasan_early_init(void)</span>
+  */
+ void __init kasan_copy_shadow(pgd_t *pgdir)
+ {
+<span class="p_del">-	pgd_t *pgd, *pgd_new, *pgd_end;</span>
+<span class="p_add">+	pgd_t *pgdp, *pgd_newp, *pgd_endp;</span>
+ 
+<span class="p_del">-	pgd = pgd_offset_k(KASAN_SHADOW_START);</span>
+<span class="p_del">-	pgd_end = pgd_offset_k(KASAN_SHADOW_END);</span>
+<span class="p_del">-	pgd_new = pgd_offset_raw(pgdir, KASAN_SHADOW_START);</span>
+<span class="p_add">+	pgdp = pgd_offset_k(KASAN_SHADOW_START);</span>
+<span class="p_add">+	pgd_endp = pgd_offset_k(KASAN_SHADOW_END);</span>
+<span class="p_add">+	pgd_newp = pgd_offset_raw(pgdir, KASAN_SHADOW_START);</span>
+ 	do {
+<span class="p_del">-		set_pgd(pgd_new, *pgd);</span>
+<span class="p_del">-	} while (pgd++, pgd_new++, pgd != pgd_end);</span>
+<span class="p_add">+		set_pgd(pgd_newp, READ_ONCE(*pgdp));</span>
+<span class="p_add">+	} while (pgdp++, pgd_newp++, pgdp != pgd_endp);</span>
+ }
+ 
+ static void __init clear_pgds(unsigned long start,
+<span class="p_header">diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c</span>
+<span class="p_header">index f1eb15e0e864..937a059f6fc2 100644</span>
+<span class="p_header">--- a/arch/arm64/mm/mmu.c</span>
+<span class="p_header">+++ b/arch/arm64/mm/mmu.c</span>
+<span class="p_chunk">@@ -120,45 +120,48 @@</span> <span class="p_context"> static bool pgattr_change_is_safe(u64 old, u64 new)</span>
+ 	return ((old ^ new) &amp; ~mask) == 0;
+ }
+ 
+<span class="p_del">-static void init_pte(pmd_t *pmd, unsigned long addr, unsigned long end,</span>
+<span class="p_add">+static void init_pte(pmd_t *pmdp, unsigned long addr, unsigned long end,</span>
+ 		     phys_addr_t phys, pgprot_t prot)
+ {
+<span class="p_del">-	pte_t *pte;</span>
+<span class="p_add">+	pte_t *ptep;</span>
+ 
+<span class="p_del">-	pte = pte_set_fixmap_offset(pmd, addr);</span>
+<span class="p_add">+	ptep = pte_set_fixmap_offset(pmdp, addr);</span>
+ 	do {
+<span class="p_del">-		pte_t old_pte = *pte;</span>
+<span class="p_add">+		pte_t old_pte = READ_ONCE(*ptep);</span>
+ 
+<span class="p_del">-		set_pte(pte, pfn_pte(__phys_to_pfn(phys), prot));</span>
+<span class="p_add">+		set_pte(ptep, pfn_pte(__phys_to_pfn(phys), prot));</span>
+ 
+ 		/*
+ 		 * After the PTE entry has been populated once, we
+ 		 * only allow updates to the permission attributes.
+ 		 */
+<span class="p_del">-		BUG_ON(!pgattr_change_is_safe(pte_val(old_pte), pte_val(*pte)));</span>
+<span class="p_add">+		BUG_ON(!pgattr_change_is_safe(pte_val(old_pte),</span>
+<span class="p_add">+					      READ_ONCE(pte_val(*ptep))));</span>
+ 
+ 		phys += PAGE_SIZE;
+<span class="p_del">-	} while (pte++, addr += PAGE_SIZE, addr != end);</span>
+<span class="p_add">+	} while (ptep++, addr += PAGE_SIZE, addr != end);</span>
+ 
+ 	pte_clear_fixmap();
+ }
+ 
+<span class="p_del">-static void alloc_init_cont_pte(pmd_t *pmd, unsigned long addr,</span>
+<span class="p_add">+static void alloc_init_cont_pte(pmd_t *pmdp, unsigned long addr,</span>
+ 				unsigned long end, phys_addr_t phys,
+ 				pgprot_t prot,
+ 				phys_addr_t (*pgtable_alloc)(void),
+ 				int flags)
+ {
+ 	unsigned long next;
+<span class="p_add">+	pmd_t pmd = READ_ONCE(*pmdp);</span>
+ 
+<span class="p_del">-	BUG_ON(pmd_sect(*pmd));</span>
+<span class="p_del">-	if (pmd_none(*pmd)) {</span>
+<span class="p_add">+	BUG_ON(pmd_sect(pmd));</span>
+<span class="p_add">+	if (pmd_none(pmd)) {</span>
+ 		phys_addr_t pte_phys;
+ 		BUG_ON(!pgtable_alloc);
+ 		pte_phys = pgtable_alloc();
+<span class="p_del">-		__pmd_populate(pmd, pte_phys, PMD_TYPE_TABLE);</span>
+<span class="p_add">+		__pmd_populate(pmdp, pte_phys, PMD_TYPE_TABLE);</span>
+<span class="p_add">+		pmd = READ_ONCE(*pmdp);</span>
+ 	}
+<span class="p_del">-	BUG_ON(pmd_bad(*pmd));</span>
+<span class="p_add">+	BUG_ON(pmd_bad(pmd));</span>
+ 
+ 	do {
+ 		pgprot_t __prot = prot;
+<span class="p_chunk">@@ -170,67 +173,69 @@</span> <span class="p_context"> static void alloc_init_cont_pte(pmd_t *pmd, unsigned long addr,</span>
+ 		    (flags &amp; NO_CONT_MAPPINGS) == 0)
+ 			__prot = __pgprot(pgprot_val(prot) | PTE_CONT);
+ 
+<span class="p_del">-		init_pte(pmd, addr, next, phys, __prot);</span>
+<span class="p_add">+		init_pte(pmdp, addr, next, phys, __prot);</span>
+ 
+ 		phys += next - addr;
+ 	} while (addr = next, addr != end);
+ }
+ 
+<span class="p_del">-static void init_pmd(pud_t *pud, unsigned long addr, unsigned long end,</span>
+<span class="p_add">+static void init_pmd(pud_t *pudp, unsigned long addr, unsigned long end,</span>
+ 		     phys_addr_t phys, pgprot_t prot,
+ 		     phys_addr_t (*pgtable_alloc)(void), int flags)
+ {
+ 	unsigned long next;
+<span class="p_del">-	pmd_t *pmd;</span>
+<span class="p_add">+	pmd_t *pmdp;</span>
+ 
+<span class="p_del">-	pmd = pmd_set_fixmap_offset(pud, addr);</span>
+<span class="p_add">+	pmdp = pmd_set_fixmap_offset(pudp, addr);</span>
+ 	do {
+<span class="p_del">-		pmd_t old_pmd = *pmd;</span>
+<span class="p_add">+		pmd_t old_pmd = READ_ONCE(*pmdp);</span>
+ 
+ 		next = pmd_addr_end(addr, end);
+ 
+ 		/* try section mapping first */
+ 		if (((addr | next | phys) &amp; ~SECTION_MASK) == 0 &amp;&amp;
+ 		    (flags &amp; NO_BLOCK_MAPPINGS) == 0) {
+<span class="p_del">-			pmd_set_huge(pmd, phys, prot);</span>
+<span class="p_add">+			pmd_set_huge(pmdp, phys, prot);</span>
+ 
+ 			/*
+ 			 * After the PMD entry has been populated once, we
+ 			 * only allow updates to the permission attributes.
+ 			 */
+ 			BUG_ON(!pgattr_change_is_safe(pmd_val(old_pmd),
+<span class="p_del">-						      pmd_val(*pmd)));</span>
+<span class="p_add">+						      READ_ONCE(pmd_val(*pmdp))));</span>
+ 		} else {
+<span class="p_del">-			alloc_init_cont_pte(pmd, addr, next, phys, prot,</span>
+<span class="p_add">+			alloc_init_cont_pte(pmdp, addr, next, phys, prot,</span>
+ 					    pgtable_alloc, flags);
+ 
+ 			BUG_ON(pmd_val(old_pmd) != 0 &amp;&amp;
+<span class="p_del">-			       pmd_val(old_pmd) != pmd_val(*pmd));</span>
+<span class="p_add">+			       pmd_val(old_pmd) != READ_ONCE(pmd_val(*pmdp)));</span>
+ 		}
+ 		phys += next - addr;
+<span class="p_del">-	} while (pmd++, addr = next, addr != end);</span>
+<span class="p_add">+	} while (pmdp++, addr = next, addr != end);</span>
+ 
+ 	pmd_clear_fixmap();
+ }
+ 
+<span class="p_del">-static void alloc_init_cont_pmd(pud_t *pud, unsigned long addr,</span>
+<span class="p_add">+static void alloc_init_cont_pmd(pud_t *pudp, unsigned long addr,</span>
+ 				unsigned long end, phys_addr_t phys,
+ 				pgprot_t prot,
+ 				phys_addr_t (*pgtable_alloc)(void), int flags)
+ {
+ 	unsigned long next;
+<span class="p_add">+	pud_t pud = READ_ONCE(*pudp);</span>
+ 
+ 	/*
+ 	 * Check for initial section mappings in the pgd/pud.
+ 	 */
+<span class="p_del">-	BUG_ON(pud_sect(*pud));</span>
+<span class="p_del">-	if (pud_none(*pud)) {</span>
+<span class="p_add">+	BUG_ON(pud_sect(pud));</span>
+<span class="p_add">+	if (pud_none(pud)) {</span>
+ 		phys_addr_t pmd_phys;
+ 		BUG_ON(!pgtable_alloc);
+ 		pmd_phys = pgtable_alloc();
+<span class="p_del">-		__pud_populate(pud, pmd_phys, PUD_TYPE_TABLE);</span>
+<span class="p_add">+		__pud_populate(pudp, pmd_phys, PUD_TYPE_TABLE);</span>
+<span class="p_add">+		pud = READ_ONCE(*pudp);</span>
+ 	}
+<span class="p_del">-	BUG_ON(pud_bad(*pud));</span>
+<span class="p_add">+	BUG_ON(pud_bad(pud));</span>
+ 
+ 	do {
+ 		pgprot_t __prot = prot;
+<span class="p_chunk">@@ -242,7 +247,7 @@</span> <span class="p_context"> static void alloc_init_cont_pmd(pud_t *pud, unsigned long addr,</span>
+ 		    (flags &amp; NO_CONT_MAPPINGS) == 0)
+ 			__prot = __pgprot(pgprot_val(prot) | PTE_CONT);
+ 
+<span class="p_del">-		init_pmd(pud, addr, next, phys, __prot, pgtable_alloc, flags);</span>
+<span class="p_add">+		init_pmd(pudp, addr, next, phys, __prot, pgtable_alloc, flags);</span>
+ 
+ 		phys += next - addr;
+ 	} while (addr = next, addr != end);
+<span class="p_chunk">@@ -260,25 +265,27 @@</span> <span class="p_context"> static inline bool use_1G_block(unsigned long addr, unsigned long next,</span>
+ 	return true;
+ }
+ 
+<span class="p_del">-static void alloc_init_pud(pgd_t *pgd, unsigned long addr, unsigned long end,</span>
+<span class="p_del">-				  phys_addr_t phys, pgprot_t prot,</span>
+<span class="p_del">-				  phys_addr_t (*pgtable_alloc)(void),</span>
+<span class="p_del">-				  int flags)</span>
+<span class="p_add">+static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,</span>
+<span class="p_add">+			   phys_addr_t phys, pgprot_t prot,</span>
+<span class="p_add">+			   phys_addr_t (*pgtable_alloc)(void),</span>
+<span class="p_add">+			   int flags)</span>
+ {
+<span class="p_del">-	pud_t *pud;</span>
+ 	unsigned long next;
+<span class="p_add">+	pud_t *pudp;</span>
+<span class="p_add">+	pgd_t pgd = READ_ONCE(*pgdp);</span>
+ 
+<span class="p_del">-	if (pgd_none(*pgd)) {</span>
+<span class="p_add">+	if (pgd_none(pgd)) {</span>
+ 		phys_addr_t pud_phys;
+ 		BUG_ON(!pgtable_alloc);
+ 		pud_phys = pgtable_alloc();
+<span class="p_del">-		__pgd_populate(pgd, pud_phys, PUD_TYPE_TABLE);</span>
+<span class="p_add">+		__pgd_populate(pgdp, pud_phys, PUD_TYPE_TABLE);</span>
+<span class="p_add">+		pgd = READ_ONCE(*pgdp);</span>
+ 	}
+<span class="p_del">-	BUG_ON(pgd_bad(*pgd));</span>
+<span class="p_add">+	BUG_ON(pgd_bad(pgd));</span>
+ 
+<span class="p_del">-	pud = pud_set_fixmap_offset(pgd, addr);</span>
+<span class="p_add">+	pudp = pud_set_fixmap_offset(pgdp, addr);</span>
+ 	do {
+<span class="p_del">-		pud_t old_pud = *pud;</span>
+<span class="p_add">+		pud_t old_pud = READ_ONCE(*pudp);</span>
+ 
+ 		next = pud_addr_end(addr, end);
+ 
+<span class="p_chunk">@@ -287,23 +294,23 @@</span> <span class="p_context"> static void alloc_init_pud(pgd_t *pgd, unsigned long addr, unsigned long end,</span>
+ 		 */
+ 		if (use_1G_block(addr, next, phys) &amp;&amp;
+ 		    (flags &amp; NO_BLOCK_MAPPINGS) == 0) {
+<span class="p_del">-			pud_set_huge(pud, phys, prot);</span>
+<span class="p_add">+			pud_set_huge(pudp, phys, prot);</span>
+ 
+ 			/*
+ 			 * After the PUD entry has been populated once, we
+ 			 * only allow updates to the permission attributes.
+ 			 */
+ 			BUG_ON(!pgattr_change_is_safe(pud_val(old_pud),
+<span class="p_del">-						      pud_val(*pud)));</span>
+<span class="p_add">+						      READ_ONCE(pud_val(*pudp))));</span>
+ 		} else {
+<span class="p_del">-			alloc_init_cont_pmd(pud, addr, next, phys, prot,</span>
+<span class="p_add">+			alloc_init_cont_pmd(pudp, addr, next, phys, prot,</span>
+ 					    pgtable_alloc, flags);
+ 
+ 			BUG_ON(pud_val(old_pud) != 0 &amp;&amp;
+<span class="p_del">-			       pud_val(old_pud) != pud_val(*pud));</span>
+<span class="p_add">+			       pud_val(old_pud) != READ_ONCE(pud_val(*pudp)));</span>
+ 		}
+ 		phys += next - addr;
+<span class="p_del">-	} while (pud++, addr = next, addr != end);</span>
+<span class="p_add">+	} while (pudp++, addr = next, addr != end);</span>
+ 
+ 	pud_clear_fixmap();
+ }
+<span class="p_chunk">@@ -315,7 +322,7 @@</span> <span class="p_context"> static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,</span>
+ 				 int flags)
+ {
+ 	unsigned long addr, length, end, next;
+<span class="p_del">-	pgd_t *pgd = pgd_offset_raw(pgdir, virt);</span>
+<span class="p_add">+	pgd_t *pgdp = pgd_offset_raw(pgdir, virt);</span>
+ 
+ 	/*
+ 	 * If the virtual and physical address don&#39;t have the same offset
+<span class="p_chunk">@@ -331,10 +338,10 @@</span> <span class="p_context"> static void __create_pgd_mapping(pgd_t *pgdir, phys_addr_t phys,</span>
+ 	end = addr + length;
+ 	do {
+ 		next = pgd_addr_end(addr, end);
+<span class="p_del">-		alloc_init_pud(pgd, addr, next, phys, prot, pgtable_alloc,</span>
+<span class="p_add">+		alloc_init_pud(pgdp, addr, next, phys, prot, pgtable_alloc,</span>
+ 			       flags);
+ 		phys += next - addr;
+<span class="p_del">-	} while (pgd++, addr = next, addr != end);</span>
+<span class="p_add">+	} while (pgdp++, addr = next, addr != end);</span>
+ }
+ 
+ static phys_addr_t pgd_pgtable_alloc(void)
+<span class="p_chunk">@@ -396,10 +403,10 @@</span> <span class="p_context"> static void update_mapping_prot(phys_addr_t phys, unsigned long virt,</span>
+ 	flush_tlb_kernel_range(virt, virt + size);
+ }
+ 
+<span class="p_del">-static void __init __map_memblock(pgd_t *pgd, phys_addr_t start,</span>
+<span class="p_add">+static void __init __map_memblock(pgd_t *pgdp, phys_addr_t start,</span>
+ 				  phys_addr_t end, pgprot_t prot, int flags)
+ {
+<span class="p_del">-	__create_pgd_mapping(pgd, start, __phys_to_virt(start), end - start,</span>
+<span class="p_add">+	__create_pgd_mapping(pgdp, start, __phys_to_virt(start), end - start,</span>
+ 			     prot, early_pgtable_alloc, flags);
+ }
+ 
+<span class="p_chunk">@@ -413,7 +420,7 @@</span> <span class="p_context"> void __init mark_linear_text_alias_ro(void)</span>
+ 			    PAGE_KERNEL_RO);
+ }
+ 
+<span class="p_del">-static void __init map_mem(pgd_t *pgd)</span>
+<span class="p_add">+static void __init map_mem(pgd_t *pgdp)</span>
+ {
+ 	phys_addr_t kernel_start = __pa_symbol(_text);
+ 	phys_addr_t kernel_end = __pa_symbol(__init_begin);
+<span class="p_chunk">@@ -446,7 +453,7 @@</span> <span class="p_context"> static void __init map_mem(pgd_t *pgd)</span>
+ 		if (memblock_is_nomap(reg))
+ 			continue;
+ 
+<span class="p_del">-		__map_memblock(pgd, start, end, PAGE_KERNEL, flags);</span>
+<span class="p_add">+		__map_memblock(pgdp, start, end, PAGE_KERNEL, flags);</span>
+ 	}
+ 
+ 	/*
+<span class="p_chunk">@@ -459,7 +466,7 @@</span> <span class="p_context"> static void __init map_mem(pgd_t *pgd)</span>
+ 	 * Note that contiguous mappings cannot be remapped in this way,
+ 	 * so we should avoid them here.
+ 	 */
+<span class="p_del">-	__map_memblock(pgd, kernel_start, kernel_end,</span>
+<span class="p_add">+	__map_memblock(pgdp, kernel_start, kernel_end,</span>
+ 		       PAGE_KERNEL, NO_CONT_MAPPINGS);
+ 	memblock_clear_nomap(kernel_start, kernel_end - kernel_start);
+ 
+<span class="p_chunk">@@ -470,7 +477,7 @@</span> <span class="p_context"> static void __init map_mem(pgd_t *pgd)</span>
+ 	 * through /sys/kernel/kexec_crash_size interface.
+ 	 */
+ 	if (crashk_res.end) {
+<span class="p_del">-		__map_memblock(pgd, crashk_res.start, crashk_res.end + 1,</span>
+<span class="p_add">+		__map_memblock(pgdp, crashk_res.start, crashk_res.end + 1,</span>
+ 			       PAGE_KERNEL,
+ 			       NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS);
+ 		memblock_clear_nomap(crashk_res.start,
+<span class="p_chunk">@@ -494,7 +501,7 @@</span> <span class="p_context"> void mark_rodata_ro(void)</span>
+ 	debug_checkwx();
+ }
+ 
+<span class="p_del">-static void __init map_kernel_segment(pgd_t *pgd, void *va_start, void *va_end,</span>
+<span class="p_add">+static void __init map_kernel_segment(pgd_t *pgdp, void *va_start, void *va_end,</span>
+ 				      pgprot_t prot, struct vm_struct *vma,
+ 				      int flags, unsigned long vm_flags)
+ {
+<span class="p_chunk">@@ -504,7 +511,7 @@</span> <span class="p_context"> static void __init map_kernel_segment(pgd_t *pgd, void *va_start, void *va_end,</span>
+ 	BUG_ON(!PAGE_ALIGNED(pa_start));
+ 	BUG_ON(!PAGE_ALIGNED(size));
+ 
+<span class="p_del">-	__create_pgd_mapping(pgd, pa_start, (unsigned long)va_start, size, prot,</span>
+<span class="p_add">+	__create_pgd_mapping(pgdp, pa_start, (unsigned long)va_start, size, prot,</span>
+ 			     early_pgtable_alloc, flags);
+ 
+ 	if (!(vm_flags &amp; VM_NO_GUARD))
+<span class="p_chunk">@@ -528,7 +535,7 @@</span> <span class="p_context"> early_param(&quot;rodata&quot;, parse_rodata);</span>
+ /*
+  * Create fine-grained mappings for the kernel.
+  */
+<span class="p_del">-static void __init map_kernel(pgd_t *pgd)</span>
+<span class="p_add">+static void __init map_kernel(pgd_t *pgdp)</span>
+ {
+ 	static struct vm_struct vmlinux_text, vmlinux_rodata, vmlinux_inittext,
+ 				vmlinux_initdata, vmlinux_data;
+<span class="p_chunk">@@ -544,24 +551,24 @@</span> <span class="p_context"> static void __init map_kernel(pgd_t *pgd)</span>
+ 	 * Only rodata will be remapped with different permissions later on,
+ 	 * all other segments are allowed to use contiguous mappings.
+ 	 */
+<span class="p_del">-	map_kernel_segment(pgd, _text, _etext, text_prot, &amp;vmlinux_text, 0,</span>
+<span class="p_add">+	map_kernel_segment(pgdp, _text, _etext, text_prot, &amp;vmlinux_text, 0,</span>
+ 			   VM_NO_GUARD);
+<span class="p_del">-	map_kernel_segment(pgd, __start_rodata, __inittext_begin, PAGE_KERNEL,</span>
+<span class="p_add">+	map_kernel_segment(pgdp, __start_rodata, __inittext_begin, PAGE_KERNEL,</span>
+ 			   &amp;vmlinux_rodata, NO_CONT_MAPPINGS, VM_NO_GUARD);
+<span class="p_del">-	map_kernel_segment(pgd, __inittext_begin, __inittext_end, text_prot,</span>
+<span class="p_add">+	map_kernel_segment(pgdp, __inittext_begin, __inittext_end, text_prot,</span>
+ 			   &amp;vmlinux_inittext, 0, VM_NO_GUARD);
+<span class="p_del">-	map_kernel_segment(pgd, __initdata_begin, __initdata_end, PAGE_KERNEL,</span>
+<span class="p_add">+	map_kernel_segment(pgdp, __initdata_begin, __initdata_end, PAGE_KERNEL,</span>
+ 			   &amp;vmlinux_initdata, 0, VM_NO_GUARD);
+<span class="p_del">-	map_kernel_segment(pgd, _data, _end, PAGE_KERNEL, &amp;vmlinux_data, 0, 0);</span>
+<span class="p_add">+	map_kernel_segment(pgdp, _data, _end, PAGE_KERNEL, &amp;vmlinux_data, 0, 0);</span>
+ 
+<span class="p_del">-	if (!pgd_val(*pgd_offset_raw(pgd, FIXADDR_START))) {</span>
+<span class="p_add">+	if (!READ_ONCE(pgd_val(*pgd_offset_raw(pgdp, FIXADDR_START)))) {</span>
+ 		/*
+ 		 * The fixmap falls in a separate pgd to the kernel, and doesn&#39;t
+ 		 * live in the carveout for the swapper_pg_dir. We can simply
+ 		 * re-use the existing dir for the fixmap.
+ 		 */
+<span class="p_del">-		set_pgd(pgd_offset_raw(pgd, FIXADDR_START),</span>
+<span class="p_del">-			*pgd_offset_k(FIXADDR_START));</span>
+<span class="p_add">+		set_pgd(pgd_offset_raw(pgdp, FIXADDR_START),</span>
+<span class="p_add">+			READ_ONCE(*pgd_offset_k(FIXADDR_START)));</span>
+ 	} else if (CONFIG_PGTABLE_LEVELS &gt; 3) {
+ 		/*
+ 		 * The fixmap shares its top level pgd entry with the kernel
+<span class="p_chunk">@@ -570,14 +577,14 @@</span> <span class="p_context"> static void __init map_kernel(pgd_t *pgd)</span>
+ 		 * entry instead.
+ 		 */
+ 		BUG_ON(!IS_ENABLED(CONFIG_ARM64_16K_PAGES));
+<span class="p_del">-		set_pud(pud_set_fixmap_offset(pgd, FIXADDR_START),</span>
+<span class="p_add">+		set_pud(pud_set_fixmap_offset(pgdp, FIXADDR_START),</span>
+ 			__pud(__pa_symbol(bm_pmd) | PUD_TYPE_TABLE));
+ 		pud_clear_fixmap();
+ 	} else {
+ 		BUG();
+ 	}
+ 
+<span class="p_del">-	kasan_copy_shadow(pgd);</span>
+<span class="p_add">+	kasan_copy_shadow(pgdp);</span>
+ }
+ 
+ /*
+<span class="p_chunk">@@ -587,10 +594,10 @@</span> <span class="p_context"> static void __init map_kernel(pgd_t *pgd)</span>
+ void __init paging_init(void)
+ {
+ 	phys_addr_t pgd_phys = early_pgtable_alloc();
+<span class="p_del">-	pgd_t *pgd = pgd_set_fixmap(pgd_phys);</span>
+<span class="p_add">+	pgd_t *pgdp = pgd_set_fixmap(pgd_phys);</span>
+ 
+<span class="p_del">-	map_kernel(pgd);</span>
+<span class="p_del">-	map_mem(pgd);</span>
+<span class="p_add">+	map_kernel(pgdp);</span>
+<span class="p_add">+	map_mem(pgdp);</span>
+ 
+ 	/*
+ 	 * We want to reuse the original swapper_pg_dir so we don&#39;t have to
+<span class="p_chunk">@@ -601,7 +608,7 @@</span> <span class="p_context"> void __init paging_init(void)</span>
+ 	 * To do this we need to go via a temporary pgd.
+ 	 */
+ 	cpu_replace_ttbr1(__va(pgd_phys));
+<span class="p_del">-	memcpy(swapper_pg_dir, pgd, PGD_SIZE);</span>
+<span class="p_add">+	memcpy(swapper_pg_dir, pgdp, PGD_SIZE);</span>
+ 	cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
+ 
+ 	pgd_clear_fixmap();
+<span class="p_chunk">@@ -620,37 +627,40 @@</span> <span class="p_context"> void __init paging_init(void)</span>
+  */
+ int kern_addr_valid(unsigned long addr)
+ {
+<span class="p_del">-	pgd_t *pgd;</span>
+<span class="p_del">-	pud_t *pud;</span>
+<span class="p_del">-	pmd_t *pmd;</span>
+<span class="p_del">-	pte_t *pte;</span>
+<span class="p_add">+	pgd_t *pgdp;</span>
+<span class="p_add">+	pud_t *pudp, pud;</span>
+<span class="p_add">+	pmd_t *pmdp, pmd;</span>
+<span class="p_add">+	pte_t *ptep, pte;</span>
+ 
+ 	if ((((long)addr) &gt;&gt; VA_BITS) != -1UL)
+ 		return 0;
+ 
+<span class="p_del">-	pgd = pgd_offset_k(addr);</span>
+<span class="p_del">-	if (pgd_none(*pgd))</span>
+<span class="p_add">+	pgdp = pgd_offset_k(addr);</span>
+<span class="p_add">+	if (pgd_none(READ_ONCE(*pgdp)))</span>
+ 		return 0;
+ 
+<span class="p_del">-	pud = pud_offset(pgd, addr);</span>
+<span class="p_del">-	if (pud_none(*pud))</span>
+<span class="p_add">+	pudp = pud_offset(pgdp, addr);</span>
+<span class="p_add">+	pud = READ_ONCE(*pudp);</span>
+<span class="p_add">+	if (pud_none(pud))</span>
+ 		return 0;
+ 
+<span class="p_del">-	if (pud_sect(*pud))</span>
+<span class="p_del">-		return pfn_valid(pud_pfn(*pud));</span>
+<span class="p_add">+	if (pud_sect(pud))</span>
+<span class="p_add">+		return pfn_valid(pud_pfn(pud));</span>
+ 
+<span class="p_del">-	pmd = pmd_offset(pud, addr);</span>
+<span class="p_del">-	if (pmd_none(*pmd))</span>
+<span class="p_add">+	pmdp = pmd_offset(pudp, addr);</span>
+<span class="p_add">+	pmd = READ_ONCE(*pmdp);</span>
+<span class="p_add">+	if (pmd_none(pmd))</span>
+ 		return 0;
+ 
+<span class="p_del">-	if (pmd_sect(*pmd))</span>
+<span class="p_del">-		return pfn_valid(pmd_pfn(*pmd));</span>
+<span class="p_add">+	if (pmd_sect(pmd))</span>
+<span class="p_add">+		return pfn_valid(pmd_pfn(pmd));</span>
+ 
+<span class="p_del">-	pte = pte_offset_kernel(pmd, addr);</span>
+<span class="p_del">-	if (pte_none(*pte))</span>
+<span class="p_add">+	ptep = pte_offset_kernel(pmdp, addr);</span>
+<span class="p_add">+	pte = READ_ONCE(*ptep);</span>
+<span class="p_add">+	if (pte_none(pte))</span>
+ 		return 0;
+ 
+<span class="p_del">-	return pfn_valid(pte_pfn(*pte));</span>
+<span class="p_add">+	return pfn_valid(pte_pfn(pte));</span>
+ }
+ #ifdef CONFIG_SPARSEMEM_VMEMMAP
+ #if !ARM64_SWAPPER_USES_SECTION_MAPS
+<span class="p_chunk">@@ -663,32 +673,32 @@</span> <span class="p_context"> int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)</span>
+ {
+ 	unsigned long addr = start;
+ 	unsigned long next;
+<span class="p_del">-	pgd_t *pgd;</span>
+<span class="p_del">-	pud_t *pud;</span>
+<span class="p_del">-	pmd_t *pmd;</span>
+<span class="p_add">+	pgd_t *pgdp;</span>
+<span class="p_add">+	pud_t *pudp;</span>
+<span class="p_add">+	pmd_t *pmdp;</span>
+ 
+ 	do {
+ 		next = pmd_addr_end(addr, end);
+ 
+<span class="p_del">-		pgd = vmemmap_pgd_populate(addr, node);</span>
+<span class="p_del">-		if (!pgd)</span>
+<span class="p_add">+		pgdp = vmemmap_pgd_populate(addr, node);</span>
+<span class="p_add">+		if (!pgdp)</span>
+ 			return -ENOMEM;
+ 
+<span class="p_del">-		pud = vmemmap_pud_populate(pgd, addr, node);</span>
+<span class="p_del">-		if (!pud)</span>
+<span class="p_add">+		pudp = vmemmap_pud_populate(pgdp, addr, node);</span>
+<span class="p_add">+		if (!pudp)</span>
+ 			return -ENOMEM;
+ 
+<span class="p_del">-		pmd = pmd_offset(pud, addr);</span>
+<span class="p_del">-		if (pmd_none(*pmd)) {</span>
+<span class="p_add">+		pmdp = pmd_offset(pudp, addr);</span>
+<span class="p_add">+		if (pmd_none(READ_ONCE(*pmdp))) {</span>
+ 			void *p = NULL;
+ 
+ 			p = vmemmap_alloc_block_buf(PMD_SIZE, node);
+ 			if (!p)
+ 				return -ENOMEM;
+ 
+<span class="p_del">-			set_pmd(pmd, __pmd(__pa(p) | PROT_SECT_NORMAL));</span>
+<span class="p_add">+			set_pmd(pmdp, __pmd(__pa(p) | PROT_SECT_NORMAL));</span>
+ 		} else
+<span class="p_del">-			vmemmap_verify((pte_t *)pmd, node, addr, next);</span>
+<span class="p_add">+			vmemmap_verify((pte_t *)pmdp, node, addr, next);</span>
+ 	} while (addr = next, addr != end);
+ 
+ 	return 0;
+<span class="p_chunk">@@ -701,20 +711,22 @@</span> <span class="p_context"> void vmemmap_free(unsigned long start, unsigned long end)</span>
+ 
+ static inline pud_t * fixmap_pud(unsigned long addr)
+ {
+<span class="p_del">-	pgd_t *pgd = pgd_offset_k(addr);</span>
+<span class="p_add">+	pgd_t *pgdp = pgd_offset_k(addr);</span>
+<span class="p_add">+	pgd_t pgd = READ_ONCE(*pgdp);</span>
+ 
+<span class="p_del">-	BUG_ON(pgd_none(*pgd) || pgd_bad(*pgd));</span>
+<span class="p_add">+	BUG_ON(pgd_none(pgd) || pgd_bad(pgd));</span>
+ 
+<span class="p_del">-	return pud_offset_kimg(pgd, addr);</span>
+<span class="p_add">+	return pud_offset_kimg(pgdp, addr);</span>
+ }
+ 
+ static inline pmd_t * fixmap_pmd(unsigned long addr)
+ {
+<span class="p_del">-	pud_t *pud = fixmap_pud(addr);</span>
+<span class="p_add">+	pud_t *pudp = fixmap_pud(addr);</span>
+<span class="p_add">+	pud_t pud = READ_ONCE(*pudp);</span>
+ 
+<span class="p_del">-	BUG_ON(pud_none(*pud) || pud_bad(*pud));</span>
+<span class="p_add">+	BUG_ON(pud_none(pud) || pud_bad(pud));</span>
+ 
+<span class="p_del">-	return pmd_offset_kimg(pud, addr);</span>
+<span class="p_add">+	return pmd_offset_kimg(pudp, addr);</span>
+ }
+ 
+ static inline pte_t * fixmap_pte(unsigned long addr)
+<span class="p_chunk">@@ -730,30 +742,31 @@</span> <span class="p_context"> static inline pte_t * fixmap_pte(unsigned long addr)</span>
+  */
+ void __init early_fixmap_init(void)
+ {
+<span class="p_del">-	pgd_t *pgd;</span>
+<span class="p_del">-	pud_t *pud;</span>
+<span class="p_del">-	pmd_t *pmd;</span>
+<span class="p_add">+	pgd_t *pgdp, pgd;</span>
+<span class="p_add">+	pud_t *pudp;</span>
+<span class="p_add">+	pmd_t *pmdp;</span>
+ 	unsigned long addr = FIXADDR_START;
+ 
+<span class="p_del">-	pgd = pgd_offset_k(addr);</span>
+<span class="p_add">+	pgdp = pgd_offset_k(addr);</span>
+<span class="p_add">+	pgd = READ_ONCE(*pgdp);</span>
+ 	if (CONFIG_PGTABLE_LEVELS &gt; 3 &amp;&amp;
+<span class="p_del">-	    !(pgd_none(*pgd) || pgd_page_paddr(*pgd) == __pa_symbol(bm_pud))) {</span>
+<span class="p_add">+	    !(pgd_none(pgd) || pgd_page_paddr(pgd) == __pa_symbol(bm_pud))) {</span>
+ 		/*
+ 		 * We only end up here if the kernel mapping and the fixmap
+ 		 * share the top level pgd entry, which should only happen on
+ 		 * 16k/4 levels configurations.
+ 		 */
+ 		BUG_ON(!IS_ENABLED(CONFIG_ARM64_16K_PAGES));
+<span class="p_del">-		pud = pud_offset_kimg(pgd, addr);</span>
+<span class="p_add">+		pudp = pud_offset_kimg(pgdp, addr);</span>
+ 	} else {
+<span class="p_del">-		if (pgd_none(*pgd))</span>
+<span class="p_del">-			__pgd_populate(pgd, __pa_symbol(bm_pud), PUD_TYPE_TABLE);</span>
+<span class="p_del">-		pud = fixmap_pud(addr);</span>
+<span class="p_add">+		if (pgd_none(pgd))</span>
+<span class="p_add">+			__pgd_populate(pgdp, __pa_symbol(bm_pud), PUD_TYPE_TABLE);</span>
+<span class="p_add">+		pudp = fixmap_pud(addr);</span>
+ 	}
+<span class="p_del">-	if (pud_none(*pud))</span>
+<span class="p_del">-		__pud_populate(pud, __pa_symbol(bm_pmd), PMD_TYPE_TABLE);</span>
+<span class="p_del">-	pmd = fixmap_pmd(addr);</span>
+<span class="p_del">-	__pmd_populate(pmd, __pa_symbol(bm_pte), PMD_TYPE_TABLE);</span>
+<span class="p_add">+	if (pud_none(READ_ONCE(*pudp)))</span>
+<span class="p_add">+		__pud_populate(pudp, __pa_symbol(bm_pmd), PMD_TYPE_TABLE);</span>
+<span class="p_add">+	pmdp = fixmap_pmd(addr);</span>
+<span class="p_add">+	__pmd_populate(pmdp, __pa_symbol(bm_pte), PMD_TYPE_TABLE);</span>
+ 
+ 	/*
+ 	 * The boot-ioremap range spans multiple pmds, for which
+<span class="p_chunk">@@ -762,11 +775,11 @@</span> <span class="p_context"> void __init early_fixmap_init(void)</span>
+ 	BUILD_BUG_ON((__fix_to_virt(FIX_BTMAP_BEGIN) &gt;&gt; PMD_SHIFT)
+ 		     != (__fix_to_virt(FIX_BTMAP_END) &gt;&gt; PMD_SHIFT));
+ 
+<span class="p_del">-	if ((pmd != fixmap_pmd(fix_to_virt(FIX_BTMAP_BEGIN)))</span>
+<span class="p_del">-	     || pmd != fixmap_pmd(fix_to_virt(FIX_BTMAP_END))) {</span>
+<span class="p_add">+	if ((pmdp != fixmap_pmd(fix_to_virt(FIX_BTMAP_BEGIN)))</span>
+<span class="p_add">+	     || pmdp != fixmap_pmd(fix_to_virt(FIX_BTMAP_END))) {</span>
+ 		WARN_ON(1);
+<span class="p_del">-		pr_warn(&quot;pmd %p != %p, %p\n&quot;,</span>
+<span class="p_del">-			pmd, fixmap_pmd(fix_to_virt(FIX_BTMAP_BEGIN)),</span>
+<span class="p_add">+		pr_warn(&quot;pmdp %p != %p, %p\n&quot;,</span>
+<span class="p_add">+			pmdp, fixmap_pmd(fix_to_virt(FIX_BTMAP_BEGIN)),</span>
+ 			fixmap_pmd(fix_to_virt(FIX_BTMAP_END)));
+ 		pr_warn(&quot;fix_to_virt(FIX_BTMAP_BEGIN): %08lx\n&quot;,
+ 			fix_to_virt(FIX_BTMAP_BEGIN));
+<span class="p_chunk">@@ -782,16 +795,16 @@</span> <span class="p_context"> void __set_fixmap(enum fixed_addresses idx,</span>
+ 			       phys_addr_t phys, pgprot_t flags)
+ {
+ 	unsigned long addr = __fix_to_virt(idx);
+<span class="p_del">-	pte_t *pte;</span>
+<span class="p_add">+	pte_t *ptep;</span>
+ 
+ 	BUG_ON(idx &lt;= FIX_HOLE || idx &gt;= __end_of_fixed_addresses);
+ 
+<span class="p_del">-	pte = fixmap_pte(addr);</span>
+<span class="p_add">+	ptep = fixmap_pte(addr);</span>
+ 
+ 	if (pgprot_val(flags)) {
+<span class="p_del">-		set_pte(pte, pfn_pte(phys &gt;&gt; PAGE_SHIFT, flags));</span>
+<span class="p_add">+		set_pte(ptep, pfn_pte(phys &gt;&gt; PAGE_SHIFT, flags));</span>
+ 	} else {
+<span class="p_del">-		pte_clear(&amp;init_mm, addr, pte);</span>
+<span class="p_add">+		pte_clear(&amp;init_mm, addr, ptep);</span>
+ 		flush_tlb_kernel_range(addr, addr+PAGE_SIZE);
+ 	}
+ }
+<span class="p_chunk">@@ -873,32 +886,32 @@</span> <span class="p_context"> int __init arch_ioremap_pmd_supported(void)</span>
+ 	return 1;
+ }
+ 
+<span class="p_del">-int pud_set_huge(pud_t *pud, phys_addr_t phys, pgprot_t prot)</span>
+<span class="p_add">+int pud_set_huge(pud_t *pudp, phys_addr_t phys, pgprot_t prot)</span>
+ {
+ 	BUG_ON(phys &amp; ~PUD_MASK);
+<span class="p_del">-	set_pud(pud, __pud(phys | PUD_TYPE_SECT | pgprot_val(mk_sect_prot(prot))));</span>
+<span class="p_add">+	set_pud(pudp, __pud(phys | PUD_TYPE_SECT | pgprot_val(mk_sect_prot(prot))));</span>
+ 	return 1;
+ }
+ 
+<span class="p_del">-int pmd_set_huge(pmd_t *pmd, phys_addr_t phys, pgprot_t prot)</span>
+<span class="p_add">+int pmd_set_huge(pmd_t *pmdp, phys_addr_t phys, pgprot_t prot)</span>
+ {
+ 	BUG_ON(phys &amp; ~PMD_MASK);
+<span class="p_del">-	set_pmd(pmd, __pmd(phys | PMD_TYPE_SECT | pgprot_val(mk_sect_prot(prot))));</span>
+<span class="p_add">+	set_pmd(pmdp, __pmd(phys | PMD_TYPE_SECT | pgprot_val(mk_sect_prot(prot))));</span>
+ 	return 1;
+ }
+ 
+<span class="p_del">-int pud_clear_huge(pud_t *pud)</span>
+<span class="p_add">+int pud_clear_huge(pud_t *pudp)</span>
+ {
+<span class="p_del">-	if (!pud_sect(*pud))</span>
+<span class="p_add">+	if (!pud_sect(READ_ONCE(*pudp)))</span>
+ 		return 0;
+<span class="p_del">-	pud_clear(pud);</span>
+<span class="p_add">+	pud_clear(pudp);</span>
+ 	return 1;
+ }
+ 
+<span class="p_del">-int pmd_clear_huge(pmd_t *pmd)</span>
+<span class="p_add">+int pmd_clear_huge(pmd_t *pmdp)</span>
+ {
+<span class="p_del">-	if (!pmd_sect(*pmd))</span>
+<span class="p_add">+	if (!pmd_sect(READ_ONCE(*pmdp)))</span>
+ 		return 0;
+<span class="p_del">-	pmd_clear(pmd);</span>
+<span class="p_add">+	pmd_clear(pmdp);</span>
+ 	return 1;
+ }
+<span class="p_header">diff --git a/arch/arm64/mm/pageattr.c b/arch/arm64/mm/pageattr.c</span>
+<span class="p_header">index a682a0a2a0fa..4b969dd2287a 100644</span>
+<span class="p_header">--- a/arch/arm64/mm/pageattr.c</span>
+<span class="p_header">+++ b/arch/arm64/mm/pageattr.c</span>
+<span class="p_chunk">@@ -156,30 +156,32 @@</span> <span class="p_context"> void __kernel_map_pages(struct page *page, int numpages, int enable)</span>
+  */
+ bool kernel_page_present(struct page *page)
+ {
+<span class="p_del">-	pgd_t *pgd;</span>
+<span class="p_del">-	pud_t *pud;</span>
+<span class="p_del">-	pmd_t *pmd;</span>
+<span class="p_del">-	pte_t *pte;</span>
+<span class="p_add">+	pgd_t *pgdp;</span>
+<span class="p_add">+	pud_t *pudp, pud;</span>
+<span class="p_add">+	pmd_t *pmdp, pmd;</span>
+<span class="p_add">+	pte_t *ptep;</span>
+ 	unsigned long addr = (unsigned long)page_address(page);
+ 
+<span class="p_del">-	pgd = pgd_offset_k(addr);</span>
+<span class="p_del">-	if (pgd_none(*pgd))</span>
+<span class="p_add">+	pgdp = pgd_offset_k(addr);</span>
+<span class="p_add">+	if (pgd_none(READ_ONCE(*pgdp)))</span>
+ 		return false;
+ 
+<span class="p_del">-	pud = pud_offset(pgd, addr);</span>
+<span class="p_del">-	if (pud_none(*pud))</span>
+<span class="p_add">+	pudp = pud_offset(pgdp, addr);</span>
+<span class="p_add">+	pud = READ_ONCE(*pudp);</span>
+<span class="p_add">+	if (pud_none(pud))</span>
+ 		return false;
+<span class="p_del">-	if (pud_sect(*pud))</span>
+<span class="p_add">+	if (pud_sect(pud))</span>
+ 		return true;
+ 
+<span class="p_del">-	pmd = pmd_offset(pud, addr);</span>
+<span class="p_del">-	if (pmd_none(*pmd))</span>
+<span class="p_add">+	pmdp = pmd_offset(pudp, addr);</span>
+<span class="p_add">+	pmd = READ_ONCE(*pmdp);</span>
+<span class="p_add">+	if (pmd_none(pmd))</span>
+ 		return false;
+<span class="p_del">-	if (pmd_sect(*pmd))</span>
+<span class="p_add">+	if (pmd_sect(pmd))</span>
+ 		return true;
+ 
+<span class="p_del">-	pte = pte_offset_kernel(pmd, addr);</span>
+<span class="p_del">-	return pte_valid(*pte);</span>
+<span class="p_add">+	ptep = pte_offset_kernel(pmdp, addr);</span>
+<span class="p_add">+	return pte_valid(READ_ONCE(*ptep));</span>
+ }
+ #endif /* CONFIG_HIBERNATION */
+ #endif /* CONFIG_DEBUG_PAGEALLOC */
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,482 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[18/18] sched,lockdep: Employ lock pinning - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [18/18] sched,lockdep: Employ lock pinning</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>June 11, 2015, 12:46 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20150611124744.003233193@infradead.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/6588321/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/6588321/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/6588321/">/patch/6588321/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id B94DEC0020
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 11 Jun 2015 12:56:22 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 089D2205E8
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 11 Jun 2015 12:56:21 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id C04C8205E9
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 11 Jun 2015 12:56:19 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1754691AbbFKM4O (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 11 Jun 2015 08:56:14 -0400
+Received: from casper.infradead.org ([85.118.1.10]:39698 &quot;EHLO
+	casper.infradead.org&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752839AbbFKMxw (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 11 Jun 2015 08:53:52 -0400
+Received: from 178-85-85-44.dynamic.upc.nl ([178.85.85.44] helo=twins)
+	by casper.infradead.org with esmtpsa (Exim 4.80.1 #2 (Red Hat Linux))
+	id 1Z31zO-0005uo-3U; Thu, 11 Jun 2015 12:53:46 +0000
+Received: by twins (Postfix, from userid 0)
+	id 837EF1254D6D8; Thu, 11 Jun 2015 14:53:41 +0200 (CEST)
+Message-Id: &lt;20150611124744.003233193@infradead.org&gt;
+User-Agent: quilt/0.61-1
+Date: Thu, 11 Jun 2015 14:46:54 +0200
+From: Peter Zijlstra &lt;peterz@infradead.org&gt;
+To: umgwanakikbuti@gmail.com, mingo@elte.hu
+Cc: ktkhai@parallels.com, rostedt@goodmis.org, tglx@linutronix.de,
+	juri.lelli@gmail.com, pang.xunlei@linaro.org, oleg@redhat.com,
+	wanpeng.li@linux.intel.com, linux-kernel@vger.kernel.org,
+	peterz@infradead.org
+Subject: [PATCH 18/18] sched,lockdep: Employ lock pinning
+References: &lt;20150611124636.448700267@infradead.org&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline;
+	filename=peter_zijlstra-schedlockdep-employ_lock_pinning.patch
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	T_RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - June 11, 2015, 12:46 p.m.</div>
+<pre class="content">
+Employ the new lockdep lock pinning annotation to ensure no
+&#39;accidental&#39; lock-breaks happen with rq-&gt;lock.
+<span class="signed-off-by">
+Signed-off-by: Peter Zijlstra (Intel) &lt;peterz@infradead.org&gt;</span>
+---
+ kernel/sched/core.c     |   42 +++++++++++++++++++++++++++++++++++++++---
+ kernel/sched/deadline.c |    8 ++++++++
+ kernel/sched/fair.c     |   11 ++++++++---
+ kernel/sched/rt.c       |    8 ++++++++
+ kernel/sched/sched.h    |   10 ++++++++--
+ 5 files changed, 71 insertions(+), 8 deletions(-)
+
+
+
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- a/kernel/sched/core.c</span>
+<span class="p_header">+++ b/kernel/sched/core.c</span>
+<span class="p_chunk">@@ -1201,8 +1201,15 @@</span> <span class="p_context"> int set_cpus_allowed_ptr(struct task_str</span>
+ 		stop_one_cpu(cpu_of(rq), migration_cpu_stop, &amp;arg);
+ 		tlb_migrate_finish(p-&gt;mm);
+ 		return 0;
+<span class="p_del">-	} else if (task_on_rq_queued(p))</span>
+<span class="p_add">+	} else if (task_on_rq_queued(p)) {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * OK, since we&#39;re going to drop the lock immediately</span>
+<span class="p_add">+		 * afterwards anyway.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		lockdep_unpin_lock(&amp;rq-&gt;lock);</span>
+ 		rq = move_queued_task(rq, p, dest_cpu);
+<span class="p_add">+		lockdep_pin_lock(&amp;rq-&gt;lock);</span>
+<span class="p_add">+	}</span>
+ out:
+ 	task_rq_unlock(rq, p, &amp;flags);
+ 
+<span class="p_chunk">@@ -1562,6 +1569,8 @@</span> <span class="p_context"> static int select_fallback_rq(int cpu, s</span>
+ static inline
+ int select_task_rq(struct task_struct *p, int cpu, int sd_flags, int wake_flags)
+ {
+<span class="p_add">+	lockdep_assert_held(&amp;p-&gt;pi_lock);</span>
+<span class="p_add">+</span>
+ 	if (p-&gt;nr_cpus_allowed &gt; 1)
+ 		cpu = p-&gt;sched_class-&gt;select_task_rq(p, cpu, sd_flags, wake_flags);
+ 
+<span class="p_chunk">@@ -1652,9 +1661,12 @@</span> <span class="p_context"> ttwu_do_wakeup(struct rq *rq, struct tas</span>
+ #ifdef CONFIG_SMP
+ 	if (p-&gt;sched_class-&gt;task_woken) {
+ 		/*
+<span class="p_del">-		 * XXX can drop rq-&gt;lock; most likely ok.</span>
+<span class="p_add">+		 * Our task @p is fully woken up and running; so its safe to</span>
+<span class="p_add">+		 * drop the rq-&gt;lock, hereafter rq is only used for statistics.</span>
+ 		 */
+<span class="p_add">+		lockdep_unpin_lock(&amp;rq-&gt;lock);</span>
+ 		p-&gt;sched_class-&gt;task_woken(rq, p);
+<span class="p_add">+		lockdep_pin_lock(&amp;rq-&gt;lock);</span>
+ 	}
+ 
+ 	if (rq-&gt;idle_stamp) {
+<span class="p_chunk">@@ -1674,6 +1686,8 @@</span> <span class="p_context"> ttwu_do_wakeup(struct rq *rq, struct tas</span>
+ static void
+ ttwu_do_activate(struct rq *rq, struct task_struct *p, int wake_flags)
+ {
+<span class="p_add">+	lockdep_assert_held(&amp;rq-&gt;lock);</span>
+<span class="p_add">+</span>
+ #ifdef CONFIG_SMP
+ 	if (p-&gt;sched_contributes_to_load)
+ 		rq-&gt;nr_uninterruptible--;
+<span class="p_chunk">@@ -1718,6 +1732,7 @@</span> <span class="p_context"> void sched_ttwu_pending(void)</span>
+ 		return;
+ 
+ 	raw_spin_lock_irqsave(&amp;rq-&gt;lock, flags);
+<span class="p_add">+	lockdep_pin_lock(&amp;rq-&gt;lock);</span>
+ 
+ 	while (llist) {
+ 		p = llist_entry(llist, struct task_struct, wake_entry);
+<span class="p_chunk">@@ -1725,6 +1740,7 @@</span> <span class="p_context"> void sched_ttwu_pending(void)</span>
+ 		ttwu_do_activate(rq, p, 0);
+ 	}
+ 
+<span class="p_add">+	lockdep_unpin_lock(&amp;rq-&gt;lock);</span>
+ 	raw_spin_unlock_irqrestore(&amp;rq-&gt;lock, flags);
+ }
+ 
+<span class="p_chunk">@@ -1821,7 +1837,9 @@</span> <span class="p_context"> static void ttwu_queue(struct task_struc</span>
+ #endif
+ 
+ 	raw_spin_lock(&amp;rq-&gt;lock);
+<span class="p_add">+	lockdep_pin_lock(&amp;rq-&gt;lock);</span>
+ 	ttwu_do_activate(rq, p, 0);
+<span class="p_add">+	lockdep_unpin_lock(&amp;rq-&gt;lock);</span>
+ 	raw_spin_unlock(&amp;rq-&gt;lock);
+ }
+ 
+<span class="p_chunk">@@ -1916,9 +1934,17 @@</span> <span class="p_context"> static void try_to_wake_up_local(struct</span>
+ 	lockdep_assert_held(&amp;rq-&gt;lock);
+ 
+ 	if (!raw_spin_trylock(&amp;p-&gt;pi_lock)) {
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * This is OK, because current is on_cpu, which avoids it being</span>
+<span class="p_add">+		 * picked for load-balance and preemption/IRQs are still</span>
+<span class="p_add">+		 * disabled avoiding further scheduler activity on it and we&#39;ve</span>
+<span class="p_add">+		 * not yet picked a replacement task.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		lockdep_unpin_lock(&amp;rq-&gt;lock);</span>
+ 		raw_spin_unlock(&amp;rq-&gt;lock);
+ 		raw_spin_lock(&amp;p-&gt;pi_lock);
+ 		raw_spin_lock(&amp;rq-&gt;lock);
+<span class="p_add">+		lockdep_pin_lock(&amp;rq-&gt;lock);</span>
+ 	}
+ 
+ 	if (!(p-&gt;state &amp; TASK_NORMAL))
+<span class="p_chunk">@@ -2538,6 +2564,7 @@</span> <span class="p_context"> context_switch(struct rq *rq, struct tas</span>
+ 	 * of the scheduler it&#39;s an obvious special-case), so we
+ 	 * do an early lockdep release here:
+ 	 */
+<span class="p_add">+	lockdep_unpin_lock(&amp;rq-&gt;lock);</span>
+ 	spin_release(&amp;rq-&gt;lock.dep_map, 1, _THIS_IP_);
+ 
+ 	/* Here we just switch the register state and the stack. */
+<span class="p_chunk">@@ -2960,6 +2987,7 @@</span> <span class="p_context"> static void __sched __schedule(void)</span>
+ 	 */
+ 	smp_mb__before_spinlock();
+ 	raw_spin_lock_irq(&amp;rq-&gt;lock);
+<span class="p_add">+	lockdep_pin_lock(&amp;rq-&gt;lock);</span>
+ 
+ 	rq-&gt;clock_skip_update &lt;&lt;= 1; /* promote REQ to ACT */
+ 
+<span class="p_chunk">@@ -3002,8 +3030,10 @@</span> <span class="p_context"> static void __sched __schedule(void)</span>
+ 
+ 		rq = context_switch(rq, prev, next); /* unlocks the rq */
+ 		cpu = cpu_of(rq);
+<span class="p_del">-	} else</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		lockdep_unpin_lock(&amp;rq-&gt;lock);</span>
+ 		raw_spin_unlock_irq(&amp;rq-&gt;lock);
+<span class="p_add">+	}</span>
+ 
+ 	balance_callback(rq);
+ }
+<span class="p_chunk">@@ -5071,6 +5101,11 @@</span> <span class="p_context"> static void migrate_tasks(struct rq *dea</span>
+ 		if (rq-&gt;nr_running == 1)
+ 			break;
+ 
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Ensure rq-&gt;lock covers the entire task selection</span>
+<span class="p_add">+		 * until the migration.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		lockdep_pin_lock(&amp;rq-&gt;lock);</span>
+ 		next = pick_next_task(rq, &amp;fake_task);
+ 		BUG_ON(!next);
+ 		next-&gt;sched_class-&gt;put_prev_task(rq, next);
+<span class="p_chunk">@@ -5078,6 +5113,7 @@</span> <span class="p_context"> static void migrate_tasks(struct rq *dea</span>
+ 		/* Find suitable destination for @next, with force if needed. */
+ 		dest_cpu = select_fallback_rq(dead_rq-&gt;cpu, next);
+ 
+<span class="p_add">+		lockdep_unpin_lock(&amp;rq-&gt;lock);</span>
+ 		rq = __migrate_task(rq, next, dest_cpu);
+ 		if (rq != dead_rq) {
+ 			raw_spin_unlock(&amp;rq-&gt;lock);
+<span class="p_header">--- a/kernel/sched/deadline.c</span>
+<span class="p_header">+++ b/kernel/sched/deadline.c</span>
+<span class="p_chunk">@@ -1153,7 +1153,15 @@</span> <span class="p_context"> struct task_struct *pick_next_task_dl(st</span>
+ 	dl_rq = &amp;rq-&gt;dl;
+ 
+ 	if (need_pull_dl_task(rq, prev)) {
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * This is OK, because current is on_cpu, which avoids it being</span>
+<span class="p_add">+		 * picked for load-balance and preemption/IRQs are still</span>
+<span class="p_add">+		 * disabled avoiding further scheduler activity on it and we&#39;re</span>
+<span class="p_add">+		 * being very careful to re-start the picking loop.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		lockdep_unpin_lock(&amp;rq-&gt;lock);</span>
+ 		pull_dl_task(rq);
+<span class="p_add">+		lockdep_pin_lock(&amp;rq-&gt;lock);</span>
+ 		/*
+ 		 * pull_rt_task() can drop (and re-acquire) rq-&gt;lock; this
+ 		 * means a stop task can slip in, in which case we need to
+<span class="p_header">--- a/kernel/sched/fair.c</span>
+<span class="p_header">+++ b/kernel/sched/fair.c</span>
+<span class="p_chunk">@@ -5392,7 +5392,15 @@</span> <span class="p_context"> pick_next_task_fair(struct rq *rq, struc</span>
+ 	return p;
+ 
+ idle:
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * This is OK, because current is on_cpu, which avoids it being picked</span>
+<span class="p_add">+	 * for load-balance and preemption/IRQs are still disabled avoiding</span>
+<span class="p_add">+	 * further scheduler activity on it and we&#39;re being very careful to</span>
+<span class="p_add">+	 * re-start the picking loop.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	lockdep_unpin_lock(&amp;rq-&gt;lock);</span>
+ 	new_tasks = idle_balance(rq);
+<span class="p_add">+	lockdep_pin_lock(&amp;rq-&gt;lock);</span>
+ 	/*
+ 	 * Because idle_balance() releases (and re-acquires) rq-&gt;lock, it is
+ 	 * possible for any higher priority task to appear. In that case we
+<span class="p_chunk">@@ -7426,9 +7434,6 @@</span> <span class="p_context"> static int idle_balance(struct rq *this_</span>
+ 		goto out;
+ 	}
+ 
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * Drop the rq-&gt;lock, but keep IRQ/preempt disabled.</span>
+<span class="p_del">-	 */</span>
+ 	raw_spin_unlock(&amp;this_rq-&gt;lock);
+ 
+ 	update_blocked_averages(this_cpu);
+<span class="p_header">--- a/kernel/sched/rt.c</span>
+<span class="p_header">+++ b/kernel/sched/rt.c</span>
+<span class="p_chunk">@@ -1478,7 +1478,15 @@</span> <span class="p_context"> pick_next_task_rt(struct rq *rq, struct</span>
+ 	struct rt_rq *rt_rq = &amp;rq-&gt;rt;
+ 
+ 	if (need_pull_rt_task(rq, prev)) {
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * This is OK, because current is on_cpu, which avoids it being</span>
+<span class="p_add">+		 * picked for load-balance and preemption/IRQs are still</span>
+<span class="p_add">+		 * disabled avoiding further scheduler activity on it and we&#39;re</span>
+<span class="p_add">+		 * being very careful to re-start the picking loop.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		lockdep_unpin_lock(&amp;rq-&gt;lock);</span>
+ 		pull_rt_task(rq);
+<span class="p_add">+		lockdep_pin_lock(&amp;rq-&gt;lock);</span>
+ 		/*
+ 		 * pull_rt_task() can drop (and re-acquire) rq-&gt;lock; this
+ 		 * means a dl or stop task can slip in, in which case we need
+<span class="p_header">--- a/kernel/sched/sched.h</span>
+<span class="p_header">+++ b/kernel/sched/sched.h</span>
+<span class="p_chunk">@@ -1438,8 +1438,10 @@</span> <span class="p_context"> static inline struct rq *__task_rq_lock(</span>
+ 	for (;;) {
+ 		rq = task_rq(p);
+ 		raw_spin_lock(&amp;rq-&gt;lock);
+<span class="p_del">-		if (likely(rq == task_rq(p) &amp;&amp; !task_on_rq_migrating(p)))</span>
+<span class="p_add">+		if (likely(rq == task_rq(p) &amp;&amp; !task_on_rq_migrating(p))) {</span>
+<span class="p_add">+			lockdep_pin_lock(&amp;rq-&gt;lock);</span>
+ 			return rq;
+<span class="p_add">+		}</span>
+ 		raw_spin_unlock(&amp;rq-&gt;lock);
+ 
+ 		while (unlikely(task_on_rq_migrating(p)))
+<span class="p_chunk">@@ -1476,8 +1478,10 @@</span> <span class="p_context"> static inline struct rq *task_rq_lock(st</span>
+ 		 * If we observe the new cpu in task_rq_lock, the acquire will
+ 		 * pair with the WMB to ensure we must then also see migrating.
+ 		 */
+<span class="p_del">-		if (likely(rq == task_rq(p) &amp;&amp; !task_on_rq_migrating(p)))</span>
+<span class="p_add">+		if (likely(rq == task_rq(p) &amp;&amp; !task_on_rq_migrating(p))) {</span>
+<span class="p_add">+			lockdep_pin_lock(&amp;rq-&gt;lock);</span>
+ 			return rq;
+<span class="p_add">+		}</span>
+ 		raw_spin_unlock(&amp;rq-&gt;lock);
+ 		raw_spin_unlock_irqrestore(&amp;p-&gt;pi_lock, *flags);
+ 
+<span class="p_chunk">@@ -1489,6 +1493,7 @@</span> <span class="p_context"> static inline struct rq *task_rq_lock(st</span>
+ static inline void __task_rq_unlock(struct rq *rq)
+ 	__releases(rq-&gt;lock)
+ {
+<span class="p_add">+	lockdep_unpin_lock(&amp;rq-&gt;lock);</span>
+ 	raw_spin_unlock(&amp;rq-&gt;lock);
+ }
+ 
+<span class="p_chunk">@@ -1497,6 +1502,7 @@</span> <span class="p_context"> task_rq_unlock(struct rq *rq, struct tas</span>
+ 	__releases(rq-&gt;lock)
+ 	__releases(p-&gt;pi_lock)
+ {
+<span class="p_add">+	lockdep_unpin_lock(&amp;rq-&gt;lock);</span>
+ 	raw_spin_unlock(&amp;rq-&gt;lock);
+ 	raw_spin_unlock_irqrestore(&amp;p-&gt;pi_lock, *flags);
+ }
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

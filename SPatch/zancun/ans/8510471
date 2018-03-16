@@ -1,0 +1,510 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[tip:x86/mm] x86/mm/kmmio: Fix mmiotrace for hugepages - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [tip:x86/mm] x86/mm/kmmio: Fix mmiotrace for hugepages</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=60001">tip-bot for Jacob Shin</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>March 5, 2016, 2 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;tip-cfa52c0cfa4d727aa3e457bf29aeff296c528a08@git.kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/8510471/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/8510471/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/8510471/">/patch/8510471/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id 5D5B0C0553
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat,  5 Mar 2016 14:02:31 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 728D920260
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat,  5 Mar 2016 14:02:27 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id D5E0B20253
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat,  5 Mar 2016 14:02:21 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753388AbcCEOCP (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Sat, 5 Mar 2016 09:02:15 -0500
+Received: from torg.zytor.com ([198.137.202.12]:36458 &quot;EHLO
+	terminus.zytor.com&quot;
+	rhost-flags-OK-OK-OK-FAIL) by vger.kernel.org with ESMTP
+	id S1751874AbcCEOCG (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Sat, 5 Mar 2016 09:02:06 -0500
+Received: from terminus.zytor.com (localhost [127.0.0.1])
+	by terminus.zytor.com (8.15.2/8.15.2) with ESMTP id u25E0bZL031391;
+	Sat, 5 Mar 2016 06:00:42 -0800
+Received: (from tipbot@localhost)
+	by terminus.zytor.com (8.15.2/8.14.8/Submit) id u25E0beQ031388;
+	Sat, 5 Mar 2016 06:00:37 -0800
+Date: Sat, 5 Mar 2016 06:00:37 -0800
+X-Authentication-Warning: terminus.zytor.com: tipbot set sender to
+	tipbot@zytor.com using -f
+From: tip-bot for Karol Herbst &lt;tipbot@zytor.com&gt;
+Message-ID: &lt;tip-cfa52c0cfa4d727aa3e457bf29aeff296c528a08@git.kernel.org&gt;
+Cc: akpm@linux-foundation.org, tglx@linutronix.de, toshi.kani@hp.com,
+	bp@alien8.de, brgerst@gmail.com, hpa@zytor.com,
+	dvlasenk@redhat.com, torvalds@linux-foundation.org,
+	linux-kernel@vger.kernel.org, mingo@kernel.org,
+	nouveau@karolherbst.de, pierre.morrow@free.fr,
+	peterz@infradead.org, mcgrof@suse.com, luto@amacapital.net
+Reply-To: mingo@kernel.org, nouveau@karolherbst.de,
+	linux-kernel@vger.kernel.org, torvalds@linux-foundation.org,
+	pierre.morrow@free.fr, luto@amacapital.net, mcgrof@suse.com,
+	peterz@infradead.org, akpm@linux-foundation.org,
+	tglx@linutronix.de, bp@alien8.de, toshi.kani@hp.com,
+	dvlasenk@redhat.com, hpa@zytor.com, brgerst@gmail.com
+In-Reply-To: &lt;1456966991-6861-1-git-send-email-nouveau@karolherbst.de&gt;
+References: &lt;1456966991-6861-1-git-send-email-nouveau@karolherbst.de&gt;
+To: linux-tip-commits@vger.kernel.org
+Subject: [tip:x86/mm] x86/mm/kmmio: Fix mmiotrace for hugepages
+Git-Commit-ID: cfa52c0cfa4d727aa3e457bf29aeff296c528a08
+X-Mailer: tip-git-log-daemon
+Robot-ID: &lt;tip-bot.git.kernel.org&gt;
+Robot-Unsubscribe: Contact &lt;mailto:hpa@kernel.org&gt; to get blacklisted from
+	these emails
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=60001">tip-bot for Jacob Shin</a> - March 5, 2016, 2 p.m.</div>
+<pre class="content">
+Commit-ID:  cfa52c0cfa4d727aa3e457bf29aeff296c528a08
+Gitweb:     http://git.kernel.org/tip/cfa52c0cfa4d727aa3e457bf29aeff296c528a08
+Author:     Karol Herbst &lt;nouveau@karolherbst.de&gt;
+AuthorDate: Thu, 3 Mar 2016 02:03:11 +0100
+Committer:  Ingo Molnar &lt;mingo@kernel.org&gt;
+CommitDate: Sat, 5 Mar 2016 13:24:41 +0100
+
+x86/mm/kmmio: Fix mmiotrace for hugepages
+
+Because Linux might use bigger pages than the 4K pages to handle those mmio
+ioremaps, the kmmio code shouldn&#39;t rely on the pade id as it currently does.
+
+Using the memory address instead of the page id lets us look up how big the
+page is and what its base address is, so that we won&#39;t get a page fault
+within the same page twice anymore.
+<span class="tested-by">
+Tested-by: Pierre Moreau &lt;pierre.morrow@free.fr&gt;</span>
+<span class="signed-off-by">Signed-off-by: Karol Herbst &lt;nouveau@karolherbst.de&gt;</span>
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: Andy Lutomirski &lt;luto@amacapital.net&gt;
+Cc: Borislav Petkov &lt;bp@alien8.de&gt;
+Cc: Brian Gerst &lt;brgerst@gmail.com&gt;
+Cc: Denys Vlasenko &lt;dvlasenk@redhat.com&gt;
+Cc: H. Peter Anvin &lt;hpa@zytor.com&gt;
+Cc: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+Cc: Luis R. Rodriguez &lt;mcgrof@suse.com&gt;
+Cc: Peter Zijlstra &lt;peterz@infradead.org&gt;
+Cc: Thomas Gleixner &lt;tglx@linutronix.de&gt;
+Cc: Toshi Kani &lt;toshi.kani@hp.com&gt;
+Cc: linux-mm@kvack.org
+Cc: linux-x86_64@vger.kernel.org
+Cc: nouveau@lists.freedesktop.org
+Cc: pq@iki.fi
+Cc: rostedt@goodmis.org
+Link: http://lkml.kernel.org/r/1456966991-6861-1-git-send-email-nouveau@karolherbst.de
+<span class="signed-off-by">Signed-off-by: Ingo Molnar &lt;mingo@kernel.org&gt;</span>
+---
+ arch/x86/mm/kmmio.c | 88 +++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 59 insertions(+), 29 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/mm/kmmio.c b/arch/x86/mm/kmmio.c</span>
+<span class="p_header">index 637ab34..ddb2244 100644</span>
+<span class="p_header">--- a/arch/x86/mm/kmmio.c</span>
+<span class="p_header">+++ b/arch/x86/mm/kmmio.c</span>
+<span class="p_chunk">@@ -33,7 +33,7 @@</span> <span class="p_context"></span>
+ struct kmmio_fault_page {
+ 	struct list_head list;
+ 	struct kmmio_fault_page *release_next;
+<span class="p_del">-	unsigned long page; /* location of the fault page */</span>
+<span class="p_add">+	unsigned long addr; /* the requested address */</span>
+ 	pteval_t old_presence; /* page presence prior to arming */
+ 	bool armed;
+ 
+<span class="p_chunk">@@ -70,9 +70,16 @@</span> <span class="p_context"> unsigned int kmmio_count;</span>
+ static struct list_head kmmio_page_table[KMMIO_PAGE_TABLE_SIZE];
+ static LIST_HEAD(kmmio_probes);
+ 
+<span class="p_del">-static struct list_head *kmmio_page_list(unsigned long page)</span>
+<span class="p_add">+static struct list_head *kmmio_page_list(unsigned long addr)</span>
+ {
+<span class="p_del">-	return &amp;kmmio_page_table[hash_long(page, KMMIO_PAGE_HASH_BITS)];</span>
+<span class="p_add">+	unsigned int l;</span>
+<span class="p_add">+	pte_t *pte = lookup_address(addr, &amp;l);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!pte)</span>
+<span class="p_add">+		return NULL;</span>
+<span class="p_add">+	addr &amp;= page_level_mask(l);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return &amp;kmmio_page_table[hash_long(addr, KMMIO_PAGE_HASH_BITS)];</span>
+ }
+ 
+ /* Accessed per-cpu */
+<span class="p_chunk">@@ -98,15 +105,19 @@</span> <span class="p_context"> static struct kmmio_probe *get_kmmio_probe(unsigned long addr)</span>
+ }
+ 
+ /* You must be holding RCU read lock. */
+<span class="p_del">-static struct kmmio_fault_page *get_kmmio_fault_page(unsigned long page)</span>
+<span class="p_add">+static struct kmmio_fault_page *get_kmmio_fault_page(unsigned long addr)</span>
+ {
+ 	struct list_head *head;
+ 	struct kmmio_fault_page *f;
+<span class="p_add">+	unsigned int l;</span>
+<span class="p_add">+	pte_t *pte = lookup_address(addr, &amp;l);</span>
+ 
+<span class="p_del">-	page &amp;= PAGE_MASK;</span>
+<span class="p_del">-	head = kmmio_page_list(page);</span>
+<span class="p_add">+	if (!pte)</span>
+<span class="p_add">+		return NULL;</span>
+<span class="p_add">+	addr &amp;= page_level_mask(l);</span>
+<span class="p_add">+	head = kmmio_page_list(addr);</span>
+ 	list_for_each_entry_rcu(f, head, list) {
+<span class="p_del">-		if (f-&gt;page == page)</span>
+<span class="p_add">+		if (f-&gt;addr == addr)</span>
+ 			return f;
+ 	}
+ 	return NULL;
+<span class="p_chunk">@@ -137,10 +148,10 @@</span> <span class="p_context"> static void clear_pte_presence(pte_t *pte, bool clear, pteval_t *old)</span>
+ static int clear_page_presence(struct kmmio_fault_page *f, bool clear)
+ {
+ 	unsigned int level;
+<span class="p_del">-	pte_t *pte = lookup_address(f-&gt;page, &amp;level);</span>
+<span class="p_add">+	pte_t *pte = lookup_address(f-&gt;addr, &amp;level);</span>
+ 
+ 	if (!pte) {
+<span class="p_del">-		pr_err(&quot;no pte for page 0x%08lx\n&quot;, f-&gt;page);</span>
+<span class="p_add">+		pr_err(&quot;no pte for addr 0x%08lx\n&quot;, f-&gt;addr);</span>
+ 		return -1;
+ 	}
+ 
+<span class="p_chunk">@@ -156,7 +167,7 @@</span> <span class="p_context"> static int clear_page_presence(struct kmmio_fault_page *f, bool clear)</span>
+ 		return -1;
+ 	}
+ 
+<span class="p_del">-	__flush_tlb_one(f-&gt;page);</span>
+<span class="p_add">+	__flush_tlb_one(f-&gt;addr);</span>
+ 	return 0;
+ }
+ 
+<span class="p_chunk">@@ -176,12 +187,12 @@</span> <span class="p_context"> static int arm_kmmio_fault_page(struct kmmio_fault_page *f)</span>
+ 	int ret;
+ 	WARN_ONCE(f-&gt;armed, KERN_ERR pr_fmt(&quot;kmmio page already armed.\n&quot;));
+ 	if (f-&gt;armed) {
+<span class="p_del">-		pr_warning(&quot;double-arm: page 0x%08lx, ref %d, old %d\n&quot;,</span>
+<span class="p_del">-			   f-&gt;page, f-&gt;count, !!f-&gt;old_presence);</span>
+<span class="p_add">+		pr_warning(&quot;double-arm: addr 0x%08lx, ref %d, old %d\n&quot;,</span>
+<span class="p_add">+			   f-&gt;addr, f-&gt;count, !!f-&gt;old_presence);</span>
+ 	}
+ 	ret = clear_page_presence(f, true);
+<span class="p_del">-	WARN_ONCE(ret &lt; 0, KERN_ERR pr_fmt(&quot;arming 0x%08lx failed.\n&quot;),</span>
+<span class="p_del">-		  f-&gt;page);</span>
+<span class="p_add">+	WARN_ONCE(ret &lt; 0, KERN_ERR pr_fmt(&quot;arming at 0x%08lx failed.\n&quot;),</span>
+<span class="p_add">+		  f-&gt;addr);</span>
+ 	f-&gt;armed = true;
+ 	return ret;
+ }
+<span class="p_chunk">@@ -191,7 +202,7 @@</span> <span class="p_context"> static void disarm_kmmio_fault_page(struct kmmio_fault_page *f)</span>
+ {
+ 	int ret = clear_page_presence(f, false);
+ 	WARN_ONCE(ret &lt; 0,
+<span class="p_del">-			KERN_ERR &quot;kmmio disarming 0x%08lx failed.\n&quot;, f-&gt;page);</span>
+<span class="p_add">+			KERN_ERR &quot;kmmio disarming at 0x%08lx failed.\n&quot;, f-&gt;addr);</span>
+ 	f-&gt;armed = false;
+ }
+ 
+<span class="p_chunk">@@ -215,6 +226,12 @@</span> <span class="p_context"> int kmmio_handler(struct pt_regs *regs, unsigned long addr)</span>
+ 	struct kmmio_context *ctx;
+ 	struct kmmio_fault_page *faultpage;
+ 	int ret = 0; /* default to fault not handled */
+<span class="p_add">+	unsigned long page_base = addr;</span>
+<span class="p_add">+	unsigned int l;</span>
+<span class="p_add">+	pte_t *pte = lookup_address(addr, &amp;l);</span>
+<span class="p_add">+	if (!pte)</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+	page_base &amp;= page_level_mask(l);</span>
+ 
+ 	/*
+ 	 * Preemption is now disabled to prevent process switch during
+<span class="p_chunk">@@ -227,7 +244,7 @@</span> <span class="p_context"> int kmmio_handler(struct pt_regs *regs, unsigned long addr)</span>
+ 	preempt_disable();
+ 	rcu_read_lock();
+ 
+<span class="p_del">-	faultpage = get_kmmio_fault_page(addr);</span>
+<span class="p_add">+	faultpage = get_kmmio_fault_page(page_base);</span>
+ 	if (!faultpage) {
+ 		/*
+ 		 * Either this page fault is not caused by kmmio, or
+<span class="p_chunk">@@ -239,7 +256,7 @@</span> <span class="p_context"> int kmmio_handler(struct pt_regs *regs, unsigned long addr)</span>
+ 
+ 	ctx = &amp;get_cpu_var(kmmio_ctx);
+ 	if (ctx-&gt;active) {
+<span class="p_del">-		if (addr == ctx-&gt;addr) {</span>
+<span class="p_add">+		if (page_base == ctx-&gt;addr) {</span>
+ 			/*
+ 			 * A second fault on the same page means some other
+ 			 * condition needs handling by do_page_fault(), the
+<span class="p_chunk">@@ -267,9 +284,9 @@</span> <span class="p_context"> int kmmio_handler(struct pt_regs *regs, unsigned long addr)</span>
+ 	ctx-&gt;active++;
+ 
+ 	ctx-&gt;fpage = faultpage;
+<span class="p_del">-	ctx-&gt;probe = get_kmmio_probe(addr);</span>
+<span class="p_add">+	ctx-&gt;probe = get_kmmio_probe(page_base);</span>
+ 	ctx-&gt;saved_flags = (regs-&gt;flags &amp; (X86_EFLAGS_TF | X86_EFLAGS_IF));
+<span class="p_del">-	ctx-&gt;addr = addr;</span>
+<span class="p_add">+	ctx-&gt;addr = page_base;</span>
+ 
+ 	if (ctx-&gt;probe &amp;&amp; ctx-&gt;probe-&gt;pre_handler)
+ 		ctx-&gt;probe-&gt;pre_handler(ctx-&gt;probe, regs, addr);
+<span class="p_chunk">@@ -354,12 +371,11 @@</span> <span class="p_context"> out:</span>
+ }
+ 
+ /* You must be holding kmmio_lock. */
+<span class="p_del">-static int add_kmmio_fault_page(unsigned long page)</span>
+<span class="p_add">+static int add_kmmio_fault_page(unsigned long addr)</span>
+ {
+ 	struct kmmio_fault_page *f;
+ 
+<span class="p_del">-	page &amp;= PAGE_MASK;</span>
+<span class="p_del">-	f = get_kmmio_fault_page(page);</span>
+<span class="p_add">+	f = get_kmmio_fault_page(addr);</span>
+ 	if (f) {
+ 		if (!f-&gt;count)
+ 			arm_kmmio_fault_page(f);
+<span class="p_chunk">@@ -372,26 +388,25 @@</span> <span class="p_context"> static int add_kmmio_fault_page(unsigned long page)</span>
+ 		return -1;
+ 
+ 	f-&gt;count = 1;
+<span class="p_del">-	f-&gt;page = page;</span>
+<span class="p_add">+	f-&gt;addr = addr;</span>
+ 
+ 	if (arm_kmmio_fault_page(f)) {
+ 		kfree(f);
+ 		return -1;
+ 	}
+ 
+<span class="p_del">-	list_add_rcu(&amp;f-&gt;list, kmmio_page_list(f-&gt;page));</span>
+<span class="p_add">+	list_add_rcu(&amp;f-&gt;list, kmmio_page_list(f-&gt;addr));</span>
+ 
+ 	return 0;
+ }
+ 
+ /* You must be holding kmmio_lock. */
+<span class="p_del">-static void release_kmmio_fault_page(unsigned long page,</span>
+<span class="p_add">+static void release_kmmio_fault_page(unsigned long addr,</span>
+ 				struct kmmio_fault_page **release_list)
+ {
+ 	struct kmmio_fault_page *f;
+ 
+<span class="p_del">-	page &amp;= PAGE_MASK;</span>
+<span class="p_del">-	f = get_kmmio_fault_page(page);</span>
+<span class="p_add">+	f = get_kmmio_fault_page(addr);</span>
+ 	if (!f)
+ 		return;
+ 
+<span class="p_chunk">@@ -420,18 +435,27 @@</span> <span class="p_context"> int register_kmmio_probe(struct kmmio_probe *p)</span>
+ 	int ret = 0;
+ 	unsigned long size = 0;
+ 	const unsigned long size_lim = p-&gt;len + (p-&gt;addr &amp; ~PAGE_MASK);
+<span class="p_add">+	unsigned int l;</span>
+<span class="p_add">+	pte_t *pte;</span>
+ 
+ 	spin_lock_irqsave(&amp;kmmio_lock, flags);
+ 	if (get_kmmio_probe(p-&gt;addr)) {
+ 		ret = -EEXIST;
+ 		goto out;
+ 	}
+<span class="p_add">+</span>
+<span class="p_add">+	pte = lookup_address(p-&gt;addr, &amp;l);</span>
+<span class="p_add">+	if (!pte) {</span>
+<span class="p_add">+		ret = -EINVAL;</span>
+<span class="p_add">+		goto out;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+ 	kmmio_count++;
+ 	list_add_rcu(&amp;p-&gt;list, &amp;kmmio_probes);
+ 	while (size &lt; size_lim) {
+ 		if (add_kmmio_fault_page(p-&gt;addr + size))
+ 			pr_err(&quot;Unable to set page fault.\n&quot;);
+<span class="p_del">-		size += PAGE_SIZE;</span>
+<span class="p_add">+		size += page_level_size(l);</span>
+ 	}
+ out:
+ 	spin_unlock_irqrestore(&amp;kmmio_lock, flags);
+<span class="p_chunk">@@ -506,11 +530,17 @@</span> <span class="p_context"> void unregister_kmmio_probe(struct kmmio_probe *p)</span>
+ 	const unsigned long size_lim = p-&gt;len + (p-&gt;addr &amp; ~PAGE_MASK);
+ 	struct kmmio_fault_page *release_list = NULL;
+ 	struct kmmio_delayed_release *drelease;
+<span class="p_add">+	unsigned int l;</span>
+<span class="p_add">+	pte_t *pte;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pte = lookup_address(p-&gt;addr, &amp;l);</span>
+<span class="p_add">+	if (!pte)</span>
+<span class="p_add">+		return;</span>
+ 
+ 	spin_lock_irqsave(&amp;kmmio_lock, flags);
+ 	while (size &lt; size_lim) {
+ 		release_kmmio_fault_page(p-&gt;addr + size, &amp;release_list);
+<span class="p_del">-		size += PAGE_SIZE;</span>
+<span class="p_add">+		size += page_level_size(l);</span>
+ 	}
+ 	list_del_rcu(&amp;p-&gt;list);
+ 	kmmio_count--;
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,515 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[2/2] mremap: use mmu gather logic for tlb flush in mremap - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [2/2] mremap: use mmu gather logic for tlb flush in mremap</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=45931">Aaron Lu</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Nov. 28, 2016, 8:40 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20161128084012.GC21738@aaronlu.sh.intel.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9449181/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9449181/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9449181/">/patch/9449181/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	E277E6071E for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 28 Nov 2016 08:40:35 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id CF97F2015F
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 28 Nov 2016 08:40:35 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id C01E7204C1; Mon, 28 Nov 2016 08:40:35 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 1785D2015F
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 28 Nov 2016 08:40:34 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S932300AbcK1Ik3 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 28 Nov 2016 03:40:29 -0500
+Received: from mga06.intel.com ([134.134.136.31]:2248 &quot;EHLO mga06.intel.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S932111AbcK1IkV (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 28 Nov 2016 03:40:21 -0500
+Received: from orsmga003.jf.intel.com ([10.7.209.27])
+	by orsmga104.jf.intel.com with ESMTP; 28 Nov 2016 00:40:15 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i=&quot;5.31,563,1473145200&quot;; d=&quot;scan&#39;208&quot;;a=&quot;906203897&quot;
+Received: from aaronlu.sh.intel.com ([10.239.13.119])
+	by orsmga003.jf.intel.com with ESMTP; 28 Nov 2016 00:40:13 -0800
+Date: Mon, 28 Nov 2016 16:40:12 +0800
+From: Aaron Lu &lt;aaron.lu@intel.com&gt;
+To: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+Cc: Linux Memory Management List &lt;linux-mm@kvack.org&gt;,
+	Dave Hansen &lt;dave.hansen@intel.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	&quot;Kirill A. Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;,
+	Huang Ying &lt;ying.huang@intel.com&gt;, linux-kernel@vger.kernel.org
+Subject: [PATCH 2/2] mremap: use mmu gather logic for tlb flush in mremap
+Message-ID: &lt;20161128084012.GC21738@aaronlu.sh.intel.com&gt;
+References: &lt;026b73f6-ca1d-e7bb-766c-4aaeb7071ce6@intel.com&gt;
+	&lt;CA+55aFzHfpZckv8ck19fZSFK+3TmR5eF=BsDzhwVGKrbyEBjEw@mail.gmail.com&gt;
+	&lt;c160bc18-7c1b-2d54-8af1-7c5bfcbcefe8@intel.com&gt;
+	&lt;20161128083715.GA21738@aaronlu.sh.intel.com&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: &lt;20161128083715.GA21738@aaronlu.sh.intel.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=45931">Aaron Lu</a> - Nov. 28, 2016, 8:40 a.m.</div>
+<pre class="content">
+As suggested by Linus, the same mmu gather logic could be used for tlb
+flush in mremap and this patch just did that.
+
+Note that since there is no page added to &quot;struct mmu_gather&quot; for free
+during mremap, when tlb needs to be flushed, we can use tlb_flush_mmu or
+tlb_flush_mmu_tlbonly. Using tlb_flush_mmu could also avoid exporting
+tlb_flush_mmu_tlbonly. But tlb_flush_mmu_tlbonly *looks* more clear and
+straightforward so I end up using it.
+<span class="signed-off-by">
+Signed-off-by: Aaron Lu &lt;aaron.lu@intel.com&gt;</span>
+---
+ include/linux/huge_mm.h |  6 +++---
+ mm/huge_memory.c        | 13 +++++++------
+ mm/mremap.c             | 30 +++++++++++++++---------------
+ 3 files changed, 25 insertions(+), 24 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=77">Linus Torvalds</a> - Nov. 28, 2016, 5:15 p.m.</div>
+<pre class="content">
+On Mon, Nov 28, 2016 at 12:40 AM, Aaron Lu &lt;aaron.lu@intel.com&gt; wrote:
+<span class="quote">&gt; As suggested by Linus, the same mmu gather logic could be used for tlb</span>
+<span class="quote">&gt; flush in mremap and this patch just did that.</span>
+
+Ok, looking at this patch, I still think it looks like the right thing
+to do, but I&#39;m admittedly rather less certain of it.
+
+The main advantage of the mmu_gather thing is that it automatically
+takes care of the TLB flush ranges for us, and that&#39;s a big deal
+during munmap() (where the actual unmapped page range can be _very_
+different from the total range), but now that I notice that this
+doesn&#39;t actually remove any other code (in fact, it adds a line), I&#39;m
+wondering if it&#39;s worth it. mremap() is already &quot;dense&quot; in the vma
+space, unlike munmap (ie you can&#39;t move multiple vma&#39;s with a single
+mremap), so the fancy range optimizations that make a difference on
+some architectures aren&#39;t much of an issue.
+
+So I guess the MM people should take a look at this and say whether
+they think the current state is fine or whether we should do the
+mmu_gather thing. People?
+
+However, I also independently think I found an actual bug while
+looking at the code as part of looking at the patch.
+
+This part looks racy:
+
+                /*
+                 * We are remapping a dirty PTE, make sure to
+                 * flush TLB before we drop the PTL for the
+                 * old PTE or we may race with page_mkclean().
+                 */
+                if (pte_present(*old_pte) &amp;&amp; pte_dirty(*old_pte))
+                        force_flush = true;
+                pte = ptep_get_and_clear(mm, old_addr, old_pte);
+
+where the issue is that another thread might make the pte be dirty (in
+the hardware walker, so no locking of ours make any difference)
+*after* we checked whether it was dirty, but *before* we removed it
+from the page tables.
+
+So I think the &quot;check for force-flush&quot; needs to come *after*, and we should do
+
+                pte = ptep_get_and_clear(mm, old_addr, old_pte);
+                if (pte_present(pte) &amp;&amp; pte_dirty(pte))
+                        force_flush = true;
+
+instead.
+
+This happens for the pmd case too.
+
+So now I&#39;m not sure the mmu_gather thing is worth it, but I&#39;m pretty
+sure that there remains a (very very) small race that wasn&#39;t fixed by
+the original fix in commit 5d1904204c99 (&quot;mremap: fix race between
+mremap() and page cleanning&quot;).
+
+Aaron, sorry for waffling about this, and asking you to look at a
+completely different issue instead.
+
+                 Linus
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=65121">Dave Hansen</a> - Nov. 28, 2016, 5:32 p.m.</div>
+<pre class="content">
+On 11/28/2016 12:40 AM, Aaron Lu wrote:
+<span class="quote">&gt; As suggested by Linus, the same mmu gather logic could be used for tlb</span>
+<span class="quote">&gt; flush in mremap and this patch just did that.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Note that since there is no page added to &quot;struct mmu_gather&quot; for free</span>
+<span class="quote">&gt; during mremap, when tlb needs to be flushed, we can use tlb_flush_mmu or</span>
+<span class="quote">&gt; tlb_flush_mmu_tlbonly. Using tlb_flush_mmu could also avoid exporting</span>
+<span class="quote">&gt; tlb_flush_mmu_tlbonly. But tlb_flush_mmu_tlbonly *looks* more clear and</span>
+<span class="quote">&gt; straightforward so I end up using it.</span>
+
+OK, so the code before this patch was passing around a pointer to
+&#39;need_flush&#39;, and we basically just pass around an mmu_gather instead.
+It doesn&#39;t really simplify the code _too_ much, although it does make it
+less confusing than when we saw &#39;need_flush&#39; mixed with &#39;force_flush&#39; in
+the code.
+
+tlb_flush_mmu_tlbonly() has exactly one other use: zap_pte_range() for
+flushing the TLB before pte_unmap_unlock():
+
+        if (force_flush)
+                tlb_flush_mmu_tlbonly(tlb);
+        pte_unmap_unlock(start_pte, ptl);
+
+But, both call-sites are still keeping &#39;force_flush&#39; to store the
+information about whether we ever saw a dirty pte.  If we moved _that_
+logic into the x86 mmu_gather code, we could get rid of all the
+&#39;force_flush&#39; tracking in both call sites.  It also makes us a bit more
+future-proof against these page_mkclean() races if we ever grow a third
+site for clearing ptes.
+
+Instead of exporting and calling tlb_flush_mmu_tlbonly(), we&#39;d need
+something like tlb_flush_mmu_before_ptl_release() (but with a better
+name, of course :).
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=77">Linus Torvalds</a> - Nov. 28, 2016, 5:42 p.m.</div>
+<pre class="content">
+On Mon, Nov 28, 2016 at 9:32 AM, Dave Hansen &lt;dave.hansen@intel.com&gt; wrote:
+<span class="quote">&gt;</span>
+<span class="quote">&gt; But, both call-sites are still keeping &#39;force_flush&#39; to store the</span>
+<span class="quote">&gt; information about whether we ever saw a dirty pte.  If we moved _that_</span>
+<span class="quote">&gt; logic into the x86 mmu_gather code, we could get rid of all the</span>
+<span class="quote">&gt; &#39;force_flush&#39; tracking in both call sites.  It also makes us a bit more</span>
+<span class="quote">&gt; future-proof against these page_mkclean() races if we ever grow a third</span>
+<span class="quote">&gt; site for clearing ptes.</span>
+
+Yeah, that sounds like a nice cleanup and would put all the real state
+into that mmu_gather structure.
+
+            Linus
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h</span>
+<span class="p_header">index e35e6de633b9..bbf64e05a49a 100644</span>
+<span class="p_header">--- a/include/linux/huge_mm.h</span>
+<span class="p_header">+++ b/include/linux/huge_mm.h</span>
+<span class="p_chunk">@@ -20,9 +20,9 @@</span> <span class="p_context"> extern int zap_huge_pmd(struct mmu_gather *tlb,</span>
+ extern int mincore_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 			unsigned long addr, unsigned long end,
+ 			unsigned char *vec);
+<span class="p_del">-extern bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,</span>
+<span class="p_del">-			 unsigned long new_addr, unsigned long old_end,</span>
+<span class="p_del">-			 pmd_t *old_pmd, pmd_t *new_pmd, bool *need_flush);</span>
+<span class="p_add">+extern bool move_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,</span>
+<span class="p_add">+			 unsigned long old_addr, unsigned long new_addr,</span>
+<span class="p_add">+			 unsigned long old_end, pmd_t *old_pmd, pmd_t *new_pmd);</span>
+ extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 			unsigned long addr, pgprot_t newprot,
+ 			int prot_numa);
+<span class="p_header">diff --git a/mm/huge_memory.c b/mm/huge_memory.c</span>
+<span class="p_header">index eff3de359d50..33909f16a9ad 100644</span>
+<span class="p_header">--- a/mm/huge_memory.c</span>
+<span class="p_header">+++ b/mm/huge_memory.c</span>
+<span class="p_chunk">@@ -1424,9 +1424,9 @@</span> <span class="p_context"> int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,</span>
+ 	return 1;
+ }
+ 
+<span class="p_del">-bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,</span>
+<span class="p_del">-		  unsigned long new_addr, unsigned long old_end,</span>
+<span class="p_del">-		  pmd_t *old_pmd, pmd_t *new_pmd, bool *need_flush)</span>
+<span class="p_add">+bool move_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,</span>
+<span class="p_add">+		   unsigned long old_addr, unsigned long new_addr,</span>
+<span class="p_add">+		   unsigned long old_end, pmd_t *old_pmd, pmd_t *new_pmd)</span>
+ {
+ 	spinlock_t *old_ptl, *new_ptl;
+ 	pmd_t pmd;
+<span class="p_chunk">@@ -1456,8 +1456,11 @@</span> <span class="p_context"> bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,</span>
+ 		new_ptl = pmd_lockptr(mm, new_pmd);
+ 		if (new_ptl != old_ptl)
+ 			spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
+<span class="p_add">+</span>
+<span class="p_add">+		tlb_remove_pmd_tlb_entry(tlb, old_pmd, old_addr);</span>
+ 		if (pmd_present(*old_pmd) &amp;&amp; pmd_dirty(*old_pmd))
+ 			force_flush = true;
+<span class="p_add">+</span>
+ 		pmd = pmdp_huge_get_and_clear(mm, old_addr, old_pmd);
+ 		VM_BUG_ON(!pmd_none(*new_pmd));
+ 
+<span class="p_chunk">@@ -1471,9 +1474,7 @@</span> <span class="p_context"> bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,</span>
+ 		if (new_ptl != old_ptl)
+ 			spin_unlock(new_ptl);
+ 		if (force_flush)
+<span class="p_del">-			flush_tlb_range(vma, old_addr, old_addr + PMD_SIZE);</span>
+<span class="p_del">-		else</span>
+<span class="p_del">-			*need_flush = true;</span>
+<span class="p_add">+			tlb_flush_mmu_tlbonly(tlb);</span>
+ 		spin_unlock(old_ptl);
+ 		return true;
+ 	}
+<span class="p_header">diff --git a/mm/mremap.c b/mm/mremap.c</span>
+<span class="p_header">index 6ccecc03f56a..dfac96ec7294 100644</span>
+<span class="p_header">--- a/mm/mremap.c</span>
+<span class="p_header">+++ b/mm/mremap.c</span>
+<span class="p_chunk">@@ -25,6 +25,7 @@</span> <span class="p_context"></span>
+ 
+ #include &lt;asm/cacheflush.h&gt;
+ #include &lt;asm/tlbflush.h&gt;
+<span class="p_add">+#include &lt;asm/tlb.h&gt;</span>
+ 
+ #include &quot;internal.h&quot;
+ 
+<span class="p_chunk">@@ -101,16 +102,15 @@</span> <span class="p_context"> static pte_t move_soft_dirty_pte(pte_t pte)</span>
+ 	return pte;
+ }
+ 
+<span class="p_del">-static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,</span>
+<span class="p_del">-		unsigned long old_addr, unsigned long old_end,</span>
+<span class="p_add">+static void move_ptes(struct mmu_gather *tlb, struct vm_area_struct *vma,</span>
+<span class="p_add">+		pmd_t *old_pmd, unsigned long old_addr, unsigned long old_end,</span>
+ 		struct vm_area_struct *new_vma, pmd_t *new_pmd,
+<span class="p_del">-		unsigned long new_addr, bool need_rmap_locks, bool *need_flush)</span>
+<span class="p_add">+		unsigned long new_addr, bool need_rmap_locks)</span>
+ {
+ 	struct mm_struct *mm = vma-&gt;vm_mm;
+ 	pte_t *old_pte, *new_pte, pte;
+ 	spinlock_t *old_ptl, *new_ptl;
+ 	bool force_flush = false;
+<span class="p_del">-	unsigned long len = old_end - old_addr;</span>
+ 
+ 	/*
+ 	 * When need_rmap_locks is true, we take the i_mmap_rwsem and anon_vma
+<span class="p_chunk">@@ -149,6 +149,7 @@</span> <span class="p_context"> static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,</span>
+ 		if (pte_none(*old_pte))
+ 			continue;
+ 
+<span class="p_add">+		tlb_remove_tlb_entry(tlb, old_pte, old_addr);</span>
+ 		/*
+ 		 * We are remapping a dirty PTE, make sure to
+ 		 * flush TLB before we drop the PTL for the
+<span class="p_chunk">@@ -166,10 +167,9 @@</span> <span class="p_context"> static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,</span>
+ 	if (new_ptl != old_ptl)
+ 		spin_unlock(new_ptl);
+ 	pte_unmap(new_pte - 1);
+<span class="p_add">+</span>
+ 	if (force_flush)
+<span class="p_del">-		flush_tlb_range(vma, old_end - len, old_end);</span>
+<span class="p_del">-	else</span>
+<span class="p_del">-		*need_flush = true;</span>
+<span class="p_add">+		tlb_flush_mmu_tlbonly(tlb);</span>
+ 	pte_unmap_unlock(old_pte - 1, old_ptl);
+ 	if (need_rmap_locks)
+ 		drop_rmap_locks(vma);
+<span class="p_chunk">@@ -184,15 +184,16 @@</span> <span class="p_context"> unsigned long move_page_tables(struct vm_area_struct *vma,</span>
+ {
+ 	unsigned long extent, next, old_end;
+ 	pmd_t *old_pmd, *new_pmd;
+<span class="p_del">-	bool need_flush = false;</span>
+ 	unsigned long mmun_start;	/* For mmu_notifiers */
+ 	unsigned long mmun_end;		/* For mmu_notifiers */
+<span class="p_add">+	struct mmu_gather tlb;</span>
+ 
+ 	old_end = old_addr + len;
+ 	flush_cache_range(vma, old_addr, old_end);
+ 
+ 	mmun_start = old_addr;
+ 	mmun_end   = old_end;
+<span class="p_add">+	tlb_gather_mmu(&amp;tlb, vma-&gt;vm_mm, mmun_start, mmun_end);</span>
+ 	mmu_notifier_invalidate_range_start(vma-&gt;vm_mm, mmun_start, mmun_end);
+ 
+ 	for (; old_addr &lt; old_end; old_addr += extent, new_addr += extent) {
+<span class="p_chunk">@@ -214,9 +215,9 @@</span> <span class="p_context"> unsigned long move_page_tables(struct vm_area_struct *vma,</span>
+ 				/* See comment in move_ptes() */
+ 				if (need_rmap_locks)
+ 					take_rmap_locks(vma);
+<span class="p_del">-				moved = move_huge_pmd(vma, old_addr, new_addr,</span>
+<span class="p_del">-						    old_end, old_pmd, new_pmd,</span>
+<span class="p_del">-						    &amp;need_flush);</span>
+<span class="p_add">+				moved = move_huge_pmd(&amp;tlb, vma, old_addr,</span>
+<span class="p_add">+						      new_addr, old_end,</span>
+<span class="p_add">+						      old_pmd, new_pmd);</span>
+ 				if (need_rmap_locks)
+ 					drop_rmap_locks(vma);
+ 				if (moved)
+<span class="p_chunk">@@ -233,13 +234,12 @@</span> <span class="p_context"> unsigned long move_page_tables(struct vm_area_struct *vma,</span>
+ 			extent = next - new_addr;
+ 		if (extent &gt; LATENCY_LIMIT)
+ 			extent = LATENCY_LIMIT;
+<span class="p_del">-		move_ptes(vma, old_pmd, old_addr, old_addr + extent, new_vma,</span>
+<span class="p_del">-			  new_pmd, new_addr, need_rmap_locks, &amp;need_flush);</span>
+<span class="p_add">+		move_ptes(&amp;tlb, vma, old_pmd, old_addr, old_addr + extent,</span>
+<span class="p_add">+			  new_vma, new_pmd, new_addr, need_rmap_locks);</span>
+ 	}
+<span class="p_del">-	if (need_flush)</span>
+<span class="p_del">-		flush_tlb_range(vma, old_end-len, old_addr);</span>
+ 
+ 	mmu_notifier_invalidate_range_end(vma-&gt;vm_mm, mmun_start, mmun_end);
+<span class="p_add">+	tlb_finish_mmu(&amp;tlb, mmun_start, mmun_end);</span>
+ 
+ 	return len + old_addr - old_end;	/* how much done */
+ }
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

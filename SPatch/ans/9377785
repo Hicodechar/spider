@@ -1,0 +1,352 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v3] mm: vmalloc: Replace purge_lock spinlock with atomic refcount - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v3] mm: vmalloc: Replace purge_lock spinlock with atomic refcount</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=170577">Joel Fernandes</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Oct. 15, 2016, 12:52 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1476535979-27467-1-git-send-email-joelaf@google.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9377785/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9377785/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9377785/">/patch/9377785/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	9CB1B6075E for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 15 Oct 2016 12:53:34 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 8875329411
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 15 Oct 2016 12:53:34 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 7914C29414; Sat, 15 Oct 2016 12:53:34 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.5 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID, DKIM_VALID_AU, RCVD_IN_DNSWL_HI,
+	RCVD_IN_SORBS_SPAM autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id CC30D29411
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 15 Oct 2016 12:53:33 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1754157AbcJOMxS (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Sat, 15 Oct 2016 08:53:18 -0400
+Received: from mail-wm0-f41.google.com ([74.125.82.41]:36759 &quot;EHLO
+	mail-wm0-f41.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752917AbcJOMxM (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Sat, 15 Oct 2016 08:53:12 -0400
+Received: by mail-wm0-f41.google.com with SMTP id f193so29105779wmg.1
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Sat, 15 Oct 2016 05:53:11 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=google.com; s=20120113;
+	h=from:to:cc:subject:date:message-id;
+	bh=CFwV8zvx/rnNEij+3rBxSxvdXgYUNe+6DUL63pCIBOU=;
+	b=HRStcjoWhbJ2/YRknWijAdctdupS/f8HLB01NszGmzTNn2WtKWf2yaeeNKEYHY4ZQQ
+	OT2duAgW8e3Ib9ZmV2WGstu6BlYxDROQmWcR11o0c6ZHdJdso0yyZCFKhdE4gjUkID2s
+	rvxo+BBp95MW4wpuzKfbjmUJeaQM0Oycorv/45a/cEcW+tyXuuYRZrG2k24RSKNOh8fa
+	zpG6M4VUfCHwww88O8hVE8/Tuz1REY1QAr7RpJsIgX7+8CIgsRn7ULhaookTGAcRFAxd
+	4PTkXgDe5OsMzU3tuavaa2UAyipA/IrwxjQPqOB7d5pMSXjKguqmNjw7RjEQ5hN92JHI
+	s8yg==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20130820;
+	h=x-gm-message-state:from:to:cc:subject:date:message-id;
+	bh=CFwV8zvx/rnNEij+3rBxSxvdXgYUNe+6DUL63pCIBOU=;
+	b=kMy3+HKkGC5xGfovVqC8cwAmT2MVD3iMjQYpj/K9qnO5uaHRr+D7ucQghbB+P5lJgn
+	gIPoPKPFkhmo60ddAT8FIjBMjot2tI1eZRVKhYT89EvriAHULkqIiVEiDhkU5HTp9syK
+	7jflTjn1LpwxAE7Ds+o4YOr9yIHib34g1mX1G0IIDb7qNKmlLk6hsuyFWzppKKk9Xp0i
+	YXZkkJWbe2Hkq9R2C/hYM+mBLb6Dc0OOlzgK7XTpU3oJH5LCVOPKCPvJ06PSgtWOHvvF
+	jkO3vINAzcguahP5xEI8YDVqMokr5L1fTaf5iYNqYnQ6Dsrrjc+0KlSi/6szp91Mfq1B
+	5ErA==
+X-Gm-Message-State: AA6/9RkmhxP3WfUU3ObpgjEOxa2gfuzaaCZdi/t2t7JYJrdz0tMJaOuMgVtMBTXMxORx+kgT
+X-Received: by 10.194.72.231 with SMTP id g7mr5365863wjv.79.1476535988975;
+	Sat, 15 Oct 2016 05:53:08 -0700 (PDT)
+Received: from joelaf-glaptop0.rieo.lan ([94.186.205.19])
+	by smtp.gmail.com with ESMTPSA id
+	h189sm3368795wmd.10.2016.10.15.05.53.07
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+	Sat, 15 Oct 2016 05:53:08 -0700 (PDT)
+From: Joel Fernandes &lt;joelaf@google.com&gt;
+To: linux-kernel@vger.kernel.org
+Cc: linux-rt-users@vger.kernel.org, Joel Fernandes &lt;joelaf@google.com&gt;,
+	Chris Wilson &lt;chris@chris-wilson.co.uk&gt;,
+	Jisheng Zhang &lt;jszhang@marvell.com&gt;, John Dias &lt;joaodias@google.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	linux-mm@kvack.org (open list:MEMORY MANAGEMENT)
+Subject: [PATCH v3] mm: vmalloc: Replace purge_lock spinlock with atomic
+	refcount
+Date: Sat, 15 Oct 2016 05:52:59 -0700
+Message-Id: &lt;1476535979-27467-1-git-send-email-joelaf@google.com&gt;
+X-Mailer: git-send-email 2.8.0.rc3.226.g39d4020
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=170577">Joel Fernandes</a> - Oct. 15, 2016, 12:52 p.m.</div>
+<pre class="content">
+The purge_lock spinlock causes high latencies with non RT kernel. This has been
+reported multiple times on lkml [1] [2] and affects applications like audio.
+
+In this patch, I replace the spinlock with an atomic refcount so that
+preemption is kept turned on during purge. This Ok to do since [3] builds the
+lazy free list in advance and atomically retrieves the list so any instance of
+purge will have its own list it is purging. Since the individual vmap area
+frees are themselves protected by a lock, this is Ok.
+
+The only thing left is the fact that previously it had trylock behavior, so
+preserve that by using the refcount to keep track of in-progress purges and
+abort like previously if there is an ongoing purge. Lastly, decrement
+vmap_lazy_nr as the vmap areas are freed, and not in advance, so that the
+vmap_lazy_nr is not reduced too soon as suggested in [2].
+
+Tests:
+x86_64 quad core machine on kernel 4.8, run: cyclictest -p 99 -n
+Concurrently in a kernel module, run vmalloc and vfree 8K buffer in a loop.
+Preemption configuration: CONFIG_PREEMPT__LL=y (low-latency desktop)
+
+Without patch, cyclictest output:
+policy: fifo: loadavg: 0.05 0.01 0.00 1/85 1272          Avg:  128 Max:    1177
+policy: fifo: loadavg: 0.11 0.03 0.01 2/87 1447          Avg:  122 Max:    1897
+policy: fifo: loadavg: 0.10 0.03 0.01 1/89 1656          Avg:   93 Max:    2886
+
+With patch, cyclictest output:
+policy: fifo: loadavg: 1.15 0.68 0.30 1/162 8399         Avg:   92 Max:     284
+policy: fifo: loadavg: 1.21 0.71 0.32 2/164 9840         Avg:   94 Max:     296
+policy: fifo: loadavg: 1.18 0.72 0.32 2/166 11253        Avg:  107 Max:     321
+
+[1] http://lists.openwall.net/linux-kernel/2016/03/23/29
+[2] https://lkml.org/lkml/2016/10/9/59
+[3] https://lkml.org/lkml/2016/4/15/287
+
+[thanks Chris for the cond_resched_lock ideas]
+Cc: Chris Wilson &lt;chris@chris-wilson.co.uk&gt;
+Cc: Jisheng Zhang &lt;jszhang@marvell.com&gt;
+Cc: John Dias &lt;joaodias@google.com&gt;
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+<span class="signed-off-by">Signed-off-by: Joel Fernandes &lt;joelaf@google.com&gt;</span>
+---
+v3 changes:
+Fixed ordering of va pointer access and __free_vmap_area
+
+v2 changes:
+Updated test description in commit message, and typos.
+
+ mm/vmalloc.c | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/vmalloc.c b/mm/vmalloc.c</span>
+<span class="p_header">index 613d1d9..0270723 100644</span>
+<span class="p_header">--- a/mm/vmalloc.c</span>
+<span class="p_header">+++ b/mm/vmalloc.c</span>
+<span class="p_chunk">@@ -626,11 +626,11 @@</span> <span class="p_context"> void set_iounmap_nonlazy(void)</span>
+ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+ 					int sync, int force_flush)
+ {
+<span class="p_del">-	static DEFINE_SPINLOCK(purge_lock);</span>
+<span class="p_add">+	static atomic_t purging;</span>
+ 	struct llist_node *valist;
+ 	struct vmap_area *va;
+ 	struct vmap_area *n_va;
+<span class="p_del">-	int nr = 0;</span>
+<span class="p_add">+	int dofree = 0;</span>
+ 
+ 	/*
+ 	 * If sync is 0 but force_flush is 1, we&#39;ll go sync anyway but callers
+<span class="p_chunk">@@ -638,10 +638,10 @@</span> <span class="p_context"> static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,</span>
+ 	 * the case that isn&#39;t actually used at the moment anyway.
+ 	 */
+ 	if (!sync &amp;&amp; !force_flush) {
+<span class="p_del">-		if (!spin_trylock(&amp;purge_lock))</span>
+<span class="p_add">+		if (atomic_cmpxchg(&amp;purging, 0, 1))</span>
+ 			return;
+ 	} else
+<span class="p_del">-		spin_lock(&amp;purge_lock);</span>
+<span class="p_add">+		atomic_inc(&amp;purging);</span>
+ 
+ 	if (sync)
+ 		purge_fragmented_blocks_allcpus();
+<span class="p_chunk">@@ -652,22 +652,23 @@</span> <span class="p_context"> static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,</span>
+ 			*start = va-&gt;va_start;
+ 		if (va-&gt;va_end &gt; *end)
+ 			*end = va-&gt;va_end;
+<span class="p_del">-		nr += (va-&gt;va_end - va-&gt;va_start) &gt;&gt; PAGE_SHIFT;</span>
+<span class="p_add">+		dofree = 1;</span>
+ 	}
+ 
+<span class="p_del">-	if (nr)</span>
+<span class="p_del">-		atomic_sub(nr, &amp;vmap_lazy_nr);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	if (nr || force_flush)</span>
+<span class="p_add">+	if (dofree || force_flush)</span>
+ 		flush_tlb_kernel_range(*start, *end);
+ 
+<span class="p_del">-	if (nr) {</span>
+<span class="p_add">+	if (dofree) {</span>
+ 		spin_lock(&amp;vmap_area_lock);
+<span class="p_del">-		llist_for_each_entry_safe(va, n_va, valist, purge_list)</span>
+<span class="p_add">+		llist_for_each_entry_safe(va, n_va, valist, purge_list) {</span>
+<span class="p_add">+			int nrfree = ((va-&gt;va_end - va-&gt;va_start) &gt;&gt; PAGE_SHIFT);</span>
+ 			__free_vmap_area(va);
+<span class="p_add">+			atomic_sub(nrfree, &amp;vmap_lazy_nr);</span>
+<span class="p_add">+			cond_resched_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+		}</span>
+ 		spin_unlock(&amp;vmap_area_lock);
+ 	}
+<span class="p_del">-	spin_unlock(&amp;purge_lock);</span>
+<span class="p_add">+	atomic_dec(&amp;purging);</span>
+ }
+ 
+ /*
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

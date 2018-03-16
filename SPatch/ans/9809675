@@ -1,0 +1,1729 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC] mm, oom: allow oom reaper to race with exit_mmap - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC] mm, oom: allow oom reaper to race with exit_mmap</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>June 26, 2017, 1:03 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170626130346.26314-1-mhocko@kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9809675/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9809675/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9809675/">/patch/9809675/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	42E3260209 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 26 Jun 2017 13:04:40 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 4487926256
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 26 Jun 2017 13:04:40 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 358952818A; Mon, 26 Jun 2017 13:04:40 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 7792C26256
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 26 Jun 2017 13:04:39 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751804AbdFZNEE (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 26 Jun 2017 09:04:04 -0400
+Received: from mail-wm0-f66.google.com ([74.125.82.66]:32876 &quot;EHLO
+	mail-wm0-f66.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751427AbdFZND5 (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 26 Jun 2017 09:03:57 -0400
+Received: by mail-wm0-f66.google.com with SMTP id j85so144746wmj.0
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Mon, 26 Jun 2017 06:03:57 -0700 (PDT)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:from:to:cc:subject:date:message-id;
+	bh=CeeVIC2HPiLL6I08/YCvCB/Fo2Fr//BHwWgQ6b2ICj8=;
+	b=CSIGYKAj8w/m90hEehe8fWXulvi+XEikXF1d/BwDFvHJL0DAnTvu4ZoD0duuO7eW8D
+	9GhJU0KMtfhQsVyaFnbxIZPz5YRFN4zPvZGXT4TNTlIcir4yrGQjU87XiFA39St9j/3i
+	d622tg+gPuBX9fUGzYLHuk5jQ0lEEIIw8Hd/GgS7RW3grmqnndh5YisgUTRj1lsZN4sj
+	4YtW1DRwby74LYw1E1dZnv1xBi5ZixxLL7Pfpl4DNazqICESXcu6nO4ifV6dnjKIQta4
+	OK7uepQZcFhWAFP8ojpYGYOEX4Jbj2Iv3HvAHqCcN8lLtH3dpOHg3lqBvUAsS1gGwkyh
+	7gdg==
+X-Gm-Message-State: AKS2vOxHOUzZnKJvBl+7Hcobg/x1cRGw6FI8ApiHwKRbpQ6LTQmHhfln
+	kj2AkSydMHcfUQ==
+X-Received: by 10.28.125.3 with SMTP id y3mr8540wmc.9.1498482236219;
+	Mon, 26 Jun 2017 06:03:56 -0700 (PDT)
+Received: from tiehlicka.suse.cz (prg-ext-pat.suse.com. [213.151.95.130])
+	by smtp.gmail.com with ESMTPSA id
+	x5sm4755010wrd.50.2017.06.26.06.03.54
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Mon, 26 Jun 2017 06:03:55 -0700 (PDT)
+From: Michal Hocko &lt;mhocko@kernel.org&gt;
+To: &lt;linux-mm@kvack.org&gt;
+Cc: Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;,
+	David Rientjes &lt;rientjes@google.com&gt;, Oleg Nesterov &lt;oleg@redhat.com&gt;,
+	Andrea Argangeli &lt;andrea@kernel.org&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	LKML &lt;linux-kernel@vger.kernel.org&gt;, Michal Hocko &lt;mhocko@suse.com&gt;
+Subject: [RFC PATCH] mm, oom: allow oom reaper to race with exit_mmap
+Date: Mon, 26 Jun 2017 15:03:46 +0200
+Message-Id: &lt;20170626130346.26314-1-mhocko@kernel.org&gt;
+X-Mailer: git-send-email 2.11.0
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - June 26, 2017, 1:03 p.m.</div>
+<pre class="content">
+<span class="from">From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+
+David has noticed that the oom killer might kill additional tasks while
+the existing victim hasn&#39;t terminated yet because the oom_reaper marks
+the curent victim MMF_OOM_SKIP too early when mm-&gt;mm_users dropped down
+to 0. The race is as follows
+
+oom_reap_task				do_exit
+					  exit_mm
+  __oom_reap_task_mm
+					    mmput
+					      __mmput
+    mmget_not_zero # fails
+    						exit_mmap # frees memory
+  set_bit(MMF_OOM_SKIP)
+
+Currently we are try to reduce a risk of this race by taking oom_lock
+and wait for out_of_memory sleep while holding the lock to give the
+victim some time to exit. This is quite suboptimal approach because
+there is no guarantee the victim (especially a large one) will manage
+to unmap its address space and free enough memory to the particular oom
+domain which needs a memory (e.g. a specific NUMA node).
+
+Fix this problem by allowing __oom_reap_task_mm and __mmput path to
+race. __oom_reap_task_mm is basically MADV_DONTNEED and that is allowed
+to run in parallel with other unmappers (hence the mmap_sem for read).
+The only tricky part is we have to exclude page tables tear down and all
+operations which modify the address space in the __mmput path. exit_mmap
+doesn&#39;t expect any other users so it doesn&#39;t use any locking. Nothing
+really forbids us to use mmap_sem for write, though. In fact we are
+already relying on this lock earlier in the __mmput path to synchronize
+with ksm and khugepaged.
+
+Take the exclusive mmap_sem when calling free_pgtables and destroying
+vmas to sync with __oom_reap_task_mm which take the lock for read. All
+other operations can safely race with the parallel unmap.
+
+Reported-by: David Rientjes &lt;rientjes@google.com&gt;
+Fixes: 26db62f179d1 (&quot;oom: keep mm of the killed task available&quot;)
+<span class="signed-off-by">Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+---
+
+Hi,
+I am sending this as an RFC because I am not yet sure I haven&#39;t missed
+something subtle here but the appoach should work in principle. I have
+run it through some of my OOM stress tests to see if anything blows up
+and it all went smoothly.
+
+The issue has been brought up by David [1]. There were some attempts to
+address it in oom proper [2][3] but the first one would cause problems
+on their own [4] while the later is just too hairy.
+
+Thoughts, objections, alternatives?
+
+[1] http://lkml.kernel.org/r/alpine.DEB.2.10.1706141632100.93071@chino.kir.corp.google.com
+[2] http://lkml.kernel.org/r/201706171417.JHG48401.JOQLHMFSVOOFtF@I-love.SAKURA.ne.jp
+[3] http://lkml.kernel.org/r/201706220053.v5M0rmOU078764@www262.sakura.ne.jp
+[4] http://lkml.kernel.org/r/201706210217.v5L2HAZc081021@www262.sakura.ne.jp
+
+ mm/mmap.c     |  7 +++++++
+ mm/oom_kill.c | 40 ++--------------------------------------
+ 2 files changed, 9 insertions(+), 38 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=28">Tetsuo Handa</a> - June 27, 2017, 10:52 a.m.</div>
+<pre class="content">
+Michal Hocko wrote:
+<span class="quote">&gt; From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; David has noticed that the oom killer might kill additional tasks while</span>
+<span class="quote">&gt; the existing victim hasn&#39;t terminated yet because the oom_reaper marks</span>
+<span class="quote">&gt; the curent victim MMF_OOM_SKIP too early when mm-&gt;mm_users dropped down</span>
+<span class="quote">&gt; to 0. The race is as follows</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; oom_reap_task				do_exit</span>
+<span class="quote">&gt; 					  exit_mm</span>
+<span class="quote">&gt;   __oom_reap_task_mm</span>
+<span class="quote">&gt; 					    mmput</span>
+<span class="quote">&gt; 					      __mmput</span>
+<span class="quote">&gt;     mmget_not_zero # fails</span>
+<span class="quote">&gt;     						exit_mmap # frees memory</span>
+<span class="quote">&gt;   set_bit(MMF_OOM_SKIP)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Currently we are try to reduce a risk of this race by taking oom_lock</span>
+<span class="quote">&gt; and wait for out_of_memory sleep while holding the lock to give the</span>
+<span class="quote">&gt; victim some time to exit. This is quite suboptimal approach because</span>
+<span class="quote">&gt; there is no guarantee the victim (especially a large one) will manage</span>
+<span class="quote">&gt; to unmap its address space and free enough memory to the particular oom</span>
+<span class="quote">&gt; domain which needs a memory (e.g. a specific NUMA node).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Fix this problem by allowing __oom_reap_task_mm and __mmput path to</span>
+<span class="quote">&gt; race. __oom_reap_task_mm is basically MADV_DONTNEED and that is allowed</span>
+<span class="quote">&gt; to run in parallel with other unmappers (hence the mmap_sem for read).</span>
+<span class="quote">&gt; The only tricky part is we have to exclude page tables tear down and all</span>
+<span class="quote">&gt; operations which modify the address space in the __mmput path. exit_mmap</span>
+<span class="quote">&gt; doesn&#39;t expect any other users so it doesn&#39;t use any locking. Nothing</span>
+<span class="quote">&gt; really forbids us to use mmap_sem for write, though. In fact we are</span>
+<span class="quote">&gt; already relying on this lock earlier in the __mmput path to synchronize</span>
+<span class="quote">&gt; with ksm and khugepaged.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Take the exclusive mmap_sem when calling free_pgtables and destroying</span>
+<span class="quote">&gt; vmas to sync with __oom_reap_task_mm which take the lock for read. All</span>
+<span class="quote">&gt; other operations can safely race with the parallel unmap.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Reported-by: David Rientjes &lt;rientjes@google.com&gt;</span>
+<span class="quote">&gt; Fixes: 26db62f179d1 (&quot;oom: keep mm of the killed task available&quot;)</span>
+<span class="quote">&gt; Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Hi,</span>
+<span class="quote">&gt; I am sending this as an RFC because I am not yet sure I haven&#39;t missed</span>
+<span class="quote">&gt; something subtle here but the appoach should work in principle. I have</span>
+<span class="quote">&gt; run it through some of my OOM stress tests to see if anything blows up</span>
+<span class="quote">&gt; and it all went smoothly.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The issue has been brought up by David [1]. There were some attempts to</span>
+<span class="quote">&gt; address it in oom proper [2][3] but the first one would cause problems</span>
+<span class="quote">&gt; on their own [4] while the later is just too hairy.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Thoughts, objections, alternatives?</span>
+
+I wonder why you prefer timeout based approach. Your patch will after all
+set MMF_OOM_SKIP if operations between down_write() and up_write() took
+more than one second. lock_anon_vma_root() from unlink_anon_vmas() from
+free_pgtables() for example calls down_write()/up_write(). unlink_file_vma()
+ from free_pgtables() for another example calls down_write()/up_write().
+This means that it might happen that exit_mmap() takes more than one second
+with mm-&gt;mmap_sem held for write, doesn&#39;t this?
+
+The worst situation is that no memory is released by uprobe_clear_state(), exit_aio(),
+ksm_exit(), khugepaged_exit() and operations before down_write(&amp;mm-&gt;mmap_sem), and then
+one second elapses before some memory is released after down_write(&amp;mm-&gt;mmap_sem).
+In that case, down_write()/up_write() in your patch helps nothing.
+
+Less worst situation is that no memory is released by uprobe_clear_state(), exit_aio(),
+ksm_exit(), khugepaged_exit() and operations before down_write(&amp;mm-&gt;mmap_sem), and then
+only some memory is released after down_write(&amp;mm-&gt;mmap_sem) before one second elapses.
+Someone might think that this is still premature.
+
+More likely situation is that down_read_trylock(&amp;mm-&gt;mmap_sem) in __oom_reap_task_mm()
+succeeds before exit_mmap() calls down_write(&amp;mm-&gt;mmap_sem) (especially true if we remove
+mutex_lock(&amp;oom_lock) from __oom_reap_task_mm()). In this case, your patch merely gives
+uprobe_clear_state(), exit_aio(), ksm_exit(), khugepaged_exit() and operations before
+down_write(&amp;mm-&gt;mmap_sem) some time to release memory, for your patch will after all set
+MMF_OOM_SKIP immediately after __oom_reap_task_mm() called up_read(&amp;mm-&gt;mmap_sem). If we
+assume that majority of memory is released by operations between
+down_write(&amp;mm-&gt;mmap_sem)/up_write(&amp;mm-&gt;mmap_sem) in exit_mm(), this is not a preferable
+behavior.
+
+My patch [3] cannot give uprobe_clear_state(), exit_aio(), ksm_exit(), khugepaged_exit()
+and exit_mm() some time to release memory. But [3] can guarantee that all memory which
+the OOM reaper can reclaim is reclaimed before setting MMF_OOM_SKIP.
+
+If we wait for another second after setting MMF_OOM_SKIP, we could give operations between
+down_write(&amp;mm-&gt;mmap_sem)/up_write(&amp;mm-&gt;mmap_sem) in exit_mm() (in your patch) or __mmput()
+(in my patch) some more chance to reclaim memory before next OOM victim is selected.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; [1] http://lkml.kernel.org/r/alpine.DEB.2.10.1706141632100.93071@chino.kir.corp.google.com</span>
+<span class="quote">&gt; [2] http://lkml.kernel.org/r/201706171417.JHG48401.JOQLHMFSVOOFtF@I-love.SAKURA.ne.jp</span>
+<span class="quote">&gt; [3] http://lkml.kernel.org/r/201706220053.v5M0rmOU078764@www262.sakura.ne.jp</span>
+<span class="quote">&gt; [4] http://lkml.kernel.org/r/201706210217.v5L2HAZc081021@www262.sakura.ne.jp</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  mm/mmap.c     |  7 +++++++</span>
+<span class="quote">&gt;  mm/oom_kill.c | 40 ++--------------------------------------</span>
+<span class="quote">&gt;  2 files changed, 9 insertions(+), 38 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/mm/mmap.c b/mm/mmap.c</span>
+<span class="quote">&gt; index 3bd5ecd20d4d..253808e716dc 100644</span>
+<span class="quote">&gt; --- a/mm/mmap.c</span>
+<span class="quote">&gt; +++ b/mm/mmap.c</span>
+<span class="quote">&gt; @@ -2962,6 +2962,11 @@ void exit_mmap(struct mm_struct *mm)</span>
+<span class="quote">&gt;  	/* Use -1 here to ensure all VMAs in the mm are unmapped */</span>
+<span class="quote">&gt;  	unmap_vmas(&amp;tlb, vma, 0, -1);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * oom reaper might race with exit_mmap so make sure we won&#39;t free</span>
+<span class="quote">&gt; +	 * page tables or unmap VMAs under its feet</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	down_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt;  	free_pgtables(&amp;tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);</span>
+<span class="quote">&gt;  	tlb_finish_mmu(&amp;tlb, 0, -1);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; @@ -2974,7 +2979,9 @@ void exit_mmap(struct mm_struct *mm)</span>
+<span class="quote">&gt;  			nr_accounted += vma_pages(vma);</span>
+<span class="quote">&gt;  		vma = remove_vma(vma);</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt; +	mm-&gt;mmap = NULL;</span>
+<span class="quote">&gt;  	vm_unacct_memory(nr_accounted);</span>
+<span class="quote">&gt; +	up_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  /* Insert vm structure into process list sorted by address</span>
+<span class="quote">&gt; diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="quote">&gt; index 0e2c925e7826..5dc0ff22d567 100644</span>
+<span class="quote">&gt; --- a/mm/oom_kill.c</span>
+<span class="quote">&gt; +++ b/mm/oom_kill.c</span>
+<span class="quote">&gt; @@ -472,36 +472,8 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt;  	struct vm_area_struct *vma;</span>
+<span class="quote">&gt;  	bool ret = true;</span>
+
+This &quot;ret&quot; is redundant.
+<span class="quote">
+&gt;  </span>
+<span class="quote">&gt; -	/*</span>
+<span class="quote">&gt; -	 * We have to make sure to not race with the victim exit path</span>
+<span class="quote">&gt; -	 * and cause premature new oom victim selection:</span>
+<span class="quote">&gt; -	 * __oom_reap_task_mm		exit_mm</span>
+<span class="quote">&gt; -	 *   mmget_not_zero</span>
+<span class="quote">&gt; -	 *				  mmput</span>
+<span class="quote">&gt; -	 *				    atomic_dec_and_test</span>
+<span class="quote">&gt; -	 *				  exit_oom_victim</span>
+<span class="quote">&gt; -	 *				[...]</span>
+<span class="quote">&gt; -	 *				out_of_memory</span>
+<span class="quote">&gt; -	 *				  select_bad_process</span>
+<span class="quote">&gt; -	 *				    # no TIF_MEMDIE task selects new victim</span>
+<span class="quote">&gt; -	 *  unmap_page_range # frees some memory</span>
+<span class="quote">&gt; -	 */</span>
+<span class="quote">&gt; -	mutex_lock(&amp;oom_lock);</span>
+
+You can remove mutex_lock(&amp;oom_lock) here, but you should use mutex_lock(&amp;oom_lock)
+when setting MMF_OOM_SKIP, for below comment in [2] will be still valid.
+
+ 	/*
+ 	 * Hide this mm from OOM killer because it has been either reaped or
+ 	 * somebody can&#39;t call up_write(mmap_sem).
++	 *
++	 * Serialize setting of MMF_OOM_SKIP using oom_lock in order to
++	 * avoid race with select_bad_process() which causes premature
++	 * new oom victim selection.
++	 *
++	 * The OOM reaper:           An allocating task:
++	 *                             Failed get_page_from_freelist().
++	 *                             Enters into out_of_memory().
++	 *   Reaped memory enough to make get_page_from_freelist() succeed.
++	 *   Sets MMF_OOM_SKIP to mm.
++	 *                               Enters into select_bad_process().
++	 *                                 # MMF_OOM_SKIP mm selects new victim.
+ 	 */
++	mutex_lock(&amp;oom_lock);
+ 	set_bit(MMF_OOM_SKIP, &amp;mm-&gt;flags);
++	mutex_unlock(&amp;oom_lock);
+
+Ideally, we should as well use mutex_lock(&amp;oom_lock) when setting MMF_OOM_SKIP from
+__mmput(), for an allocating task does not call get_page_from_freelist() after
+confirming that there is no !MMF_OOM_SKIP mm. Or, it would be possible to
+let select_bad_process() abort on MMF_OOM_SKIP mm once using another bit.
+<span class="quote">
+&gt; -</span>
+<span class="quote">&gt; -	if (!down_read_trylock(&amp;mm-&gt;mmap_sem)) {</span>
+<span class="quote">&gt; -		ret = false;</span>
+<span class="quote">&gt; -		goto unlock_oom;</span>
+<span class="quote">&gt; -	}</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; -	/*</span>
+<span class="quote">&gt; -	 * increase mm_users only after we know we will reap something so</span>
+<span class="quote">&gt; -	 * that the mmput_async is called only when we have reaped something</span>
+<span class="quote">&gt; -	 * and delayed __mmput doesn&#39;t matter that much</span>
+<span class="quote">&gt; -	 */</span>
+<span class="quote">&gt; -	if (!mmget_not_zero(mm)) {</span>
+<span class="quote">&gt; -		up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt; -		goto unlock_oom;</span>
+<span class="quote">&gt; -	}</span>
+<span class="quote">&gt; +	if (!down_read_trylock(&amp;mm-&gt;mmap_sem))</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/*</span>
+<span class="quote">&gt;  	 * Tell all users of get_user/copy_from_user etc... that the content</span>
+<span class="quote">&gt; @@ -538,14 +510,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt;  			K(get_mm_counter(mm, MM_SHMEMPAGES)));</span>
+<span class="quote">&gt;  	up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	/*</span>
+<span class="quote">&gt; -	 * Drop our reference but make sure the mmput slow path is called from a</span>
+<span class="quote">&gt; -	 * different context because we shouldn&#39;t risk we get stuck there and</span>
+<span class="quote">&gt; -	 * put the oom_reaper out of the way.</span>
+<span class="quote">&gt; -	 */</span>
+<span class="quote">&gt; -	mmput_async(mm);</span>
+<span class="quote">&gt; -unlock_oom:</span>
+<span class="quote">&gt; -	mutex_unlock(&amp;oom_lock);</span>
+<span class="quote">&gt;  	return ret;</span>
+
+This is &quot;return true;&quot;.
+<span class="quote">
+&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -- </span>
+<span class="quote">&gt; 2.11.0</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - June 27, 2017, 11:26 a.m.</div>
+<pre class="content">
+On Tue 27-06-17 19:52:03, Tetsuo Handa wrote:
+<span class="quote">&gt; Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; David has noticed that the oom killer might kill additional tasks while</span>
+<span class="quote">&gt; &gt; the existing victim hasn&#39;t terminated yet because the oom_reaper marks</span>
+<span class="quote">&gt; &gt; the curent victim MMF_OOM_SKIP too early when mm-&gt;mm_users dropped down</span>
+<span class="quote">&gt; &gt; to 0. The race is as follows</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; oom_reap_task				do_exit</span>
+<span class="quote">&gt; &gt; 					  exit_mm</span>
+<span class="quote">&gt; &gt;   __oom_reap_task_mm</span>
+<span class="quote">&gt; &gt; 					    mmput</span>
+<span class="quote">&gt; &gt; 					      __mmput</span>
+<span class="quote">&gt; &gt;     mmget_not_zero # fails</span>
+<span class="quote">&gt; &gt;     						exit_mmap # frees memory</span>
+<span class="quote">&gt; &gt;   set_bit(MMF_OOM_SKIP)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Currently we are try to reduce a risk of this race by taking oom_lock</span>
+<span class="quote">&gt; &gt; and wait for out_of_memory sleep while holding the lock to give the</span>
+<span class="quote">&gt; &gt; victim some time to exit. This is quite suboptimal approach because</span>
+<span class="quote">&gt; &gt; there is no guarantee the victim (especially a large one) will manage</span>
+<span class="quote">&gt; &gt; to unmap its address space and free enough memory to the particular oom</span>
+<span class="quote">&gt; &gt; domain which needs a memory (e.g. a specific NUMA node).</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Fix this problem by allowing __oom_reap_task_mm and __mmput path to</span>
+<span class="quote">&gt; &gt; race. __oom_reap_task_mm is basically MADV_DONTNEED and that is allowed</span>
+<span class="quote">&gt; &gt; to run in parallel with other unmappers (hence the mmap_sem for read).</span>
+<span class="quote">&gt; &gt; The only tricky part is we have to exclude page tables tear down and all</span>
+<span class="quote">&gt; &gt; operations which modify the address space in the __mmput path. exit_mmap</span>
+<span class="quote">&gt; &gt; doesn&#39;t expect any other users so it doesn&#39;t use any locking. Nothing</span>
+<span class="quote">&gt; &gt; really forbids us to use mmap_sem for write, though. In fact we are</span>
+<span class="quote">&gt; &gt; already relying on this lock earlier in the __mmput path to synchronize</span>
+<span class="quote">&gt; &gt; with ksm and khugepaged.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Take the exclusive mmap_sem when calling free_pgtables and destroying</span>
+<span class="quote">&gt; &gt; vmas to sync with __oom_reap_task_mm which take the lock for read. All</span>
+<span class="quote">&gt; &gt; other operations can safely race with the parallel unmap.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Reported-by: David Rientjes &lt;rientjes@google.com&gt;</span>
+<span class="quote">&gt; &gt; Fixes: 26db62f179d1 (&quot;oom: keep mm of the killed task available&quot;)</span>
+<span class="quote">&gt; &gt; Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; &gt; ---</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Hi,</span>
+<span class="quote">&gt; &gt; I am sending this as an RFC because I am not yet sure I haven&#39;t missed</span>
+<span class="quote">&gt; &gt; something subtle here but the appoach should work in principle. I have</span>
+<span class="quote">&gt; &gt; run it through some of my OOM stress tests to see if anything blows up</span>
+<span class="quote">&gt; &gt; and it all went smoothly.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; The issue has been brought up by David [1]. There were some attempts to</span>
+<span class="quote">&gt; &gt; address it in oom proper [2][3] but the first one would cause problems</span>
+<span class="quote">&gt; &gt; on their own [4] while the later is just too hairy.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Thoughts, objections, alternatives?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I wonder why you prefer timeout based approach. Your patch will after all</span>
+<span class="quote">&gt; set MMF_OOM_SKIP if operations between down_write() and up_write() took</span>
+<span class="quote">&gt; more than one second.</span>
+
+if we reach down_write then we have unmapped the address space in
+exit_mmap and oom reaper cannot do much more.
+<span class="quote">
+&gt; lock_anon_vma_root() from unlink_anon_vmas() from</span>
+<span class="quote">&gt; free_pgtables() for example calls down_write()/up_write(). unlink_file_vma()</span>
+<span class="quote">&gt;  from free_pgtables() for another example calls down_write()/up_write().</span>
+<span class="quote">&gt; This means that it might happen that exit_mmap() takes more than one second</span>
+<span class="quote">&gt; with mm-&gt;mmap_sem held for write, doesn&#39;t this?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The worst situation is that no memory is released by uprobe_clear_state(), exit_aio(),</span>
+<span class="quote">&gt; ksm_exit(), khugepaged_exit() and operations before down_write(&amp;mm-&gt;mmap_sem), and then</span>
+<span class="quote">&gt; one second elapses before some memory is released after down_write(&amp;mm-&gt;mmap_sem).</span>
+<span class="quote">&gt; In that case, down_write()/up_write() in your patch helps nothing.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Less worst situation is that no memory is released by uprobe_clear_state(), exit_aio(),</span>
+<span class="quote">&gt; ksm_exit(), khugepaged_exit() and operations before down_write(&amp;mm-&gt;mmap_sem), and then</span>
+<span class="quote">&gt; only some memory is released after down_write(&amp;mm-&gt;mmap_sem) before one second elapses.</span>
+<span class="quote">&gt; Someone might think that this is still premature.</span>
+
+This would basically mean that the the oom victim had all its memory in
+page tables and vma structures with basically nothing mapped. While this
+is possible this is something oom reaper cannot really help with until
+we start reclaiming page tables as well. I have had a plan for that but
+never got to implement it so this is still on my todo list.
+<span class="quote">
+&gt; More likely situation is that down_read_trylock(&amp;mm-&gt;mmap_sem) in __oom_reap_task_mm()</span>
+<span class="quote">&gt; succeeds before exit_mmap() calls down_write(&amp;mm-&gt;mmap_sem) (especially true if we remove</span>
+<span class="quote">&gt; mutex_lock(&amp;oom_lock) from __oom_reap_task_mm()). In this case, your patch merely gives</span>
+<span class="quote">&gt; uprobe_clear_state(), exit_aio(), ksm_exit(), khugepaged_exit() and operations before</span>
+<span class="quote">&gt; down_write(&amp;mm-&gt;mmap_sem) some time to release memory, for your patch will after all set</span>
+<span class="quote">&gt; MMF_OOM_SKIP immediately after __oom_reap_task_mm() called up_read(&amp;mm-&gt;mmap_sem). If we</span>
+<span class="quote">&gt; assume that majority of memory is released by operations between</span>
+<span class="quote">&gt; down_write(&amp;mm-&gt;mmap_sem)/up_write(&amp;mm-&gt;mmap_sem) in exit_mm(), this is not a preferable</span>
+<span class="quote">&gt; behavior.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; My patch [3] cannot give uprobe_clear_state(), exit_aio(), ksm_exit(), khugepaged_exit()</span>
+<span class="quote">&gt; and exit_mm() some time to release memory. But [3] can guarantee that all memory which</span>
+<span class="quote">&gt; the OOM reaper can reclaim is reclaimed before setting MMF_OOM_SKIP.</span>
+
+This should be the case with this patch as well. We simply do not set
+MMF_OOM_SKIP if there is something to unmap.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=28">Tetsuo Handa</a> - June 27, 2017, 11:39 a.m.</div>
+<pre class="content">
+Michal Hocko wrote:
+<span class="quote">&gt; &gt; I wonder why you prefer timeout based approach. Your patch will after all</span>
+<span class="quote">&gt; &gt; set MMF_OOM_SKIP if operations between down_write() and up_write() took</span>
+<span class="quote">&gt; &gt; more than one second.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; if we reach down_write then we have unmapped the address space in</span>
+<span class="quote">&gt; exit_mmap and oom reaper cannot do much more.</span>
+
+So, by the time down_write() is called, majority of memory is already released, isn&#39;t it?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - June 27, 2017, 12:03 p.m.</div>
+<pre class="content">
+On Tue 27-06-17 20:39:28, Tetsuo Handa wrote:
+<span class="quote">&gt; Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; &gt; I wonder why you prefer timeout based approach. Your patch will after all</span>
+<span class="quote">&gt; &gt; &gt; set MMF_OOM_SKIP if operations between down_write() and up_write() took</span>
+<span class="quote">&gt; &gt; &gt; more than one second.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; if we reach down_write then we have unmapped the address space in</span>
+<span class="quote">&gt; &gt; exit_mmap and oom reaper cannot do much more.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So, by the time down_write() is called, majority of memory is already released, isn&#39;t it?</span>
+
+In most cases yes. To be put it in other words. By the time exit_mmap
+takes down_write there is nothing more oom reaper could reclaim.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=28">Tetsuo Handa</a> - June 27, 2017, 1:31 p.m.</div>
+<pre class="content">
+Michal Hocko wrote:
+<span class="quote">&gt; On Tue 27-06-17 20:39:28, Tetsuo Handa wrote:</span>
+<span class="quote">&gt; &gt; Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; I wonder why you prefer timeout based approach. Your patch will after all</span>
+<span class="quote">&gt; &gt; &gt; &gt; set MMF_OOM_SKIP if operations between down_write() and up_write() took</span>
+<span class="quote">&gt; &gt; &gt; &gt; more than one second.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; if we reach down_write then we have unmapped the address space in</span>
+<span class="quote">&gt; &gt; &gt; exit_mmap and oom reaper cannot do much more.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; So, by the time down_write() is called, majority of memory is already released, isn&#39;t it?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; In most cases yes. To be put it in other words. By the time exit_mmap</span>
+<span class="quote">&gt; takes down_write there is nothing more oom reaper could reclaim.</span>
+<span class="quote">&gt; </span>
+Then, aren&#39;t there two exceptions which your patch cannot guarantee;
+down_write(&amp;mm-&gt;mmap_sem) in __ksm_exit() and __khugepaged_exit() ?
+
+Since for some reason exit_mmap() cannot be brought to before
+ksm_exit(mm)/khugepaged_exit(mm) calls,
+
+	ksm_exit(mm);
+	khugepaged_exit(mm); /* must run before exit_mmap */
+	exit_mmap(mm);
+
+shouldn&#39;t we try __oom_reap_task_mm() before calling these down_write()
+if mm is OOM victim&#39;s?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - June 27, 2017, 1:55 p.m.</div>
+<pre class="content">
+On Tue 27-06-17 22:31:58, Tetsuo Handa wrote:
+<span class="quote">&gt; Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; On Tue 27-06-17 20:39:28, Tetsuo Handa wrote:</span>
+<span class="quote">&gt; &gt; &gt; Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; I wonder why you prefer timeout based approach. Your patch will after all</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; set MMF_OOM_SKIP if operations between down_write() and up_write() took</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; more than one second.</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; if we reach down_write then we have unmapped the address space in</span>
+<span class="quote">&gt; &gt; &gt; &gt; exit_mmap and oom reaper cannot do much more.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; So, by the time down_write() is called, majority of memory is already released, isn&#39;t it?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; In most cases yes. To be put it in other words. By the time exit_mmap</span>
+<span class="quote">&gt; &gt; takes down_write there is nothing more oom reaper could reclaim.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; Then, aren&#39;t there two exceptions which your patch cannot guarantee;</span>
+<span class="quote">&gt; down_write(&amp;mm-&gt;mmap_sem) in __ksm_exit() and __khugepaged_exit() ?</span>
+
+yes it cannot. Those would be quite rare situations. Somebody holding
+the mmap sem would have to block those to wait for too long (that too
+long might be for ever actually if we are livelocked). We cannot rule
+that out of course and I would argue that it would be more appropriate
+to simply go after another task in those rare cases. There is not much
+we can really do. At some point the oom reaper has to give up and move
+on otherwise we are back to square one when OOM could deadlock...
+
+Maybe we can actually get rid of this down_write but I would go that way
+only when it proves to be a real issue.
+<span class="quote">
+&gt; Since for some reason exit_mmap() cannot be brought to before</span>
+<span class="quote">&gt; ksm_exit(mm)/khugepaged_exit(mm) calls,</span>
+
+9ba692948008 (&quot;ksm: fix oom deadlock&quot;) would tell you more about the
+ordering and the motivation.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; 	ksm_exit(mm);</span>
+<span class="quote">&gt; 	khugepaged_exit(mm); /* must run before exit_mmap */</span>
+<span class="quote">&gt; 	exit_mmap(mm);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; shouldn&#39;t we try __oom_reap_task_mm() before calling these down_write()</span>
+<span class="quote">&gt; if mm is OOM victim&#39;s?</span>
+
+This is what we try. We simply try to get mmap_sem for read and do our
+work as soon as possible with the proposed patch. This is already an
+improvement, no?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=28">Tetsuo Handa</a> - June 27, 2017, 2:26 p.m.</div>
+<pre class="content">
+Michal Hocko wrote:
+<span class="quote">&gt; On Tue 27-06-17 22:31:58, Tetsuo Handa wrote:</span>
+<span class="quote">&gt; &gt; Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; &gt; On Tue 27-06-17 20:39:28, Tetsuo Handa wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; &gt; I wonder why you prefer timeout based approach. Your patch will after all</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; &gt; set MMF_OOM_SKIP if operations between down_write() and up_write() took</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; &gt; more than one second.</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; if we reach down_write then we have unmapped the address space in</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; exit_mmap and oom reaper cannot do much more.</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; So, by the time down_write() is called, majority of memory is already released, isn&#39;t it?</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; In most cases yes. To be put it in other words. By the time exit_mmap</span>
+<span class="quote">&gt; &gt; &gt; takes down_write there is nothing more oom reaper could reclaim.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; Then, aren&#39;t there two exceptions which your patch cannot guarantee;</span>
+<span class="quote">&gt; &gt; down_write(&amp;mm-&gt;mmap_sem) in __ksm_exit() and __khugepaged_exit() ?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; yes it cannot. Those would be quite rare situations. Somebody holding</span>
+<span class="quote">&gt; the mmap sem would have to block those to wait for too long (that too</span>
+<span class="quote">&gt; long might be for ever actually if we are livelocked). We cannot rule</span>
+<span class="quote">&gt; that out of course and I would argue that it would be more appropriate</span>
+<span class="quote">&gt; to simply go after another task in those rare cases. There is not much</span>
+<span class="quote">&gt; we can really do. At some point the oom reaper has to give up and move</span>
+<span class="quote">&gt; on otherwise we are back to square one when OOM could deadlock...</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Maybe we can actually get rid of this down_write but I would go that way</span>
+<span class="quote">&gt; only when it proves to be a real issue.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; Since for some reason exit_mmap() cannot be brought to before</span>
+<span class="quote">&gt; &gt; ksm_exit(mm)/khugepaged_exit(mm) calls,</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 9ba692948008 (&quot;ksm: fix oom deadlock&quot;) would tell you more about the</span>
+<span class="quote">&gt; ordering and the motivation.</span>
+
+I don&#39;t understand ksm nor khugepaged. But that commit was actually calling
+ksm_exit() just before free_pgtables() in exit_mmap(). It is ba76149f47d8c939
+(&quot;thp: khugepaged&quot;) which added /* must run before exit_mmap */ comment.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; 	ksm_exit(mm);</span>
+<span class="quote">&gt; &gt; 	khugepaged_exit(mm); /* must run before exit_mmap */</span>
+<span class="quote">&gt; &gt; 	exit_mmap(mm);</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; shouldn&#39;t we try __oom_reap_task_mm() before calling these down_write()</span>
+<span class="quote">&gt; &gt; if mm is OOM victim&#39;s?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This is what we try. We simply try to get mmap_sem for read and do our</span>
+<span class="quote">&gt; work as soon as possible with the proposed patch. This is already an</span>
+<span class="quote">&gt; improvement, no?</span>
+
+We can ask the OOM reaper kernel thread try to reap before the OOM killer
+releases oom_lock mutex. But that is not guaranteed. It is possible that
+the OOM victim thread is executed until down_write() in __ksm_exit() or
+__khugepaged_exit() and then the OOM reaper kernel thread starts calling
+down_read_trylock().
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - June 27, 2017, 2:41 p.m.</div>
+<pre class="content">
+On Tue 27-06-17 23:26:22, Tetsuo Handa wrote:
+<span class="quote">&gt; Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; On Tue 27-06-17 22:31:58, Tetsuo Handa wrote:</span>
+[...]
+<span class="quote">&gt; &gt; &gt; shouldn&#39;t we try __oom_reap_task_mm() before calling these down_write()</span>
+<span class="quote">&gt; &gt; &gt; if mm is OOM victim&#39;s?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; This is what we try. We simply try to get mmap_sem for read and do our</span>
+<span class="quote">&gt; &gt; work as soon as possible with the proposed patch. This is already an</span>
+<span class="quote">&gt; &gt; improvement, no?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; We can ask the OOM reaper kernel thread try to reap before the OOM killer</span>
+<span class="quote">&gt; releases oom_lock mutex. But that is not guaranteed. It is possible that</span>
+<span class="quote">&gt; the OOM victim thread is executed until down_write() in __ksm_exit() or</span>
+<span class="quote">&gt; __khugepaged_exit() and then the OOM reaper kernel thread starts calling</span>
+<span class="quote">&gt; down_read_trylock().</span>
+
+I strongly suspect we are getting tangent here. While I see your concern
+and yes the approach can be probably improved, can we focus on one thing
+at the time? I would like to fix the original problem first and only
+then go deeper down the rat hole of other subtle details. Do you have
+any fundamental objection to the suggested approach or see any issues
+with it?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - June 29, 2017, 8:46 a.m.</div>
+<pre class="content">
+Forgot to CC Hugh.
+
+Hugh, Andrew, do you see this could cause any problem wrt.
+ksm/khugepaged exit path?
+
+On Mon 26-06-17 15:03:46, Michal Hocko wrote:
+<span class="quote">&gt; From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; David has noticed that the oom killer might kill additional tasks while</span>
+<span class="quote">&gt; the existing victim hasn&#39;t terminated yet because the oom_reaper marks</span>
+<span class="quote">&gt; the curent victim MMF_OOM_SKIP too early when mm-&gt;mm_users dropped down</span>
+<span class="quote">&gt; to 0. The race is as follows</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; oom_reap_task				do_exit</span>
+<span class="quote">&gt; 					  exit_mm</span>
+<span class="quote">&gt;   __oom_reap_task_mm</span>
+<span class="quote">&gt; 					    mmput</span>
+<span class="quote">&gt; 					      __mmput</span>
+<span class="quote">&gt;     mmget_not_zero # fails</span>
+<span class="quote">&gt;     						exit_mmap # frees memory</span>
+<span class="quote">&gt;   set_bit(MMF_OOM_SKIP)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Currently we are try to reduce a risk of this race by taking oom_lock</span>
+<span class="quote">&gt; and wait for out_of_memory sleep while holding the lock to give the</span>
+<span class="quote">&gt; victim some time to exit. This is quite suboptimal approach because</span>
+<span class="quote">&gt; there is no guarantee the victim (especially a large one) will manage</span>
+<span class="quote">&gt; to unmap its address space and free enough memory to the particular oom</span>
+<span class="quote">&gt; domain which needs a memory (e.g. a specific NUMA node).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Fix this problem by allowing __oom_reap_task_mm and __mmput path to</span>
+<span class="quote">&gt; race. __oom_reap_task_mm is basically MADV_DONTNEED and that is allowed</span>
+<span class="quote">&gt; to run in parallel with other unmappers (hence the mmap_sem for read).</span>
+<span class="quote">&gt; The only tricky part is we have to exclude page tables tear down and all</span>
+<span class="quote">&gt; operations which modify the address space in the __mmput path. exit_mmap</span>
+<span class="quote">&gt; doesn&#39;t expect any other users so it doesn&#39;t use any locking. Nothing</span>
+<span class="quote">&gt; really forbids us to use mmap_sem for write, though. In fact we are</span>
+<span class="quote">&gt; already relying on this lock earlier in the __mmput path to synchronize</span>
+<span class="quote">&gt; with ksm and khugepaged.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Take the exclusive mmap_sem when calling free_pgtables and destroying</span>
+<span class="quote">&gt; vmas to sync with __oom_reap_task_mm which take the lock for read. All</span>
+<span class="quote">&gt; other operations can safely race with the parallel unmap.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Reported-by: David Rientjes &lt;rientjes@google.com&gt;</span>
+<span class="quote">&gt; Fixes: 26db62f179d1 (&quot;oom: keep mm of the killed task available&quot;)</span>
+<span class="quote">&gt; Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Hi,</span>
+<span class="quote">&gt; I am sending this as an RFC because I am not yet sure I haven&#39;t missed</span>
+<span class="quote">&gt; something subtle here but the appoach should work in principle. I have</span>
+<span class="quote">&gt; run it through some of my OOM stress tests to see if anything blows up</span>
+<span class="quote">&gt; and it all went smoothly.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The issue has been brought up by David [1]. There were some attempts to</span>
+<span class="quote">&gt; address it in oom proper [2][3] but the first one would cause problems</span>
+<span class="quote">&gt; on their own [4] while the later is just too hairy.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Thoughts, objections, alternatives?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; [1] http://lkml.kernel.org/r/alpine.DEB.2.10.1706141632100.93071@chino.kir.corp.google.com</span>
+<span class="quote">&gt; [2] http://lkml.kernel.org/r/201706171417.JHG48401.JOQLHMFSVOOFtF@I-love.SAKURA.ne.jp</span>
+<span class="quote">&gt; [3] http://lkml.kernel.org/r/201706220053.v5M0rmOU078764@www262.sakura.ne.jp</span>
+<span class="quote">&gt; [4] http://lkml.kernel.org/r/201706210217.v5L2HAZc081021@www262.sakura.ne.jp</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  mm/mmap.c     |  7 +++++++</span>
+<span class="quote">&gt;  mm/oom_kill.c | 40 ++--------------------------------------</span>
+<span class="quote">&gt;  2 files changed, 9 insertions(+), 38 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/mm/mmap.c b/mm/mmap.c</span>
+<span class="quote">&gt; index 3bd5ecd20d4d..253808e716dc 100644</span>
+<span class="quote">&gt; --- a/mm/mmap.c</span>
+<span class="quote">&gt; +++ b/mm/mmap.c</span>
+<span class="quote">&gt; @@ -2962,6 +2962,11 @@ void exit_mmap(struct mm_struct *mm)</span>
+<span class="quote">&gt;  	/* Use -1 here to ensure all VMAs in the mm are unmapped */</span>
+<span class="quote">&gt;  	unmap_vmas(&amp;tlb, vma, 0, -1);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * oom reaper might race with exit_mmap so make sure we won&#39;t free</span>
+<span class="quote">&gt; +	 * page tables or unmap VMAs under its feet</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	down_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt;  	free_pgtables(&amp;tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);</span>
+<span class="quote">&gt;  	tlb_finish_mmu(&amp;tlb, 0, -1);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; @@ -2974,7 +2979,9 @@ void exit_mmap(struct mm_struct *mm)</span>
+<span class="quote">&gt;  			nr_accounted += vma_pages(vma);</span>
+<span class="quote">&gt;  		vma = remove_vma(vma);</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt; +	mm-&gt;mmap = NULL;</span>
+<span class="quote">&gt;  	vm_unacct_memory(nr_accounted);</span>
+<span class="quote">&gt; +	up_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  /* Insert vm structure into process list sorted by address</span>
+<span class="quote">&gt; diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="quote">&gt; index 0e2c925e7826..5dc0ff22d567 100644</span>
+<span class="quote">&gt; --- a/mm/oom_kill.c</span>
+<span class="quote">&gt; +++ b/mm/oom_kill.c</span>
+<span class="quote">&gt; @@ -472,36 +472,8 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt;  	struct vm_area_struct *vma;</span>
+<span class="quote">&gt;  	bool ret = true;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	/*</span>
+<span class="quote">&gt; -	 * We have to make sure to not race with the victim exit path</span>
+<span class="quote">&gt; -	 * and cause premature new oom victim selection:</span>
+<span class="quote">&gt; -	 * __oom_reap_task_mm		exit_mm</span>
+<span class="quote">&gt; -	 *   mmget_not_zero</span>
+<span class="quote">&gt; -	 *				  mmput</span>
+<span class="quote">&gt; -	 *				    atomic_dec_and_test</span>
+<span class="quote">&gt; -	 *				  exit_oom_victim</span>
+<span class="quote">&gt; -	 *				[...]</span>
+<span class="quote">&gt; -	 *				out_of_memory</span>
+<span class="quote">&gt; -	 *				  select_bad_process</span>
+<span class="quote">&gt; -	 *				    # no TIF_MEMDIE task selects new victim</span>
+<span class="quote">&gt; -	 *  unmap_page_range # frees some memory</span>
+<span class="quote">&gt; -	 */</span>
+<span class="quote">&gt; -	mutex_lock(&amp;oom_lock);</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; -	if (!down_read_trylock(&amp;mm-&gt;mmap_sem)) {</span>
+<span class="quote">&gt; -		ret = false;</span>
+<span class="quote">&gt; -		goto unlock_oom;</span>
+<span class="quote">&gt; -	}</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; -	/*</span>
+<span class="quote">&gt; -	 * increase mm_users only after we know we will reap something so</span>
+<span class="quote">&gt; -	 * that the mmput_async is called only when we have reaped something</span>
+<span class="quote">&gt; -	 * and delayed __mmput doesn&#39;t matter that much</span>
+<span class="quote">&gt; -	 */</span>
+<span class="quote">&gt; -	if (!mmget_not_zero(mm)) {</span>
+<span class="quote">&gt; -		up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt; -		goto unlock_oom;</span>
+<span class="quote">&gt; -	}</span>
+<span class="quote">&gt; +	if (!down_read_trylock(&amp;mm-&gt;mmap_sem))</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/*</span>
+<span class="quote">&gt;  	 * Tell all users of get_user/copy_from_user etc... that the content</span>
+<span class="quote">&gt; @@ -538,14 +510,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt;  			K(get_mm_counter(mm, MM_SHMEMPAGES)));</span>
+<span class="quote">&gt;  	up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	/*</span>
+<span class="quote">&gt; -	 * Drop our reference but make sure the mmput slow path is called from a</span>
+<span class="quote">&gt; -	 * different context because we shouldn&#39;t risk we get stuck there and</span>
+<span class="quote">&gt; -	 * put the oom_reaper out of the way.</span>
+<span class="quote">&gt; -	 */</span>
+<span class="quote">&gt; -	mmput_async(mm);</span>
+<span class="quote">&gt; -unlock_oom:</span>
+<span class="quote">&gt; -	mutex_unlock(&amp;oom_lock);</span>
+<span class="quote">&gt;  	return ret;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -- </span>
+<span class="quote">&gt; 2.11.0</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; --</span>
+<span class="quote">&gt; To unsubscribe, send a message with &#39;unsubscribe linux-mm&#39; in</span>
+<span class="quote">&gt; the body to majordomo@kvack.org.  For more info on Linux MM,</span>
+<span class="quote">&gt; see: http://www.linux-mm.org/ .</span>
+<span class="quote">&gt; Don&#39;t email: &lt;a href=mailto:&quot;dont@kvack.org&quot;&gt; email@kvack.org &lt;/a&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=579">David Rientjes</a> - July 10, 2017, 11:55 p.m.</div>
+<pre class="content">
+On Mon, 26 Jun 2017, Michal Hocko wrote:
+<span class="quote">
+&gt; diff --git a/mm/mmap.c b/mm/mmap.c</span>
+<span class="quote">&gt; index 3bd5ecd20d4d..253808e716dc 100644</span>
+<span class="quote">&gt; --- a/mm/mmap.c</span>
+<span class="quote">&gt; +++ b/mm/mmap.c</span>
+<span class="quote">&gt; @@ -2962,6 +2962,11 @@ void exit_mmap(struct mm_struct *mm)</span>
+<span class="quote">&gt;  	/* Use -1 here to ensure all VMAs in the mm are unmapped */</span>
+<span class="quote">&gt;  	unmap_vmas(&amp;tlb, vma, 0, -1);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * oom reaper might race with exit_mmap so make sure we won&#39;t free</span>
+<span class="quote">&gt; +	 * page tables or unmap VMAs under its feet</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	down_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt;  	free_pgtables(&amp;tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);</span>
+<span class="quote">&gt;  	tlb_finish_mmu(&amp;tlb, 0, -1);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; @@ -2974,7 +2979,9 @@ void exit_mmap(struct mm_struct *mm)</span>
+<span class="quote">&gt;  			nr_accounted += vma_pages(vma);</span>
+<span class="quote">&gt;  		vma = remove_vma(vma);</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt; +	mm-&gt;mmap = NULL;</span>
+<span class="quote">&gt;  	vm_unacct_memory(nr_accounted);</span>
+<span class="quote">&gt; +	up_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  /* Insert vm structure into process list sorted by address</span>
+<span class="quote">&gt; diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="quote">&gt; index 0e2c925e7826..5dc0ff22d567 100644</span>
+<span class="quote">&gt; --- a/mm/oom_kill.c</span>
+<span class="quote">&gt; +++ b/mm/oom_kill.c</span>
+<span class="quote">&gt; @@ -472,36 +472,8 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt;  	struct vm_area_struct *vma;</span>
+<span class="quote">&gt;  	bool ret = true;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	/*</span>
+<span class="quote">&gt; -	 * We have to make sure to not race with the victim exit path</span>
+<span class="quote">&gt; -	 * and cause premature new oom victim selection:</span>
+<span class="quote">&gt; -	 * __oom_reap_task_mm		exit_mm</span>
+<span class="quote">&gt; -	 *   mmget_not_zero</span>
+<span class="quote">&gt; -	 *				  mmput</span>
+<span class="quote">&gt; -	 *				    atomic_dec_and_test</span>
+<span class="quote">&gt; -	 *				  exit_oom_victim</span>
+<span class="quote">&gt; -	 *				[...]</span>
+<span class="quote">&gt; -	 *				out_of_memory</span>
+<span class="quote">&gt; -	 *				  select_bad_process</span>
+<span class="quote">&gt; -	 *				    # no TIF_MEMDIE task selects new victim</span>
+<span class="quote">&gt; -	 *  unmap_page_range # frees some memory</span>
+<span class="quote">&gt; -	 */</span>
+<span class="quote">&gt; -	mutex_lock(&amp;oom_lock);</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; -	if (!down_read_trylock(&amp;mm-&gt;mmap_sem)) {</span>
+<span class="quote">&gt; -		ret = false;</span>
+<span class="quote">&gt; -		goto unlock_oom;</span>
+<span class="quote">&gt; -	}</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; -	/*</span>
+<span class="quote">&gt; -	 * increase mm_users only after we know we will reap something so</span>
+<span class="quote">&gt; -	 * that the mmput_async is called only when we have reaped something</span>
+<span class="quote">&gt; -	 * and delayed __mmput doesn&#39;t matter that much</span>
+<span class="quote">&gt; -	 */</span>
+<span class="quote">&gt; -	if (!mmget_not_zero(mm)) {</span>
+<span class="quote">&gt; -		up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt; -		goto unlock_oom;</span>
+<span class="quote">&gt; -	}</span>
+<span class="quote">&gt; +	if (!down_read_trylock(&amp;mm-&gt;mmap_sem))</span>
+<span class="quote">&gt; +		return false;</span>
+
+I think this should return true if mm-&gt;mmap == NULL here.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=579">David Rientjes</a> - July 11, 2017, 12:01 a.m.</div>
+<pre class="content">
+On Tue, 27 Jun 2017, Tetsuo Handa wrote:
+<span class="quote">
+&gt; I wonder why you prefer timeout based approach. Your patch will after all</span>
+<span class="quote">&gt; set MMF_OOM_SKIP if operations between down_write() and up_write() took</span>
+<span class="quote">&gt; more than one second. lock_anon_vma_root() from unlink_anon_vmas() from</span>
+<span class="quote">&gt; free_pgtables() for example calls down_write()/up_write(). unlink_file_vma()</span>
+<span class="quote">&gt;  from free_pgtables() for another example calls down_write()/up_write().</span>
+<span class="quote">&gt; This means that it might happen that exit_mmap() takes more than one second</span>
+<span class="quote">&gt; with mm-&gt;mmap_sem held for write, doesn&#39;t this?</span>
+<span class="quote">&gt; </span>
+
+I certainly have no objection to increasing the timeout period or 
+increasing MAX_OOM_REAP_RETRIES to be substantially higher.  All threads 
+holding mm-&gt;mmap_sem should be oom killed and be able to access memory 
+reserves to make forward progress if they fail to reclaim.  If we are 
+truly blocked on mm-&gt;mmap_sem, waiting longer than one second to declare 
+that seems justifiable to prevent the exact situation you describe.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - July 19, 2017, 5:55 a.m.</div>
+<pre class="content">
+On Thu 29-06-17 10:46:21, Michal Hocko wrote:
+<span class="quote">&gt; Forgot to CC Hugh.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Hugh, Andrew, do you see this could cause any problem wrt.</span>
+<span class="quote">&gt; ksm/khugepaged exit path?</span>
+
+ping. I would really appreciate some help here. I would like to resend
+the patch soon.
+<span class="quote">
+&gt; On Mon 26-06-17 15:03:46, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; David has noticed that the oom killer might kill additional tasks while</span>
+<span class="quote">&gt; &gt; the existing victim hasn&#39;t terminated yet because the oom_reaper marks</span>
+<span class="quote">&gt; &gt; the curent victim MMF_OOM_SKIP too early when mm-&gt;mm_users dropped down</span>
+<span class="quote">&gt; &gt; to 0. The race is as follows</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; oom_reap_task				do_exit</span>
+<span class="quote">&gt; &gt; 					  exit_mm</span>
+<span class="quote">&gt; &gt;   __oom_reap_task_mm</span>
+<span class="quote">&gt; &gt; 					    mmput</span>
+<span class="quote">&gt; &gt; 					      __mmput</span>
+<span class="quote">&gt; &gt;     mmget_not_zero # fails</span>
+<span class="quote">&gt; &gt;     						exit_mmap # frees memory</span>
+<span class="quote">&gt; &gt;   set_bit(MMF_OOM_SKIP)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Currently we are try to reduce a risk of this race by taking oom_lock</span>
+<span class="quote">&gt; &gt; and wait for out_of_memory sleep while holding the lock to give the</span>
+<span class="quote">&gt; &gt; victim some time to exit. This is quite suboptimal approach because</span>
+<span class="quote">&gt; &gt; there is no guarantee the victim (especially a large one) will manage</span>
+<span class="quote">&gt; &gt; to unmap its address space and free enough memory to the particular oom</span>
+<span class="quote">&gt; &gt; domain which needs a memory (e.g. a specific NUMA node).</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Fix this problem by allowing __oom_reap_task_mm and __mmput path to</span>
+<span class="quote">&gt; &gt; race. __oom_reap_task_mm is basically MADV_DONTNEED and that is allowed</span>
+<span class="quote">&gt; &gt; to run in parallel with other unmappers (hence the mmap_sem for read).</span>
+<span class="quote">&gt; &gt; The only tricky part is we have to exclude page tables tear down and all</span>
+<span class="quote">&gt; &gt; operations which modify the address space in the __mmput path. exit_mmap</span>
+<span class="quote">&gt; &gt; doesn&#39;t expect any other users so it doesn&#39;t use any locking. Nothing</span>
+<span class="quote">&gt; &gt; really forbids us to use mmap_sem for write, though. In fact we are</span>
+<span class="quote">&gt; &gt; already relying on this lock earlier in the __mmput path to synchronize</span>
+<span class="quote">&gt; &gt; with ksm and khugepaged.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Take the exclusive mmap_sem when calling free_pgtables and destroying</span>
+<span class="quote">&gt; &gt; vmas to sync with __oom_reap_task_mm which take the lock for read. All</span>
+<span class="quote">&gt; &gt; other operations can safely race with the parallel unmap.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Reported-by: David Rientjes &lt;rientjes@google.com&gt;</span>
+<span class="quote">&gt; &gt; Fixes: 26db62f179d1 (&quot;oom: keep mm of the killed task available&quot;)</span>
+<span class="quote">&gt; &gt; Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; &gt; ---</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Hi,</span>
+<span class="quote">&gt; &gt; I am sending this as an RFC because I am not yet sure I haven&#39;t missed</span>
+<span class="quote">&gt; &gt; something subtle here but the appoach should work in principle. I have</span>
+<span class="quote">&gt; &gt; run it through some of my OOM stress tests to see if anything blows up</span>
+<span class="quote">&gt; &gt; and it all went smoothly.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; The issue has been brought up by David [1]. There were some attempts to</span>
+<span class="quote">&gt; &gt; address it in oom proper [2][3] but the first one would cause problems</span>
+<span class="quote">&gt; &gt; on their own [4] while the later is just too hairy.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Thoughts, objections, alternatives?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; [1] http://lkml.kernel.org/r/alpine.DEB.2.10.1706141632100.93071@chino.kir.corp.google.com</span>
+<span class="quote">&gt; &gt; [2] http://lkml.kernel.org/r/201706171417.JHG48401.JOQLHMFSVOOFtF@I-love.SAKURA.ne.jp</span>
+<span class="quote">&gt; &gt; [3] http://lkml.kernel.org/r/201706220053.v5M0rmOU078764@www262.sakura.ne.jp</span>
+<span class="quote">&gt; &gt; [4] http://lkml.kernel.org/r/201706210217.v5L2HAZc081021@www262.sakura.ne.jp</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;  mm/mmap.c     |  7 +++++++</span>
+<span class="quote">&gt; &gt;  mm/oom_kill.c | 40 ++--------------------------------------</span>
+<span class="quote">&gt; &gt;  2 files changed, 9 insertions(+), 38 deletions(-)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; diff --git a/mm/mmap.c b/mm/mmap.c</span>
+<span class="quote">&gt; &gt; index 3bd5ecd20d4d..253808e716dc 100644</span>
+<span class="quote">&gt; &gt; --- a/mm/mmap.c</span>
+<span class="quote">&gt; &gt; +++ b/mm/mmap.c</span>
+<span class="quote">&gt; &gt; @@ -2962,6 +2962,11 @@ void exit_mmap(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt;  	/* Use -1 here to ensure all VMAs in the mm are unmapped */</span>
+<span class="quote">&gt; &gt;  	unmap_vmas(&amp;tlb, vma, 0, -1);</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt; +	/*</span>
+<span class="quote">&gt; &gt; +	 * oom reaper might race with exit_mmap so make sure we won&#39;t free</span>
+<span class="quote">&gt; &gt; +	 * page tables or unmap VMAs under its feet</span>
+<span class="quote">&gt; &gt; +	 */</span>
+<span class="quote">&gt; &gt; +	down_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt; &gt;  	free_pgtables(&amp;tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);</span>
+<span class="quote">&gt; &gt;  	tlb_finish_mmu(&amp;tlb, 0, -1);</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt; @@ -2974,7 +2979,9 @@ void exit_mmap(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt;  			nr_accounted += vma_pages(vma);</span>
+<span class="quote">&gt; &gt;  		vma = remove_vma(vma);</span>
+<span class="quote">&gt; &gt;  	}</span>
+<span class="quote">&gt; &gt; +	mm-&gt;mmap = NULL;</span>
+<span class="quote">&gt; &gt;  	vm_unacct_memory(nr_accounted);</span>
+<span class="quote">&gt; &gt; +	up_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt; &gt;  }</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt;  /* Insert vm structure into process list sorted by address</span>
+<span class="quote">&gt; &gt; diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="quote">&gt; &gt; index 0e2c925e7826..5dc0ff22d567 100644</span>
+<span class="quote">&gt; &gt; --- a/mm/oom_kill.c</span>
+<span class="quote">&gt; &gt; +++ b/mm/oom_kill.c</span>
+<span class="quote">&gt; &gt; @@ -472,36 +472,8 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt;  	struct vm_area_struct *vma;</span>
+<span class="quote">&gt; &gt;  	bool ret = true;</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt; -	/*</span>
+<span class="quote">&gt; &gt; -	 * We have to make sure to not race with the victim exit path</span>
+<span class="quote">&gt; &gt; -	 * and cause premature new oom victim selection:</span>
+<span class="quote">&gt; &gt; -	 * __oom_reap_task_mm		exit_mm</span>
+<span class="quote">&gt; &gt; -	 *   mmget_not_zero</span>
+<span class="quote">&gt; &gt; -	 *				  mmput</span>
+<span class="quote">&gt; &gt; -	 *				    atomic_dec_and_test</span>
+<span class="quote">&gt; &gt; -	 *				  exit_oom_victim</span>
+<span class="quote">&gt; &gt; -	 *				[...]</span>
+<span class="quote">&gt; &gt; -	 *				out_of_memory</span>
+<span class="quote">&gt; &gt; -	 *				  select_bad_process</span>
+<span class="quote">&gt; &gt; -	 *				    # no TIF_MEMDIE task selects new victim</span>
+<span class="quote">&gt; &gt; -	 *  unmap_page_range # frees some memory</span>
+<span class="quote">&gt; &gt; -	 */</span>
+<span class="quote">&gt; &gt; -	mutex_lock(&amp;oom_lock);</span>
+<span class="quote">&gt; &gt; -</span>
+<span class="quote">&gt; &gt; -	if (!down_read_trylock(&amp;mm-&gt;mmap_sem)) {</span>
+<span class="quote">&gt; &gt; -		ret = false;</span>
+<span class="quote">&gt; &gt; -		goto unlock_oom;</span>
+<span class="quote">&gt; &gt; -	}</span>
+<span class="quote">&gt; &gt; -</span>
+<span class="quote">&gt; &gt; -	/*</span>
+<span class="quote">&gt; &gt; -	 * increase mm_users only after we know we will reap something so</span>
+<span class="quote">&gt; &gt; -	 * that the mmput_async is called only when we have reaped something</span>
+<span class="quote">&gt; &gt; -	 * and delayed __mmput doesn&#39;t matter that much</span>
+<span class="quote">&gt; &gt; -	 */</span>
+<span class="quote">&gt; &gt; -	if (!mmget_not_zero(mm)) {</span>
+<span class="quote">&gt; &gt; -		up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt; &gt; -		goto unlock_oom;</span>
+<span class="quote">&gt; &gt; -	}</span>
+<span class="quote">&gt; &gt; +	if (!down_read_trylock(&amp;mm-&gt;mmap_sem))</span>
+<span class="quote">&gt; &gt; +		return false;</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt;  	/*</span>
+<span class="quote">&gt; &gt;  	 * Tell all users of get_user/copy_from_user etc... that the content</span>
+<span class="quote">&gt; &gt; @@ -538,14 +510,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt;  			K(get_mm_counter(mm, MM_SHMEMPAGES)));</span>
+<span class="quote">&gt; &gt;  	up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt; -	/*</span>
+<span class="quote">&gt; &gt; -	 * Drop our reference but make sure the mmput slow path is called from a</span>
+<span class="quote">&gt; &gt; -	 * different context because we shouldn&#39;t risk we get stuck there and</span>
+<span class="quote">&gt; &gt; -	 * put the oom_reaper out of the way.</span>
+<span class="quote">&gt; &gt; -	 */</span>
+<span class="quote">&gt; &gt; -	mmput_async(mm);</span>
+<span class="quote">&gt; &gt; -unlock_oom:</span>
+<span class="quote">&gt; &gt; -	mutex_unlock(&amp;oom_lock);</span>
+<span class="quote">&gt; &gt;  	return ret;</span>
+<span class="quote">&gt; &gt;  }</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt; -- </span>
+<span class="quote">&gt; &gt; 2.11.0</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; --</span>
+<span class="quote">&gt; &gt; To unsubscribe, send a message with &#39;unsubscribe linux-mm&#39; in</span>
+<span class="quote">&gt; &gt; the body to majordomo@kvack.org.  For more info on Linux MM,</span>
+<span class="quote">&gt; &gt; see: http://www.linux-mm.org/ .</span>
+<span class="quote">&gt; &gt; Don&#39;t email: &lt;a href=mailto:&quot;dont@kvack.org&quot;&gt; email@kvack.org &lt;/a&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; -- </span>
+<span class="quote">&gt; Michal Hocko</span>
+<span class="quote">&gt; SUSE Labs</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7851">Hugh Dickins</a> - July 20, 2017, 1:18 a.m.</div>
+<pre class="content">
+On Wed, 19 Jul 2017, Michal Hocko wrote:
+<span class="quote">&gt; On Thu 29-06-17 10:46:21, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; Forgot to CC Hugh.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Hugh, Andrew, do you see this could cause any problem wrt.</span>
+<span class="quote">&gt; &gt; ksm/khugepaged exit path?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; ping. I would really appreciate some help here. I would like to resend</span>
+<span class="quote">&gt; the patch soon.</span>
+
+Sorry, Michal, I&#39;ve been hiding from everyone.
+
+No, I don&#39;t think your patch will cause any trouble for the ksm or
+khugepaged exit path; but we&#39;ll find out for sure when akpm puts it
+in mmotm - I doubt I&#39;ll get to trying it out in advance of that.
+
+On the contrary, I think it will allow us to remove the peculiar
+&quot;down_write(mmap_sem); up_write(mmap_sem);&quot; from those exit paths:
+which were there to serialize, precisely because exit_mmap() did
+not otherwise take mmap_sem; but you&#39;re now changing it to do so.
+
+You could add a patch to remove those yourself, or any of us add
+that on afterwards.
+
+But I don&#39;t entirely agree (or disagree) with your placement:
+see comment below.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt; On Mon 26-06-17 15:03:46, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; &gt; From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; David has noticed that the oom killer might kill additional tasks while</span>
+<span class="quote">&gt; &gt; &gt; the existing victim hasn&#39;t terminated yet because the oom_reaper marks</span>
+<span class="quote">&gt; &gt; &gt; the curent victim MMF_OOM_SKIP too early when mm-&gt;mm_users dropped down</span>
+<span class="quote">&gt; &gt; &gt; to 0. The race is as follows</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; oom_reap_task				do_exit</span>
+<span class="quote">&gt; &gt; &gt; 					  exit_mm</span>
+<span class="quote">&gt; &gt; &gt;   __oom_reap_task_mm</span>
+<span class="quote">&gt; &gt; &gt; 					    mmput</span>
+<span class="quote">&gt; &gt; &gt; 					      __mmput</span>
+<span class="quote">&gt; &gt; &gt;     mmget_not_zero # fails</span>
+<span class="quote">&gt; &gt; &gt;     						exit_mmap # frees memory</span>
+<span class="quote">&gt; &gt; &gt;   set_bit(MMF_OOM_SKIP)</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Currently we are try to reduce a risk of this race by taking oom_lock</span>
+<span class="quote">&gt; &gt; &gt; and wait for out_of_memory sleep while holding the lock to give the</span>
+<span class="quote">&gt; &gt; &gt; victim some time to exit. This is quite suboptimal approach because</span>
+<span class="quote">&gt; &gt; &gt; there is no guarantee the victim (especially a large one) will manage</span>
+<span class="quote">&gt; &gt; &gt; to unmap its address space and free enough memory to the particular oom</span>
+<span class="quote">&gt; &gt; &gt; domain which needs a memory (e.g. a specific NUMA node).</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Fix this problem by allowing __oom_reap_task_mm and __mmput path to</span>
+<span class="quote">&gt; &gt; &gt; race. __oom_reap_task_mm is basically MADV_DONTNEED and that is allowed</span>
+<span class="quote">&gt; &gt; &gt; to run in parallel with other unmappers (hence the mmap_sem for read).</span>
+<span class="quote">&gt; &gt; &gt; The only tricky part is we have to exclude page tables tear down and all</span>
+<span class="quote">&gt; &gt; &gt; operations which modify the address space in the __mmput path. exit_mmap</span>
+<span class="quote">&gt; &gt; &gt; doesn&#39;t expect any other users so it doesn&#39;t use any locking. Nothing</span>
+<span class="quote">&gt; &gt; &gt; really forbids us to use mmap_sem for write, though. In fact we are</span>
+<span class="quote">&gt; &gt; &gt; already relying on this lock earlier in the __mmput path to synchronize</span>
+<span class="quote">&gt; &gt; &gt; with ksm and khugepaged.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Take the exclusive mmap_sem when calling free_pgtables and destroying</span>
+<span class="quote">&gt; &gt; &gt; vmas to sync with __oom_reap_task_mm which take the lock for read. All</span>
+<span class="quote">&gt; &gt; &gt; other operations can safely race with the parallel unmap.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Reported-by: David Rientjes &lt;rientjes@google.com&gt;</span>
+<span class="quote">&gt; &gt; &gt; Fixes: 26db62f179d1 (&quot;oom: keep mm of the killed task available&quot;)</span>
+<span class="quote">&gt; &gt; &gt; Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; &gt; &gt; ---</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Hi,</span>
+<span class="quote">&gt; &gt; &gt; I am sending this as an RFC because I am not yet sure I haven&#39;t missed</span>
+<span class="quote">&gt; &gt; &gt; something subtle here but the appoach should work in principle. I have</span>
+<span class="quote">&gt; &gt; &gt; run it through some of my OOM stress tests to see if anything blows up</span>
+<span class="quote">&gt; &gt; &gt; and it all went smoothly.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; The issue has been brought up by David [1]. There were some attempts to</span>
+<span class="quote">&gt; &gt; &gt; address it in oom proper [2][3] but the first one would cause problems</span>
+<span class="quote">&gt; &gt; &gt; on their own [4] while the later is just too hairy.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Thoughts, objections, alternatives?</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; [1] http://lkml.kernel.org/r/alpine.DEB.2.10.1706141632100.93071@chino.kir.corp.google.com</span>
+<span class="quote">&gt; &gt; &gt; [2] http://lkml.kernel.org/r/201706171417.JHG48401.JOQLHMFSVOOFtF@I-love.SAKURA.ne.jp</span>
+<span class="quote">&gt; &gt; &gt; [3] http://lkml.kernel.org/r/201706220053.v5M0rmOU078764@www262.sakura.ne.jp</span>
+<span class="quote">&gt; &gt; &gt; [4] http://lkml.kernel.org/r/201706210217.v5L2HAZc081021@www262.sakura.ne.jp</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt;  mm/mmap.c     |  7 +++++++</span>
+<span class="quote">&gt; &gt; &gt;  mm/oom_kill.c | 40 ++--------------------------------------</span>
+<span class="quote">&gt; &gt; &gt;  2 files changed, 9 insertions(+), 38 deletions(-)</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; diff --git a/mm/mmap.c b/mm/mmap.c</span>
+<span class="quote">&gt; &gt; &gt; index 3bd5ecd20d4d..253808e716dc 100644</span>
+<span class="quote">&gt; &gt; &gt; --- a/mm/mmap.c</span>
+<span class="quote">&gt; &gt; &gt; +++ b/mm/mmap.c</span>
+<span class="quote">&gt; &gt; &gt; @@ -2962,6 +2962,11 @@ void exit_mmap(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt; &gt;  	/* Use -1 here to ensure all VMAs in the mm are unmapped */</span>
+<span class="quote">&gt; &gt; &gt;  	unmap_vmas(&amp;tlb, vma, 0, -1);</span>
+<span class="quote">&gt; &gt; &gt;  </span>
+<span class="quote">&gt; &gt; &gt; +	/*</span>
+<span class="quote">&gt; &gt; &gt; +	 * oom reaper might race with exit_mmap so make sure we won&#39;t free</span>
+<span class="quote">&gt; &gt; &gt; +	 * page tables or unmap VMAs under its feet</span>
+<span class="quote">&gt; &gt; &gt; +	 */</span>
+<span class="quote">&gt; &gt; &gt; +	down_write(&amp;mm-&gt;mmap_sem);</span>
+
+Hmm.  I&#39;m conflicted about this.  From a design point of view, I would
+very much prefer you to take the mmap_sem higher up, maybe just before
+or after the mmu_notifier_release() or arch_exit_mmap() (depends on
+what those actually do): anyway before the unmap_vmas().
+
+Because the things which go on in exit_mmap() are things which we expect
+mmap_sem to be held across, and we get caught out when it is not: it&#39;s
+awkard and error-prone enough that MADV_DONTNEED and MADV_FREE (for
+very good reason) do things with only down_read(mmap_sem).  But there&#39;s
+a number of times (ksm exit being only one of them) when I&#39;ve found it
+a nuisance that we had no proper way of serializing against exit_mmap().
+
+I&#39;m conflicted because, on the other hand, I&#39;m staunchly against adding
+obstructions (&quot;robust&quot; futexes? gah!) into the exit patch, or widening
+the use of locks that are not strictly needed.  But wouldn&#39;t it be the
+case here, that most contenders on the mmap_sem must hold a reference
+to mm_users, and that prevents any possibility of racing exit_mmap();
+only ksm and khugepaged, and any others who already need such mmap_sem
+tricks to serialize against exit_mmap(), could offer any contention.
+
+But I haven&#39;t looked at the oom_kill or oom_reaper end of it at all,
+perhaps you have an overriding argument on the placement from that end.
+
+Hugh
+
+[Not strictly relevant here, but a related note: I was very surprised
+to discover, only quite recently, how handle_mm_fault() may be called
+without down_read(mmap_sem) - when core dumping.  That seems a
+misguided optimization to me, which would also be nice to correct;
+but again I might not appreciate the full picture.]
+<span class="quote">
+&gt; &gt; &gt;  	free_pgtables(&amp;tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);</span>
+<span class="quote">&gt; &gt; &gt;  	tlb_finish_mmu(&amp;tlb, 0, -1);</span>
+<span class="quote">&gt; &gt; &gt;  </span>
+<span class="quote">&gt; &gt; &gt; @@ -2974,7 +2979,9 @@ void exit_mmap(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt; &gt;  			nr_accounted += vma_pages(vma);</span>
+<span class="quote">&gt; &gt; &gt;  		vma = remove_vma(vma);</span>
+<span class="quote">&gt; &gt; &gt;  	}</span>
+<span class="quote">&gt; &gt; &gt; +	mm-&gt;mmap = NULL;</span>
+<span class="quote">&gt; &gt; &gt;  	vm_unacct_memory(nr_accounted);</span>
+<span class="quote">&gt; &gt; &gt; +	up_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt; &gt; &gt;  }</span>
+<span class="quote">&gt; &gt; &gt;  </span>
+<span class="quote">&gt; &gt; &gt;  /* Insert vm structure into process list sorted by address</span>
+<span class="quote">&gt; &gt; &gt; diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="quote">&gt; &gt; &gt; index 0e2c925e7826..5dc0ff22d567 100644</span>
+<span class="quote">&gt; &gt; &gt; --- a/mm/oom_kill.c</span>
+<span class="quote">&gt; &gt; &gt; +++ b/mm/oom_kill.c</span>
+<span class="quote">&gt; &gt; &gt; @@ -472,36 +472,8 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt; &gt;  	struct vm_area_struct *vma;</span>
+<span class="quote">&gt; &gt; &gt;  	bool ret = true;</span>
+<span class="quote">&gt; &gt; &gt;  </span>
+<span class="quote">&gt; &gt; &gt; -	/*</span>
+<span class="quote">&gt; &gt; &gt; -	 * We have to make sure to not race with the victim exit path</span>
+<span class="quote">&gt; &gt; &gt; -	 * and cause premature new oom victim selection:</span>
+<span class="quote">&gt; &gt; &gt; -	 * __oom_reap_task_mm		exit_mm</span>
+<span class="quote">&gt; &gt; &gt; -	 *   mmget_not_zero</span>
+<span class="quote">&gt; &gt; &gt; -	 *				  mmput</span>
+<span class="quote">&gt; &gt; &gt; -	 *				    atomic_dec_and_test</span>
+<span class="quote">&gt; &gt; &gt; -	 *				  exit_oom_victim</span>
+<span class="quote">&gt; &gt; &gt; -	 *				[...]</span>
+<span class="quote">&gt; &gt; &gt; -	 *				out_of_memory</span>
+<span class="quote">&gt; &gt; &gt; -	 *				  select_bad_process</span>
+<span class="quote">&gt; &gt; &gt; -	 *				    # no TIF_MEMDIE task selects new victim</span>
+<span class="quote">&gt; &gt; &gt; -	 *  unmap_page_range # frees some memory</span>
+<span class="quote">&gt; &gt; &gt; -	 */</span>
+<span class="quote">&gt; &gt; &gt; -	mutex_lock(&amp;oom_lock);</span>
+<span class="quote">&gt; &gt; &gt; -</span>
+<span class="quote">&gt; &gt; &gt; -	if (!down_read_trylock(&amp;mm-&gt;mmap_sem)) {</span>
+<span class="quote">&gt; &gt; &gt; -		ret = false;</span>
+<span class="quote">&gt; &gt; &gt; -		goto unlock_oom;</span>
+<span class="quote">&gt; &gt; &gt; -	}</span>
+<span class="quote">&gt; &gt; &gt; -</span>
+<span class="quote">&gt; &gt; &gt; -	/*</span>
+<span class="quote">&gt; &gt; &gt; -	 * increase mm_users only after we know we will reap something so</span>
+<span class="quote">&gt; &gt; &gt; -	 * that the mmput_async is called only when we have reaped something</span>
+<span class="quote">&gt; &gt; &gt; -	 * and delayed __mmput doesn&#39;t matter that much</span>
+<span class="quote">&gt; &gt; &gt; -	 */</span>
+<span class="quote">&gt; &gt; &gt; -	if (!mmget_not_zero(mm)) {</span>
+<span class="quote">&gt; &gt; &gt; -		up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt; &gt; &gt; -		goto unlock_oom;</span>
+<span class="quote">&gt; &gt; &gt; -	}</span>
+<span class="quote">&gt; &gt; &gt; +	if (!down_read_trylock(&amp;mm-&gt;mmap_sem))</span>
+<span class="quote">&gt; &gt; &gt; +		return false;</span>
+<span class="quote">&gt; &gt; &gt;  </span>
+<span class="quote">&gt; &gt; &gt;  	/*</span>
+<span class="quote">&gt; &gt; &gt;  	 * Tell all users of get_user/copy_from_user etc... that the content</span>
+<span class="quote">&gt; &gt; &gt; @@ -538,14 +510,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt; &gt;  			K(get_mm_counter(mm, MM_SHMEMPAGES)));</span>
+<span class="quote">&gt; &gt; &gt;  	up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt; &gt; &gt;  </span>
+<span class="quote">&gt; &gt; &gt; -	/*</span>
+<span class="quote">&gt; &gt; &gt; -	 * Drop our reference but make sure the mmput slow path is called from a</span>
+<span class="quote">&gt; &gt; &gt; -	 * different context because we shouldn&#39;t risk we get stuck there and</span>
+<span class="quote">&gt; &gt; &gt; -	 * put the oom_reaper out of the way.</span>
+<span class="quote">&gt; &gt; &gt; -	 */</span>
+<span class="quote">&gt; &gt; &gt; -	mmput_async(mm);</span>
+<span class="quote">&gt; &gt; &gt; -unlock_oom:</span>
+<span class="quote">&gt; &gt; &gt; -	mutex_unlock(&amp;oom_lock);</span>
+<span class="quote">&gt; &gt; &gt;  	return ret;</span>
+<span class="quote">&gt; &gt; &gt;  }</span>
+<span class="quote">&gt; &gt; &gt;  </span>
+<span class="quote">&gt; &gt; &gt; -- </span>
+<span class="quote">&gt; &gt; &gt; 2.11.0</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; --</span>
+<span class="quote">&gt; &gt; &gt; To unsubscribe, send a message with &#39;unsubscribe linux-mm&#39; in</span>
+<span class="quote">&gt; &gt; &gt; the body to majordomo@kvack.org.  For more info on Linux MM,</span>
+<span class="quote">&gt; &gt; &gt; see: http://www.linux-mm.org/ .</span>
+<span class="quote">&gt; &gt; &gt; Don&#39;t email: &lt;a href=mailto:&quot;dont@kvack.org&quot;&gt; email@kvack.org &lt;/a&gt;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; -- </span>
+<span class="quote">&gt; &gt; Michal Hocko</span>
+<span class="quote">&gt; &gt; SUSE Labs</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; -- </span>
+<span class="quote">&gt; Michal Hocko</span>
+<span class="quote">&gt; SUSE Labs</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - July 20, 2017, 1:05 p.m.</div>
+<pre class="content">
+On Wed 19-07-17 18:18:27, Hugh Dickins wrote:
+<span class="quote">&gt; On Wed, 19 Jul 2017, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; On Thu 29-06-17 10:46:21, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; &gt; Forgot to CC Hugh.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Hugh, Andrew, do you see this could cause any problem wrt.</span>
+<span class="quote">&gt; &gt; &gt; ksm/khugepaged exit path?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; ping. I would really appreciate some help here. I would like to resend</span>
+<span class="quote">&gt; &gt; the patch soon.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Sorry, Michal, I&#39;ve been hiding from everyone.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; No, I don&#39;t think your patch will cause any trouble for the ksm or</span>
+<span class="quote">&gt; khugepaged exit path; but we&#39;ll find out for sure when akpm puts it</span>
+<span class="quote">&gt; in mmotm - I doubt I&#39;ll get to trying it out in advance of that.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; On the contrary, I think it will allow us to remove the peculiar</span>
+<span class="quote">&gt; &quot;down_write(mmap_sem); up_write(mmap_sem);&quot; from those exit paths:</span>
+<span class="quote">&gt; which were there to serialize, precisely because exit_mmap() did</span>
+<span class="quote">&gt; not otherwise take mmap_sem; but you&#39;re now changing it to do so.</span>
+
+I was actually suspecting this could be done but didn&#39;t get to study the
+code to be sure enough, your words are surely encouraging...
+<span class="quote">
+&gt; You could add a patch to remove those yourself, or any of us add</span>
+<span class="quote">&gt; that on afterwards.</span>
+
+I will add it on my todo list and let&#39;s see when I get there.
+<span class="quote"> 
+&gt; But I don&#39;t entirely agree (or disagree) with your placement:</span>
+<span class="quote">&gt; see comment below.</span>
+[...]
+<span class="quote">&gt; &gt; &gt; &gt; diff --git a/mm/mmap.c b/mm/mmap.c</span>
+<span class="quote">&gt; &gt; &gt; &gt; index 3bd5ecd20d4d..253808e716dc 100644</span>
+<span class="quote">&gt; &gt; &gt; &gt; --- a/mm/mmap.c</span>
+<span class="quote">&gt; &gt; &gt; &gt; +++ b/mm/mmap.c</span>
+<span class="quote">&gt; &gt; &gt; &gt; @@ -2962,6 +2962,11 @@ void exit_mmap(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt; &gt; &gt;  	/* Use -1 here to ensure all VMAs in the mm are unmapped */</span>
+<span class="quote">&gt; &gt; &gt; &gt;  	unmap_vmas(&amp;tlb, vma, 0, -1);</span>
+<span class="quote">&gt; &gt; &gt; &gt;  </span>
+<span class="quote">&gt; &gt; &gt; &gt; +	/*</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	 * oom reaper might race with exit_mmap so make sure we won&#39;t free</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	 * page tables or unmap VMAs under its feet</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	 */</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	down_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Hmm.  I&#39;m conflicted about this.  From a design point of view, I would</span>
+<span class="quote">&gt; very much prefer you to take the mmap_sem higher up, maybe just before</span>
+<span class="quote">&gt; or after the mmu_notifier_release() or arch_exit_mmap() (depends on</span>
+<span class="quote">&gt; what those actually do): anyway before the unmap_vmas().</span>
+
+This thing is that I _want_ unmap_vmas to race with the oom reaper so I
+cannot take the write log before unmap_vmas... If this whole area should
+be covered by the write lock then I would need a handshake mechanism
+between the oom reaper and the final unmap_vmas to know that oom reaper
+won&#39;t set MMF_OOM_SKIP prematurely (see more on that below).
+<span class="quote">
+&gt; Because the things which go on in exit_mmap() are things which we expect</span>
+<span class="quote">&gt; mmap_sem to be held across, and we get caught out when it is not: it&#39;s</span>
+<span class="quote">&gt; awkard and error-prone enough that MADV_DONTNEED and MADV_FREE (for</span>
+<span class="quote">&gt; very good reason) do things with only down_read(mmap_sem).  But there&#39;s</span>
+<span class="quote">&gt; a number of times (ksm exit being only one of them) when I&#39;ve found it</span>
+<span class="quote">&gt; a nuisance that we had no proper way of serializing against exit_mmap().</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I&#39;m conflicted because, on the other hand, I&#39;m staunchly against adding</span>
+<span class="quote">&gt; obstructions (&quot;robust&quot; futexes? gah!) into the exit patch, or widening</span>
+<span class="quote">&gt; the use of locks that are not strictly needed.  But wouldn&#39;t it be the</span>
+<span class="quote">&gt; case here, that most contenders on the mmap_sem must hold a reference</span>
+<span class="quote">&gt; to mm_users, and that prevents any possibility of racing exit_mmap();</span>
+<span class="quote">&gt; only ksm and khugepaged, and any others who already need such mmap_sem</span>
+<span class="quote">&gt; tricks to serialize against exit_mmap(), could offer any contention.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; But I haven&#39;t looked at the oom_kill or oom_reaper end of it at all,</span>
+<span class="quote">&gt; perhaps you have an overriding argument on the placement from that end.</span>
+
+Well, the main problem here is that the oom_reaper tries to
+MADV_DONTNEED the oom victim and then hide it from the oom killer (by
+setting MMF_OOM_SKIP) to guarantee a forward progress. In order to do
+that it needs mmap_sem for read. Currently we try to avoid races with
+the eixt path by checking mm-&gt;mm_users and that can lead to premature
+MMF_OOM_SKIP and that in turn to additional oom victim(s) selection
+while the current one is still tearing the address space down.
+
+One way around that is to allow final unmap race with the oom_reaper
+tear down.
+
+I hope this clarify the motivation
+<span class="quote">
+&gt; Hugh</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; [Not strictly relevant here, but a related note: I was very surprised</span>
+<span class="quote">&gt; to discover, only quite recently, how handle_mm_fault() may be called</span>
+<span class="quote">&gt; without down_read(mmap_sem) - when core dumping.  That seems a</span>
+<span class="quote">&gt; misguided optimization to me, which would also be nice to correct;</span>
+<span class="quote">&gt; but again I might not appreciate the full picture.]</span>
+
+shrug
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7851">Hugh Dickins</a> - July 24, 2017, 6:39 a.m.</div>
+<pre class="content">
+On Thu, 20 Jul 2017, Michal Hocko wrote:
+<span class="quote">&gt; On Wed 19-07-17 18:18:27, Hugh Dickins wrote:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; But I haven&#39;t looked at the oom_kill or oom_reaper end of it at all,</span>
+<span class="quote">&gt; &gt; perhaps you have an overriding argument on the placement from that end.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Well, the main problem here is that the oom_reaper tries to</span>
+<span class="quote">&gt; MADV_DONTNEED the oom victim and then hide it from the oom killer (by</span>
+<span class="quote">&gt; setting MMF_OOM_SKIP) to guarantee a forward progress. In order to do</span>
+<span class="quote">&gt; that it needs mmap_sem for read. Currently we try to avoid races with</span>
+<span class="quote">&gt; the eixt path by checking mm-&gt;mm_users and that can lead to premature</span>
+<span class="quote">&gt; MMF_OOM_SKIP and that in turn to additional oom victim(s) selection</span>
+<span class="quote">&gt; while the current one is still tearing the address space down.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; One way around that is to allow final unmap race with the oom_reaper</span>
+<span class="quote">&gt; tear down.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I hope this clarify the motivation</span>
+
+Thanks, yes, if you have a good reason of that kind, then I agree that
+it&#39;s appropriate to leave the down_write(mmap_sem) until reaching the
+free_pgtables() stage.
+
+Hugh
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/mmap.c b/mm/mmap.c</span>
+<span class="p_header">index 3bd5ecd20d4d..253808e716dc 100644</span>
+<span class="p_header">--- a/mm/mmap.c</span>
+<span class="p_header">+++ b/mm/mmap.c</span>
+<span class="p_chunk">@@ -2962,6 +2962,11 @@</span> <span class="p_context"> void exit_mmap(struct mm_struct *mm)</span>
+ 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+ 	unmap_vmas(&amp;tlb, vma, 0, -1);
+ 
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * oom reaper might race with exit_mmap so make sure we won&#39;t free</span>
+<span class="p_add">+	 * page tables or unmap VMAs under its feet</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	down_write(&amp;mm-&gt;mmap_sem);</span>
+ 	free_pgtables(&amp;tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
+ 	tlb_finish_mmu(&amp;tlb, 0, -1);
+ 
+<span class="p_chunk">@@ -2974,7 +2979,9 @@</span> <span class="p_context"> void exit_mmap(struct mm_struct *mm)</span>
+ 			nr_accounted += vma_pages(vma);
+ 		vma = remove_vma(vma);
+ 	}
+<span class="p_add">+	mm-&gt;mmap = NULL;</span>
+ 	vm_unacct_memory(nr_accounted);
+<span class="p_add">+	up_write(&amp;mm-&gt;mmap_sem);</span>
+ }
+ 
+ /* Insert vm structure into process list sorted by address
+<span class="p_header">diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="p_header">index 0e2c925e7826..5dc0ff22d567 100644</span>
+<span class="p_header">--- a/mm/oom_kill.c</span>
+<span class="p_header">+++ b/mm/oom_kill.c</span>
+<span class="p_chunk">@@ -472,36 +472,8 @@</span> <span class="p_context"> static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+ 	struct vm_area_struct *vma;
+ 	bool ret = true;
+ 
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * We have to make sure to not race with the victim exit path</span>
+<span class="p_del">-	 * and cause premature new oom victim selection:</span>
+<span class="p_del">-	 * __oom_reap_task_mm		exit_mm</span>
+<span class="p_del">-	 *   mmget_not_zero</span>
+<span class="p_del">-	 *				  mmput</span>
+<span class="p_del">-	 *				    atomic_dec_and_test</span>
+<span class="p_del">-	 *				  exit_oom_victim</span>
+<span class="p_del">-	 *				[...]</span>
+<span class="p_del">-	 *				out_of_memory</span>
+<span class="p_del">-	 *				  select_bad_process</span>
+<span class="p_del">-	 *				    # no TIF_MEMDIE task selects new victim</span>
+<span class="p_del">-	 *  unmap_page_range # frees some memory</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	mutex_lock(&amp;oom_lock);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	if (!down_read_trylock(&amp;mm-&gt;mmap_sem)) {</span>
+<span class="p_del">-		ret = false;</span>
+<span class="p_del">-		goto unlock_oom;</span>
+<span class="p_del">-	}</span>
+<span class="p_del">-</span>
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * increase mm_users only after we know we will reap something so</span>
+<span class="p_del">-	 * that the mmput_async is called only when we have reaped something</span>
+<span class="p_del">-	 * and delayed __mmput doesn&#39;t matter that much</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	if (!mmget_not_zero(mm)) {</span>
+<span class="p_del">-		up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="p_del">-		goto unlock_oom;</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+	if (!down_read_trylock(&amp;mm-&gt;mmap_sem))</span>
+<span class="p_add">+		return false;</span>
+ 
+ 	/*
+ 	 * Tell all users of get_user/copy_from_user etc... that the content
+<span class="p_chunk">@@ -538,14 +510,6 @@</span> <span class="p_context"> static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+ 			K(get_mm_counter(mm, MM_SHMEMPAGES)));
+ 	up_read(&amp;mm-&gt;mmap_sem);
+ 
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * Drop our reference but make sure the mmput slow path is called from a</span>
+<span class="p_del">-	 * different context because we shouldn&#39;t risk we get stuck there and</span>
+<span class="p_del">-	 * put the oom_reaper out of the way.</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	mmput_async(mm);</span>
+<span class="p_del">-unlock_oom:</span>
+<span class="p_del">-	mutex_unlock(&amp;oom_lock);</span>
+ 	return ret;
+ }
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,381 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,2/5] mm, hugetlb: integrate giga hugetlb more naturally to the allocation path - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,2/5] mm, hugetlb: integrate giga hugetlb more naturally to the allocation path</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Dec. 4, 2017, 2:01 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20171204140117.7191-3-mhocko@kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10090315/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10090315/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10090315/">/patch/10090315/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	73BB06056E for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  4 Dec 2017 14:01:40 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 5A5DE287DE
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  4 Dec 2017 14:01:40 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 4F41B28A6E; Mon,  4 Dec 2017 14:01:40 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id B5CF6287DE
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  4 Dec 2017 14:01:39 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1754193AbdLDOBi (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 4 Dec 2017 09:01:38 -0500
+Received: from mail-wr0-f196.google.com ([209.85.128.196]:38323 &quot;EHLO
+	mail-wr0-f196.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752138AbdLDOBb (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 4 Dec 2017 09:01:31 -0500
+Received: by mail-wr0-f196.google.com with SMTP id o2so17403572wro.5
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Mon, 04 Dec 2017 06:01:30 -0800 (PST)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+	:references;
+	bh=41WU1HmE5xTza5sE+0ldBhDF6lSM1fzxuLehR3imlvA=;
+	b=lCE5YYXl+rpKt2KEGAtYEId+zs+DkvC8JWjswo3i1RFs3bFv2GB4ZL3oAf0mBLjO6l
+	sYYtOyWLttO12up72zf2PQX9V42GKv2wtE8mAUsezfD/mnkfb9xWzcv2f6muUBQWPl/o
+	O2zTy3worLcGStLT02EUy/TNIH4NWy6lbYvfUZDNbBP1bEA7wBvs7UEeziNw9ivUrN6A
+	yY7rGELiGU64twvXEjIijDIFhOd39LYkZv5OaSYm4fuR357SUabE3bsYeYupLYCRe9r3
+	XLCnuK+/7u9bABM2SV3Of7FxcxZujcF1Hbgrv5Y/d7z8uVFJJrbGG2b+YizPYC6vsO2L
+	g/JQ==
+X-Gm-Message-State: AJaThX4BA4LJAJ/X6Yug+mEo8VUsbJHyU0MxuYCH15vr6jGOrqSpQI/Y
+	Mpsqh1BFWumpzOHDrFtMtLA=
+X-Google-Smtp-Source: AGs4zMYpzBf96PLHOP5dZKEWddoaZl7IRWjI1VMNqtKn4DS5EVvXTr6LIYAyy/Ep4uLSfed7+SnD9w==
+X-Received: by 10.223.171.13 with SMTP id q13mr13487720wrc.120.1512396089491;
+	Mon, 04 Dec 2017 06:01:29 -0800 (PST)
+Received: from tiehlicka.suse.cz (ip-89-177-66-30.net.upcbroadband.cz.
+	[89.177.66.30]) by smtp.gmail.com with ESMTPSA id
+	73sm9549983wrb.64.2017.12.04.06.01.28
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Mon, 04 Dec 2017 06:01:28 -0800 (PST)
+From: Michal Hocko &lt;mhocko@kernel.org&gt;
+To: &lt;linux-mm@kvack.org&gt;
+Cc: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;,
+	Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	LKML &lt;linux-kernel@vger.kernel.org&gt;, Michal Hocko &lt;mhocko@suse.com&gt;
+Subject: [RFC PATCH 2/5] mm,
+	hugetlb: integrate giga hugetlb more naturally to the allocation
+	path
+Date: Mon,  4 Dec 2017 15:01:14 +0100
+Message-Id: &lt;20171204140117.7191-3-mhocko@kernel.org&gt;
+X-Mailer: git-send-email 2.15.0
+In-Reply-To: &lt;20171204140117.7191-1-mhocko@kernel.org&gt;
+References: &lt;20171204140117.7191-1-mhocko@kernel.org&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Dec. 4, 2017, 2:01 p.m.</div>
+<pre class="content">
+<span class="from">From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+
+Gigantic hugetlb pages were ingrown to the hugetlb code as an alien
+specie with a lot of special casing. The allocation path is not an
+exception. Unnecessarily so to be honest. It is true that the underlying
+allocator is different but that is an implementation detail.
+
+This patch unifies the hugetlb allocation path that a prepares fresh
+pool pages. alloc_fresh_gigantic_page basically copies alloc_fresh_huge_page
+logic so we can move everything there. This will simplify set_max_huge_pages
+which doesn&#39;t have to care about what kind of huge page we allocate.
+<span class="signed-off-by">
+Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+---
+ mm/hugetlb.c | 53 ++++++++++++-----------------------------------------
+ 1 file changed, 12 insertions(+), 41 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Dec. 13, 2017, 12:24 a.m.</div>
+<pre class="content">
+On 12/04/2017 06:01 AM, Michal Hocko wrote:
+<span class="quote">&gt; From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Gigantic hugetlb pages were ingrown to the hugetlb code as an alien</span>
+<span class="quote">&gt; specie with a lot of special casing. The allocation path is not an</span>
+<span class="quote">&gt; exception. Unnecessarily so to be honest. It is true that the underlying</span>
+<span class="quote">&gt; allocator is different but that is an implementation detail.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This patch unifies the hugetlb allocation path that a prepares fresh</span>
+<span class="quote">&gt; pool pages. alloc_fresh_gigantic_page basically copies alloc_fresh_huge_page</span>
+<span class="quote">&gt; logic so we can move everything there. This will simplify set_max_huge_pages</span>
+<span class="quote">&gt; which doesn&#39;t have to care about what kind of huge page we allocate.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+
+I agree with the analysis.  Thanks for cleaning this up.  There really is
+no need for the separate allocation paths.
+<span class="reviewed-by">
+Reviewed-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="p_header">index 8189c92fac82..ac105fb32620 100644</span>
+<span class="p_header">--- a/mm/hugetlb.c</span>
+<span class="p_header">+++ b/mm/hugetlb.c</span>
+<span class="p_chunk">@@ -1106,7 +1106,8 @@</span> <span class="p_context"> static bool zone_spans_last_pfn(const struct zone *zone,</span>
+ 	return zone_spans_pfn(zone, last_pfn);
+ }
+ 
+<span class="p_del">-static struct page *alloc_gigantic_page(int nid, struct hstate *h)</span>
+<span class="p_add">+static struct page *alloc_gigantic_page(struct hstate *h, gfp_t gfp_mask,</span>
+<span class="p_add">+		int nid, nodemask_t *nodemask)</span>
+ {
+ 	unsigned int order = huge_page_order(h);
+ 	unsigned long nr_pages = 1 &lt;&lt; order;
+<span class="p_chunk">@@ -1114,11 +1115,9 @@</span> <span class="p_context"> static struct page *alloc_gigantic_page(int nid, struct hstate *h)</span>
+ 	struct zonelist *zonelist;
+ 	struct zone *zone;
+ 	struct zoneref *z;
+<span class="p_del">-	gfp_t gfp_mask;</span>
+ 
+<span class="p_del">-	gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;</span>
+ 	zonelist = node_zonelist(nid, gfp_mask);
+<span class="p_del">-	for_each_zone_zonelist_nodemask(zone, z, zonelist, gfp_zone(gfp_mask), NULL) {</span>
+<span class="p_add">+	for_each_zone_zonelist_nodemask(zone, z, zonelist, gfp_zone(gfp_mask), nodemask) {</span>
+ 		spin_lock_irqsave(&amp;zone-&gt;lock, flags);
+ 
+ 		pfn = ALIGN(zone-&gt;zone_start_pfn, nr_pages);
+<span class="p_chunk">@@ -1149,42 +1148,11 @@</span> <span class="p_context"> static struct page *alloc_gigantic_page(int nid, struct hstate *h)</span>
+ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid);
+ static void prep_compound_gigantic_page(struct page *page, unsigned int order);
+ 
+<span class="p_del">-static struct page *alloc_fresh_gigantic_page_node(struct hstate *h, int nid)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	struct page *page;</span>
+<span class="p_del">-</span>
+<span class="p_del">-	page = alloc_gigantic_page(nid, h);</span>
+<span class="p_del">-	if (page) {</span>
+<span class="p_del">-		prep_compound_gigantic_page(page, huge_page_order(h));</span>
+<span class="p_del">-		prep_new_huge_page(h, page, nid);</span>
+<span class="p_del">-		put_page(page); /* free it into the hugepage allocator */</span>
+<span class="p_del">-	}</span>
+<span class="p_del">-</span>
+<span class="p_del">-	return page;</span>
+<span class="p_del">-}</span>
+<span class="p_del">-</span>
+<span class="p_del">-static int alloc_fresh_gigantic_page(struct hstate *h,</span>
+<span class="p_del">-				nodemask_t *nodes_allowed)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	struct page *page = NULL;</span>
+<span class="p_del">-	int nr_nodes, node;</span>
+<span class="p_del">-</span>
+<span class="p_del">-	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {</span>
+<span class="p_del">-		page = alloc_fresh_gigantic_page_node(h, node);</span>
+<span class="p_del">-		if (page)</span>
+<span class="p_del">-			return 1;</span>
+<span class="p_del">-	}</span>
+<span class="p_del">-</span>
+<span class="p_del">-	return 0;</span>
+<span class="p_del">-}</span>
+<span class="p_del">-</span>
+ #else /* !CONFIG_ARCH_HAS_GIGANTIC_PAGE */
+ static inline bool gigantic_page_supported(void) { return false; }
+ static inline void free_gigantic_page(struct page *page, unsigned int order) { }
+ static inline void destroy_compound_gigantic_page(struct page *page,
+ 						unsigned int order) { }
+<span class="p_del">-static inline int alloc_fresh_gigantic_page(struct hstate *h,</span>
+<span class="p_del">-					nodemask_t *nodes_allowed) { return 0; }</span>
+ #endif
+ 
+ static void update_and_free_page(struct hstate *h, struct page *page)
+<span class="p_chunk">@@ -1410,8 +1378,12 @@</span> <span class="p_context"> static int alloc_fresh_huge_page(struct hstate *h, nodemask_t *nodes_allowed)</span>
+ 	gfp_t gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;
+ 
+ 	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {
+<span class="p_del">-		page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask,</span>
+<span class="p_del">-				node, nodes_allowed);</span>
+<span class="p_add">+		if (hstate_is_gigantic(h))</span>
+<span class="p_add">+			page = alloc_gigantic_page(h, gfp_mask,</span>
+<span class="p_add">+					node, nodes_allowed);</span>
+<span class="p_add">+		else</span>
+<span class="p_add">+			page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask,</span>
+<span class="p_add">+					node, nodes_allowed);</span>
+ 		if (page)
+ 			break;
+ 
+<span class="p_chunk">@@ -1420,6 +1392,8 @@</span> <span class="p_context"> static int alloc_fresh_huge_page(struct hstate *h, nodemask_t *nodes_allowed)</span>
+ 	if (!page)
+ 		return 0;
+ 
+<span class="p_add">+	if (hstate_is_gigantic(h))</span>
+<span class="p_add">+		prep_compound_gigantic_page(page, huge_page_order(h));</span>
+ 	prep_new_huge_page(h, page, page_to_nid(page));
+ 	put_page(page); /* free it into the hugepage allocator */
+ 
+<span class="p_chunk">@@ -2307,10 +2281,7 @@</span> <span class="p_context"> static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,</span>
+ 		/* yield cpu to avoid soft lockup */
+ 		cond_resched();
+ 
+<span class="p_del">-		if (hstate_is_gigantic(h))</span>
+<span class="p_del">-			ret = alloc_fresh_gigantic_page(h, nodes_allowed);</span>
+<span class="p_del">-		else</span>
+<span class="p_del">-			ret = alloc_fresh_huge_page(h, nodes_allowed);</span>
+<span class="p_add">+		ret = alloc_fresh_huge_page(h, nodes_allowed);</span>
+ 		spin_lock(&amp;hugetlb_lock);
+ 		if (!ret)
+ 			goto out;
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

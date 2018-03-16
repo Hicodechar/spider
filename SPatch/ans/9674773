@@ -1,0 +1,654 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,1/6] KVM: fix guest_mode optimization in kvm_make_all_cpus_request() - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,1/6] KVM: fix guest_mode optimization in kvm_make_all_cpus_request()</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=2536">Paolo Bonzini</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>April 11, 2017, 5:25 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;a6091fa0-8107-239a-ad89-34ca2cba4fa8@redhat.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9674773/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9674773/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9674773/">/patch/9674773/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	D7DFB60381 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 11 Apr 2017 09:14:39 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id CA4E228520
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 11 Apr 2017 09:14:39 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id BF2CD28528; Tue, 11 Apr 2017 09:14:39 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-5.3 required=2.0 tests=BAYES_00, DATE_IN_PAST_03_06,
+	RCVD_IN_DNSWL_HI autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 5E73028520
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 11 Apr 2017 09:14:39 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1754488AbdDKJOe (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 11 Apr 2017 05:14:34 -0400
+Received: from mx1.redhat.com ([209.132.183.28]:43454 &quot;EHLO mx1.redhat.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1754227AbdDKJO3 (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 11 Apr 2017 05:14:29 -0400
+Received: from int-mx11.intmail.prod.int.phx2.redhat.com
+	(int-mx11.intmail.prod.int.phx2.redhat.com [10.5.11.24])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256
+	bits)) (No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 83522804F0;
+	Tue, 11 Apr 2017 09:14:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mx1.redhat.com 83522804F0
+Authentication-Results: ext-mx03.extmail.prod.ext.phx2.redhat.com;
+	dmarc=none (p=none dis=none) header.from=redhat.com
+Authentication-Results: ext-mx03.extmail.prod.ext.phx2.redhat.com;
+	spf=pass smtp.mailfrom=pbonzini@redhat.com
+DKIM-Filter: OpenDKIM Filter v2.11.0 mx1.redhat.com 83522804F0
+Received: from [10.72.8.104] (ovpn-8-104.pek2.redhat.com [10.72.8.104])
+	by int-mx11.intmail.prod.int.phx2.redhat.com (8.14.4/8.14.4) with
+	ESMTP id v3B9ENQI005633
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO);
+	Tue, 11 Apr 2017 05:14:25 -0400
+Subject: Re: [PATCH RFC 1/6] KVM: fix guest_mode optimization in
+	kvm_make_all_cpus_request()
+To: James Hogan &lt;james.hogan@imgtec.com&gt;,
+	=?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= &lt;rkrcmar@redhat.com&gt;
+References: &lt;20170406202056.18379-1-rkrcmar@redhat.com&gt;
+	&lt;20170406202056.18379-2-rkrcmar@redhat.com&gt;
+	&lt;20170406210215.GV31606@jhogan-linux.le.imgtec.org&gt;
+Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org,
+	Christoffer Dall &lt;cdall@linaro.org&gt;, Andrew Jones &lt;drjones@redhat.com&gt;,
+	Marc Zyngier &lt;marc.zyngier@arm.com&gt;,
+	Christian Borntraeger &lt;borntraeger@de.ibm.com&gt;,
+	Cornelia Huck &lt;cornelia.huck@de.ibm.com&gt;,
+	Paul Mackerras &lt;paulus@ozlabs.org&gt;
+From: Paolo Bonzini &lt;pbonzini@redhat.com&gt;
+Message-ID: &lt;a6091fa0-8107-239a-ad89-34ca2cba4fa8@redhat.com&gt;
+Date: Tue, 11 Apr 2017 13:25:04 +0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:45.0) Gecko/20100101
+	Thunderbird/45.8.0
+MIME-Version: 1.0
+In-Reply-To: &lt;20170406210215.GV31606@jhogan-linux.le.imgtec.org&gt;
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.68 on 10.5.11.24
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16
+	(mx1.redhat.com [10.5.110.27]);
+	Tue, 11 Apr 2017 09:14:28 +0000 (UTC)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=2536">Paolo Bonzini</a> - April 11, 2017, 5:25 a.m.</div>
+<pre class="content">
+On 07/04/2017 05:02, James Hogan wrote:
+<span class="quote">&gt; This presumably changes the behaviour on x86, from != OUTSIDE_GUEST_MODE</span>
+<span class="quote">&gt; to == IN_GUEST_MODE. so:</span>
+<span class="quote">&gt; - you&#39;ll no longer get IPIs if its in READING_SHADOW_PAGE_TABLES (which</span>
+<span class="quote">&gt;   MIPS also now uses when accessing mappings outside of guest mode and</span>
+<span class="quote">&gt;   depends upon to wait until the old mappings are no longer in use).</span>
+
+This is wrong, the purpose of READING_SHADOW_PAGE_TABLES is &quot;kvm_flush_remote_tlbs
+should send me an IPI, because I want to stop kvm_flush_remote_tlbs until I&#39;m done
+reading the page tables&quot;.
+<span class="quote">
+&gt; - you&#39;ll no longer get IPIs if its in EXITING_GUEST_MODE (i.e. if you</span>
+<span class="quote">&gt;   get two of these in quick succession only the first will wait for the</span>
+<span class="quote">&gt;   IPI, which might work as long as they&#39;re already serialised but it</span>
+<span class="quote">&gt;   still feels wrong).</span>
+
+But this is okay---avoiding multiple IPIs is the exact purpose of
+EXITING_GUEST_MODE.
+
+There are evidently multiple uses of kvm_make_all_cpus_request, and we
+should avoid smp_call_function_many(..., true) if possible.  So perhaps:
+
+
+
+Other users do not need wait=false.
+
+Or another idea is to embed wait in the request number, as suggested in the
+ARM thread, so that for example:
+
+- bits 0-4 = bit number in vcpu-&gt;requests
+
+- bit 8 = wait when making request
+
+- bit 9 = kick after making request
+
+
+Responding to Andrew, I agree that &quot;we should do away with
+kvm_arch_vcpu_should_kick(), putting the x86 implementation of it
+directly in the common code&quot; (inlining kvm_vcpu_exiting_guest_mode,
+I may add).  However, kvm_arch_vcpu_should_kick is just an optimization,
+it&#39;s not a bug not to use it.  So let&#39;s first iron out
+kvm_make_all_cpus_request.
+
+Paolo
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=31692">James Hogan</a> - April 11, 2017, 9:37 a.m.</div>
+<pre class="content">
+Hi Paolo,
+
+On Tue, Apr 11, 2017 at 01:25:04PM +0800, Paolo Bonzini wrote:
+<span class="quote">&gt; On 07/04/2017 05:02, James Hogan wrote:</span>
+<span class="quote">&gt; &gt; This presumably changes the behaviour on x86, from != OUTSIDE_GUEST_MODE</span>
+<span class="quote">&gt; &gt; to == IN_GUEST_MODE. so:</span>
+<span class="quote">&gt; &gt; - you&#39;ll no longer get IPIs if its in READING_SHADOW_PAGE_TABLES (which</span>
+<span class="quote">&gt; &gt;   MIPS also now uses when accessing mappings outside of guest mode and</span>
+<span class="quote">&gt; &gt;   depends upon to wait until the old mappings are no longer in use).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This is wrong, the purpose of READING_SHADOW_PAGE_TABLES is &quot;kvm_flush_remote_tlbs</span>
+<span class="quote">&gt; should send me an IPI, because I want to stop kvm_flush_remote_tlbs until I&#39;m done</span>
+<span class="quote">&gt; reading the page tables&quot;.</span>
+
+That sounds equivalent to what I meant for MIPS, i.e.
+kvm_flush_remote_tlbs() does the waiting (not the thing accessing guest
+mappings).
+
+Cheers
+James
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=69351">Radim Kr?má?</a> - April 11, 2017, 7:31 p.m.</div>
+<pre class="content">
+2017-04-11 10:37+0100, James Hogan:
+<span class="quote">&gt; Hi Paolo,</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; On Tue, Apr 11, 2017 at 01:25:04PM +0800, Paolo Bonzini wrote:</span>
+<span class="quote">&gt;&gt; On 07/04/2017 05:02, James Hogan wrote:</span>
+<span class="quote">&gt;&gt; &gt; This presumably changes the behaviour on x86, from != OUTSIDE_GUEST_MODE</span>
+<span class="quote">&gt;&gt; &gt; to == IN_GUEST_MODE. so:</span>
+<span class="quote">&gt;&gt; &gt; - you&#39;ll no longer get IPIs if its in READING_SHADOW_PAGE_TABLES (which</span>
+<span class="quote">&gt;&gt; &gt;   MIPS also now uses when accessing mappings outside of guest mode and</span>
+<span class="quote">&gt;&gt; &gt;   depends upon to wait until the old mappings are no longer in use).</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; This is wrong, the purpose of READING_SHADOW_PAGE_TABLES is &quot;kvm_flush_remote_tlbs</span>
+<span class="quote">&gt;&gt; should send me an IPI, because I want to stop kvm_flush_remote_tlbs until I&#39;m done</span>
+<span class="quote">&gt;&gt; reading the page tables&quot;.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; That sounds equivalent to what I meant for MIPS, i.e.</span>
+<span class="quote">&gt; kvm_flush_remote_tlbs() does the waiting (not the thing accessing guest</span>
+<span class="quote">&gt; mappings).</span>
+
+I agree, thanks for noticing this.  It would be a huge mistake to drop
+the synchronization.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=2536">Paolo Bonzini</a> - April 11, 2017, 7:45 p.m.</div>
+<pre class="content">
+----- Original Message -----
+<span class="quote">&gt; From: &quot;Radim Krčmář&quot; &lt;rkrcmar@redhat.com&gt;</span>
+<span class="quote">&gt; To: &quot;James Hogan&quot; &lt;james.hogan@imgtec.com&gt;</span>
+<span class="quote">&gt; Cc: &quot;Paolo Bonzini&quot; &lt;pbonzini@redhat.com&gt;, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, &quot;Christoffer Dall&quot;</span>
+<span class="quote">&gt; &lt;cdall@linaro.org&gt;, &quot;Andrew Jones&quot; &lt;drjones@redhat.com&gt;, &quot;Marc Zyngier&quot; &lt;marc.zyngier@arm.com&gt;, &quot;Christian</span>
+<span class="quote">&gt; Borntraeger&quot; &lt;borntraeger@de.ibm.com&gt;, &quot;Cornelia Huck&quot; &lt;cornelia.huck@de.ibm.com&gt;, &quot;Paul Mackerras&quot;</span>
+<span class="quote">&gt; &lt;paulus@ozlabs.org&gt;</span>
+<span class="quote">&gt; Sent: Wednesday, April 12, 2017 3:31:24 AM</span>
+<span class="quote">&gt; Subject: Re: [PATCH RFC 1/6] KVM: fix guest_mode optimization in kvm_make_all_cpus_request()</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 2017-04-11 10:37+0100, James Hogan:</span>
+<span class="quote">&gt; &gt; Hi Paolo,</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; On Tue, Apr 11, 2017 at 01:25:04PM +0800, Paolo Bonzini wrote:</span>
+<span class="quote">&gt; &gt;&gt; On 07/04/2017 05:02, James Hogan wrote:</span>
+<span class="quote">&gt; &gt;&gt; &gt; This presumably changes the behaviour on x86, from != OUTSIDE_GUEST_MODE</span>
+<span class="quote">&gt; &gt;&gt; &gt; to == IN_GUEST_MODE. so:</span>
+<span class="quote">&gt; &gt;&gt; &gt; - you&#39;ll no longer get IPIs if its in READING_SHADOW_PAGE_TABLES (which</span>
+<span class="quote">&gt; &gt;&gt; &gt;   MIPS also now uses when accessing mappings outside of guest mode and</span>
+<span class="quote">&gt; &gt;&gt; &gt;   depends upon to wait until the old mappings are no longer in use).</span>
+<span class="quote">&gt; &gt;&gt; </span>
+<span class="quote">&gt; &gt;&gt; This is wrong, the purpose of READING_SHADOW_PAGE_TABLES is</span>
+<span class="quote">&gt; &gt;&gt; &quot;kvm_flush_remote_tlbs</span>
+<span class="quote">&gt; &gt;&gt; should send me an IPI, because I want to stop kvm_flush_remote_tlbs until</span>
+<span class="quote">&gt; &gt;&gt; I&#39;m done</span>
+<span class="quote">&gt; &gt;&gt; reading the page tables&quot;.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; That sounds equivalent to what I meant for MIPS, i.e.</span>
+<span class="quote">&gt; &gt; kvm_flush_remote_tlbs() does the waiting (not the thing accessing guest</span>
+<span class="quote">&gt; &gt; mappings).</span>
+
+Yeah, I meant &quot;it&#39;s wrong in Radim&#39;s patches&quot;.  Not hard to fix though.
+
+Thanks for the review!
+
+Paolo
+<span class="quote">
+&gt; I agree, thanks for noticing this.  It would be a huge mistake to drop</span>
+<span class="quote">&gt; the synchronization.</span>
+<span class="quote">&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=69351">Radim Kr?má?</a> - April 11, 2017, 8:45 p.m.</div>
+<pre class="content">
+2017-04-11 13:25+0800, Paolo Bonzini:
+<span class="quote">&gt; On 07/04/2017 05:02, James Hogan wrote:</span>
+<span class="quote">&gt;&gt; - you&#39;ll no longer get IPIs if its in EXITING_GUEST_MODE (i.e. if you</span>
+<span class="quote">&gt;&gt;   get two of these in quick succession only the first will wait for the</span>
+<span class="quote">&gt;&gt;   IPI, which might work as long as they&#39;re already serialised but it</span>
+<span class="quote">&gt;&gt;   still feels wrong).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; But this is okay---avoiding multiple IPIs is the exact purpose of</span>
+<span class="quote">&gt; EXITING_GUEST_MODE.</span>
+
+I think this applied to the missed synchronization, in which case the
+point is valid as the latter caller would assume that it can proceed to
+reuse the memory even though the guest was still using it.
+<span class="quote">
+&gt; There are evidently multiple uses of kvm_make_all_cpus_request, and we</span>
+<span class="quote">&gt; should avoid smp_call_function_many(..., true) if possible.  So perhaps:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c</span>
+<span class="quote">&gt; index a17d78759727..20e3bd60bdda 100644</span>
+<span class="quote">&gt; --- a/virt/kvm/kvm_main.c</span>
+<span class="quote">&gt; +++ b/virt/kvm/kvm_main.c</span>
+<span class="quote">&gt; @@ -169,7 +169,7 @@ static void ack_flush(void *_completed)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)</span>
+<span class="quote">&gt; +bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req, bool wait)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	int i, cpu, me;</span>
+<span class="quote">&gt;  	cpumask_var_t cpus;</span>
+<span class="quote">&gt; @@ -182,18 +182,19 @@ bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)</span>
+<span class="quote">&gt;  	kvm_for_each_vcpu(i, vcpu, kvm) {</span>
+<span class="quote">&gt;  		kvm_make_request(req, vcpu);</span>
+<span class="quote">&gt;  		cpu = vcpu-&gt;cpu;</span>
+<span class="quote">&gt; +		if (cpus == NULL || cpu == -1 || cpu == me)</span>
+<span class="quote">&gt; +			continue;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  		/* Set -&gt;requests bit before we read -&gt;mode. */</span>
+<span class="quote">&gt;  		smp_mb__after_atomic();</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; -		if (cpus != NULL &amp;&amp; cpu != -1 &amp;&amp; cpu != me &amp;&amp;</span>
+<span class="quote">&gt; -		      kvm_vcpu_exiting_guest_mode(vcpu) != OUTSIDE_GUEST_MODE)</span>
+<span class="quote">&gt; +		if (kvm_arch_vcpu_should_kick(vcpu) ||</span>
+<span class="quote">&gt; +		    (wait &amp;&amp; vcpu-&gt;mode != OUTSIDE_GUEST_MODE))</span>
+<span class="quote">&gt;  			cpumask_set_cpu(cpu, cpus);</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  	if (unlikely(cpus == NULL))</span>
+<span class="quote">&gt; -		smp_call_function_many(cpu_online_mask, ack_flush, NULL, 1);</span>
+<span class="quote">&gt; +		smp_call_function_many(cpu_online_mask, ack_flush, NULL, wait);</span>
+<span class="quote">&gt;  	else if (!cpumask_empty(cpus))</span>
+<span class="quote">&gt; -		smp_call_function_many(cpus, ack_flush, NULL, 1);</span>
+<span class="quote">&gt; +		smp_call_function_many(cpus, ack_flush, NULL, wait);</span>
+<span class="quote">&gt;  	else</span>
+<span class="quote">&gt;  		called = false;</span>
+<span class="quote">&gt;  	put_cpu();</span>
+<span class="quote">&gt; @@ -221,7 +222,7 @@ void kvm_flush_remote_tlbs(struct kvm *kvm)</span>
+<span class="quote">&gt;  	 * kvm_make_all_cpus_request() reads vcpu-&gt;mode. We reuse that</span>
+<span class="quote">&gt;  	 * barrier here.</span>
+<span class="quote">&gt;  	 */</span>
+<span class="quote">&gt; -	if (kvm_make_all_cpus_request(kvm, KVM_REQ_TLB_FLUSH))</span>
+<span class="quote">&gt; +	if (kvm_make_all_cpus_request(kvm, KVM_REQ_TLB_FLUSH, true))</span>
+<span class="quote">&gt;  		++kvm-&gt;stat.remote_tlb_flush;</span>
+<span class="quote">&gt;  	cmpxchg(&amp;kvm-&gt;tlbs_dirty, dirty_count, 0);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt; @@ -230,7 +231,7 @@ EXPORT_SYMBOL_GPL(kvm_flush_remote_tlbs);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  void kvm_reload_remote_mmus(struct kvm *kvm)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; -	kvm_make_all_cpus_request(kvm, KVM_REQ_MMU_RELOAD);</span>
+<span class="quote">&gt; +	/* FIXME, is wait=true really needed?  */</span>
+
+Probably not.  There are two uses,
+
+in kvm_mmu_prepare_zap_page():
+  The only change that happens between kvm_reload_remote_mmus() and
+  kvm_flush_remote_tlbs() in kvm_mmu_commit_zap_page() is setting of
+  sp-&gt;role.invalid -- synchronizing it doesn&#39;t prevent any race with
+  READING_SHADOW_PAGE_TABLES mode and the unconditional TLB flush is the
+  important one.  I think that kvm_reload_remote_mmus doesn&#39;t even need
+  to kick in this case.
+
+in kvm_mmu_invalidate_zap_all_pages():
+  Same situation: the guest cannot do an entry without increasing the
+  generation number, but can enter READING_SHADOW_PAGE_TABLES mode
+  between reload and flush.
+  I think that we don&#39;t need to call 
+
+but my knowledge of this area is obviously lacking ...
+<span class="quote">
+&gt; +	kvm_make_all_cpus_request(kvm, KVM_REQ_MMU_RELOAD, true);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Other users do not need wait=false.</span>
+
+You mean &quot;wait=true&quot;?
+
+(Would be safer to assume they depend on the VM exit wait until proved
+ otherwise ...)
+<span class="quote">
+&gt; Or another idea is to embed wait in the request number, as suggested in the</span>
+<span class="quote">&gt; ARM thread, so that for example:</span>
+
+Right, I don&#39;t think that a TLB flush makes sense without
+synchronization and adding context sensitivity 
+<span class="quote">
+&gt; - bits 0-4 = bit number in vcpu-&gt;requests</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; - bit 8 = wait when making request</span>
+
+Sounds good.  The single-target kvm_make_request() + kvm_vcpu_kick()
+should use this as well.
+<span class="quote">
+&gt; - bit 9 = kick after making request</span>
+
+Maybe add bit mask to denote in which modes the kick/wait is necessary?
+
+  bit 9  : IN_GUEST_MODE
+  bit 10 : EXITING_GUEST_MODE
+  bit 11 : READING_SHADOW_PAGE_TABLES
+
+TLB_FLUSH would set bits 8-11.  IIUC, ARM has use for requests that need
+to make sure that the guest is not in guest mode before proceeding and
+those would set bit 8-10.
+
+The common requests, &quot;notice me as soon as possible&quot;, would set bit 9.
+The bits 9-11 could also be used only when bit 8 is set, to make the
+transition easier. (9 and 10 could be squished then as well.)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=2536">Paolo Bonzini</a> - April 12, 2017, 12:15 a.m.</div>
+<pre class="content">
+----- Original Message -----
+<span class="quote">&gt; From: &quot;Radim Krčmář&quot; &lt;rkrcmar@redhat.com&gt;</span>
+<span class="quote">&gt; To: &quot;Paolo Bonzini&quot; &lt;pbonzini@redhat.com&gt;</span>
+<span class="quote">&gt; Cc: &quot;James Hogan&quot; &lt;james.hogan@imgtec.com&gt;, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, &quot;Christoffer Dall&quot;</span>
+<span class="quote">&gt; &lt;cdall@linaro.org&gt;, &quot;Andrew Jones&quot; &lt;drjones@redhat.com&gt;, &quot;Marc Zyngier&quot; &lt;marc.zyngier@arm.com&gt;, &quot;Christian</span>
+<span class="quote">&gt; Borntraeger&quot; &lt;borntraeger@de.ibm.com&gt;, &quot;Cornelia Huck&quot; &lt;cornelia.huck@de.ibm.com&gt;, &quot;Paul Mackerras&quot;</span>
+<span class="quote">&gt; &lt;paulus@ozlabs.org&gt;</span>
+<span class="quote">&gt; Sent: Wednesday, April 12, 2017 4:45:36 AM</span>
+<span class="quote">&gt; Subject: Re: [PATCH RFC 1/6] KVM: fix guest_mode optimization in kvm_make_all_cpus_request()</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt;  void kvm_reload_remote_mmus(struct kvm *kvm)</span>
+<span class="quote">&gt; &gt;  {</span>
+<span class="quote">&gt; &gt; -	kvm_make_all_cpus_request(kvm, KVM_REQ_MMU_RELOAD);</span>
+<span class="quote">&gt; &gt; +	/* FIXME, is wait=true really needed?  */</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Probably not.  There are two uses,</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; in kvm_mmu_prepare_zap_page():</span>
+<span class="quote">&gt;   The only change that happens between kvm_reload_remote_mmus() and</span>
+<span class="quote">&gt;   kvm_flush_remote_tlbs() in kvm_mmu_commit_zap_page() is setting of</span>
+<span class="quote">&gt;   sp-&gt;role.invalid -- synchronizing it doesn&#39;t prevent any race with</span>
+<span class="quote">&gt;   READING_SHADOW_PAGE_TABLES mode and the unconditional TLB flush is the</span>
+<span class="quote">&gt;   important one.  I think that kvm_reload_remote_mmus doesn&#39;t even need</span>
+<span class="quote">&gt;   to kick in this case.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; in kvm_mmu_invalidate_zap_all_pages():</span>
+<span class="quote">&gt;   Same situation: the guest cannot do an entry without increasing the</span>
+<span class="quote">&gt;   generation number, but can enter READING_SHADOW_PAGE_TABLES mode</span>
+<span class="quote">&gt;   between reload and flush.</span>
+<span class="quote">&gt;   I think that we don&#39;t need to call</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; but my knowledge of this area is obviously lacking ...</span>
+
+Yes, you&#39;re right - I just was too lazy. :)
+<span class="quote">
+&gt; &gt; +	kvm_make_all_cpus_request(kvm, KVM_REQ_MMU_RELOAD, true);</span>
+<span class="quote">&gt; &gt;  }</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt;  int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Other users do not need wait=false.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; You mean &quot;wait=true&quot;?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; (Would be safer to assume they depend on the VM exit wait until proved</span>
+<span class="quote">&gt;  otherwise ...)</span>
+
+Yeah, I audited them.
+<span class="quote">
+&gt; &gt; - bit 9 = kick after making request</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Maybe add bit mask to denote in which modes the kick/wait is necessary?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   bit 9  : IN_GUEST_MODE</span>
+<span class="quote">&gt;   bit 10 : EXITING_GUEST_MODE</span>
+<span class="quote">&gt;   bit 11 : READING_SHADOW_PAGE_TABLES</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; TLB_FLUSH would set bits 8-11.  IIUC, ARM has use for requests that need</span>
+<span class="quote">&gt; to make sure that the guest is not in guest mode before proceeding and</span>
+<span class="quote">&gt; those would set bit 8-10.</span>
+
+No, checking vcpu-&gt;requests after setting IN_GUEST_MODE is done separately.
+EXITING_GUEST_MODE&#39;s meaning *is* &quot;no IPI needed&quot;.
+<span class="quote">
+&gt; The common requests, &quot;notice me as soon as possible&quot;, would set bit 9.</span>
+<span class="quote">&gt; The bits 9-11 could also be used only when bit 8 is set, to make the</span>
+<span class="quote">&gt; transition easier. (9 and 10 could be squished then as well.)</span>
+
+Maybe, depending on how the code looks like.  But considering we have
+to do the cmpxchg, I think the should_kick and should_wait logic should
+be embedded in kvm_make_all_cpus_request (and later on, kvm_make_request).
+
+Paolo
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c</span>
+<span class="p_header">index a17d78759727..20e3bd60bdda 100644</span>
+<span class="p_header">--- a/virt/kvm/kvm_main.c</span>
+<span class="p_header">+++ b/virt/kvm/kvm_main.c</span>
+<span class="p_chunk">@@ -169,7 +169,7 @@</span> <span class="p_context"> static void ack_flush(void *_completed)</span>
+ {
+ }
+ 
+<span class="p_del">-bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)</span>
+<span class="p_add">+bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req, bool wait)</span>
+ {
+ 	int i, cpu, me;
+ 	cpumask_var_t cpus;
+<span class="p_chunk">@@ -182,18 +182,19 @@</span> <span class="p_context"> bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)</span>
+ 	kvm_for_each_vcpu(i, vcpu, kvm) {
+ 		kvm_make_request(req, vcpu);
+ 		cpu = vcpu-&gt;cpu;
+<span class="p_add">+		if (cpus == NULL || cpu == -1 || cpu == me)</span>
+<span class="p_add">+			continue;</span>
+ 
+ 		/* Set -&gt;requests bit before we read -&gt;mode. */
+ 		smp_mb__after_atomic();
+<span class="p_del">-</span>
+<span class="p_del">-		if (cpus != NULL &amp;&amp; cpu != -1 &amp;&amp; cpu != me &amp;&amp;</span>
+<span class="p_del">-		      kvm_vcpu_exiting_guest_mode(vcpu) != OUTSIDE_GUEST_MODE)</span>
+<span class="p_add">+		if (kvm_arch_vcpu_should_kick(vcpu) ||</span>
+<span class="p_add">+		    (wait &amp;&amp; vcpu-&gt;mode != OUTSIDE_GUEST_MODE))</span>
+ 			cpumask_set_cpu(cpu, cpus);
+ 	}
+ 	if (unlikely(cpus == NULL))
+<span class="p_del">-		smp_call_function_many(cpu_online_mask, ack_flush, NULL, 1);</span>
+<span class="p_add">+		smp_call_function_many(cpu_online_mask, ack_flush, NULL, wait);</span>
+ 	else if (!cpumask_empty(cpus))
+<span class="p_del">-		smp_call_function_many(cpus, ack_flush, NULL, 1);</span>
+<span class="p_add">+		smp_call_function_many(cpus, ack_flush, NULL, wait);</span>
+ 	else
+ 		called = false;
+ 	put_cpu();
+<span class="p_chunk">@@ -221,7 +222,7 @@</span> <span class="p_context"> void kvm_flush_remote_tlbs(struct kvm *kvm)</span>
+ 	 * kvm_make_all_cpus_request() reads vcpu-&gt;mode. We reuse that
+ 	 * barrier here.
+ 	 */
+<span class="p_del">-	if (kvm_make_all_cpus_request(kvm, KVM_REQ_TLB_FLUSH))</span>
+<span class="p_add">+	if (kvm_make_all_cpus_request(kvm, KVM_REQ_TLB_FLUSH, true))</span>
+ 		++kvm-&gt;stat.remote_tlb_flush;
+ 	cmpxchg(&amp;kvm-&gt;tlbs_dirty, dirty_count, 0);
+ }
+<span class="p_chunk">@@ -230,7 +231,7 @@</span> <span class="p_context"> EXPORT_SYMBOL_GPL(kvm_flush_remote_tlbs);</span>
+ 
+ void kvm_reload_remote_mmus(struct kvm *kvm)
+ {
+<span class="p_del">-	kvm_make_all_cpus_request(kvm, KVM_REQ_MMU_RELOAD);</span>
+<span class="p_add">+	/* FIXME, is wait=true really needed?  */</span>
+<span class="p_add">+	kvm_make_all_cpus_request(kvm, KVM_REQ_MMU_RELOAD, true);</span>
+ }
+ 
+ int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

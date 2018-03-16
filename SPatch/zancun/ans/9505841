@@ -1,0 +1,467 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>mm/hugetlb.c: fix reservation race when freeing surplus pages - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    mm/hugetlb.c: fix reservation race when freeing surplus pages</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Jan. 9, 2017, 7:56 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1483991767-6879-1-git-send-email-mike.kravetz@oracle.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9505841/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9505841/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9505841/">/patch/9505841/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	A4F056071A for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  9 Jan 2017 19:56:53 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id A2AFE284F9
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  9 Jan 2017 19:56:53 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 94A7928504; Mon,  9 Jan 2017 19:56:53 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	UNPARSEABLE_RELAY autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 056F9284F9
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  9 Jan 2017 19:56:52 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S938402AbdAIT4r (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 9 Jan 2017 14:56:47 -0500
+Received: from userp1040.oracle.com ([156.151.31.81]:21588 &quot;EHLO
+	userp1040.oracle.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751754AbdAIT4o (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 9 Jan 2017 14:56:44 -0500
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by userp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2)
+	with ESMTP id v09JuTHS031674
+	(version=TLSv1 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK);
+	Mon, 9 Jan 2017 19:56:30 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by aserv0021.oracle.com (8.13.8/8.14.4) with ESMTP id
+	v09JuTDx023231
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK);
+	Mon, 9 Jan 2017 19:56:29 GMT
+Received: from abhmp0006.oracle.com (abhmp0006.oracle.com [141.146.116.12])
+	by aserv0121.oracle.com (8.13.8/8.13.8) with ESMTP id
+	v09JuQ6r002404; Mon, 9 Jan 2017 19:56:27 GMT
+Received: from monkey.oracle.com (/50.188.161.229)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Mon, 09 Jan 2017 11:56:26 -0800
+From: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Paul Cassella &lt;cassella@cray.com&gt;, Michal Hocko &lt;mhocko@kernel.org&gt;,
+	Masayoshi Mizuma &lt;m.mizuma@jp.fujitsu.com&gt;,
+	Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;,
+	Aneesh Kumar &lt;aneesh.kumar@linux.vnet.ibm.com&gt;,
+	Hillf Danton &lt;hillf.zj@alibaba-inc.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	stable@vger.kernel.org, Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+Subject: [PATCH] mm/hugetlb.c: fix reservation race when freeing surplus
+	pages
+Date: Mon,  9 Jan 2017 11:56:07 -0800
+Message-Id: &lt;1483991767-6879-1-git-send-email-mike.kravetz@oracle.com&gt;
+X-Mailer: git-send-email 2.7.4
+X-Source-IP: aserv0021.oracle.com [141.146.126.233]
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Jan. 9, 2017, 7:56 p.m.</div>
+<pre class="content">
+The routine return_unused_surplus_pages decrements the global
+reservation count, and frees any unused surplus pages that were
+backing the reservation.  Commit 7848a4bf51b3 (&quot;mm/hugetlb.c:
+add cond_resched_lock() in return_unused_surplus_pages()&quot;) added
+a call to cond_resched_lock in the loop freeing the pages.  As
+a result, the hugetlb_lock could be dropped, and someone else
+could use the pages that will be freed in subsequent iterations
+of the loop.  This could result in inconsistent global hugetlb
+page state, application api failures (such as mmap) failures or
+application crashes.
+
+When dropping the lock in return_unused_surplus_pages, make sure
+that the global reservation count (resv_huge_pages) remains
+sufficiently large to prevent someone else from claiming pages
+about to be freed.
+
+Fixes: 7848a4bf51b3 (&quot;mm/hugetlb.c: add cond_resched_lock() in return_unused_surplus_pages()&quot;)
+Reported-and-analyzed-by: Paul Cassella &lt;cassella@cray.com&gt;
+Suggested-by: Michal Hocko &lt;mhocko@kernel.org&gt;
+<span class="signed-off-by">Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+---
+ mm/hugetlb.c | 37 ++++++++++++++++++++++++++++---------
+ 1 file changed, 28 insertions(+), 9 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Jan. 10, 2017, 9:34 a.m.</div>
+<pre class="content">
+On Mon 09-01-17 11:56:07, Mike Kravetz wrote:
+<span class="quote">&gt; The routine return_unused_surplus_pages decrements the global</span>
+<span class="quote">&gt; reservation count, and frees any unused surplus pages that were</span>
+<span class="quote">&gt; backing the reservation.  Commit 7848a4bf51b3 (&quot;mm/hugetlb.c:</span>
+<span class="quote">&gt; add cond_resched_lock() in return_unused_surplus_pages()&quot;) added</span>
+<span class="quote">&gt; a call to cond_resched_lock in the loop freeing the pages.  As</span>
+<span class="quote">&gt; a result, the hugetlb_lock could be dropped, and someone else</span>
+<span class="quote">&gt; could use the pages that will be freed in subsequent iterations</span>
+<span class="quote">&gt; of the loop.  This could result in inconsistent global hugetlb</span>
+<span class="quote">&gt; page state, application api failures (such as mmap) failures or</span>
+<span class="quote">&gt; application crashes.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; When dropping the lock in return_unused_surplus_pages, make sure</span>
+<span class="quote">&gt; that the global reservation count (resv_huge_pages) remains</span>
+<span class="quote">&gt; sufficiently large to prevent someone else from claiming pages</span>
+<span class="quote">&gt; about to be freed.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Fixes: 7848a4bf51b3 (&quot;mm/hugetlb.c: add cond_resched_lock() in return_unused_surplus_pages()&quot;)</span>
+<span class="quote">&gt; Reported-and-analyzed-by: Paul Cassella &lt;cassella@cray.com&gt;</span>
+<span class="quote">&gt; Suggested-by: Michal Hocko &lt;mhocko@kernel.org&gt;</span>
+<span class="quote">&gt; Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+
+Looks good to me. I think we want also
+Cc: stable # 3.15+
+
+Paul, your Tested-by would be more than appreciated.
+
+Thanks Mike!
+<span class="quote">
+&gt; ---</span>
+<span class="quote">&gt;  mm/hugetlb.c | 37 ++++++++++++++++++++++++++++---------</span>
+<span class="quote">&gt;  1 file changed, 28 insertions(+), 9 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="quote">&gt; index 418bf01..a1760fa 100644</span>
+<span class="quote">&gt; --- a/mm/hugetlb.c</span>
+<span class="quote">&gt; +++ b/mm/hugetlb.c</span>
+<span class="quote">&gt; @@ -1773,23 +1773,32 @@ static int gather_surplus_pages(struct hstate *h, int delta)</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  /*</span>
+<span class="quote">&gt; - * When releasing a hugetlb pool reservation, any surplus pages that were</span>
+<span class="quote">&gt; - * allocated to satisfy the reservation must be explicitly freed if they were</span>
+<span class="quote">&gt; - * never used.</span>
+<span class="quote">&gt; - * Called with hugetlb_lock held.</span>
+<span class="quote">&gt; + * This routine has two main purposes:</span>
+<span class="quote">&gt; + * 1) Decrement the reservation count (resv_huge_pages) by the value passed</span>
+<span class="quote">&gt; + *    in unused_resv_pages.  This corresponds to the prior adjustments made</span>
+<span class="quote">&gt; + *    to the associated reservation map.</span>
+<span class="quote">&gt; + * 2) Free any unused surplus pages that may have been allocated to satisfy</span>
+<span class="quote">&gt; + *    the reservation.  As many as unused_resv_pages may be freed.</span>
+<span class="quote">&gt; + *</span>
+<span class="quote">&gt; + * Called with hugetlb_lock held.  However, the lock could be dropped (and</span>
+<span class="quote">&gt; + * reacquired) during calls to cond_resched_lock.  Whenever dropping the lock,</span>
+<span class="quote">&gt; + * we must make sure nobody else can claim pages we are in the process of</span>
+<span class="quote">&gt; + * freeing.  Do this by ensuring resv_huge_page always is greater than the</span>
+<span class="quote">&gt; + * number of huge pages we plan to free when dropping the lock.</span>
+<span class="quote">&gt;   */</span>
+<span class="quote">&gt;  static void return_unused_surplus_pages(struct hstate *h,</span>
+<span class="quote">&gt;  					unsigned long unused_resv_pages)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	unsigned long nr_pages;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	/* Uncommit the reservation */</span>
+<span class="quote">&gt; -	h-&gt;resv_huge_pages -= unused_resv_pages;</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt;  	/* Cannot return gigantic pages currently */</span>
+<span class="quote">&gt;  	if (hstate_is_gigantic(h))</span>
+<span class="quote">&gt; -		return;</span>
+<span class="quote">&gt; +		goto out;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Part (or even all) of the reservation could have been backed</span>
+<span class="quote">&gt; +	 * by pre-allocated pages. Only free surplus pages.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt;  	nr_pages = min(unused_resv_pages, h-&gt;surplus_huge_pages);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/*</span>
+<span class="quote">&gt; @@ -1799,12 +1808,22 @@ static void return_unused_surplus_pages(struct hstate *h,</span>
+<span class="quote">&gt;  	 * when the nodes with surplus pages have no free pages.</span>
+<span class="quote">&gt;  	 * free_pool_huge_page() will balance the the freed pages across the</span>
+<span class="quote">&gt;  	 * on-line nodes with memory and will handle the hstate accounting.</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 * Note that we decrement resv_huge_pages as we free the pages.  If</span>
+<span class="quote">&gt; +	 * we drop the lock, resv_huge_pages will still be sufficiently large</span>
+<span class="quote">&gt; +	 * to cover subsequent pages we may free.</span>
+<span class="quote">&gt;  	 */</span>
+<span class="quote">&gt;  	while (nr_pages--) {</span>
+<span class="quote">&gt; +		h-&gt;resv_huge_pages--;</span>
+<span class="quote">&gt; +		unused_resv_pages--;</span>
+<span class="quote">&gt;  		if (!free_pool_huge_page(h, &amp;node_states[N_MEMORY], 1))</span>
+<span class="quote">&gt; -			break;</span>
+<span class="quote">&gt; +			goto out;</span>
+<span class="quote">&gt;  		cond_resched_lock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +out:</span>
+<span class="quote">&gt; +	/* Fully uncommit the reservation */</span>
+<span class="quote">&gt; +	h-&gt;resv_huge_pages -= unused_resv_pages;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -- </span>
+<span class="quote">&gt; 2.7.4</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=37061">gregkh@linuxfoundation.org</a> - Jan. 19, 2017, 6:16 p.m.</div>
+<pre class="content">
+On Mon, Jan 09, 2017 at 11:56:07AM -0800, Mike Kravetz wrote:
+<span class="quote">&gt; The routine return_unused_surplus_pages decrements the global</span>
+<span class="quote">&gt; reservation count, and frees any unused surplus pages that were</span>
+<span class="quote">&gt; backing the reservation.  Commit 7848a4bf51b3 (&quot;mm/hugetlb.c:</span>
+<span class="quote">&gt; add cond_resched_lock() in return_unused_surplus_pages()&quot;) added</span>
+<span class="quote">&gt; a call to cond_resched_lock in the loop freeing the pages.  As</span>
+<span class="quote">&gt; a result, the hugetlb_lock could be dropped, and someone else</span>
+<span class="quote">&gt; could use the pages that will be freed in subsequent iterations</span>
+<span class="quote">&gt; of the loop.  This could result in inconsistent global hugetlb</span>
+<span class="quote">&gt; page state, application api failures (such as mmap) failures or</span>
+<span class="quote">&gt; application crashes.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; When dropping the lock in return_unused_surplus_pages, make sure</span>
+<span class="quote">&gt; that the global reservation count (resv_huge_pages) remains</span>
+<span class="quote">&gt; sufficiently large to prevent someone else from claiming pages</span>
+<span class="quote">&gt; about to be freed.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Fixes: 7848a4bf51b3 (&quot;mm/hugetlb.c: add cond_resched_lock() in return_unused_surplus_pages()&quot;)</span>
+<span class="quote">&gt; Reported-and-analyzed-by: Paul Cassella &lt;cassella@cray.com&gt;</span>
+<span class="quote">&gt; Suggested-by: Michal Hocko &lt;mhocko@kernel.org&gt;</span>
+<span class="quote">&gt; Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  mm/hugetlb.c | 37 ++++++++++++++++++++++++++++---------</span>
+<span class="quote">&gt;  1 file changed, 28 insertions(+), 9 deletions(-)</span>
+
+&lt;formletter&gt;
+
+This is not the correct way to submit patches for inclusion in the
+stable kernel tree.  Please read Documentation/stable_kernel_rules.txt
+for how to do this properly.
+
+&lt;/formletter&gt;
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="p_header">index 418bf01..a1760fa 100644</span>
+<span class="p_header">--- a/mm/hugetlb.c</span>
+<span class="p_header">+++ b/mm/hugetlb.c</span>
+<span class="p_chunk">@@ -1773,23 +1773,32 @@</span> <span class="p_context"> static int gather_surplus_pages(struct hstate *h, int delta)</span>
+ }
+ 
+ /*
+<span class="p_del">- * When releasing a hugetlb pool reservation, any surplus pages that were</span>
+<span class="p_del">- * allocated to satisfy the reservation must be explicitly freed if they were</span>
+<span class="p_del">- * never used.</span>
+<span class="p_del">- * Called with hugetlb_lock held.</span>
+<span class="p_add">+ * This routine has two main purposes:</span>
+<span class="p_add">+ * 1) Decrement the reservation count (resv_huge_pages) by the value passed</span>
+<span class="p_add">+ *    in unused_resv_pages.  This corresponds to the prior adjustments made</span>
+<span class="p_add">+ *    to the associated reservation map.</span>
+<span class="p_add">+ * 2) Free any unused surplus pages that may have been allocated to satisfy</span>
+<span class="p_add">+ *    the reservation.  As many as unused_resv_pages may be freed.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Called with hugetlb_lock held.  However, the lock could be dropped (and</span>
+<span class="p_add">+ * reacquired) during calls to cond_resched_lock.  Whenever dropping the lock,</span>
+<span class="p_add">+ * we must make sure nobody else can claim pages we are in the process of</span>
+<span class="p_add">+ * freeing.  Do this by ensuring resv_huge_page always is greater than the</span>
+<span class="p_add">+ * number of huge pages we plan to free when dropping the lock.</span>
+  */
+ static void return_unused_surplus_pages(struct hstate *h,
+ 					unsigned long unused_resv_pages)
+ {
+ 	unsigned long nr_pages;
+ 
+<span class="p_del">-	/* Uncommit the reservation */</span>
+<span class="p_del">-	h-&gt;resv_huge_pages -= unused_resv_pages;</span>
+<span class="p_del">-</span>
+ 	/* Cannot return gigantic pages currently */
+ 	if (hstate_is_gigantic(h))
+<span class="p_del">-		return;</span>
+<span class="p_add">+		goto out;</span>
+ 
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Part (or even all) of the reservation could have been backed</span>
+<span class="p_add">+	 * by pre-allocated pages. Only free surplus pages.</span>
+<span class="p_add">+	 */</span>
+ 	nr_pages = min(unused_resv_pages, h-&gt;surplus_huge_pages);
+ 
+ 	/*
+<span class="p_chunk">@@ -1799,12 +1808,22 @@</span> <span class="p_context"> static void return_unused_surplus_pages(struct hstate *h,</span>
+ 	 * when the nodes with surplus pages have no free pages.
+ 	 * free_pool_huge_page() will balance the the freed pages across the
+ 	 * on-line nodes with memory and will handle the hstate accounting.
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Note that we decrement resv_huge_pages as we free the pages.  If</span>
+<span class="p_add">+	 * we drop the lock, resv_huge_pages will still be sufficiently large</span>
+<span class="p_add">+	 * to cover subsequent pages we may free.</span>
+ 	 */
+ 	while (nr_pages--) {
+<span class="p_add">+		h-&gt;resv_huge_pages--;</span>
+<span class="p_add">+		unused_resv_pages--;</span>
+ 		if (!free_pool_huge_page(h, &amp;node_states[N_MEMORY], 1))
+<span class="p_del">-			break;</span>
+<span class="p_add">+			goto out;</span>
+ 		cond_resched_lock(&amp;hugetlb_lock);
+ 	}
+<span class="p_add">+</span>
+<span class="p_add">+out:</span>
+<span class="p_add">+	/* Fully uncommit the reservation */</span>
+<span class="p_add">+	h-&gt;resv_huge_pages -= unused_resv_pages;</span>
+ }
+ 
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

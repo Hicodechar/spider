@@ -1,0 +1,580 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[V3] vhost: introduce O(1) vq metadata cache - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [V3] vhost: introduce O(1) vq metadata cache</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=2154">Jason Wang</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Feb. 28, 2017, 9:56 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1488275762-4726-1-git-send-email-jasowang@redhat.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9595043/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9595043/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9595043/">/patch/9595043/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	3806260429 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 28 Feb 2017 09:57:13 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 15AA82780C
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 28 Feb 2017 09:57:13 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 06DCA27D85; Tue, 28 Feb 2017 09:57:13 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 2C7E52780C
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 28 Feb 2017 09:57:12 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751958AbdB1J5L (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 28 Feb 2017 04:57:11 -0500
+Received: from mx1.redhat.com ([209.132.183.28]:48792 &quot;EHLO mx1.redhat.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1751728AbdB1J4K (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 28 Feb 2017 04:56:10 -0500
+Received: from int-mx13.intmail.prod.int.phx2.redhat.com
+	(int-mx13.intmail.prod.int.phx2.redhat.com [10.5.11.26])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256
+	bits)) (No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 5DAB161D3D;
+	Tue, 28 Feb 2017 09:56:10 +0000 (UTC)
+Received: from jason-ThinkPad-T450s.redhat.com (vpn1-5-113.pek2.redhat.com
+	[10.72.5.113])
+	by int-mx13.intmail.prod.int.phx2.redhat.com (8.14.4/8.14.4) with
+	ESMTP id v1S9u5St025280; Tue, 28 Feb 2017 04:56:06 -0500
+From: Jason Wang &lt;jasowang@redhat.com&gt;
+To: mst@redhat.com
+Cc: kvm@vger.kernel.org, virtualization@lists.linux-foundation.org,
+	netdev@vger.kernel.org, linux-kernel@vger.kernel.org,
+	wexu@redhat.com, peterx@redhat.com, vkaplans@redhat.com,
+	maxime.coquelin@redhat.com, Jason Wang &lt;jasowang@redhat.com&gt;
+Subject: [PATCH V3] vhost: introduce O(1) vq metadata cache
+Date: Tue, 28 Feb 2017 17:56:02 +0800
+Message-Id: &lt;1488275762-4726-1-git-send-email-jasowang@redhat.com&gt;
+X-Scanned-By: MIMEDefang 2.68 on 10.5.11.26
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16
+	(mx1.redhat.com [10.5.110.39]);
+	Tue, 28 Feb 2017 09:56:10 +0000 (UTC)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=2154">Jason Wang</a> - Feb. 28, 2017, 9:56 a.m.</div>
+<pre class="content">
+When device IOTLB is enabled, all address translations were stored in
+interval tree. O(lgN) searching time could be slow for virtqueue
+metadata (avail, used and descriptors) since they were accessed much
+often than other addresses. So this patch introduces an O(1) array
+which points to the interval tree nodes that store the translations of
+vq metadata. Those array were update during vq IOTLB prefetching and
+were reset during each invalidation and tlb update. Each time we want
+to access vq metadata, this small array were queried before interval
+tree. This would be sufficient for static mappings but not dynamic
+mappings, we could do optimizations on top.
+
+Test were done with l2fwd in guest (2M hugepage):
+
+   noiommu  | before        | after
+tx 1.32Mpps | 1.06Mpps(82%) | 1.30Mpps(98%)
+rx 2.33Mpps | 1.46Mpps(63%) | 2.29Mpps(98%)
+
+We can almost reach the same performance as noiommu mode.
+<span class="signed-off-by">
+Signed-off-by: Jason Wang &lt;jasowang@redhat.com&gt;</span>
+---
+ drivers/vhost/vhost.c | 136 ++++++++++++++++++++++++++++++++++++++++----------
+ drivers/vhost/vhost.h |   8 +++
+ 2 files changed, 118 insertions(+), 26 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c</span>
+<span class="p_header">index 1f7e4e4..998bed5 100644</span>
+<span class="p_header">--- a/drivers/vhost/vhost.c</span>
+<span class="p_header">+++ b/drivers/vhost/vhost.c</span>
+<span class="p_chunk">@@ -282,6 +282,22 @@</span> <span class="p_context"> void vhost_poll_queue(struct vhost_poll *poll)</span>
+ }
+ EXPORT_SYMBOL_GPL(vhost_poll_queue);
+ 
+<span class="p_add">+static void __vhost_vq_meta_reset(struct vhost_virtqueue *vq)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	int j;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for (j = 0; j &lt; VHOST_NUM_ADDRS; j++)</span>
+<span class="p_add">+		vq-&gt;meta_iotlb[j] = NULL;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void vhost_vq_meta_reset(struct vhost_dev *d)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	int i;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for (i = 0; i &lt; d-&gt;nvqs; ++i)</span>
+<span class="p_add">+		__vhost_vq_meta_reset(d-&gt;vqs[i]);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ static void vhost_vq_reset(struct vhost_dev *dev,
+ 			   struct vhost_virtqueue *vq)
+ {
+<span class="p_chunk">@@ -312,6 +328,7 @@</span> <span class="p_context"> static void vhost_vq_reset(struct vhost_dev *dev,</span>
+ 	vq-&gt;busyloop_timeout = 0;
+ 	vq-&gt;umem = NULL;
+ 	vq-&gt;iotlb = NULL;
+<span class="p_add">+	__vhost_vq_meta_reset(vq);</span>
+ }
+ 
+ static int vhost_worker(void *data)
+<span class="p_chunk">@@ -691,6 +708,18 @@</span> <span class="p_context"> static int vq_memory_access_ok(void __user *log_base, struct vhost_umem *umem,</span>
+ 	return 1;
+ }
+ 
+<span class="p_add">+static inline void __user *vhost_vq_meta_fetch(struct vhost_virtqueue *vq,</span>
+<span class="p_add">+					       u64 addr, unsigned int size,</span>
+<span class="p_add">+					       int type)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	const struct vhost_umem_node *node = vq-&gt;meta_iotlb[type];</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!node)</span>
+<span class="p_add">+		return NULL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return (void *)(uintptr_t)(node-&gt;userspace_addr + addr - node-&gt;start);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ /* Can we switch to this memory table? */
+ /* Caller should have device mutex but not vq mutex */
+ static int memory_access_ok(struct vhost_dev *d, struct vhost_umem *umem,
+<span class="p_chunk">@@ -733,8 +762,14 @@</span> <span class="p_context"> static int vhost_copy_to_user(struct vhost_virtqueue *vq, void __user *to,</span>
+ 		 * could be access through iotlb. So -EAGAIN should
+ 		 * not happen in this case.
+ 		 */
+<span class="p_del">-		/* TODO: more fast path */</span>
+ 		struct iov_iter t;
+<span class="p_add">+		void __user *uaddr = vhost_vq_meta_fetch(vq,</span>
+<span class="p_add">+				     (u64)(uintptr_t)to, size,</span>
+<span class="p_add">+				     VHOST_ADDR_DESC);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (uaddr)</span>
+<span class="p_add">+			return __copy_to_user(uaddr, from, size);</span>
+<span class="p_add">+</span>
+ 		ret = translate_desc(vq, (u64)(uintptr_t)to, size, vq-&gt;iotlb_iov,
+ 				     ARRAY_SIZE(vq-&gt;iotlb_iov),
+ 				     VHOST_ACCESS_WO);
+<span class="p_chunk">@@ -762,8 +797,14 @@</span> <span class="p_context"> static int vhost_copy_from_user(struct vhost_virtqueue *vq, void *to,</span>
+ 		 * could be access through iotlb. So -EAGAIN should
+ 		 * not happen in this case.
+ 		 */
+<span class="p_del">-		/* TODO: more fast path */</span>
+<span class="p_add">+		void __user *uaddr = vhost_vq_meta_fetch(vq,</span>
+<span class="p_add">+				     (u64)(uintptr_t)from, size,</span>
+<span class="p_add">+				     VHOST_ADDR_DESC);</span>
+ 		struct iov_iter f;
+<span class="p_add">+</span>
+<span class="p_add">+		if (uaddr)</span>
+<span class="p_add">+			return __copy_from_user(to, uaddr, size);</span>
+<span class="p_add">+</span>
+ 		ret = translate_desc(vq, (u64)(uintptr_t)from, size, vq-&gt;iotlb_iov,
+ 				     ARRAY_SIZE(vq-&gt;iotlb_iov),
+ 				     VHOST_ACCESS_RO);
+<span class="p_chunk">@@ -783,17 +824,12 @@</span> <span class="p_context"> static int vhost_copy_from_user(struct vhost_virtqueue *vq, void *to,</span>
+ 	return ret;
+ }
+ 
+<span class="p_del">-static void __user *__vhost_get_user(struct vhost_virtqueue *vq,</span>
+<span class="p_del">-				     void __user *addr, unsigned size)</span>
+<span class="p_add">+static void __user *__vhost_get_user_slow(struct vhost_virtqueue *vq,</span>
+<span class="p_add">+					  void __user *addr, unsigned int size,</span>
+<span class="p_add">+					  int type)</span>
+ {
+ 	int ret;
+ 
+<span class="p_del">-	/* This function should be called after iotlb</span>
+<span class="p_del">-	 * prefetch, which means we&#39;re sure that vq</span>
+<span class="p_del">-	 * could be access through iotlb. So -EAGAIN should</span>
+<span class="p_del">-	 * not happen in this case.</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	/* TODO: more fast path */</span>
+ 	ret = translate_desc(vq, (u64)(uintptr_t)addr, size, vq-&gt;iotlb_iov,
+ 			     ARRAY_SIZE(vq-&gt;iotlb_iov),
+ 			     VHOST_ACCESS_RO);
+<span class="p_chunk">@@ -814,14 +850,32 @@</span> <span class="p_context"> static void __user *__vhost_get_user(struct vhost_virtqueue *vq,</span>
+ 	return vq-&gt;iotlb_iov[0].iov_base;
+ }
+ 
+<span class="p_del">-#define vhost_put_user(vq, x, ptr) \</span>
+<span class="p_add">+/* This function should be called after iotlb</span>
+<span class="p_add">+ * prefetch, which means we&#39;re sure that vq</span>
+<span class="p_add">+ * could be access through iotlb. So -EAGAIN should</span>
+<span class="p_add">+ * not happen in this case.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static inline void __user *__vhost_get_user(struct vhost_virtqueue *vq,</span>
+<span class="p_add">+					    void *addr, unsigned int size,</span>
+<span class="p_add">+					    int type)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	void __user *uaddr = vhost_vq_meta_fetch(vq,</span>
+<span class="p_add">+			     (u64)(uintptr_t)addr, size, type);</span>
+<span class="p_add">+	if (uaddr)</span>
+<span class="p_add">+		return uaddr;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return __vhost_get_user_slow(vq, addr, size, type);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define vhost_put_user(vq, x, ptr)		\</span>
+ ({ \
+ 	int ret = -EFAULT; \
+ 	if (!vq-&gt;iotlb) { \
+ 		ret = __put_user(x, ptr); \
+ 	} else { \
+ 		__typeof__(ptr) to = \
+<span class="p_del">-			(__typeof__(ptr)) __vhost_get_user(vq, ptr, sizeof(*ptr)); \</span>
+<span class="p_add">+			(__typeof__(ptr)) __vhost_get_user(vq, ptr,	\</span>
+<span class="p_add">+					  sizeof(*ptr), VHOST_ADDR_USED); \</span>
+ 		if (to != NULL) \
+ 			ret = __put_user(x, to); \
+ 		else \
+<span class="p_chunk">@@ -830,14 +884,16 @@</span> <span class="p_context"> static void __user *__vhost_get_user(struct vhost_virtqueue *vq,</span>
+ 	ret; \
+ })
+ 
+<span class="p_del">-#define vhost_get_user(vq, x, ptr) \</span>
+<span class="p_add">+#define vhost_get_user(vq, x, ptr, type)		\</span>
+ ({ \
+ 	int ret; \
+ 	if (!vq-&gt;iotlb) { \
+ 		ret = __get_user(x, ptr); \
+ 	} else { \
+ 		__typeof__(ptr) from = \
+<span class="p_del">-			(__typeof__(ptr)) __vhost_get_user(vq, ptr, sizeof(*ptr)); \</span>
+<span class="p_add">+			(__typeof__(ptr)) __vhost_get_user(vq, ptr, \</span>
+<span class="p_add">+							   sizeof(*ptr), \</span>
+<span class="p_add">+							   type); \</span>
+ 		if (from != NULL) \
+ 			ret = __get_user(x, from); \
+ 		else \
+<span class="p_chunk">@@ -846,6 +902,12 @@</span> <span class="p_context"> static void __user *__vhost_get_user(struct vhost_virtqueue *vq,</span>
+ 	ret; \
+ })
+ 
+<span class="p_add">+#define vhost_get_avail(vq, x, ptr) \</span>
+<span class="p_add">+	vhost_get_user(vq, x, ptr, VHOST_ADDR_AVAIL)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define vhost_get_used(vq, x, ptr) \</span>
+<span class="p_add">+	vhost_get_user(vq, x, ptr, VHOST_ADDR_USED)</span>
+<span class="p_add">+</span>
+ static void vhost_dev_lock_vqs(struct vhost_dev *d)
+ {
+ 	int i = 0;
+<span class="p_chunk">@@ -951,6 +1013,7 @@</span> <span class="p_context"> static int vhost_process_iotlb_msg(struct vhost_dev *dev,</span>
+ 			ret = -EFAULT;
+ 			break;
+ 		}
+<span class="p_add">+		vhost_vq_meta_reset(dev);</span>
+ 		if (vhost_new_umem_range(dev-&gt;iotlb, msg-&gt;iova, msg-&gt;size,
+ 					 msg-&gt;iova + msg-&gt;size - 1,
+ 					 msg-&gt;uaddr, msg-&gt;perm)) {
+<span class="p_chunk">@@ -960,6 +1023,7 @@</span> <span class="p_context"> static int vhost_process_iotlb_msg(struct vhost_dev *dev,</span>
+ 		vhost_iotlb_notify_vq(dev, msg);
+ 		break;
+ 	case VHOST_IOTLB_INVALIDATE:
+<span class="p_add">+		vhost_vq_meta_reset(dev);</span>
+ 		vhost_del_umem_range(dev-&gt;iotlb, msg-&gt;iova,
+ 				     msg-&gt;iova + msg-&gt;size - 1);
+ 		break;
+<span class="p_chunk">@@ -1103,12 +1167,26 @@</span> <span class="p_context"> static int vq_access_ok(struct vhost_virtqueue *vq, unsigned int num,</span>
+ 			sizeof *used + num * sizeof *used-&gt;ring + s);
+ }
+ 
+<span class="p_add">+static void vhost_vq_meta_update(struct vhost_virtqueue *vq,</span>
+<span class="p_add">+				 const struct vhost_umem_node *node,</span>
+<span class="p_add">+				 int type)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	int access = (type == VHOST_ADDR_USED) ?</span>
+<span class="p_add">+		     VHOST_ACCESS_WO : VHOST_ACCESS_RO;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (likely(node-&gt;perm &amp; access))</span>
+<span class="p_add">+		vq-&gt;meta_iotlb[type] = node;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ static int iotlb_access_ok(struct vhost_virtqueue *vq,
+<span class="p_del">-			   int access, u64 addr, u64 len)</span>
+<span class="p_add">+			   int access, u64 addr, u64 len, int type)</span>
+ {
+ 	const struct vhost_umem_node *node;
+ 	struct vhost_umem *umem = vq-&gt;iotlb;
+<span class="p_del">-	u64 s = 0, size;</span>
+<span class="p_add">+	u64 s = 0, size, orig_addr = addr;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (vhost_vq_meta_fetch(vq, addr, len, type))</span>
+<span class="p_add">+		return true;</span>
+ 
+ 	while (len &gt; s) {
+ 		node = vhost_umem_interval_tree_iter_first(&amp;umem-&gt;umem_tree,
+<span class="p_chunk">@@ -1125,6 +1203,10 @@</span> <span class="p_context"> static int iotlb_access_ok(struct vhost_virtqueue *vq,</span>
+ 		}
+ 
+ 		size = node-&gt;size - addr + node-&gt;start;
+<span class="p_add">+</span>
+<span class="p_add">+		if (orig_addr == addr &amp;&amp; size &gt;= len)</span>
+<span class="p_add">+			vhost_vq_meta_update(vq, node, type);</span>
+<span class="p_add">+</span>
+ 		s += size;
+ 		addr += size;
+ 	}
+<span class="p_chunk">@@ -1141,13 +1223,15 @@</span> <span class="p_context"> int vq_iotlb_prefetch(struct vhost_virtqueue *vq)</span>
+ 		return 1;
+ 
+ 	return iotlb_access_ok(vq, VHOST_ACCESS_RO, (u64)(uintptr_t)vq-&gt;desc,
+<span class="p_del">-			       num * sizeof *vq-&gt;desc) &amp;&amp;</span>
+<span class="p_add">+			       num * sizeof(*vq-&gt;desc), VHOST_ADDR_DESC) &amp;&amp;</span>
+ 	       iotlb_access_ok(vq, VHOST_ACCESS_RO, (u64)(uintptr_t)vq-&gt;avail,
+ 			       sizeof *vq-&gt;avail +
+<span class="p_del">-			       num * sizeof *vq-&gt;avail-&gt;ring + s) &amp;&amp;</span>
+<span class="p_add">+			       num * sizeof(*vq-&gt;avail-&gt;ring) + s,</span>
+<span class="p_add">+			       VHOST_ADDR_AVAIL) &amp;&amp;</span>
+ 	       iotlb_access_ok(vq, VHOST_ACCESS_WO, (u64)(uintptr_t)vq-&gt;used,
+ 			       sizeof *vq-&gt;used +
+<span class="p_del">-			       num * sizeof *vq-&gt;used-&gt;ring + s);</span>
+<span class="p_add">+			       num * sizeof(*vq-&gt;used-&gt;ring) + s,</span>
+<span class="p_add">+			       VHOST_ADDR_USED);</span>
+ }
+ EXPORT_SYMBOL_GPL(vq_iotlb_prefetch);
+ 
+<span class="p_chunk">@@ -1728,7 +1812,7 @@</span> <span class="p_context"> int vhost_vq_init_access(struct vhost_virtqueue *vq)</span>
+ 		r = -EFAULT;
+ 		goto err;
+ 	}
+<span class="p_del">-	r = vhost_get_user(vq, last_used_idx, &amp;vq-&gt;used-&gt;idx);</span>
+<span class="p_add">+	r = vhost_get_used(vq, last_used_idx, &amp;vq-&gt;used-&gt;idx);</span>
+ 	if (r) {
+ 		vq_err(vq, &quot;Can&#39;t access used idx at %p\n&quot;,
+ 		       &amp;vq-&gt;used-&gt;idx);
+<span class="p_chunk">@@ -1932,7 +2016,7 @@</span> <span class="p_context"> int vhost_get_vq_desc(struct vhost_virtqueue *vq,</span>
+ 	last_avail_idx = vq-&gt;last_avail_idx;
+ 
+ 	if (vq-&gt;avail_idx == vq-&gt;last_avail_idx) {
+<span class="p_del">-		if (unlikely(vhost_get_user(vq, avail_idx, &amp;vq-&gt;avail-&gt;idx))) {</span>
+<span class="p_add">+		if (unlikely(vhost_get_avail(vq, avail_idx, &amp;vq-&gt;avail-&gt;idx))) {</span>
+ 			vq_err(vq, &quot;Failed to access avail idx at %p\n&quot;,
+ 				&amp;vq-&gt;avail-&gt;idx);
+ 			return -EFAULT;
+<span class="p_chunk">@@ -1959,7 +2043,7 @@</span> <span class="p_context"> int vhost_get_vq_desc(struct vhost_virtqueue *vq,</span>
+ 
+ 	/* Grab the next descriptor number they&#39;re advertising, and increment
+ 	 * the index we&#39;ve seen. */
+<span class="p_del">-	if (unlikely(vhost_get_user(vq, ring_head,</span>
+<span class="p_add">+	if (unlikely(vhost_get_avail(vq, ring_head,</span>
+ 		     &amp;vq-&gt;avail-&gt;ring[last_avail_idx &amp; (vq-&gt;num - 1)]))) {
+ 		vq_err(vq, &quot;Failed to read head: idx %d address %p\n&quot;,
+ 		       last_avail_idx,
+<span class="p_chunk">@@ -2175,7 +2259,7 @@</span> <span class="p_context"> static bool vhost_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)</span>
+ 		 * with the barrier that the Guest executes when enabling
+ 		 * interrupts. */
+ 		smp_mb();
+<span class="p_del">-		if (vhost_get_user(vq, flags, &amp;vq-&gt;avail-&gt;flags)) {</span>
+<span class="p_add">+		if (vhost_get_avail(vq, flags, &amp;vq-&gt;avail-&gt;flags)) {</span>
+ 			vq_err(vq, &quot;Failed to get flags&quot;);
+ 			return true;
+ 		}
+<span class="p_chunk">@@ -2202,7 +2286,7 @@</span> <span class="p_context"> static bool vhost_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)</span>
+ 	 * interrupts. */
+ 	smp_mb();
+ 
+<span class="p_del">-	if (vhost_get_user(vq, event, vhost_used_event(vq))) {</span>
+<span class="p_add">+	if (vhost_get_avail(vq, event, vhost_used_event(vq))) {</span>
+ 		vq_err(vq, &quot;Failed to get used event idx&quot;);
+ 		return true;
+ 	}
+<span class="p_chunk">@@ -2246,7 +2330,7 @@</span> <span class="p_context"> bool vhost_vq_avail_empty(struct vhost_dev *dev, struct vhost_virtqueue *vq)</span>
+ 	__virtio16 avail_idx;
+ 	int r;
+ 
+<span class="p_del">-	r = vhost_get_user(vq, avail_idx, &amp;vq-&gt;avail-&gt;idx);</span>
+<span class="p_add">+	r = vhost_get_avail(vq, avail_idx, &amp;vq-&gt;avail-&gt;idx);</span>
+ 	if (r)
+ 		return false;
+ 
+<span class="p_chunk">@@ -2281,7 +2365,7 @@</span> <span class="p_context"> bool vhost_enable_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)</span>
+ 	/* They could have slipped one in as we were doing that: make
+ 	 * sure it&#39;s written, then check again. */
+ 	smp_mb();
+<span class="p_del">-	r = vhost_get_user(vq, avail_idx, &amp;vq-&gt;avail-&gt;idx);</span>
+<span class="p_add">+	r = vhost_get_avail(vq, avail_idx, &amp;vq-&gt;avail-&gt;idx);</span>
+ 	if (r) {
+ 		vq_err(vq, &quot;Failed to check avail idx at %p: %d\n&quot;,
+ 		       &amp;vq-&gt;avail-&gt;idx, r);
+<span class="p_header">diff --git a/drivers/vhost/vhost.h b/drivers/vhost/vhost.h</span>
+<span class="p_header">index a9cbbb1..f55671d 100644</span>
+<span class="p_header">--- a/drivers/vhost/vhost.h</span>
+<span class="p_header">+++ b/drivers/vhost/vhost.h</span>
+<span class="p_chunk">@@ -76,6 +76,13 @@</span> <span class="p_context"> struct vhost_umem {</span>
+ 	int numem;
+ };
+ 
+<span class="p_add">+enum vhost_uaddr_type {</span>
+<span class="p_add">+	VHOST_ADDR_DESC = 0,</span>
+<span class="p_add">+	VHOST_ADDR_AVAIL = 1,</span>
+<span class="p_add">+	VHOST_ADDR_USED = 2,</span>
+<span class="p_add">+	VHOST_NUM_ADDRS = 3,</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+ /* The virtqueue structure describes a queue attached to a device. */
+ struct vhost_virtqueue {
+ 	struct vhost_dev *dev;
+<span class="p_chunk">@@ -86,6 +93,7 @@</span> <span class="p_context"> struct vhost_virtqueue {</span>
+ 	struct vring_desc __user *desc;
+ 	struct vring_avail __user *avail;
+ 	struct vring_used __user *used;
+<span class="p_add">+	const struct vhost_umem_node *meta_iotlb[VHOST_NUM_ADDRS];</span>
+ 	struct file *kick;
+ 	struct file *call;
+ 	struct file *error;
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

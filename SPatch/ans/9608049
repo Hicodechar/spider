@@ -1,0 +1,409 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v7,02/07] iommu/ipmmu-vmsa: Rework interrupt code and use bitmap for context - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v7,02/07] iommu/ipmmu-vmsa: Rework interrupt code and use bitmap for context</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=19">Magnus Damm</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>March 7, 2017, 3:17 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;148885662362.28553.15859075114068448611.sendpatchset@little-apple&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9608049/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9608049/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9608049/">/patch/9608049/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	6FDD860414 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  7 Mar 2017 03:32:44 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 5D3F32832D
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  7 Mar 2017 03:32:44 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 4FC9B2846D; Tue,  7 Mar 2017 03:32:44 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.3 required=2.0 tests=BAYES_00,
+	DKIM_ADSP_CUSTOM_MED, 
+	DKIM_SIGNED, FREEMAIL_FROM, RCVD_IN_DNSWL_HI, RCVD_IN_SORBS_SPAM,
+	T_DKIM_INVALID autolearn=unavailable version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 9EDFD2832D
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  7 Mar 2017 03:32:43 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S932508AbdCGDch (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 6 Mar 2017 22:32:37 -0500
+Received: from mail-pg0-f65.google.com ([74.125.83.65]:35389 &quot;EHLO
+	mail-pg0-f65.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S932474AbdCGDcf (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 6 Mar 2017 22:32:35 -0500
+Received: by mail-pg0-f65.google.com with SMTP id 187so7855005pgb.2
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Mon, 06 Mar 2017 19:32:34 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=gmail.com; s=20161025;
+	h=from:to:cc:date:message-id:in-reply-to:references:subject;
+	bh=BBuQcy240Xwi0O/GONT9WL3ldlXbNRG4Xv6u4WqYg4Q=;
+	b=fEKJE4BeZ7uBdyR/1EqpAansooS2xTYsELiE0KVC0AylkA2nY1ekNplbAgpIHutNDc
+	Zl6jVxo2xQe7NdLzeWA8vBRpebj6juLI9tlKd6i8x5JIfWECga+7Vowcb0olAh3KLtUL
+	8TwrcO9EXGdu56KTFUyijuGwNF50f17MW1Z0gPG1c58SJUjluqY7dnwi42+1T+Es27ZD
+	Ob2gupiY6c6rnENsji3K354V/SV17cLUUZmgW+naOJDDcuDJr7ow9B+gVSmMmK50J8Gi
+	2erHbkCM3GR6kXIajXxaFsc68jEt+iOrYZrHaYXde8zvM+5PHF00ca2q2363MbZ7sQPC
+	JepQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:from:to:cc:date:message-id:in-reply-to
+	:references:subject;
+	bh=BBuQcy240Xwi0O/GONT9WL3ldlXbNRG4Xv6u4WqYg4Q=;
+	b=OhWon+2/bozYIrPHSde6ptbiulUghHe3I4D3Ref4lh2xc5KD/qDgCK1jdEOokems/+
+	ib/7ufMRaRQP4u/6ELhFOE5HcYIkv48Jl+8bL/ZzTT+0Jmt0fqw6K349hs2GqCf+fqXE
+	pu2Aj+iBk22inEwbVuFmg+9smXUM0yrlDkNsHY0yT6k5J+IRJmJ4zazQ7gKGn0O96n2q
+	n7vu2kilr4aaMtXmeowKnGKn+WlE/+nzK6LTL0RWF7CE+/WHSKF4hWPkdJKOHHsZH595
+	UApnhE3ewK0HhJuoxzRHSgOGH12p63M5nEagHCY2QplClmMueHBoBHrkccL04ixOU8TO
+	LENg==
+X-Gm-Message-State: AMke39lWU5Dq1Ua7c0aSlelXwtwSVlJ2JsMWKdoyifInjyYjZmZZv8nf32WACLqtTLJOgw==
+X-Received: by 10.84.233.194 with SMTP id m2mr32170114pln.126.1488856966732; 
+	Mon, 06 Mar 2017 19:22:46 -0800 (PST)
+Received: from [127.0.0.1] (s214090.ppp.asahi-net.or.jp. [220.157.214.90])
+	by smtp.gmail.com with ESMTPSA id
+	e129sm42083536pfe.8.2017.03.06.19.22.43
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Mon, 06 Mar 2017 19:22:45 -0800 (PST)
+From: Magnus Damm &lt;magnus.damm@gmail.com&gt;
+To: joro@8bytes.org
+Cc: laurent.pinchart+renesas@ideasonboard.com, geert+renesas@glider.be,
+	linux-kernel@vger.kernel.org, linux-renesas-soc@vger.kernel.org,
+	iommu@lists.linux-foundation.org, horms+renesas@verge.net.au,
+	Magnus Damm &lt;magnus.damm@gmail.com&gt;, robin.murphy@arm.com,
+	m.szyprowski@samsung.com
+Date: Tue, 07 Mar 2017 12:17:03 +0900
+Message-Id: &lt;148885662362.28553.15859075114068448611.sendpatchset@little-apple&gt;
+In-Reply-To: &lt;148885660307.28553.995847796823338863.sendpatchset@little-apple&gt;
+References: &lt;148885660307.28553.995847796823338863.sendpatchset@little-apple&gt;
+Subject: [PATCH v7 02/07] iommu/ipmmu-vmsa: Rework interrupt code and use
+	bitmap for context
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=19">Magnus Damm</a> - March 7, 2017, 3:17 a.m.</div>
+<pre class="content">
+<span class="from">From: Magnus Damm &lt;damm+renesas@opensource.se&gt;</span>
+
+Introduce a bitmap for context handing and convert the
+interrupt routine to handle all registered contexts.
+
+At this point the number of contexts are still limited.
+
+Also remove the use of the ARM specific mapping variable
+from ipmmu_irq() to allow compile on ARM64.
+<span class="signed-off-by">
+Signed-off-by: Magnus Damm &lt;damm+renesas@opensource.se&gt;</span>
+<span class="reviewed-by">Reviewed-by: Joerg Roedel &lt;jroedel@suse.de&gt;</span>
+---
+
+ Changes since V6:
+ - None
+
+ drivers/iommu/ipmmu-vmsa.c |   76 ++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 66 insertions(+), 10 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- 0003/drivers/iommu/ipmmu-vmsa.c</span>
+<span class="p_header">+++ work/drivers/iommu/ipmmu-vmsa.c	2017-03-06 18:32:38.350607110 +0900</span>
+<span class="p_chunk">@@ -8,6 +8,7 @@</span> <span class="p_context"></span>
+  * the Free Software Foundation; version 2 of the License.
+  */
+ 
+<span class="p_add">+#include &lt;linux/bitmap.h&gt;</span>
+ #include &lt;linux/delay.h&gt;
+ #include &lt;linux/dma-mapping.h&gt;
+ #include &lt;linux/err.h&gt;
+<span class="p_chunk">@@ -26,12 +27,17 @@</span> <span class="p_context"></span>
+ 
+ #include &quot;io-pgtable.h&quot;
+ 
+<span class="p_add">+#define IPMMU_CTX_MAX 1</span>
+<span class="p_add">+</span>
+ struct ipmmu_vmsa_device {
+ 	struct device *dev;
+ 	void __iomem *base;
+ 	struct list_head list;
+ 
+ 	unsigned int num_utlbs;
+<span class="p_add">+	spinlock_t lock;			/* Protects ctx and domains[] */</span>
+<span class="p_add">+	DECLARE_BITMAP(ctx, IPMMU_CTX_MAX);</span>
+<span class="p_add">+	struct ipmmu_vmsa_domain *domains[IPMMU_CTX_MAX];</span>
+ 
+ 	struct dma_iommu_mapping *mapping;
+ };
+<span class="p_chunk">@@ -293,9 +299,29 @@</span> <span class="p_context"> static struct iommu_gather_ops ipmmu_gat</span>
+  * Domain/Context Management
+  */
+ 
+<span class="p_add">+static int ipmmu_domain_allocate_context(struct ipmmu_vmsa_device *mmu,</span>
+<span class="p_add">+					 struct ipmmu_vmsa_domain *domain)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long flags;</span>
+<span class="p_add">+	int ret;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	spin_lock_irqsave(&amp;mmu-&gt;lock, flags);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ret = find_first_zero_bit(mmu-&gt;ctx, IPMMU_CTX_MAX);</span>
+<span class="p_add">+	if (ret != IPMMU_CTX_MAX) {</span>
+<span class="p_add">+		mmu-&gt;domains[ret] = domain;</span>
+<span class="p_add">+		set_bit(ret, mmu-&gt;ctx);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	spin_unlock_irqrestore(&amp;mmu-&gt;lock, flags);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return ret;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
+ {
+ 	u64 ttbr;
+<span class="p_add">+	int ret;</span>
+ 
+ 	/*
+ 	 * Allocate the page table operations.
+<span class="p_chunk">@@ -327,10 +353,15 @@</span> <span class="p_context"> static int ipmmu_domain_init_context(str</span>
+ 		return -EINVAL;
+ 
+ 	/*
+<span class="p_del">-	 * TODO: When adding support for multiple contexts, find an unused</span>
+<span class="p_del">-	 * context.</span>
+<span class="p_add">+	 * Find an unused context.</span>
+ 	 */
+<span class="p_del">-	domain-&gt;context_id = 0;</span>
+<span class="p_add">+	ret = ipmmu_domain_allocate_context(domain-&gt;mmu, domain);</span>
+<span class="p_add">+	if (ret == IPMMU_CTX_MAX) {</span>
+<span class="p_add">+		free_io_pgtable_ops(domain-&gt;iop);</span>
+<span class="p_add">+		return -EBUSY;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	domain-&gt;context_id = ret;</span>
+ 
+ 	/* TTBR0 */
+ 	ttbr = domain-&gt;cfg.arm_lpae_s1_cfg.ttbr[0];
+<span class="p_chunk">@@ -372,6 +403,19 @@</span> <span class="p_context"> static int ipmmu_domain_init_context(str</span>
+ 	return 0;
+ }
+ 
+<span class="p_add">+static void ipmmu_domain_free_context(struct ipmmu_vmsa_device *mmu,</span>
+<span class="p_add">+				      unsigned int context_id)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long flags;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	spin_lock_irqsave(&amp;mmu-&gt;lock, flags);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	clear_bit(context_id, mmu-&gt;ctx);</span>
+<span class="p_add">+	mmu-&gt;domains[context_id] = NULL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	spin_unlock_irqrestore(&amp;mmu-&gt;lock, flags);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ static void ipmmu_domain_destroy_context(struct ipmmu_vmsa_domain *domain)
+ {
+ 	/*
+<span class="p_chunk">@@ -382,6 +426,7 @@</span> <span class="p_context"> static void ipmmu_domain_destroy_context</span>
+ 	 */
+ 	ipmmu_ctx_write(domain, IMCTR, IMCTR_FLUSH);
+ 	ipmmu_tlb_sync(domain);
+<span class="p_add">+	ipmmu_domain_free_context(domain-&gt;mmu, domain-&gt;context_id);</span>
+ }
+ 
+ /* -----------------------------------------------------------------------------
+<span class="p_chunk">@@ -439,16 +484,25 @@</span> <span class="p_context"> static irqreturn_t ipmmu_domain_irq(stru</span>
+ static irqreturn_t ipmmu_irq(int irq, void *dev)
+ {
+ 	struct ipmmu_vmsa_device *mmu = dev;
+<span class="p_del">-	struct iommu_domain *io_domain;</span>
+<span class="p_del">-	struct ipmmu_vmsa_domain *domain;</span>
+<span class="p_add">+	irqreturn_t status = IRQ_NONE;</span>
+<span class="p_add">+	unsigned int i;</span>
+<span class="p_add">+	unsigned long flags;</span>
+ 
+<span class="p_del">-	if (!mmu-&gt;mapping)</span>
+<span class="p_del">-		return IRQ_NONE;</span>
+<span class="p_add">+	spin_lock_irqsave(&amp;mmu-&gt;lock, flags);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Check interrupts for all active contexts.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	for (i = 0; i &lt; IPMMU_CTX_MAX; i++) {</span>
+<span class="p_add">+		if (!mmu-&gt;domains[i])</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+		if (ipmmu_domain_irq(mmu-&gt;domains[i]) == IRQ_HANDLED)</span>
+<span class="p_add">+			status = IRQ_HANDLED;</span>
+<span class="p_add">+	}</span>
+ 
+<span class="p_del">-	io_domain = mmu-&gt;mapping-&gt;domain;</span>
+<span class="p_del">-	domain = to_vmsa_domain(io_domain);</span>
+<span class="p_add">+	spin_unlock_irqrestore(&amp;mmu-&gt;lock, flags);</span>
+ 
+<span class="p_del">-	return ipmmu_domain_irq(domain);</span>
+<span class="p_add">+	return status;</span>
+ }
+ 
+ /* -----------------------------------------------------------------------------
+<span class="p_chunk">@@ -776,6 +830,8 @@</span> <span class="p_context"> static int ipmmu_probe(struct platform_d</span>
+ 
+ 	mmu-&gt;dev = &amp;pdev-&gt;dev;
+ 	mmu-&gt;num_utlbs = 32;
+<span class="p_add">+	spin_lock_init(&amp;mmu-&gt;lock);</span>
+<span class="p_add">+	bitmap_zero(mmu-&gt;ctx, IPMMU_CTX_MAX);</span>
+ 
+ 	/* Map I/O memory and request IRQ. */
+ 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

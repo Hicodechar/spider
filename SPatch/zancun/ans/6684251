@@ -1,0 +1,485 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[3.14,08/17] arm/arm64: KVM: Fix and refactor unmap_range - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [3.14,08/17] arm/arm64: KVM: Fix and refactor unmap_range</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=37061">gregkh@linuxfoundation.org</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>June 27, 2015, 1:08 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20150627010820.484352217@linuxfoundation.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/6684251/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/6684251/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/6684251/">/patch/6684251/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork1.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork1.web.kernel.org (Postfix) with ESMTP id 312429F1C1
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 27 Jun 2015 01:21:29 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 218D920675
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 27 Jun 2015 01:21:28 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id DAD9D2069F
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 27 Jun 2015 01:21:26 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1030263AbbF0BUT (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Fri, 26 Jun 2015 21:20:19 -0400
+Received: from mail.linuxfoundation.org ([140.211.169.12]:47409 &quot;EHLO
+	mail.linuxfoundation.org&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751546AbbF0BIv (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Fri, 26 Jun 2015 21:08:51 -0400
+Received: from localhost (c-50-170-35-168.hsd1.wa.comcast.net
+	[50.170.35.168])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 66B1FB8B;
+	Sat, 27 Jun 2015 01:08:51 +0000 (UTC)
+From: Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;,
+	stable@vger.kernel.org, Jungseok Lee &lt;jays.lee@samsung.com&gt;,
+	Mario Smarduch &lt;m.smarduch@samsung.com&gt;,
+	Marc Zyngier &lt;marc.zyngier@arm.com&gt;,
+	Christoffer Dall &lt;christoffer.dall@linaro.org&gt;,
+	Shannon Zhao &lt;shannon.zhao@linaro.org&gt;
+Subject: [PATCH 3.14 08/17] arm/arm64: KVM: Fix and refactor unmap_range
+Date: Fri, 26 Jun 2015 18:08:30 -0700
+Message-Id: &lt;20150627010820.484352217@linuxfoundation.org&gt;
+X-Mailer: git-send-email 2.4.4
+In-Reply-To: &lt;20150627010820.231673616@linuxfoundation.org&gt;
+References: &lt;20150627010820.231673616@linuxfoundation.org&gt;
+User-Agent: quilt/0.64
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-8.3 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=37061">gregkh@linuxfoundation.org</a> - June 27, 2015, 1:08 a.m.</div>
+<pre class="content">
+3.14-stable review patch.  If anyone has any objections, please let me know.
+
+------------------
+<span class="from">
+From: Christoffer Dall &lt;christoffer.dall@linaro.org&gt;</span>
+
+commit 4f853a714bf16338ff5261128e6c7ae2569e9505 upstream.
+
+unmap_range() was utterly broken, to quote Marc, and broke in all sorts
+of situations.  It was also quite complicated to follow and didn&#39;t
+follow the usual scheme of having a separate iterating function for each
+level of page tables.
+
+Address this by refactoring the code and introduce a pgd_clear()
+function.
+<span class="reviewed-by">
+Reviewed-by: Jungseok Lee &lt;jays.lee@samsung.com&gt;</span>
+<span class="reviewed-by">Reviewed-by: Mario Smarduch &lt;m.smarduch@samsung.com&gt;</span>
+<span class="acked-by">Acked-by: Marc Zyngier &lt;marc.zyngier@arm.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Christoffer Dall &lt;christoffer.dall@linaro.org&gt;</span>
+<span class="signed-off-by">Signed-off-by: Shannon Zhao &lt;shannon.zhao@linaro.org&gt;</span>
+<span class="signed-off-by">Signed-off-by: Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;</span>
+---
+ arch/arm/include/asm/kvm_mmu.h   |   12 +++
+ arch/arm/kvm/mmu.c               |  156 +++++++++++++++++++++------------------
+ arch/arm64/include/asm/kvm_mmu.h |   15 +++
+ 3 files changed, 111 insertions(+), 72 deletions(-)
+
+
+
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- a/arch/arm/include/asm/kvm_mmu.h</span>
+<span class="p_header">+++ b/arch/arm/include/asm/kvm_mmu.h</span>
+<span class="p_chunk">@@ -127,6 +127,18 @@</span> <span class="p_context"> static inline void kvm_set_s2pmd_writabl</span>
+ 	(__boundary - 1 &lt; (end) - 1)? __boundary: (end);		\
+ })
+ 
+<span class="p_add">+static inline bool kvm_page_empty(void *ptr)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct page *ptr_page = virt_to_page(ptr);</span>
+<span class="p_add">+	return page_count(ptr_page) == 1;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define kvm_pte_table_empty(ptep) kvm_page_empty(ptep)</span>
+<span class="p_add">+#define kvm_pmd_table_empty(pmdp) kvm_page_empty(pmdp)</span>
+<span class="p_add">+#define kvm_pud_table_empty(pudp) (0)</span>
+<span class="p_add">+</span>
+<span class="p_add">+</span>
+ struct kvm;
+ 
+ #define kvm_flush_dcache_to_poc(a,l)	__cpuc_flush_dcache_area((a), (l))
+<span class="p_header">--- a/arch/arm/kvm/mmu.c</span>
+<span class="p_header">+++ b/arch/arm/kvm/mmu.c</span>
+<span class="p_chunk">@@ -90,103 +90,115 @@</span> <span class="p_context"> static void *mmu_memory_cache_alloc(stru</span>
+ 	return p;
+ }
+ 
+<span class="p_del">-static bool page_empty(void *ptr)</span>
+<span class="p_add">+static void clear_pgd_entry(struct kvm *kvm, pgd_t *pgd, phys_addr_t addr)</span>
+ {
+<span class="p_del">-	struct page *ptr_page = virt_to_page(ptr);</span>
+<span class="p_del">-	return page_count(ptr_page) == 1;</span>
+<span class="p_add">+	pud_t *pud_table __maybe_unused = pud_offset(pgd, 0);</span>
+<span class="p_add">+	pgd_clear(pgd);</span>
+<span class="p_add">+	kvm_tlb_flush_vmid_ipa(kvm, addr);</span>
+<span class="p_add">+	pud_free(NULL, pud_table);</span>
+<span class="p_add">+	put_page(virt_to_page(pgd));</span>
+ }
+ 
+ static void clear_pud_entry(struct kvm *kvm, pud_t *pud, phys_addr_t addr)
+ {
+<span class="p_del">-	if (pud_huge(*pud)) {</span>
+<span class="p_del">-		pud_clear(pud);</span>
+<span class="p_del">-		kvm_tlb_flush_vmid_ipa(kvm, addr);</span>
+<span class="p_del">-	} else {</span>
+<span class="p_del">-		pmd_t *pmd_table = pmd_offset(pud, 0);</span>
+<span class="p_del">-		pud_clear(pud);</span>
+<span class="p_del">-		kvm_tlb_flush_vmid_ipa(kvm, addr);</span>
+<span class="p_del">-		pmd_free(NULL, pmd_table);</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+	pmd_t *pmd_table = pmd_offset(pud, 0);</span>
+<span class="p_add">+	VM_BUG_ON(pud_huge(*pud));</span>
+<span class="p_add">+	pud_clear(pud);</span>
+<span class="p_add">+	kvm_tlb_flush_vmid_ipa(kvm, addr);</span>
+<span class="p_add">+	pmd_free(NULL, pmd_table);</span>
+ 	put_page(virt_to_page(pud));
+ }
+ 
+ static void clear_pmd_entry(struct kvm *kvm, pmd_t *pmd, phys_addr_t addr)
+ {
+<span class="p_del">-	if (kvm_pmd_huge(*pmd)) {</span>
+<span class="p_del">-		pmd_clear(pmd);</span>
+<span class="p_del">-		kvm_tlb_flush_vmid_ipa(kvm, addr);</span>
+<span class="p_del">-	} else {</span>
+<span class="p_del">-		pte_t *pte_table = pte_offset_kernel(pmd, 0);</span>
+<span class="p_del">-		pmd_clear(pmd);</span>
+<span class="p_del">-		kvm_tlb_flush_vmid_ipa(kvm, addr);</span>
+<span class="p_del">-		pte_free_kernel(NULL, pte_table);</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+	pte_t *pte_table = pte_offset_kernel(pmd, 0);</span>
+<span class="p_add">+	VM_BUG_ON(kvm_pmd_huge(*pmd));</span>
+<span class="p_add">+	pmd_clear(pmd);</span>
+<span class="p_add">+	kvm_tlb_flush_vmid_ipa(kvm, addr);</span>
+<span class="p_add">+	pte_free_kernel(NULL, pte_table);</span>
+ 	put_page(virt_to_page(pmd));
+ }
+ 
+<span class="p_del">-static void clear_pte_entry(struct kvm *kvm, pte_t *pte, phys_addr_t addr)</span>
+<span class="p_add">+static void unmap_ptes(struct kvm *kvm, pmd_t *pmd,</span>
+<span class="p_add">+		      phys_addr_t addr, phys_addr_t end)</span>
+ {
+<span class="p_del">-	if (pte_present(*pte)) {</span>
+<span class="p_del">-		kvm_set_pte(pte, __pte(0));</span>
+<span class="p_del">-		put_page(virt_to_page(pte));</span>
+<span class="p_del">-		kvm_tlb_flush_vmid_ipa(kvm, addr);</span>
+<span class="p_add">+	phys_addr_t start_addr = addr;</span>
+<span class="p_add">+	pte_t *pte, *start_pte;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	start_pte = pte = pte_offset_kernel(pmd, addr);</span>
+<span class="p_add">+	do {</span>
+<span class="p_add">+		if (!pte_none(*pte)) {</span>
+<span class="p_add">+			kvm_set_pte(pte, __pte(0));</span>
+<span class="p_add">+			put_page(virt_to_page(pte));</span>
+<span class="p_add">+			kvm_tlb_flush_vmid_ipa(kvm, addr);</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	} while (pte++, addr += PAGE_SIZE, addr != end);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (kvm_pte_table_empty(start_pte))</span>
+<span class="p_add">+		clear_pmd_entry(kvm, pmd, start_addr);</span>
+ 	}
+<span class="p_del">-}</span>
+ 
+<span class="p_del">-static void unmap_range(struct kvm *kvm, pgd_t *pgdp,</span>
+<span class="p_del">-			unsigned long long start, u64 size)</span>
+<span class="p_add">+static void unmap_pmds(struct kvm *kvm, pud_t *pud,</span>
+<span class="p_add">+		      phys_addr_t addr, phys_addr_t end)</span>
+ {
+<span class="p_del">-	pgd_t *pgd;</span>
+<span class="p_del">-	pud_t *pud;</span>
+<span class="p_del">-	pmd_t *pmd;</span>
+<span class="p_del">-	pte_t *pte;</span>
+<span class="p_del">-	unsigned long long addr = start, end = start + size;</span>
+<span class="p_del">-	u64 next;</span>
+<span class="p_del">-</span>
+<span class="p_del">-	while (addr &lt; end) {</span>
+<span class="p_del">-		pgd = pgdp + pgd_index(addr);</span>
+<span class="p_del">-		pud = pud_offset(pgd, addr);</span>
+<span class="p_del">-		if (pud_none(*pud)) {</span>
+<span class="p_del">-			addr = kvm_pud_addr_end(addr, end);</span>
+<span class="p_del">-			continue;</span>
+<span class="p_del">-		}</span>
+<span class="p_add">+	phys_addr_t next, start_addr = addr;</span>
+<span class="p_add">+	pmd_t *pmd, *start_pmd;</span>
+ 
+<span class="p_del">-		if (pud_huge(*pud)) {</span>
+<span class="p_del">-			/*</span>
+<span class="p_del">-			 * If we are dealing with a huge pud, just clear it and</span>
+<span class="p_del">-			 * move on.</span>
+<span class="p_del">-			 */</span>
+<span class="p_del">-			clear_pud_entry(kvm, pud, addr);</span>
+<span class="p_del">-			addr = kvm_pud_addr_end(addr, end);</span>
+<span class="p_del">-			continue;</span>
+<span class="p_add">+	start_pmd = pmd = pmd_offset(pud, addr);</span>
+<span class="p_add">+	do {</span>
+<span class="p_add">+		next = kvm_pmd_addr_end(addr, end);</span>
+<span class="p_add">+		if (!pmd_none(*pmd)) {</span>
+<span class="p_add">+			if (kvm_pmd_huge(*pmd)) {</span>
+<span class="p_add">+				pmd_clear(pmd);</span>
+<span class="p_add">+				kvm_tlb_flush_vmid_ipa(kvm, addr);</span>
+<span class="p_add">+				put_page(virt_to_page(pmd));</span>
+<span class="p_add">+			} else {</span>
+<span class="p_add">+				unmap_ptes(kvm, pmd, addr, next);</span>
+<span class="p_add">+			}</span>
+ 		}
+<span class="p_add">+	} while (pmd++, addr = next, addr != end);</span>
+ 
+<span class="p_del">-		pmd = pmd_offset(pud, addr);</span>
+<span class="p_del">-		if (pmd_none(*pmd)) {</span>
+<span class="p_del">-			addr = kvm_pmd_addr_end(addr, end);</span>
+<span class="p_del">-			continue;</span>
+<span class="p_del">-		}</span>
+<span class="p_add">+	if (kvm_pmd_table_empty(start_pmd))</span>
+<span class="p_add">+		clear_pud_entry(kvm, pud, start_addr);</span>
+<span class="p_add">+}</span>
+ 
+<span class="p_del">-		if (!kvm_pmd_huge(*pmd)) {</span>
+<span class="p_del">-			pte = pte_offset_kernel(pmd, addr);</span>
+<span class="p_del">-			clear_pte_entry(kvm, pte, addr);</span>
+<span class="p_del">-			next = addr + PAGE_SIZE;</span>
+<span class="p_del">-		}</span>
+<span class="p_add">+static void unmap_puds(struct kvm *kvm, pgd_t *pgd,</span>
+<span class="p_add">+		      phys_addr_t addr, phys_addr_t end)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	phys_addr_t next, start_addr = addr;</span>
+<span class="p_add">+	pud_t *pud, *start_pud;</span>
+ 
+<span class="p_del">-		/*</span>
+<span class="p_del">-		 * If the pmd entry is to be cleared, walk back up the ladder</span>
+<span class="p_del">-		 */</span>
+<span class="p_del">-		if (kvm_pmd_huge(*pmd) || page_empty(pte)) {</span>
+<span class="p_del">-			clear_pmd_entry(kvm, pmd, addr);</span>
+<span class="p_del">-			next = kvm_pmd_addr_end(addr, end);</span>
+<span class="p_del">-			if (page_empty(pmd) &amp;&amp; !page_empty(pud)) {</span>
+<span class="p_del">-				clear_pud_entry(kvm, pud, addr);</span>
+<span class="p_del">-				next = kvm_pud_addr_end(addr, end);</span>
+<span class="p_add">+	start_pud = pud = pud_offset(pgd, addr);</span>
+<span class="p_add">+	do {</span>
+<span class="p_add">+		next = kvm_pud_addr_end(addr, end);</span>
+<span class="p_add">+		if (!pud_none(*pud)) {</span>
+<span class="p_add">+			if (pud_huge(*pud)) {</span>
+<span class="p_add">+				pud_clear(pud);</span>
+<span class="p_add">+				kvm_tlb_flush_vmid_ipa(kvm, addr);</span>
+<span class="p_add">+				put_page(virt_to_page(pud));</span>
+<span class="p_add">+			} else {</span>
+<span class="p_add">+				unmap_pmds(kvm, pud, addr, next);</span>
+ 			}
+ 		}
+<span class="p_add">+	} while (pud++, addr = next, addr != end);</span>
+ 
+<span class="p_del">-		addr = next;</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+	if (kvm_pud_table_empty(start_pud))</span>
+<span class="p_add">+		clear_pgd_entry(kvm, pgd, start_addr);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void unmap_range(struct kvm *kvm, pgd_t *pgdp,</span>
+<span class="p_add">+		       phys_addr_t start, u64 size)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	pgd_t *pgd;</span>
+<span class="p_add">+	phys_addr_t addr = start, end = start + size;</span>
+<span class="p_add">+	phys_addr_t next;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pgd = pgdp + pgd_index(addr);</span>
+<span class="p_add">+	do {</span>
+<span class="p_add">+		next = kvm_pgd_addr_end(addr, end);</span>
+<span class="p_add">+		unmap_puds(kvm, pgd, addr, next);</span>
+<span class="p_add">+	} while (pgd++, addr = next, addr != end);</span>
+ }
+ 
+ static void stage2_flush_ptes(struct kvm *kvm, pmd_t *pmd,
+<span class="p_header">--- a/arch/arm64/include/asm/kvm_mmu.h</span>
+<span class="p_header">+++ b/arch/arm64/include/asm/kvm_mmu.h</span>
+<span class="p_chunk">@@ -125,6 +125,21 @@</span> <span class="p_context"> static inline void kvm_set_s2pmd_writabl</span>
+ #define kvm_pud_addr_end(addr, end)	pud_addr_end(addr, end)
+ #define kvm_pmd_addr_end(addr, end)	pmd_addr_end(addr, end)
+ 
+<span class="p_add">+static inline bool kvm_page_empty(void *ptr)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct page *ptr_page = virt_to_page(ptr);</span>
+<span class="p_add">+	return page_count(ptr_page) == 1;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define kvm_pte_table_empty(ptep) kvm_page_empty(ptep)</span>
+<span class="p_add">+#ifndef CONFIG_ARM64_64K_PAGES</span>
+<span class="p_add">+#define kvm_pmd_table_empty(pmdp) kvm_page_empty(pmdp)</span>
+<span class="p_add">+#else</span>
+<span class="p_add">+#define kvm_pmd_table_empty(pmdp) (0)</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+#define kvm_pud_table_empty(pudp) (0)</span>
+<span class="p_add">+</span>
+<span class="p_add">+</span>
+ struct kvm;
+ 
+ #define kvm_flush_dcache_to_poc(a,l)	__flush_dcache_area((a), (l))
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

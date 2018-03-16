@@ -1,0 +1,1730 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[1/2] mm, oom: introduce oom reaper - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [1/2] mm, oom: introduce oom reaper</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Jan. 6, 2016, 3:42 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1452094975-551-2-git-send-email-mhocko@kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7968681/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7968681/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7968681/">/patch/7968681/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id ED514BEEE5
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  6 Jan 2016 15:43:25 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 953172012D
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  6 Jan 2016 15:43:24 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 1F8E620142
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  6 Jan 2016 15:43:23 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752396AbcAFPnS (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 6 Jan 2016 10:43:18 -0500
+Received: from mail-wm0-f42.google.com ([74.125.82.42]:32868 &quot;EHLO
+	mail-wm0-f42.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751653AbcAFPnK (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 6 Jan 2016 10:43:10 -0500
+Received: by mail-wm0-f42.google.com with SMTP id f206so64360061wmf.0
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Wed, 06 Jan 2016 07:43:10 -0800 (PST)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20130820;
+	h=from:to:cc:subject:date:message-id:in-reply-to:references;
+	bh=suakmQObWSaYmYuCSOayojWIYZC8dwroLjpQspGS1DI=;
+	b=ZvehFNUt7j1oJag353RpjOwEeD44oiVd1eNyfJ3aYAKUqRTqVjZYAg5+YRG3ZiF5BN
+	4UajFhuD9mCuOG4qznJJglsHd8rsl4HmpTyzdNtA4Z1llr/m9/ta8rNlv2JNQMzx81KT
+	MW3tp3h7eE5b1lvB7wwRdvE5xthAHjn0DiRPwcXoLRMK60kKyPMpcqLgBmJFkG4KP9ml
+	66M6s8BtXw3I53EwIjz71PETZtijYNdsv9KXbdV/GQxlExhH0l9Fly9Gh/RitA+30w7C
+	FPOBWcja1uNwtCuae4igUPe24igzfXwZY6GC+Gr2bB/fX3btbm8FGbI1U2adLrnziJso
+	DnBw==
+X-Received: by 10.28.54.159 with SMTP id y31mr11492235wmh.87.1452094989396; 
+	Wed, 06 Jan 2016 07:43:09 -0800 (PST)
+Received: from tiehlicka.suse.cz (nat1.scz.suse.com. [213.151.88.250])
+	by smtp.gmail.com with ESMTPSA id
+	q129sm9312526wmd.14.2016.01.06.07.43.08
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+	Wed, 06 Jan 2016 07:43:08 -0800 (PST)
+From: Michal Hocko &lt;mhocko@kernel.org&gt;
+To: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: Mel Gorman &lt;mgorman@suse.de&gt;,
+	Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;,
+	David Rientjes &lt;rientjes@google.com&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Oleg Nesterov &lt;oleg@redhat.com&gt;, Hugh Dickins &lt;hughd@google.com&gt;,
+	Andrea Argangeli &lt;andrea@kernel.org&gt;,
+	Rik van Riel &lt;riel@redhat.com&gt;, &lt;linux-mm@kvack.org&gt;,
+	LKML &lt;linux-kernel@vger.kernel.org&gt;, Michal Hocko &lt;mhocko@suse.com&gt;
+Subject: [PATCH 1/2] mm, oom: introduce oom reaper
+Date: Wed,  6 Jan 2016 16:42:54 +0100
+Message-Id: &lt;1452094975-551-2-git-send-email-mhocko@kernel.org&gt;
+X-Mailer: git-send-email 2.6.4
+In-Reply-To: &lt;1452094975-551-1-git-send-email-mhocko@kernel.org&gt;
+References: &lt;1452094975-551-1-git-send-email-mhocko@kernel.org&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Jan. 6, 2016, 3:42 p.m.</div>
+<pre class="content">
+<span class="from">From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+
+This is based on the idea from Mel Gorman discussed during LSFMM 2015 and
+independently brought up by Oleg Nesterov.
+
+The OOM killer currently allows to kill only a single task in a good
+hope that the task will terminate in a reasonable time and frees up its
+memory.  Such a task (oom victim) will get an access to memory reserves
+via mark_oom_victim to allow a forward progress should there be a need
+for additional memory during exit path.
+
+It has been shown (e.g. by Tetsuo Handa) that it is not that hard to
+construct workloads which break the core assumption mentioned above and
+the OOM victim might take unbounded amount of time to exit because it
+might be blocked in the uninterruptible state waiting for on an event
+(e.g. lock) which is blocked by another task looping in the page
+allocator.
+
+This patch reduces the probability of such a lockup by introducing a
+specialized kernel thread (oom_reaper) which tries to reclaim additional
+memory by preemptively reaping the anonymous or swapped out memory
+owned by the oom victim under an assumption that such a memory won&#39;t
+be needed when its owner is killed and kicked from the userspace anyway.
+There is one notable exception to this, though, if the OOM victim was
+in the process of coredumping the result would be incomplete. This is
+considered a reasonable constrain because the overall system health is
+more important than debugability of a particular application.
+
+A kernel thread has been chosen because we need a reliable way of
+invocation so workqueue context is not appropriate because all the
+workers might be busy (e.g. allocating memory). Kswapd which sounds
+like another good fit is not appropriate as well because it might get
+blocked on locks during reclaim as well.
+
+oom_reaper has to take mmap_sem on the target task for reading so the
+solution is not 100% because the semaphore might be held or blocked for
+write but the probability is reduced considerably wrt. basically any
+lock blocking forward progress as described above. In order to prevent
+from blocking on the lock without any forward progress we are using only
+a trylock and retry 10 times with a short sleep in between.
+Users of mmap_sem which need it for write should be carefully reviewed
+to use _killable waiting as much as possible and reduce allocations
+requests done with the lock held to absolute minimum to reduce the risk
+even further.
+
+The API between oom killer and oom reaper is quite trivial. wake_oom_reaper
+updates mm_to_reap with cmpxchg to guarantee only NULL-&gt;mm transition
+and oom_reaper clear this atomically once it is done with the work. This
+means that only a single mm_struct can be reaped at the time. As the
+operation is potentially disruptive we are trying to limit it to the
+ncessary minimum and the reaper blocks any updates while it operates on
+an mm. mm_struct is pinned by mm_count to allow parallel exit_mmap and a
+race is detected by atomic_inc_not_zero(mm_users).
+
+Changes since v3
+- many style/compile fixups by Andrew
+- unmap_mapping_range_tree needs full initialization of zap_details
+  to prevent from missing unmaps and follow up BUG_ON during truncate
+  resp. misaccounting - Kirill/Andrew
+- exclude mlocked pages because they need an explicit munlock by Kirill
+- use subsys_initcall instead of module_init - Paul Gortmaker
+Changes since v2
+- fix mm_count refernce leak reported by Tetsuo
+- make sure oom_reaper_th is NULL after kthread_run fails - Tetsuo
+- use wait_event_freezable rather than open coded wait loop - suggested
+  by Tetsuo
+Changes since v1
+- fix the screwed up detail-&gt;check_swap_entries - Johannes
+- do not use kthread_should_stop because that would need a cleanup
+  and we do not have anybody to stop us - Tetsuo
+- move wake_oom_reaper to oom_kill_process because we have to wait
+  for all tasks sharing the same mm to get killed - Tetsuo
+- do not reap mm structs which are shared with unkillable tasks - Tetsuo
+<span class="acked-by">
+Acked-by: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+<span class="signed-off-by">Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+---
+ include/linux/mm.h |   2 +
+ mm/internal.h      |   5 ++
+ mm/memory.c        |  17 +++---
+ mm/oom_kill.c      | 157 +++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 4 files changed, 170 insertions(+), 11 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=579">David Rientjes</a> - Jan. 28, 2016, 1:28 a.m.</div>
+<pre class="content">
+On Wed, 6 Jan 2016, Michal Hocko wrote:
+<span class="quote">
+&gt; From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This is based on the idea from Mel Gorman discussed during LSFMM 2015 and</span>
+<span class="quote">&gt; independently brought up by Oleg Nesterov.</span>
+<span class="quote">&gt; </span>
+
+Suggested-bys?
+<span class="quote">
+&gt; The OOM killer currently allows to kill only a single task in a good</span>
+<span class="quote">&gt; hope that the task will terminate in a reasonable time and frees up its</span>
+<span class="quote">&gt; memory.  Such a task (oom victim) will get an access to memory reserves</span>
+<span class="quote">&gt; via mark_oom_victim to allow a forward progress should there be a need</span>
+<span class="quote">&gt; for additional memory during exit path.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It has been shown (e.g. by Tetsuo Handa) that it is not that hard to</span>
+<span class="quote">&gt; construct workloads which break the core assumption mentioned above and</span>
+<span class="quote">&gt; the OOM victim might take unbounded amount of time to exit because it</span>
+<span class="quote">&gt; might be blocked in the uninterruptible state waiting for on an event</span>
+<span class="quote">&gt; (e.g. lock) which is blocked by another task looping in the page</span>
+<span class="quote">&gt; allocator.</span>
+<span class="quote">&gt; </span>
+
+s/for on/for/
+
+I think it would be good to note in either of the two paragraphs above 
+that each victim is per-memcg hierarchy or system-wide and the oom reaper 
+is used for memcg oom conditions as well.  Otherwise, there&#39;s no mention 
+of the memcg usecase.
+<span class="quote">
+&gt; This patch reduces the probability of such a lockup by introducing a</span>
+<span class="quote">&gt; specialized kernel thread (oom_reaper) which tries to reclaim additional</span>
+<span class="quote">&gt; memory by preemptively reaping the anonymous or swapped out memory</span>
+<span class="quote">&gt; owned by the oom victim under an assumption that such a memory won&#39;t</span>
+<span class="quote">&gt; be needed when its owner is killed and kicked from the userspace anyway.</span>
+<span class="quote">&gt; There is one notable exception to this, though, if the OOM victim was</span>
+<span class="quote">&gt; in the process of coredumping the result would be incomplete. This is</span>
+<span class="quote">&gt; considered a reasonable constrain because the overall system health is</span>
+<span class="quote">&gt; more important than debugability of a particular application.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; A kernel thread has been chosen because we need a reliable way of</span>
+<span class="quote">&gt; invocation so workqueue context is not appropriate because all the</span>
+<span class="quote">&gt; workers might be busy (e.g. allocating memory). Kswapd which sounds</span>
+<span class="quote">&gt; like another good fit is not appropriate as well because it might get</span>
+<span class="quote">&gt; blocked on locks during reclaim as well.</span>
+<span class="quote">&gt; </span>
+
+Very good points.  And I think this makes the case clear that oom_reaper 
+is really a best-effort solution.
+<span class="quote">
+&gt; oom_reaper has to take mmap_sem on the target task for reading so the</span>
+<span class="quote">&gt; solution is not 100% because the semaphore might be held or blocked for</span>
+<span class="quote">&gt; write but the probability is reduced considerably wrt. basically any</span>
+<span class="quote">&gt; lock blocking forward progress as described above. In order to prevent</span>
+<span class="quote">&gt; from blocking on the lock without any forward progress we are using only</span>
+<span class="quote">&gt; a trylock and retry 10 times with a short sleep in between.</span>
+<span class="quote">&gt; Users of mmap_sem which need it for write should be carefully reviewed</span>
+<span class="quote">&gt; to use _killable waiting as much as possible and reduce allocations</span>
+<span class="quote">&gt; requests done with the lock held to absolute minimum to reduce the risk</span>
+<span class="quote">&gt; even further.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The API between oom killer and oom reaper is quite trivial. wake_oom_reaper</span>
+<span class="quote">&gt; updates mm_to_reap with cmpxchg to guarantee only NULL-&gt;mm transition</span>
+<span class="quote">&gt; and oom_reaper clear this atomically once it is done with the work. This</span>
+<span class="quote">&gt; means that only a single mm_struct can be reaped at the time. As the</span>
+<span class="quote">&gt; operation is potentially disruptive we are trying to limit it to the</span>
+<span class="quote">&gt; ncessary minimum and the reaper blocks any updates while it operates on</span>
+<span class="quote">&gt; an mm. mm_struct is pinned by mm_count to allow parallel exit_mmap and a</span>
+<span class="quote">&gt; race is detected by atomic_inc_not_zero(mm_users).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Changes since v3</span>
+<span class="quote">&gt; - many style/compile fixups by Andrew</span>
+<span class="quote">&gt; - unmap_mapping_range_tree needs full initialization of zap_details</span>
+<span class="quote">&gt;   to prevent from missing unmaps and follow up BUG_ON during truncate</span>
+<span class="quote">&gt;   resp. misaccounting - Kirill/Andrew</span>
+<span class="quote">&gt; - exclude mlocked pages because they need an explicit munlock by Kirill</span>
+<span class="quote">&gt; - use subsys_initcall instead of module_init - Paul Gortmaker</span>
+<span class="quote">&gt; Changes since v2</span>
+<span class="quote">&gt; - fix mm_count refernce leak reported by Tetsuo</span>
+<span class="quote">&gt; - make sure oom_reaper_th is NULL after kthread_run fails - Tetsuo</span>
+<span class="quote">&gt; - use wait_event_freezable rather than open coded wait loop - suggested</span>
+<span class="quote">&gt;   by Tetsuo</span>
+<span class="quote">&gt; Changes since v1</span>
+<span class="quote">&gt; - fix the screwed up detail-&gt;check_swap_entries - Johannes</span>
+<span class="quote">&gt; - do not use kthread_should_stop because that would need a cleanup</span>
+<span class="quote">&gt;   and we do not have anybody to stop us - Tetsuo</span>
+<span class="quote">&gt; - move wake_oom_reaper to oom_kill_process because we have to wait</span>
+<span class="quote">&gt;   for all tasks sharing the same mm to get killed - Tetsuo</span>
+<span class="quote">&gt; - do not reap mm structs which are shared with unkillable tasks - Tetsuo</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Acked-by: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+<span class="quote">&gt; Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  include/linux/mm.h |   2 +</span>
+<span class="quote">&gt;  mm/internal.h      |   5 ++</span>
+<span class="quote">&gt;  mm/memory.c        |  17 +++---</span>
+<span class="quote">&gt;  mm/oom_kill.c      | 157 +++++++++++++++++++++++++++++++++++++++++++++++++++--</span>
+<span class="quote">&gt;  4 files changed, 170 insertions(+), 11 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/include/linux/mm.h b/include/linux/mm.h</span>
+<span class="quote">&gt; index 25cdec395f2c..d1ce03569942 100644</span>
+<span class="quote">&gt; --- a/include/linux/mm.h</span>
+<span class="quote">&gt; +++ b/include/linux/mm.h</span>
+<span class="quote">&gt; @@ -1061,6 +1061,8 @@ struct zap_details {</span>
+<span class="quote">&gt;  	struct address_space *check_mapping;	/* Check page-&gt;mapping if set */</span>
+<span class="quote">&gt;  	pgoff_t	first_index;			/* Lowest page-&gt;index to unmap */</span>
+<span class="quote">&gt;  	pgoff_t last_index;			/* Highest page-&gt;index to unmap */</span>
+<span class="quote">&gt; +	bool ignore_dirty;			/* Ignore dirty pages */</span>
+<span class="quote">&gt; +	bool check_swap_entries;		/* Check also swap entries */</span>
+<span class="quote">&gt;  };</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,</span>
+<span class="quote">&gt; diff --git a/mm/internal.h b/mm/internal.h</span>
+<span class="quote">&gt; index 4ae7b7c7462b..9006ce1960ff 100644</span>
+<span class="quote">&gt; --- a/mm/internal.h</span>
+<span class="quote">&gt; +++ b/mm/internal.h</span>
+<span class="quote">&gt; @@ -41,6 +41,11 @@ extern int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,</span>
+<span class="quote">&gt;  void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,</span>
+<span class="quote">&gt;  		unsigned long floor, unsigned long ceiling);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +void unmap_page_range(struct mmu_gather *tlb,</span>
+<span class="quote">&gt; +			     struct vm_area_struct *vma,</span>
+<span class="quote">&gt; +			     unsigned long addr, unsigned long end,</span>
+<span class="quote">&gt; +			     struct zap_details *details);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  static inline void set_page_count(struct page *page, int v)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	atomic_set(&amp;page-&gt;_count, v);</span>
+<span class="quote">&gt; diff --git a/mm/memory.c b/mm/memory.c</span>
+<span class="quote">&gt; index f5b8e8c9f4c3..f60c6d6aa633 100644</span>
+<span class="quote">&gt; --- a/mm/memory.c</span>
+<span class="quote">&gt; +++ b/mm/memory.c</span>
+<span class="quote">&gt; @@ -1104,6 +1104,12 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  			if (!PageAnon(page)) {</span>
+<span class="quote">&gt;  				if (pte_dirty(ptent)) {</span>
+<span class="quote">&gt; +					/*</span>
+<span class="quote">&gt; +					 * oom_reaper cannot tear down dirty</span>
+<span class="quote">&gt; +					 * pages</span>
+<span class="quote">&gt; +					 */</span>
+<span class="quote">&gt; +					if (unlikely(details &amp;&amp; details-&gt;ignore_dirty))</span>
+<span class="quote">&gt; +						continue;</span>
+<span class="quote">&gt;  					force_flush = 1;</span>
+<span class="quote">&gt;  					set_page_dirty(page);</span>
+<span class="quote">&gt;  				}</span>
+<span class="quote">&gt; @@ -1122,8 +1128,8 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,</span>
+<span class="quote">&gt;  			}</span>
+<span class="quote">&gt;  			continue;</span>
+<span class="quote">&gt;  		}</span>
+<span class="quote">&gt; -		/* If details-&gt;check_mapping, we leave swap entries. */</span>
+<span class="quote">&gt; -		if (unlikely(details))</span>
+<span class="quote">&gt; +		/* only check swap_entries if explicitly asked for in details */</span>
+<span class="quote">&gt; +		if (unlikely(details &amp;&amp; !details-&gt;check_swap_entries))</span>
+<span class="quote">&gt;  			continue;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  		entry = pte_to_swp_entry(ptent);</span>
+<span class="quote">&gt; @@ -1228,7 +1234,7 @@ static inline unsigned long zap_pud_range(struct mmu_gather *tlb,</span>
+<span class="quote">&gt;  	return addr;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -static void unmap_page_range(struct mmu_gather *tlb,</span>
+<span class="quote">&gt; +void unmap_page_range(struct mmu_gather *tlb,</span>
+<span class="quote">&gt;  			     struct vm_area_struct *vma,</span>
+<span class="quote">&gt;  			     unsigned long addr, unsigned long end,</span>
+<span class="quote">&gt;  			     struct zap_details *details)</span>
+<span class="quote">&gt; @@ -1236,9 +1242,6 @@ static void unmap_page_range(struct mmu_gather *tlb,</span>
+<span class="quote">&gt;  	pgd_t *pgd;</span>
+<span class="quote">&gt;  	unsigned long next;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	if (details &amp;&amp; !details-&gt;check_mapping)</span>
+<span class="quote">&gt; -		details = NULL;</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt;  	BUG_ON(addr &gt;= end);</span>
+<span class="quote">&gt;  	tlb_start_vma(tlb, vma);</span>
+<span class="quote">&gt;  	pgd = pgd_offset(vma-&gt;vm_mm, addr);</span>
+<span class="quote">&gt; @@ -2393,7 +2396,7 @@ static inline void unmap_mapping_range_tree(struct rb_root *root,</span>
+<span class="quote">&gt;  void unmap_mapping_range(struct address_space *mapping,</span>
+<span class="quote">&gt;  		loff_t const holebegin, loff_t const holelen, int even_cows)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; -	struct zap_details details;</span>
+<span class="quote">&gt; +	struct zap_details details = { };</span>
+<span class="quote">&gt;  	pgoff_t hba = holebegin &gt;&gt; PAGE_SHIFT;</span>
+<span class="quote">&gt;  	pgoff_t hlen = (holelen + PAGE_SIZE - 1) &gt;&gt; PAGE_SHIFT;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="quote">&gt; index dc490c06941b..1ece40b94725 100644</span>
+<span class="quote">&gt; --- a/mm/oom_kill.c</span>
+<span class="quote">&gt; +++ b/mm/oom_kill.c</span>
+<span class="quote">&gt; @@ -35,6 +35,11 @@</span>
+<span class="quote">&gt;  #include &lt;linux/freezer.h&gt;</span>
+<span class="quote">&gt;  #include &lt;linux/ftrace.h&gt;</span>
+<span class="quote">&gt;  #include &lt;linux/ratelimit.h&gt;</span>
+<span class="quote">&gt; +#include &lt;linux/kthread.h&gt;</span>
+<span class="quote">&gt; +#include &lt;linux/init.h&gt;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +#include &lt;asm/tlb.h&gt;</span>
+<span class="quote">&gt; +#include &quot;internal.h&quot;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  #define CREATE_TRACE_POINTS</span>
+<span class="quote">&gt;  #include &lt;trace/events/oom.h&gt;</span>
+<span class="quote">&gt; @@ -408,6 +413,141 @@ static DECLARE_WAIT_QUEUE_HEAD(oom_victims_wait);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  bool oom_killer_disabled __read_mostly;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +#ifdef CONFIG_MMU</span>
+<span class="quote">&gt; +/*</span>
+<span class="quote">&gt; + * OOM Reaper kernel thread which tries to reap the memory used by the OOM</span>
+<span class="quote">&gt; + * victim (if that is possible) to help the OOM killer to move on.</span>
+<span class="quote">&gt; + */</span>
+<span class="quote">&gt; +static struct task_struct *oom_reaper_th;</span>
+<span class="quote">&gt; +static struct mm_struct *mm_to_reap;</span>
+<span class="quote">&gt; +static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static bool __oom_reap_vmas(struct mm_struct *mm)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	struct mmu_gather tlb;</span>
+<span class="quote">&gt; +	struct vm_area_struct *vma;</span>
+<span class="quote">&gt; +	struct zap_details details = {.check_swap_entries = true,</span>
+<span class="quote">&gt; +				      .ignore_dirty = true};</span>
+<span class="quote">&gt; +	bool ret = true;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/* We might have raced with exit path */</span>
+<span class="quote">&gt; +	if (!atomic_inc_not_zero(&amp;mm-&gt;mm_users))</span>
+<span class="quote">&gt; +		return true;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	if (!down_read_trylock(&amp;mm-&gt;mmap_sem)) {</span>
+<span class="quote">&gt; +		ret = false;</span>
+<span class="quote">&gt; +		goto out;</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	tlb_gather_mmu(&amp;tlb, mm, 0, -1);</span>
+<span class="quote">&gt; +	for (vma = mm-&gt;mmap ; vma; vma = vma-&gt;vm_next) {</span>
+<span class="quote">&gt; +		if (is_vm_hugetlb_page(vma))</span>
+<span class="quote">&gt; +			continue;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +		/*</span>
+<span class="quote">&gt; +		 * mlocked VMAs require explicit munlocking before unmap.</span>
+<span class="quote">&gt; +		 * Let&#39;s keep it simple here and skip such VMAs.</span>
+<span class="quote">&gt; +		 */</span>
+<span class="quote">&gt; +		if (vma-&gt;vm_flags &amp; VM_LOCKED)</span>
+<span class="quote">&gt; +			continue;</span>
+
+Shouldn&#39;t there be VM_PFNMAP handling here?
+
+I&#39;m wondering why zap_page_range() for vma-&gt;vm_start to vma-&gt;vm_end wasn&#39;t 
+used here for simplicity?  It appears as though what you&#39;re doing is an 
+MADV_DONTNEED over the length of all anonymous vmas that aren&#39;t shared, so 
+why not have such an implementation in a single place so any changes don&#39;t 
+have to be made in two different spots for things such as VM_PFNMAP?
+<span class="quote">
+&gt; +</span>
+<span class="quote">&gt; +		/*</span>
+<span class="quote">&gt; +		 * Only anonymous pages have a good chance to be dropped</span>
+<span class="quote">&gt; +		 * without additional steps which we cannot afford as we</span>
+<span class="quote">&gt; +		 * are OOM already.</span>
+<span class="quote">&gt; +		 *</span>
+<span class="quote">&gt; +		 * We do not even care about fs backed pages because all</span>
+<span class="quote">&gt; +		 * which are reclaimable have already been reclaimed and</span>
+<span class="quote">&gt; +		 * we do not want to block exit_mmap by keeping mm ref</span>
+<span class="quote">&gt; +		 * count elevated without a good reason.</span>
+<span class="quote">&gt; +		 */</span>
+<span class="quote">&gt; +		if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED))</span>
+<span class="quote">&gt; +			unmap_page_range(&amp;tlb, vma, vma-&gt;vm_start, vma-&gt;vm_end,</span>
+<span class="quote">&gt; +					 &amp;details);</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt; +	tlb_finish_mmu(&amp;tlb, 0, -1);</span>
+<span class="quote">&gt; +	up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt; +out:</span>
+<span class="quote">&gt; +	mmput(mm);</span>
+<span class="quote">&gt; +	return ret;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static void oom_reap_vmas(struct mm_struct *mm)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	int attempts = 0;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/* Retry the down_read_trylock(mmap_sem) a few times */</span>
+<span class="quote">&gt; +	while (attempts++ &lt; 10 &amp;&amp; !__oom_reap_vmas(mm))</span>
+<span class="quote">&gt; +		schedule_timeout_idle(HZ/10);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/* Drop a reference taken by wake_oom_reaper */</span>
+<span class="quote">&gt; +	mmdrop(mm);</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static int oom_reaper(void *unused)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	while (true) {</span>
+<span class="quote">&gt; +		struct mm_struct *mm;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +		wait_event_freezable(oom_reaper_wait,</span>
+<span class="quote">&gt; +				     (mm = READ_ONCE(mm_to_reap)));</span>
+<span class="quote">&gt; +		oom_reap_vmas(mm);</span>
+<span class="quote">&gt; +		WRITE_ONCE(mm_to_reap, NULL);</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	return 0;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static void wake_oom_reaper(struct mm_struct *mm)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	struct mm_struct *old_mm;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	if (!oom_reaper_th)</span>
+<span class="quote">&gt; +		return;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Pin the given mm. Use mm_count instead of mm_users because</span>
+<span class="quote">&gt; +	 * we do not want to delay the address space tear down.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	atomic_inc(&amp;mm-&gt;mm_count);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Make sure that only a single mm is ever queued for the reaper</span>
+<span class="quote">&gt; +	 * because multiple are not necessary and the operation might be</span>
+<span class="quote">&gt; +	 * disruptive so better reduce it to the bare minimum.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	old_mm = cmpxchg(&amp;mm_to_reap, NULL, mm);</span>
+<span class="quote">&gt; +	if (!old_mm)</span>
+<span class="quote">&gt; +		wake_up(&amp;oom_reaper_wait);</span>
+<span class="quote">&gt; +	else</span>
+<span class="quote">&gt; +		mmdrop(mm);</span>
+
+This behavior is probably the only really significant concern I have about 
+the patch: we just drop the mm and don&#39;t try any reaping if there is 
+already reaping in progress.
+
+We don&#39;t always have control over the amount of memory that can be reaped 
+from the victim, either because of oom kill prioritization through 
+/proc/pid/oom_score_adj or because the memory of the victim is not 
+eligible.
+
+I&#39;m imagining a scenario where the oom reaper has raced with a follow-up 
+oom kill before mm_to_reap has been set to NULL so there&#39;s no subsequent 
+reaping.  It&#39;s also possible that oom reaping of the first victim actually 
+freed little memory.
+
+Would it really be difficult to queue mm&#39;s to reap from?  If memory has 
+already been freed before the reaper can get to it, the 
+find_lock_task_mm() should just fail and we&#39;re done.  I&#39;m not sure why 
+this is being limited to a single mm system-wide.
+<span class="quote">
+&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static int __init oom_init(void)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	oom_reaper_th = kthread_run(oom_reaper, NULL, &quot;oom_reaper&quot;);</span>
+<span class="quote">&gt; +	if (IS_ERR(oom_reaper_th)) {</span>
+<span class="quote">&gt; +		pr_err(&quot;Unable to start OOM reaper %ld. Continuing regardless\n&quot;,</span>
+<span class="quote">&gt; +				PTR_ERR(oom_reaper_th));</span>
+<span class="quote">&gt; +		oom_reaper_th = NULL;</span>
+<span class="quote">&gt; +	} else {</span>
+<span class="quote">&gt; +		struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +		/*</span>
+<span class="quote">&gt; +		 * Make sure our oom reaper thread will get scheduled when</span>
+<span class="quote">&gt; +		 * ASAP and that it won&#39;t get preempted by malicious userspace.</span>
+<span class="quote">&gt; +		 */</span>
+<span class="quote">&gt; +		sched_setscheduler(oom_reaper_th, SCHED_FIFO, &amp;param);</span>
+
+Eeek, do you really show this is necessary?  I would imagine that we would 
+want to limit high priority processes system-wide and that we wouldn&#39;t 
+want to be interferred with by memcg oom conditions that trigger the oom 
+reaper, for example.
+<span class="quote">
+&gt; +	}</span>
+<span class="quote">&gt; +	return 0;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +subsys_initcall(oom_init)</span>
+<span class="quote">&gt; +#else</span>
+<span class="quote">&gt; +static void wake_oom_reaper(struct mm_struct *mm)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +#endif</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  /**</span>
+<span class="quote">&gt;   * mark_oom_victim - mark the given task as OOM victim</span>
+<span class="quote">&gt;   * @tsk: task to mark</span>
+<span class="quote">&gt; @@ -517,6 +657,7 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,</span>
+<span class="quote">&gt;  	unsigned int victim_points = 0;</span>
+<span class="quote">&gt;  	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,</span>
+<span class="quote">&gt;  					      DEFAULT_RATELIMIT_BURST);</span>
+<span class="quote">&gt; +	bool can_oom_reap = true;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/*</span>
+<span class="quote">&gt;  	 * If the task is already exiting, don&#39;t alarm the sysadmin or kill</span>
+<span class="quote">&gt; @@ -607,17 +748,25 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,</span>
+<span class="quote">&gt;  			continue;</span>
+<span class="quote">&gt;  		if (same_thread_group(p, victim))</span>
+<span class="quote">&gt;  			continue;</span>
+<span class="quote">&gt; -		if (unlikely(p-&gt;flags &amp; PF_KTHREAD))</span>
+<span class="quote">&gt; -			continue;</span>
+<span class="quote">&gt;  		if (is_global_init(p))</span>
+<span class="quote">&gt;  			continue;</span>
+<span class="quote">&gt; -		if (p-&gt;signal-&gt;oom_score_adj == OOM_SCORE_ADJ_MIN)</span>
+<span class="quote">&gt; +		if (unlikely(p-&gt;flags &amp; PF_KTHREAD) ||</span>
+<span class="quote">&gt; +		    p-&gt;signal-&gt;oom_score_adj == OOM_SCORE_ADJ_MIN) {</span>
+<span class="quote">&gt; +			/*</span>
+<span class="quote">&gt; +			 * We cannot use oom_reaper for the mm shared by this</span>
+<span class="quote">&gt; +			 * process because it wouldn&#39;t get killed and so the</span>
+<span class="quote">&gt; +			 * memory might be still used.</span>
+<span class="quote">&gt; +			 */</span>
+<span class="quote">&gt; +			can_oom_reap = false;</span>
+<span class="quote">&gt;  			continue;</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; +		}</span>
+<span class="quote">&gt;  		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);</span>
+
+Is it possible to just do wake_oom_reaper(mm) here and eliminate 
+can_oom_reap with a little bit of moving around?
+<span class="quote">
+&gt;  	}</span>
+<span class="quote">&gt;  	rcu_read_unlock();</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +	if (can_oom_reap)</span>
+<span class="quote">&gt; +		wake_oom_reaper(mm);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  	mmdrop(mm);</span>
+<span class="quote">&gt;  	put_task_struct(victim);</span>
+<span class="quote">&gt;  }</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Jan. 28, 2016, 9:42 p.m.</div>
+<pre class="content">
+On Wed 27-01-16 17:28:10, David Rientjes wrote:
+<span class="quote">&gt; On Wed, 6 Jan 2016, Michal Hocko wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; This is based on the idea from Mel Gorman discussed during LSFMM 2015 and</span>
+<span class="quote">&gt; &gt; independently brought up by Oleg Nesterov.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Suggested-bys?</span>
+
+Sure, why not.
+<span class="quote"> 
+&gt; &gt; The OOM killer currently allows to kill only a single task in a good</span>
+<span class="quote">&gt; &gt; hope that the task will terminate in a reasonable time and frees up its</span>
+<span class="quote">&gt; &gt; memory.  Such a task (oom victim) will get an access to memory reserves</span>
+<span class="quote">&gt; &gt; via mark_oom_victim to allow a forward progress should there be a need</span>
+<span class="quote">&gt; &gt; for additional memory during exit path.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; It has been shown (e.g. by Tetsuo Handa) that it is not that hard to</span>
+<span class="quote">&gt; &gt; construct workloads which break the core assumption mentioned above and</span>
+<span class="quote">&gt; &gt; the OOM victim might take unbounded amount of time to exit because it</span>
+<span class="quote">&gt; &gt; might be blocked in the uninterruptible state waiting for on an event</span>
+<span class="quote">&gt; &gt; (e.g. lock) which is blocked by another task looping in the page</span>
+<span class="quote">&gt; &gt; allocator.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; s/for on/for/</span>
+
+fixed
+<span class="quote"> 
+&gt; I think it would be good to note in either of the two paragraphs above </span>
+<span class="quote">&gt; that each victim is per-memcg hierarchy or system-wide and the oom reaper </span>
+<span class="quote">&gt; is used for memcg oom conditions as well.  Otherwise, there&#39;s no mention </span>
+<span class="quote">&gt; of the memcg usecase.</span>
+
+I didn&#39;t mention memcg usecase because that doesn&#39;t suffer from the
+deadlock issue because the OOM is invoked from the lockless context. I
+think this would just make the wording more confusing.
+
+[...]
+<span class="quote">&gt; &gt; +static bool __oom_reap_vmas(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt; +{</span>
+<span class="quote">&gt; &gt; +	struct mmu_gather tlb;</span>
+<span class="quote">&gt; &gt; +	struct vm_area_struct *vma;</span>
+<span class="quote">&gt; &gt; +	struct zap_details details = {.check_swap_entries = true,</span>
+<span class="quote">&gt; &gt; +				      .ignore_dirty = true};</span>
+<span class="quote">&gt; &gt; +	bool ret = true;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +	/* We might have raced with exit path */</span>
+<span class="quote">&gt; &gt; +	if (!atomic_inc_not_zero(&amp;mm-&gt;mm_users))</span>
+<span class="quote">&gt; &gt; +		return true;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +	if (!down_read_trylock(&amp;mm-&gt;mmap_sem)) {</span>
+<span class="quote">&gt; &gt; +		ret = false;</span>
+<span class="quote">&gt; &gt; +		goto out;</span>
+<span class="quote">&gt; &gt; +	}</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +	tlb_gather_mmu(&amp;tlb, mm, 0, -1);</span>
+<span class="quote">&gt; &gt; +	for (vma = mm-&gt;mmap ; vma; vma = vma-&gt;vm_next) {</span>
+<span class="quote">&gt; &gt; +		if (is_vm_hugetlb_page(vma))</span>
+<span class="quote">&gt; &gt; +			continue;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +		/*</span>
+<span class="quote">&gt; &gt; +		 * mlocked VMAs require explicit munlocking before unmap.</span>
+<span class="quote">&gt; &gt; +		 * Let&#39;s keep it simple here and skip such VMAs.</span>
+<span class="quote">&gt; &gt; +		 */</span>
+<span class="quote">&gt; &gt; +		if (vma-&gt;vm_flags &amp; VM_LOCKED)</span>
+<span class="quote">&gt; &gt; +			continue;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Shouldn&#39;t there be VM_PFNMAP handling here?</span>
+
+What would be the reason to exclude them?
+<span class="quote">
+&gt; I&#39;m wondering why zap_page_range() for vma-&gt;vm_start to vma-&gt;vm_end wasn&#39;t </span>
+<span class="quote">&gt; used here for simplicity?</span>
+
+I didn&#39;t use zap_page_range because I wanted to have a full control over
+what and how gets torn down. E.g. it is much more easier to skip over
+hugetlb pages than relying on i_mmap_lock_write which might be blocked
+and the whole oom_reaper will get stuck.
+
+[...]
+<span class="quote">&gt; &gt; +static void wake_oom_reaper(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt; +{</span>
+<span class="quote">&gt; &gt; +	struct mm_struct *old_mm;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +	if (!oom_reaper_th)</span>
+<span class="quote">&gt; &gt; +		return;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +	/*</span>
+<span class="quote">&gt; &gt; +	 * Pin the given mm. Use mm_count instead of mm_users because</span>
+<span class="quote">&gt; &gt; +	 * we do not want to delay the address space tear down.</span>
+<span class="quote">&gt; &gt; +	 */</span>
+<span class="quote">&gt; &gt; +	atomic_inc(&amp;mm-&gt;mm_count);</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +	/*</span>
+<span class="quote">&gt; &gt; +	 * Make sure that only a single mm is ever queued for the reaper</span>
+<span class="quote">&gt; &gt; +	 * because multiple are not necessary and the operation might be</span>
+<span class="quote">&gt; &gt; +	 * disruptive so better reduce it to the bare minimum.</span>
+<span class="quote">&gt; &gt; +	 */</span>
+<span class="quote">&gt; &gt; +	old_mm = cmpxchg(&amp;mm_to_reap, NULL, mm);</span>
+<span class="quote">&gt; &gt; +	if (!old_mm)</span>
+<span class="quote">&gt; &gt; +		wake_up(&amp;oom_reaper_wait);</span>
+<span class="quote">&gt; &gt; +	else</span>
+<span class="quote">&gt; &gt; +		mmdrop(mm);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This behavior is probably the only really significant concern I have about </span>
+<span class="quote">&gt; the patch: we just drop the mm and don&#39;t try any reaping if there is </span>
+<span class="quote">&gt; already reaping in progress.</span>
+
+This is based on the assumption that OOM killer will not select another
+task to kill until the previous one drops its TIF_MEMDIE. Should this
+change in the future we will have to come up with a queuing mechanism. I
+didn&#39;t want to do it right away to make the change as simple as
+possible.
+<span class="quote">
+&gt; We don&#39;t always have control over the amount of memory that can be reaped </span>
+<span class="quote">&gt; from the victim, either because of oom kill prioritization through </span>
+<span class="quote">&gt; /proc/pid/oom_score_adj or because the memory of the victim is not </span>
+<span class="quote">&gt; eligible.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I&#39;m imagining a scenario where the oom reaper has raced with a follow-up </span>
+<span class="quote">&gt; oom kill before mm_to_reap has been set to NULL so there&#39;s no subsequent </span>
+<span class="quote">&gt; reaping.  It&#39;s also possible that oom reaping of the first victim actually </span>
+<span class="quote">&gt; freed little memory.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Would it really be difficult to queue mm&#39;s to reap from?  If memory has </span>
+<span class="quote">&gt; already been freed before the reaper can get to it, the </span>
+<span class="quote">&gt; find_lock_task_mm() should just fail and we&#39;re done.  I&#39;m not sure why </span>
+<span class="quote">&gt; this is being limited to a single mm system-wide.</span>
+
+It is not that complicated but I believe we can implement it on top once
+we see this is really needed. So unless this is a strong requirement I
+would rather go with a simpler way.
+<span class="quote">
+&gt; &gt; +}</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +static int __init oom_init(void)</span>
+<span class="quote">&gt; &gt; +{</span>
+<span class="quote">&gt; &gt; +	oom_reaper_th = kthread_run(oom_reaper, NULL, &quot;oom_reaper&quot;);</span>
+<span class="quote">&gt; &gt; +	if (IS_ERR(oom_reaper_th)) {</span>
+<span class="quote">&gt; &gt; +		pr_err(&quot;Unable to start OOM reaper %ld. Continuing regardless\n&quot;,</span>
+<span class="quote">&gt; &gt; +				PTR_ERR(oom_reaper_th));</span>
+<span class="quote">&gt; &gt; +		oom_reaper_th = NULL;</span>
+<span class="quote">&gt; &gt; +	} else {</span>
+<span class="quote">&gt; &gt; +		struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +		/*</span>
+<span class="quote">&gt; &gt; +		 * Make sure our oom reaper thread will get scheduled when</span>
+<span class="quote">&gt; &gt; +		 * ASAP and that it won&#39;t get preempted by malicious userspace.</span>
+<span class="quote">&gt; &gt; +		 */</span>
+<span class="quote">&gt; &gt; +		sched_setscheduler(oom_reaper_th, SCHED_FIFO, &amp;param);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Eeek, do you really show this is necessary?  I would imagine that we would </span>
+<span class="quote">&gt; want to limit high priority processes system-wide and that we wouldn&#39;t </span>
+<span class="quote">&gt; want to be interferred with by memcg oom conditions that trigger the oom </span>
+<span class="quote">&gt; reaper, for example.</span>
+
+The idea was that we do not want to allow a high priority userspace to
+preempt this important operation. I do understand your concern about the
+memcg oom interference but I find it more important that oom_reaper is
+runnable when needed. I guess that memcg oom heavy loads can change the
+priority from userspace if necessary?
+
+[...]
+<span class="quote">&gt; &gt; @@ -607,17 +748,25 @@ void oom_kill_process(struct oom_control *oc, struct task_struct *p,</span>
+<span class="quote">&gt; &gt;  			continue;</span>
+<span class="quote">&gt; &gt;  		if (same_thread_group(p, victim))</span>
+<span class="quote">&gt; &gt;  			continue;</span>
+<span class="quote">&gt; &gt; -		if (unlikely(p-&gt;flags &amp; PF_KTHREAD))</span>
+<span class="quote">&gt; &gt; -			continue;</span>
+<span class="quote">&gt; &gt;  		if (is_global_init(p))</span>
+<span class="quote">&gt; &gt;  			continue;</span>
+<span class="quote">&gt; &gt; -		if (p-&gt;signal-&gt;oom_score_adj == OOM_SCORE_ADJ_MIN)</span>
+<span class="quote">&gt; &gt; +		if (unlikely(p-&gt;flags &amp; PF_KTHREAD) ||</span>
+<span class="quote">&gt; &gt; +		    p-&gt;signal-&gt;oom_score_adj == OOM_SCORE_ADJ_MIN) {</span>
+<span class="quote">&gt; &gt; +			/*</span>
+<span class="quote">&gt; &gt; +			 * We cannot use oom_reaper for the mm shared by this</span>
+<span class="quote">&gt; &gt; +			 * process because it wouldn&#39;t get killed and so the</span>
+<span class="quote">&gt; &gt; +			 * memory might be still used.</span>
+<span class="quote">&gt; &gt; +			 */</span>
+<span class="quote">&gt; &gt; +			can_oom_reap = false;</span>
+<span class="quote">&gt; &gt;  			continue;</span>
+<span class="quote">&gt; &gt; -</span>
+<span class="quote">&gt; &gt; +		}</span>
+<span class="quote">&gt; &gt;  		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Is it possible to just do wake_oom_reaper(mm) here and eliminate </span>
+<span class="quote">&gt; can_oom_reap with a little bit of moving around?</span>
+
+I am not sure how do you mean it. We have to check all processes before
+we can tell that reaping is safe. Care to elaborate some more? I am all
+for making the code easier to follow and understand.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt;  	}</span>
+<span class="quote">&gt; &gt;  	rcu_read_unlock();</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt; +	if (can_oom_reap)</span>
+<span class="quote">&gt; &gt; +		wake_oom_reaper(mm);</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt;  	mmdrop(mm);</span>
+<span class="quote">&gt; &gt;  	put_task_struct(victim);</span>
+<span class="quote">&gt; &gt;  }</span>
+
+Thanks!
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=579">David Rientjes</a> - Feb. 2, 2016, 3:02 a.m.</div>
+<pre class="content">
+On Thu, 28 Jan 2016, Michal Hocko wrote:
+<span class="quote">
+&gt; [...]</span>
+<span class="quote">&gt; &gt; &gt; +static bool __oom_reap_vmas(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt; &gt; +{</span>
+<span class="quote">&gt; &gt; &gt; +	struct mmu_gather tlb;</span>
+<span class="quote">&gt; &gt; &gt; +	struct vm_area_struct *vma;</span>
+<span class="quote">&gt; &gt; &gt; +	struct zap_details details = {.check_swap_entries = true,</span>
+<span class="quote">&gt; &gt; &gt; +				      .ignore_dirty = true};</span>
+<span class="quote">&gt; &gt; &gt; +	bool ret = true;</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +	/* We might have raced with exit path */</span>
+<span class="quote">&gt; &gt; &gt; +	if (!atomic_inc_not_zero(&amp;mm-&gt;mm_users))</span>
+<span class="quote">&gt; &gt; &gt; +		return true;</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +	if (!down_read_trylock(&amp;mm-&gt;mmap_sem)) {</span>
+<span class="quote">&gt; &gt; &gt; +		ret = false;</span>
+<span class="quote">&gt; &gt; &gt; +		goto out;</span>
+<span class="quote">&gt; &gt; &gt; +	}</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +	tlb_gather_mmu(&amp;tlb, mm, 0, -1);</span>
+<span class="quote">&gt; &gt; &gt; +	for (vma = mm-&gt;mmap ; vma; vma = vma-&gt;vm_next) {</span>
+<span class="quote">&gt; &gt; &gt; +		if (is_vm_hugetlb_page(vma))</span>
+<span class="quote">&gt; &gt; &gt; +			continue;</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +		/*</span>
+<span class="quote">&gt; &gt; &gt; +		 * mlocked VMAs require explicit munlocking before unmap.</span>
+<span class="quote">&gt; &gt; &gt; +		 * Let&#39;s keep it simple here and skip such VMAs.</span>
+<span class="quote">&gt; &gt; &gt; +		 */</span>
+<span class="quote">&gt; &gt; &gt; +		if (vma-&gt;vm_flags &amp; VM_LOCKED)</span>
+<span class="quote">&gt; &gt; &gt; +			continue;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Shouldn&#39;t there be VM_PFNMAP handling here?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; What would be the reason to exclude them?</span>
+<span class="quote">&gt; </span>
+
+Not exclude them, but I would have expected untrack_pfn().
+<span class="quote">
+&gt; &gt; I&#39;m wondering why zap_page_range() for vma-&gt;vm_start to vma-&gt;vm_end wasn&#39;t </span>
+<span class="quote">&gt; &gt; used here for simplicity?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I didn&#39;t use zap_page_range because I wanted to have a full control over</span>
+<span class="quote">&gt; what and how gets torn down. E.g. it is much more easier to skip over</span>
+<span class="quote">&gt; hugetlb pages than relying on i_mmap_lock_write which might be blocked</span>
+<span class="quote">&gt; and the whole oom_reaper will get stuck.</span>
+<span class="quote">&gt; </span>
+
+Let me be clear that I think the implementation is fine, minus the missing 
+handling for VM_PFNMAP.  However, I think this implementation is better 
+placed into mm/memory.c to do the iteration, selection criteria, and then 
+unmap_page_range().  I don&#39;t think we should be exposing 
+unmap_page_range() globally, but rather add a new function to do the 
+iteration in mm/memory.c with the others.
+<span class="quote">
+&gt; [...]</span>
+<span class="quote">&gt; &gt; &gt; +static void wake_oom_reaper(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt; &gt; +{</span>
+<span class="quote">&gt; &gt; &gt; +	struct mm_struct *old_mm;</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +	if (!oom_reaper_th)</span>
+<span class="quote">&gt; &gt; &gt; +		return;</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +	/*</span>
+<span class="quote">&gt; &gt; &gt; +	 * Pin the given mm. Use mm_count instead of mm_users because</span>
+<span class="quote">&gt; &gt; &gt; +	 * we do not want to delay the address space tear down.</span>
+<span class="quote">&gt; &gt; &gt; +	 */</span>
+<span class="quote">&gt; &gt; &gt; +	atomic_inc(&amp;mm-&gt;mm_count);</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +	/*</span>
+<span class="quote">&gt; &gt; &gt; +	 * Make sure that only a single mm is ever queued for the reaper</span>
+<span class="quote">&gt; &gt; &gt; +	 * because multiple are not necessary and the operation might be</span>
+<span class="quote">&gt; &gt; &gt; +	 * disruptive so better reduce it to the bare minimum.</span>
+<span class="quote">&gt; &gt; &gt; +	 */</span>
+<span class="quote">&gt; &gt; &gt; +	old_mm = cmpxchg(&amp;mm_to_reap, NULL, mm);</span>
+<span class="quote">&gt; &gt; &gt; +	if (!old_mm)</span>
+<span class="quote">&gt; &gt; &gt; +		wake_up(&amp;oom_reaper_wait);</span>
+<span class="quote">&gt; &gt; &gt; +	else</span>
+<span class="quote">&gt; &gt; &gt; +		mmdrop(mm);</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; This behavior is probably the only really significant concern I have about </span>
+<span class="quote">&gt; &gt; the patch: we just drop the mm and don&#39;t try any reaping if there is </span>
+<span class="quote">&gt; &gt; already reaping in progress.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This is based on the assumption that OOM killer will not select another</span>
+<span class="quote">&gt; task to kill until the previous one drops its TIF_MEMDIE. Should this</span>
+<span class="quote">&gt; change in the future we will have to come up with a queuing mechanism. I</span>
+<span class="quote">&gt; didn&#39;t want to do it right away to make the change as simple as</span>
+<span class="quote">&gt; possible.</span>
+<span class="quote">&gt; </span>
+
+The problem is that this is racy and quite easy to trigger: imagine if 
+__oom_reap_vmas() finds mm-&gt;mm_users == 0, because the memory of the 
+victim has been freed, and then another system-wide oom condition occurs 
+before the oom reaper&#39;s mm_to_reap has been set to NULL.  No 
+synchronization prevents that from happening (not sure what the reference 
+to TIF_MEMDIE is about).
+
+In this case, the oom reaper has ignored the next victim and doesn&#39;t do 
+anything; the simple race has prevented it from zapping memory and does 
+not reduce the livelock probability.
+
+This can be solved either by queueing mm&#39;s to reap or involving the oom 
+reaper into the oom killer synchronization itself.
+<span class="quote">
+&gt; &gt; &gt; +static int __init oom_init(void)</span>
+<span class="quote">&gt; &gt; &gt; +{</span>
+<span class="quote">&gt; &gt; &gt; +	oom_reaper_th = kthread_run(oom_reaper, NULL, &quot;oom_reaper&quot;);</span>
+<span class="quote">&gt; &gt; &gt; +	if (IS_ERR(oom_reaper_th)) {</span>
+<span class="quote">&gt; &gt; &gt; +		pr_err(&quot;Unable to start OOM reaper %ld. Continuing regardless\n&quot;,</span>
+<span class="quote">&gt; &gt; &gt; +				PTR_ERR(oom_reaper_th));</span>
+<span class="quote">&gt; &gt; &gt; +		oom_reaper_th = NULL;</span>
+<span class="quote">&gt; &gt; &gt; +	} else {</span>
+<span class="quote">&gt; &gt; &gt; +		struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +		/*</span>
+<span class="quote">&gt; &gt; &gt; +		 * Make sure our oom reaper thread will get scheduled when</span>
+<span class="quote">&gt; &gt; &gt; +		 * ASAP and that it won&#39;t get preempted by malicious userspace.</span>
+<span class="quote">&gt; &gt; &gt; +		 */</span>
+<span class="quote">&gt; &gt; &gt; +		sched_setscheduler(oom_reaper_th, SCHED_FIFO, &amp;param);</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Eeek, do you really show this is necessary?  I would imagine that we would </span>
+<span class="quote">&gt; &gt; want to limit high priority processes system-wide and that we wouldn&#39;t </span>
+<span class="quote">&gt; &gt; want to be interferred with by memcg oom conditions that trigger the oom </span>
+<span class="quote">&gt; &gt; reaper, for example.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The idea was that we do not want to allow a high priority userspace to</span>
+<span class="quote">&gt; preempt this important operation. I do understand your concern about the</span>
+<span class="quote">&gt; memcg oom interference but I find it more important that oom_reaper is</span>
+<span class="quote">&gt; runnable when needed. I guess that memcg oom heavy loads can change the</span>
+<span class="quote">&gt; priority from userspace if necessary?</span>
+<span class="quote">&gt; </span>
+
+I&#39;m baffled by any reference to &quot;memcg oom heavy loads&quot;, I don&#39;t 
+understand this paragraph, sorry.  If a memcg is oom, we shouldn&#39;t be
+disrupting the global runqueue by running oom_reaper at a high priority.  
+The disruption itself is not only in first wakeup but also in how long the 
+reaper can run and when it is rescheduled: for a lot of memory this is 
+potentially long.  The reaper is best-effort, as the changelog indicates, 
+and we shouldn&#39;t have a reliance on this high priority: oom kill exiting 
+can&#39;t possibly be expected to be immediate.  This high priority should be 
+removed so memcg oom conditions are isolated and don&#39;t affect other loads.
+
+&quot;Memcg oom heavy loads&quot; cannot always be determined and the suggested fix 
+cannot possibly be to adjust the priority of a global resource.  ??
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Feb. 2, 2016, 8:57 a.m.</div>
+<pre class="content">
+On Mon 01-02-16 19:02:06, David Rientjes wrote:
+<span class="quote">&gt; On Thu, 28 Jan 2016, Michal Hocko wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; [...]</span>
+<span class="quote">&gt; &gt; &gt; &gt; +static bool __oom_reap_vmas(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt; &gt; &gt; +{</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	struct mmu_gather tlb;</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	struct vm_area_struct *vma;</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	struct zap_details details = {.check_swap_entries = true,</span>
+<span class="quote">&gt; &gt; &gt; &gt; +				      .ignore_dirty = true};</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	bool ret = true;</span>
+<span class="quote">&gt; &gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	/* We might have raced with exit path */</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	if (!atomic_inc_not_zero(&amp;mm-&gt;mm_users))</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		return true;</span>
+<span class="quote">&gt; &gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	if (!down_read_trylock(&amp;mm-&gt;mmap_sem)) {</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		ret = false;</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		goto out;</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	}</span>
+<span class="quote">&gt; &gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	tlb_gather_mmu(&amp;tlb, mm, 0, -1);</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	for (vma = mm-&gt;mmap ; vma; vma = vma-&gt;vm_next) {</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		if (is_vm_hugetlb_page(vma))</span>
+<span class="quote">&gt; &gt; &gt; &gt; +			continue;</span>
+<span class="quote">&gt; &gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		/*</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		 * mlocked VMAs require explicit munlocking before unmap.</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		 * Let&#39;s keep it simple here and skip such VMAs.</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		 */</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		if (vma-&gt;vm_flags &amp; VM_LOCKED)</span>
+<span class="quote">&gt; &gt; &gt; &gt; +			continue;</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Shouldn&#39;t there be VM_PFNMAP handling here?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; What would be the reason to exclude them?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Not exclude them, but I would have expected untrack_pfn().</span>
+
+My understanding is that vm_normal_page will do the right thing for
+those mappings - especially for CoW VM_PFNMAP which are normal pages
+AFAIU. Wrt. to untrack_pfn I was relying that the victim will eventually
+enter exit_mmap and do the remaining house keepining. Maybe I am missing
+something but untrack_pfn shouldn&#39;t lead to releasing a considerable
+amount of memory. So is this really necessary or we can wait for
+exit_mmap?
+<span class="quote">
+&gt; &gt; &gt; I&#39;m wondering why zap_page_range() for vma-&gt;vm_start to vma-&gt;vm_end wasn&#39;t </span>
+<span class="quote">&gt; &gt; &gt; used here for simplicity?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I didn&#39;t use zap_page_range because I wanted to have a full control over</span>
+<span class="quote">&gt; &gt; what and how gets torn down. E.g. it is much more easier to skip over</span>
+<span class="quote">&gt; &gt; hugetlb pages than relying on i_mmap_lock_write which might be blocked</span>
+<span class="quote">&gt; &gt; and the whole oom_reaper will get stuck.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Let me be clear that I think the implementation is fine, minus the missing </span>
+<span class="quote">&gt; handling for VM_PFNMAP.  However, I think this implementation is better </span>
+<span class="quote">&gt; placed into mm/memory.c to do the iteration, selection criteria, and then </span>
+<span class="quote">&gt; unmap_page_range().  I don&#39;t think we should be exposing </span>
+<span class="quote">&gt; unmap_page_range() globally, but rather add a new function to do the </span>
+<span class="quote">&gt; iteration in mm/memory.c with the others.</span>
+
+I do not have any objections to moving the code but I felt this is a
+single purpose thingy which doesn&#39;t need a wider exposure. The exclusion
+criteria is tightly coupled to what oom reaper is allowed to do. In
+other words such a function wouldn&#39;t be reusable for say MADV_DONTNEED
+because it has different criteria. Having all the selection criteria
+close to __oom_reap_task on the other hand makes it easier to evaluate
+their relevance. So I am not really convinced. I can move it if you feel
+strongly about that, though.
+<span class="quote">
+&gt; &gt; [...]</span>
+<span class="quote">&gt; &gt; &gt; &gt; +static void wake_oom_reaper(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt; &gt; &gt; +{</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	struct mm_struct *old_mm;</span>
+<span class="quote">&gt; &gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	if (!oom_reaper_th)</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		return;</span>
+<span class="quote">&gt; &gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	/*</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	 * Pin the given mm. Use mm_count instead of mm_users because</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	 * we do not want to delay the address space tear down.</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	 */</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	atomic_inc(&amp;mm-&gt;mm_count);</span>
+<span class="quote">&gt; &gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	/*</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	 * Make sure that only a single mm is ever queued for the reaper</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	 * because multiple are not necessary and the operation might be</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	 * disruptive so better reduce it to the bare minimum.</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	 */</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	old_mm = cmpxchg(&amp;mm_to_reap, NULL, mm);</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	if (!old_mm)</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		wake_up(&amp;oom_reaper_wait);</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	else</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		mmdrop(mm);</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; This behavior is probably the only really significant concern I have about </span>
+<span class="quote">&gt; &gt; &gt; the patch: we just drop the mm and don&#39;t try any reaping if there is </span>
+<span class="quote">&gt; &gt; &gt; already reaping in progress.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; This is based on the assumption that OOM killer will not select another</span>
+<span class="quote">&gt; &gt; task to kill until the previous one drops its TIF_MEMDIE. Should this</span>
+<span class="quote">&gt; &gt; change in the future we will have to come up with a queuing mechanism. I</span>
+<span class="quote">&gt; &gt; didn&#39;t want to do it right away to make the change as simple as</span>
+<span class="quote">&gt; &gt; possible.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The problem is that this is racy and quite easy to trigger: imagine if </span>
+<span class="quote">&gt; __oom_reap_vmas() finds mm-&gt;mm_users == 0, because the memory of the </span>
+<span class="quote">&gt; victim has been freed, and then another system-wide oom condition occurs </span>
+<span class="quote">&gt; before the oom reaper&#39;s mm_to_reap has been set to NULL.</span>
+
+Yes I realize this is potentially racy. I just didn&#39;t consider the race
+important enough to justify task queuing in the first submission. Tetsuo
+was pushing for this already and I tried to push back for simplicity in
+the first submission. But ohh well... I will queue up a patch to do this
+on top. I plan to repost the full patchset shortly.
+<span class="quote">
+&gt; No synchronization prevents that from happening (not sure what the</span>
+<span class="quote">&gt; reference to TIF_MEMDIE is about).</span>
+
+Now that I am reading my response again I see how it could be
+misleading. I was referring to possibility of choosing multiple oom
+victims which was discussed recently. I didn&#39;t mean TIF_MEMDIE to exclude
+oom reaper vs. exit exclusion.
+<span class="quote">
+&gt; In this case, the oom reaper has ignored the next victim and doesn&#39;t do </span>
+<span class="quote">&gt; anything; the simple race has prevented it from zapping memory and does </span>
+<span class="quote">&gt; not reduce the livelock probability.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This can be solved either by queueing mm&#39;s to reap or involving the oom </span>
+<span class="quote">&gt; reaper into the oom killer synchronization itself.</span>
+
+as we have already discussed previously oom reaper is really tricky to
+be called from the direct OOM context. I will go with queuing. 
+<span class="quote"> 
+&gt; &gt; &gt; &gt; +static int __init oom_init(void)</span>
+<span class="quote">&gt; &gt; &gt; &gt; +{</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	oom_reaper_th = kthread_run(oom_reaper, NULL, &quot;oom_reaper&quot;);</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	if (IS_ERR(oom_reaper_th)) {</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		pr_err(&quot;Unable to start OOM reaper %ld. Continuing regardless\n&quot;,</span>
+<span class="quote">&gt; &gt; &gt; &gt; +				PTR_ERR(oom_reaper_th));</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		oom_reaper_th = NULL;</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	} else {</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };</span>
+<span class="quote">&gt; &gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		/*</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		 * Make sure our oom reaper thread will get scheduled when</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		 * ASAP and that it won&#39;t get preempted by malicious userspace.</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		 */</span>
+<span class="quote">&gt; &gt; &gt; &gt; +		sched_setscheduler(oom_reaper_th, SCHED_FIFO, &amp;param);</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Eeek, do you really show this is necessary?  I would imagine that we would </span>
+<span class="quote">&gt; &gt; &gt; want to limit high priority processes system-wide and that we wouldn&#39;t </span>
+<span class="quote">&gt; &gt; &gt; want to be interferred with by memcg oom conditions that trigger the oom </span>
+<span class="quote">&gt; &gt; &gt; reaper, for example.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; The idea was that we do not want to allow a high priority userspace to</span>
+<span class="quote">&gt; &gt; preempt this important operation. I do understand your concern about the</span>
+<span class="quote">&gt; &gt; memcg oom interference but I find it more important that oom_reaper is</span>
+<span class="quote">&gt; &gt; runnable when needed. I guess that memcg oom heavy loads can change the</span>
+<span class="quote">&gt; &gt; priority from userspace if necessary?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I&#39;m baffled by any reference to &quot;memcg oom heavy loads&quot;, I don&#39;t </span>
+<span class="quote">&gt; understand this paragraph, sorry.  If a memcg is oom, we shouldn&#39;t be</span>
+<span class="quote">&gt; disrupting the global runqueue by running oom_reaper at a high priority.  </span>
+<span class="quote">&gt; The disruption itself is not only in first wakeup but also in how long the </span>
+<span class="quote">&gt; reaper can run and when it is rescheduled: for a lot of memory this is </span>
+<span class="quote">&gt; potentially long.  The reaper is best-effort, as the changelog indicates, </span>
+<span class="quote">&gt; and we shouldn&#39;t have a reliance on this high priority: oom kill exiting </span>
+<span class="quote">&gt; can&#39;t possibly be expected to be immediate.  This high priority should be </span>
+<span class="quote">&gt; removed so memcg oom conditions are isolated and don&#39;t affect other loads.</span>
+
+If this is a concern then I would be tempted to simply disable oom
+reaper for memcg oom altogether. For me it is much more important that
+the reaper, even though a best effort, is guaranteed to schedule if
+something goes terribly wrong on the machine.
+
+Is this acceptable?
+
+Thanks
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=28">Tetsuo Handa</a> - Feb. 2, 2016, 11:48 a.m.</div>
+<pre class="content">
+Michal Hocko wrote:
+<span class="quote">&gt; &gt; In this case, the oom reaper has ignored the next victim and doesn&#39;t do </span>
+<span class="quote">&gt; &gt; anything; the simple race has prevented it from zapping memory and does </span>
+<span class="quote">&gt; &gt; not reduce the livelock probability.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; This can be solved either by queueing mm&#39;s to reap or involving the oom </span>
+<span class="quote">&gt; &gt; reaper into the oom killer synchronization itself.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; as we have already discussed previously oom reaper is really tricky to</span>
+<span class="quote">&gt; be called from the direct OOM context. I will go with queuing. </span>
+<span class="quote">&gt;  </span>
+
+OK. But it is not easy to build a reliable OOM-reap queuing chain. I think
+that a dedicated kernel thread which does OOM-kill operation and OOM-reap
+operation will be expected. That will also handle the &quot;sleeping for too
+long with oom_lock held after sending SIGKILL&quot; problem.
+<span class="quote">
+&gt; &gt; I&#39;m baffled by any reference to &quot;memcg oom heavy loads&quot;, I don&#39;t </span>
+<span class="quote">&gt; &gt; understand this paragraph, sorry.  If a memcg is oom, we shouldn&#39;t be</span>
+<span class="quote">&gt; &gt; disrupting the global runqueue by running oom_reaper at a high priority.  </span>
+<span class="quote">&gt; &gt; The disruption itself is not only in first wakeup but also in how long the </span>
+<span class="quote">&gt; &gt; reaper can run and when it is rescheduled: for a lot of memory this is </span>
+<span class="quote">&gt; &gt; potentially long.  The reaper is best-effort, as the changelog indicates, </span>
+<span class="quote">&gt; &gt; and we shouldn&#39;t have a reliance on this high priority: oom kill exiting </span>
+<span class="quote">&gt; &gt; can&#39;t possibly be expected to be immediate.  This high priority should be </span>
+<span class="quote">&gt; &gt; removed so memcg oom conditions are isolated and don&#39;t affect other loads.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If this is a concern then I would be tempted to simply disable oom</span>
+<span class="quote">&gt; reaper for memcg oom altogether. For me it is much more important that</span>
+<span class="quote">&gt; the reaper, even though a best effort, is guaranteed to schedule if</span>
+<span class="quote">&gt; something goes terribly wrong on the machine.</span>
+
+I think that if something goes terribly wrong on the machine, a guarantee for
+scheduling the reaper will not help unless we build a reliable queuing chain.
+Building a reliable queuing chain will break some of assumptions provided by
+current behavior. For me, a guarantee for scheduling for next OOM-kill
+operation (with globally opening some or all of memory reserves) before
+building a reliable queuing chain is much more important.
+<span class="quote">
+&gt;                       But ohh well... I will queue up a patch to do this</span>
+<span class="quote">&gt; on top. I plan to repost the full patchset shortly.</span>
+
+Maybe we all agree with introducing OOM reaper without queuing, but I do
+want to see a guarantee for scheduling for next OOM-kill operation before
+trying to build a reliable queuing chain.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=579">David Rientjes</a> - Feb. 2, 2016, 10:51 p.m.</div>
+<pre class="content">
+On Tue, 2 Feb 2016, Michal Hocko wrote:
+<span class="quote">
+&gt; &gt; Not exclude them, but I would have expected untrack_pfn().</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; My understanding is that vm_normal_page will do the right thing for</span>
+<span class="quote">&gt; those mappings - especially for CoW VM_PFNMAP which are normal pages</span>
+<span class="quote">&gt; AFAIU. Wrt. to untrack_pfn I was relying that the victim will eventually</span>
+<span class="quote">&gt; enter exit_mmap and do the remaining house keepining. Maybe I am missing</span>
+<span class="quote">&gt; something but untrack_pfn shouldn&#39;t lead to releasing a considerable</span>
+<span class="quote">&gt; amount of memory. So is this really necessary or we can wait for</span>
+<span class="quote">&gt; exit_mmap?</span>
+<span class="quote">&gt; </span>
+
+I think if you move the code to mm/memory.c that you may find a greater 
+opportunity to share code with the implementations there and this will 
+take care of itself :)  I&#39;m concerned about this also from a 
+maintainability standpoint where a future patch might modify one 
+implementation while forgetting about the other.  I think there&#39;s a great 
+opportunity here for a really clean and shiny interfance that doesn&#39;t 
+introduce any more complexity.
+<span class="quote">
+&gt; &gt; The problem is that this is racy and quite easy to trigger: imagine if </span>
+<span class="quote">&gt; &gt; __oom_reap_vmas() finds mm-&gt;mm_users == 0, because the memory of the </span>
+<span class="quote">&gt; &gt; victim has been freed, and then another system-wide oom condition occurs </span>
+<span class="quote">&gt; &gt; before the oom reaper&#39;s mm_to_reap has been set to NULL.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yes I realize this is potentially racy. I just didn&#39;t consider the race</span>
+<span class="quote">&gt; important enough to justify task queuing in the first submission. Tetsuo</span>
+<span class="quote">&gt; was pushing for this already and I tried to push back for simplicity in</span>
+<span class="quote">&gt; the first submission. But ohh well... I will queue up a patch to do this</span>
+<span class="quote">&gt; on top. I plan to repost the full patchset shortly.</span>
+<span class="quote">&gt; </span>
+
+Ok, thanks!  It should probably be dropped from -mm in the interim until 
+it has some acked-by&#39;s, but I think those will come pretty quickly once 
+it&#39;s refreshed if all of this is handled.
+<span class="quote">
+&gt; &gt; In this case, the oom reaper has ignored the next victim and doesn&#39;t do </span>
+<span class="quote">&gt; &gt; anything; the simple race has prevented it from zapping memory and does </span>
+<span class="quote">&gt; &gt; not reduce the livelock probability.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; This can be solved either by queueing mm&#39;s to reap or involving the oom </span>
+<span class="quote">&gt; &gt; reaper into the oom killer synchronization itself.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; as we have already discussed previously oom reaper is really tricky to</span>
+<span class="quote">&gt; be called from the direct OOM context. I will go with queuing. </span>
+<span class="quote">&gt;  </span>
+
+Hmm, I wasn&#39;t referring to oom context: it would be possible without 
+queueing with an mm_to_reap_lock (or cmpxchg) in the oom reaper and when 
+the final mmput() is done.  Set it when the mm is ready for reaping, clear 
+it when the mm is being destroyed, and test it before calling the oom 
+killer.  I think we&#39;d want to defer the oom killer until potential reaping 
+could be done anyway and I don&#39;t anticipate an issue where oom_reaper 
+fails to schedule.
+<span class="quote">
+&gt; &gt; I&#39;m baffled by any reference to &quot;memcg oom heavy loads&quot;, I don&#39;t </span>
+<span class="quote">&gt; &gt; understand this paragraph, sorry.  If a memcg is oom, we shouldn&#39;t be</span>
+<span class="quote">&gt; &gt; disrupting the global runqueue by running oom_reaper at a high priority.  </span>
+<span class="quote">&gt; &gt; The disruption itself is not only in first wakeup but also in how long the </span>
+<span class="quote">&gt; &gt; reaper can run and when it is rescheduled: for a lot of memory this is </span>
+<span class="quote">&gt; &gt; potentially long.  The reaper is best-effort, as the changelog indicates, </span>
+<span class="quote">&gt; &gt; and we shouldn&#39;t have a reliance on this high priority: oom kill exiting </span>
+<span class="quote">&gt; &gt; can&#39;t possibly be expected to be immediate.  This high priority should be </span>
+<span class="quote">&gt; &gt; removed so memcg oom conditions are isolated and don&#39;t affect other loads.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If this is a concern then I would be tempted to simply disable oom</span>
+<span class="quote">&gt; reaper for memcg oom altogether. For me it is much more important that</span>
+<span class="quote">&gt; the reaper, even though a best effort, is guaranteed to schedule if</span>
+<span class="quote">&gt; something goes terribly wrong on the machine.</span>
+<span class="quote">&gt; </span>
+
+I don&#39;t believe the higher priority guarantees it is able to schedule any 
+more than it was guaranteed to schedule before.  It will run, but it won&#39;t 
+preempt other innocent processes in disjoint memcgs or cpusets.  It&#39;s not 
+only a memcg issue, but it also impacts disjoint cpuset mems and mempolicy 
+nodemasks.  I think it would be disappointing to leave those out.  I think 
+the higher priority should simply be removed in terms of fairness.
+
+Other than these issues, I don&#39;t see any reason why a refreshed series 
+wouldn&#39;t be immediately acked.  Thanks very much for continuing to work on 
+this!
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=579">David Rientjes</a> - Feb. 2, 2016, 10:55 p.m.</div>
+<pre class="content">
+On Tue, 2 Feb 2016, Tetsuo Handa wrote:
+<span class="quote">
+&gt; Maybe we all agree with introducing OOM reaper without queuing, but I do</span>
+<span class="quote">&gt; want to see a guarantee for scheduling for next OOM-kill operation before</span>
+<span class="quote">&gt; trying to build a reliable queuing chain.</span>
+<span class="quote">&gt; </span>
+
+The race can be fixed in two ways which I&#39;ve already enumerated, but the 
+scheduling issue is tangential: the oom_reaper kthread is going to run; 
+increasing it&#39;s priority will only interfere with other innocent processes 
+that are not attached to the oom memcg hierarchy, have disjoint cpuset 
+mems, or are happily allocating from mempolicy nodes with free memory.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/include/linux/mm.h b/include/linux/mm.h</span>
+<span class="p_header">index 25cdec395f2c..d1ce03569942 100644</span>
+<span class="p_header">--- a/include/linux/mm.h</span>
+<span class="p_header">+++ b/include/linux/mm.h</span>
+<span class="p_chunk">@@ -1061,6 +1061,8 @@</span> <span class="p_context"> struct zap_details {</span>
+ 	struct address_space *check_mapping;	/* Check page-&gt;mapping if set */
+ 	pgoff_t	first_index;			/* Lowest page-&gt;index to unmap */
+ 	pgoff_t last_index;			/* Highest page-&gt;index to unmap */
+<span class="p_add">+	bool ignore_dirty;			/* Ignore dirty pages */</span>
+<span class="p_add">+	bool check_swap_entries;		/* Check also swap entries */</span>
+ };
+ 
+ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+<span class="p_header">diff --git a/mm/internal.h b/mm/internal.h</span>
+<span class="p_header">index 4ae7b7c7462b..9006ce1960ff 100644</span>
+<span class="p_header">--- a/mm/internal.h</span>
+<span class="p_header">+++ b/mm/internal.h</span>
+<span class="p_chunk">@@ -41,6 +41,11 @@</span> <span class="p_context"> extern int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,</span>
+ void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+ 		unsigned long floor, unsigned long ceiling);
+ 
+<span class="p_add">+void unmap_page_range(struct mmu_gather *tlb,</span>
+<span class="p_add">+			     struct vm_area_struct *vma,</span>
+<span class="p_add">+			     unsigned long addr, unsigned long end,</span>
+<span class="p_add">+			     struct zap_details *details);</span>
+<span class="p_add">+</span>
+ static inline void set_page_count(struct page *page, int v)
+ {
+ 	atomic_set(&amp;page-&gt;_count, v);
+<span class="p_header">diff --git a/mm/memory.c b/mm/memory.c</span>
+<span class="p_header">index f5b8e8c9f4c3..f60c6d6aa633 100644</span>
+<span class="p_header">--- a/mm/memory.c</span>
+<span class="p_header">+++ b/mm/memory.c</span>
+<span class="p_chunk">@@ -1104,6 +1104,12 @@</span> <span class="p_context"> static unsigned long zap_pte_range(struct mmu_gather *tlb,</span>
+ 
+ 			if (!PageAnon(page)) {
+ 				if (pte_dirty(ptent)) {
+<span class="p_add">+					/*</span>
+<span class="p_add">+					 * oom_reaper cannot tear down dirty</span>
+<span class="p_add">+					 * pages</span>
+<span class="p_add">+					 */</span>
+<span class="p_add">+					if (unlikely(details &amp;&amp; details-&gt;ignore_dirty))</span>
+<span class="p_add">+						continue;</span>
+ 					force_flush = 1;
+ 					set_page_dirty(page);
+ 				}
+<span class="p_chunk">@@ -1122,8 +1128,8 @@</span> <span class="p_context"> static unsigned long zap_pte_range(struct mmu_gather *tlb,</span>
+ 			}
+ 			continue;
+ 		}
+<span class="p_del">-		/* If details-&gt;check_mapping, we leave swap entries. */</span>
+<span class="p_del">-		if (unlikely(details))</span>
+<span class="p_add">+		/* only check swap_entries if explicitly asked for in details */</span>
+<span class="p_add">+		if (unlikely(details &amp;&amp; !details-&gt;check_swap_entries))</span>
+ 			continue;
+ 
+ 		entry = pte_to_swp_entry(ptent);
+<span class="p_chunk">@@ -1228,7 +1234,7 @@</span> <span class="p_context"> static inline unsigned long zap_pud_range(struct mmu_gather *tlb,</span>
+ 	return addr;
+ }
+ 
+<span class="p_del">-static void unmap_page_range(struct mmu_gather *tlb,</span>
+<span class="p_add">+void unmap_page_range(struct mmu_gather *tlb,</span>
+ 			     struct vm_area_struct *vma,
+ 			     unsigned long addr, unsigned long end,
+ 			     struct zap_details *details)
+<span class="p_chunk">@@ -1236,9 +1242,6 @@</span> <span class="p_context"> static void unmap_page_range(struct mmu_gather *tlb,</span>
+ 	pgd_t *pgd;
+ 	unsigned long next;
+ 
+<span class="p_del">-	if (details &amp;&amp; !details-&gt;check_mapping)</span>
+<span class="p_del">-		details = NULL;</span>
+<span class="p_del">-</span>
+ 	BUG_ON(addr &gt;= end);
+ 	tlb_start_vma(tlb, vma);
+ 	pgd = pgd_offset(vma-&gt;vm_mm, addr);
+<span class="p_chunk">@@ -2393,7 +2396,7 @@</span> <span class="p_context"> static inline void unmap_mapping_range_tree(struct rb_root *root,</span>
+ void unmap_mapping_range(struct address_space *mapping,
+ 		loff_t const holebegin, loff_t const holelen, int even_cows)
+ {
+<span class="p_del">-	struct zap_details details;</span>
+<span class="p_add">+	struct zap_details details = { };</span>
+ 	pgoff_t hba = holebegin &gt;&gt; PAGE_SHIFT;
+ 	pgoff_t hlen = (holelen + PAGE_SIZE - 1) &gt;&gt; PAGE_SHIFT;
+ 
+<span class="p_header">diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="p_header">index dc490c06941b..1ece40b94725 100644</span>
+<span class="p_header">--- a/mm/oom_kill.c</span>
+<span class="p_header">+++ b/mm/oom_kill.c</span>
+<span class="p_chunk">@@ -35,6 +35,11 @@</span> <span class="p_context"></span>
+ #include &lt;linux/freezer.h&gt;
+ #include &lt;linux/ftrace.h&gt;
+ #include &lt;linux/ratelimit.h&gt;
+<span class="p_add">+#include &lt;linux/kthread.h&gt;</span>
+<span class="p_add">+#include &lt;linux/init.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;asm/tlb.h&gt;</span>
+<span class="p_add">+#include &quot;internal.h&quot;</span>
+ 
+ #define CREATE_TRACE_POINTS
+ #include &lt;trace/events/oom.h&gt;
+<span class="p_chunk">@@ -408,6 +413,141 @@</span> <span class="p_context"> static DECLARE_WAIT_QUEUE_HEAD(oom_victims_wait);</span>
+ 
+ bool oom_killer_disabled __read_mostly;
+ 
+<span class="p_add">+#ifdef CONFIG_MMU</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * OOM Reaper kernel thread which tries to reap the memory used by the OOM</span>
+<span class="p_add">+ * victim (if that is possible) to help the OOM killer to move on.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static struct task_struct *oom_reaper_th;</span>
+<span class="p_add">+static struct mm_struct *mm_to_reap;</span>
+<span class="p_add">+static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);</span>
+<span class="p_add">+</span>
+<span class="p_add">+static bool __oom_reap_vmas(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct mmu_gather tlb;</span>
+<span class="p_add">+	struct vm_area_struct *vma;</span>
+<span class="p_add">+	struct zap_details details = {.check_swap_entries = true,</span>
+<span class="p_add">+				      .ignore_dirty = true};</span>
+<span class="p_add">+	bool ret = true;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* We might have raced with exit path */</span>
+<span class="p_add">+	if (!atomic_inc_not_zero(&amp;mm-&gt;mm_users))</span>
+<span class="p_add">+		return true;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!down_read_trylock(&amp;mm-&gt;mmap_sem)) {</span>
+<span class="p_add">+		ret = false;</span>
+<span class="p_add">+		goto out;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	tlb_gather_mmu(&amp;tlb, mm, 0, -1);</span>
+<span class="p_add">+	for (vma = mm-&gt;mmap ; vma; vma = vma-&gt;vm_next) {</span>
+<span class="p_add">+		if (is_vm_hugetlb_page(vma))</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * mlocked VMAs require explicit munlocking before unmap.</span>
+<span class="p_add">+		 * Let&#39;s keep it simple here and skip such VMAs.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (vma-&gt;vm_flags &amp; VM_LOCKED)</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Only anonymous pages have a good chance to be dropped</span>
+<span class="p_add">+		 * without additional steps which we cannot afford as we</span>
+<span class="p_add">+		 * are OOM already.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * We do not even care about fs backed pages because all</span>
+<span class="p_add">+		 * which are reclaimable have already been reclaimed and</span>
+<span class="p_add">+		 * we do not want to block exit_mmap by keeping mm ref</span>
+<span class="p_add">+		 * count elevated without a good reason.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED))</span>
+<span class="p_add">+			unmap_page_range(&amp;tlb, vma, vma-&gt;vm_start, vma-&gt;vm_end,</span>
+<span class="p_add">+					 &amp;details);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	tlb_finish_mmu(&amp;tlb, 0, -1);</span>
+<span class="p_add">+	up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="p_add">+out:</span>
+<span class="p_add">+	mmput(mm);</span>
+<span class="p_add">+	return ret;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void oom_reap_vmas(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	int attempts = 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Retry the down_read_trylock(mmap_sem) a few times */</span>
+<span class="p_add">+	while (attempts++ &lt; 10 &amp;&amp; !__oom_reap_vmas(mm))</span>
+<span class="p_add">+		schedule_timeout_idle(HZ/10);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Drop a reference taken by wake_oom_reaper */</span>
+<span class="p_add">+	mmdrop(mm);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int oom_reaper(void *unused)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	while (true) {</span>
+<span class="p_add">+		struct mm_struct *mm;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		wait_event_freezable(oom_reaper_wait,</span>
+<span class="p_add">+				     (mm = READ_ONCE(mm_to_reap)));</span>
+<span class="p_add">+		oom_reap_vmas(mm);</span>
+<span class="p_add">+		WRITE_ONCE(mm_to_reap, NULL);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void wake_oom_reaper(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct mm_struct *old_mm;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!oom_reaper_th)</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Pin the given mm. Use mm_count instead of mm_users because</span>
+<span class="p_add">+	 * we do not want to delay the address space tear down.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	atomic_inc(&amp;mm-&gt;mm_count);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Make sure that only a single mm is ever queued for the reaper</span>
+<span class="p_add">+	 * because multiple are not necessary and the operation might be</span>
+<span class="p_add">+	 * disruptive so better reduce it to the bare minimum.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	old_mm = cmpxchg(&amp;mm_to_reap, NULL, mm);</span>
+<span class="p_add">+	if (!old_mm)</span>
+<span class="p_add">+		wake_up(&amp;oom_reaper_wait);</span>
+<span class="p_add">+	else</span>
+<span class="p_add">+		mmdrop(mm);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int __init oom_init(void)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	oom_reaper_th = kthread_run(oom_reaper, NULL, &quot;oom_reaper&quot;);</span>
+<span class="p_add">+	if (IS_ERR(oom_reaper_th)) {</span>
+<span class="p_add">+		pr_err(&quot;Unable to start OOM reaper %ld. Continuing regardless\n&quot;,</span>
+<span class="p_add">+				PTR_ERR(oom_reaper_th));</span>
+<span class="p_add">+		oom_reaper_th = NULL;</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Make sure our oom reaper thread will get scheduled when</span>
+<span class="p_add">+		 * ASAP and that it won&#39;t get preempted by malicious userspace.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		sched_setscheduler(oom_reaper_th, SCHED_FIFO, &amp;param);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+subsys_initcall(oom_init)</span>
+<span class="p_add">+#else</span>
+<span class="p_add">+static void wake_oom_reaper(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ /**
+  * mark_oom_victim - mark the given task as OOM victim
+  * @tsk: task to mark
+<span class="p_chunk">@@ -517,6 +657,7 @@</span> <span class="p_context"> void oom_kill_process(struct oom_control *oc, struct task_struct *p,</span>
+ 	unsigned int victim_points = 0;
+ 	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+ 					      DEFAULT_RATELIMIT_BURST);
+<span class="p_add">+	bool can_oom_reap = true;</span>
+ 
+ 	/*
+ 	 * If the task is already exiting, don&#39;t alarm the sysadmin or kill
+<span class="p_chunk">@@ -607,17 +748,25 @@</span> <span class="p_context"> void oom_kill_process(struct oom_control *oc, struct task_struct *p,</span>
+ 			continue;
+ 		if (same_thread_group(p, victim))
+ 			continue;
+<span class="p_del">-		if (unlikely(p-&gt;flags &amp; PF_KTHREAD))</span>
+<span class="p_del">-			continue;</span>
+ 		if (is_global_init(p))
+ 			continue;
+<span class="p_del">-		if (p-&gt;signal-&gt;oom_score_adj == OOM_SCORE_ADJ_MIN)</span>
+<span class="p_add">+		if (unlikely(p-&gt;flags &amp; PF_KTHREAD) ||</span>
+<span class="p_add">+		    p-&gt;signal-&gt;oom_score_adj == OOM_SCORE_ADJ_MIN) {</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * We cannot use oom_reaper for the mm shared by this</span>
+<span class="p_add">+			 * process because it wouldn&#39;t get killed and so the</span>
+<span class="p_add">+			 * memory might be still used.</span>
+<span class="p_add">+			 */</span>
+<span class="p_add">+			can_oom_reap = false;</span>
+ 			continue;
+<span class="p_del">-</span>
+<span class="p_add">+		}</span>
+ 		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
+ 	}
+ 	rcu_read_unlock();
+ 
+<span class="p_add">+	if (can_oom_reap)</span>
+<span class="p_add">+		wake_oom_reaper(mm);</span>
+<span class="p_add">+</span>
+ 	mmdrop(mm);
+ 	put_task_struct(victim);
+ }
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,606 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,1/4] mm, hugetlb: unclutter hugetlb allocation layers - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,1/4] mm, hugetlb: unclutter hugetlb allocation layers</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>June 14, 2017, 1:42 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170614134258.GP6045@dhcp22.suse.cz&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9786311/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9786311/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9786311/">/patch/9786311/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	9EB3D60384 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 14 Jun 2017 13:43:06 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 8AB59223A1
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 14 Jun 2017 13:43:06 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 7C894284F6; Wed, 14 Jun 2017 13:43:06 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 09642223A1
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 14 Jun 2017 13:43:06 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751956AbdFNNnD (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 14 Jun 2017 09:43:03 -0400
+Received: from mx2.suse.de ([195.135.220.15]:43205 &quot;EHLO mx1.suse.de&quot;
+	rhost-flags-OK-OK-OK-FAIL) by vger.kernel.org with ESMTP
+	id S1750721AbdFNNnC (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 14 Jun 2017 09:43:02 -0400
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay1.suse.de (charybdis-ext.suse.de [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id D219CAD16;
+	Wed, 14 Jun 2017 13:43:00 +0000 (UTC)
+Date: Wed, 14 Jun 2017 15:42:59 +0200
+From: Michal Hocko &lt;mhocko@kernel.org&gt;
+To: Vlastimil Babka &lt;vbabka@suse.cz&gt;
+Cc: linux-mm@kvack.org, Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;,
+	Mike Kravetz &lt;mike.kravetz@oracle.com&gt;, Mel Gorman &lt;mgorman@suse.de&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	LKML &lt;linux-kernel@vger.kernel.org&gt;
+Subject: Re: [RFC PATCH 1/4] mm, hugetlb: unclutter hugetlb allocation layers
+Message-ID: &lt;20170614134258.GP6045@dhcp22.suse.cz&gt;
+References: &lt;20170613090039.14393-1-mhocko@kernel.org&gt;
+	&lt;20170613090039.14393-2-mhocko@kernel.org&gt;
+	&lt;1babcd50-a90e-a3e4-c45c-85b1b8b93171@suse.cz&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: &lt;1babcd50-a90e-a3e4-c45c-85b1b8b93171@suse.cz&gt;
+User-Agent: Mutt/1.5.23 (2014-03-12)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - June 14, 2017, 1:42 p.m.</div>
+<pre class="content">
+On Wed 14-06-17 15:18:26, Vlastimil Babka wrote:
+<span class="quote">&gt; On 06/13/2017 11:00 AM, Michal Hocko wrote:</span>
+[...]
+<span class="quote">&gt; &gt; @@ -1717,13 +1640,22 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)</span>
+<span class="quote">&gt; &gt;  		page = dequeue_huge_page_node(h, nid);</span>
+<span class="quote">&gt; &gt;  	spin_unlock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt; -	if (!page)</span>
+<span class="quote">&gt; &gt; -		page = __alloc_buddy_huge_page_no_mpol(h, nid);</span>
+<span class="quote">&gt; &gt; +	if (!page) {</span>
+<span class="quote">&gt; &gt; +		nodemask_t nmask;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +		if (nid != NUMA_NO_NODE) {</span>
+<span class="quote">&gt; &gt; +			nmask = NODE_MASK_NONE;</span>
+<span class="quote">&gt; &gt; +			node_set(nid, nmask);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; TBH I don&#39;t like this hack too much, and would rather see __GFP_THISNODE</span>
+<span class="quote">&gt; involved, which picks a different (short) zonelist. Also it&#39;s allocating</span>
+<span class="quote">&gt; nodemask on stack, which we generally avoid? Although the callers</span>
+<span class="quote">&gt; currently seem to be shallow.</span>
+
+Fair enough. That would require pulling gfp mask handling up the call
+chain. This on top of this patch + refreshes for other patches later in
+the series as they will conflict now?
+---
+commit dcd863b48fb2c93e5aebce818e75c30978e26cf1
+Author: Michal Hocko &lt;mhocko@suse.com&gt;
+Date:   Wed Jun 14 15:41:07 2017 +0200
+
+    fold me
+    
+    - pull gfp mask out of __hugetlb_alloc_buddy_huge_page and make it an
+      explicit argument to allow __GFP_THISNODE in alloc_huge_page_node per
+      Vlastimil
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - June 14, 2017, 2:04 p.m.</div>
+<pre class="content">
+On Wed 14-06-17 15:42:58, Michal Hocko wrote:
+<span class="quote">&gt; On Wed 14-06-17 15:18:26, Vlastimil Babka wrote:</span>
+<span class="quote">&gt; &gt; On 06/13/2017 11:00 AM, Michal Hocko wrote:</span>
+<span class="quote">&gt; [...]</span>
+<span class="quote">&gt; &gt; &gt; @@ -1717,13 +1640,22 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)</span>
+<span class="quote">&gt; &gt; &gt;  		page = dequeue_huge_page_node(h, nid);</span>
+<span class="quote">&gt; &gt; &gt;  	spin_unlock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt; &gt; &gt;  </span>
+<span class="quote">&gt; &gt; &gt; -	if (!page)</span>
+<span class="quote">&gt; &gt; &gt; -		page = __alloc_buddy_huge_page_no_mpol(h, nid);</span>
+<span class="quote">&gt; &gt; &gt; +	if (!page) {</span>
+<span class="quote">&gt; &gt; &gt; +		nodemask_t nmask;</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +		if (nid != NUMA_NO_NODE) {</span>
+<span class="quote">&gt; &gt; &gt; +			nmask = NODE_MASK_NONE;</span>
+<span class="quote">&gt; &gt; &gt; +			node_set(nid, nmask);</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; TBH I don&#39;t like this hack too much, and would rather see __GFP_THISNODE</span>
+<span class="quote">&gt; &gt; involved, which picks a different (short) zonelist. Also it&#39;s allocating</span>
+<span class="quote">&gt; &gt; nodemask on stack, which we generally avoid? Although the callers</span>
+<span class="quote">&gt; &gt; currently seem to be shallow.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Fair enough. That would require pulling gfp mask handling up the call</span>
+<span class="quote">&gt; chain. This on top of this patch + refreshes for other patches later in</span>
+<span class="quote">&gt; the series as they will conflict now?</span>
+
+I&#39;ve rebase the attempts/hugetlb-zonelists branch for an easier review.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=72672">Vlastimil Babka</a> - June 14, 2017, 3:06 p.m.</div>
+<pre class="content">
+On 06/14/2017 03:42 PM, Michal Hocko wrote:
+<span class="quote">&gt; On Wed 14-06-17 15:18:26, Vlastimil Babka wrote:</span>
+<span class="quote">&gt;&gt; On 06/13/2017 11:00 AM, Michal Hocko wrote:</span>
+<span class="quote">&gt; [...]</span>
+<span class="quote">&gt;&gt;&gt; @@ -1717,13 +1640,22 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)</span>
+<span class="quote">&gt;&gt;&gt;  		page = dequeue_huge_page_node(h, nid);</span>
+<span class="quote">&gt;&gt;&gt;  	spin_unlock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt;&gt;&gt;  </span>
+<span class="quote">&gt;&gt;&gt; -	if (!page)</span>
+<span class="quote">&gt;&gt;&gt; -		page = __alloc_buddy_huge_page_no_mpol(h, nid);</span>
+<span class="quote">&gt;&gt;&gt; +	if (!page) {</span>
+<span class="quote">&gt;&gt;&gt; +		nodemask_t nmask;</span>
+<span class="quote">&gt;&gt;&gt; +</span>
+<span class="quote">&gt;&gt;&gt; +		if (nid != NUMA_NO_NODE) {</span>
+<span class="quote">&gt;&gt;&gt; +			nmask = NODE_MASK_NONE;</span>
+<span class="quote">&gt;&gt;&gt; +			node_set(nid, nmask);</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; TBH I don&#39;t like this hack too much, and would rather see __GFP_THISNODE</span>
+<span class="quote">&gt;&gt; involved, which picks a different (short) zonelist. Also it&#39;s allocating</span>
+<span class="quote">&gt;&gt; nodemask on stack, which we generally avoid? Although the callers</span>
+<span class="quote">&gt;&gt; currently seem to be shallow.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Fair enough. That would require pulling gfp mask handling up the call</span>
+<span class="quote">&gt; chain. This on top of this patch + refreshes for other patches later in</span>
+<span class="quote">&gt; the series as they will conflict now?</span>
+
+For the orig patch + fold (squashed locally from your mmotm/... branch)
+<span class="acked-by">
+Acked-by: Vlastimil Babka &lt;vbabka@suse.cz&gt;</span>
+
+Please update the commit description which still mentions the nodemask
+emulation of __GFP_THISNODE.
+
+Also I noticed that the goal of patch 2 is already partially achieved
+here, because alloc_huge_page_nodemask() will now allocate using
+zonelist. It won&#39;t dequeue that way yet, though.
+<span class="quote">
+&gt; ---</span>
+<span class="quote">&gt; commit dcd863b48fb2c93e5aebce818e75c30978e26cf1</span>
+<span class="quote">&gt; Author: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; Date:   Wed Jun 14 15:41:07 2017 +0200</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;     fold me</span>
+<span class="quote">&gt;     </span>
+<span class="quote">&gt;     - pull gfp mask out of __hugetlb_alloc_buddy_huge_page and make it an</span>
+<span class="quote">&gt;       explicit argument to allow __GFP_THISNODE in alloc_huge_page_node per</span>
+<span class="quote">&gt;       Vlastimil</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="quote">&gt; index 3d5f25d589b3..afc87de5de5c 100644</span>
+<span class="quote">&gt; --- a/mm/hugetlb.c</span>
+<span class="quote">&gt; +++ b/mm/hugetlb.c</span>
+<span class="quote">&gt; @@ -1532,17 +1532,18 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,</span>
+<span class="quote">&gt; -		int nid, nodemask_t *nmask)</span>
+<span class="quote">&gt; +		gfp_t gfp_mask, int nid, nodemask_t *nmask)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	int order = huge_page_order(h);</span>
+<span class="quote">&gt; -	gfp_t gfp = htlb_alloc_mask(h)|__GFP_COMP|__GFP_REPEAT|__GFP_NOWARN;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +	gfp_mask |= __GFP_COMP|__GFP_REPEAT|__GFP_NOWARN;</span>
+<span class="quote">&gt;  	if (nid == NUMA_NO_NODE)</span>
+<span class="quote">&gt;  		nid = numa_mem_id();</span>
+<span class="quote">&gt; -	return __alloc_pages_nodemask(gfp, order, nid, nmask);</span>
+<span class="quote">&gt; +	return __alloc_pages_nodemask(gfp_mask, order, nid, nmask);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -static struct page *__alloc_buddy_huge_page(struct hstate *h, int nid, nodemask_t *nmask)</span>
+<span class="quote">&gt; +static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,</span>
+<span class="quote">&gt; +		int nid, nodemask_t *nmask)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	struct page *page;</span>
+<span class="quote">&gt;  	unsigned int r_nid;</span>
+<span class="quote">&gt; @@ -1583,7 +1584,7 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h, int nid, nodemask_</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  	spin_unlock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	page = __hugetlb_alloc_buddy_huge_page(h, nid, nmask);</span>
+<span class="quote">&gt; +	page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask, nid, nmask);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	spin_lock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt;  	if (page) {</span>
+<span class="quote">&gt; @@ -1616,11 +1617,12 @@ struct page *__alloc_buddy_huge_page_with_mpol(struct hstate *h,</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	struct page *page;</span>
+<span class="quote">&gt;  	struct mempolicy *mpol;</span>
+<span class="quote">&gt; +	gfp_t gfp_mask = htlb_alloc_mask(h);</span>
+<span class="quote">&gt;  	int nid;</span>
+<span class="quote">&gt;  	nodemask_t *nodemask;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	nid = huge_node(vma, addr, htlb_alloc_mask(h), &amp;mpol, &amp;nodemask);</span>
+<span class="quote">&gt; -	page = __alloc_buddy_huge_page(h, nid, nodemask);</span>
+<span class="quote">&gt; +	nid = huge_node(vma, addr, gfp_mask, &amp;mpol, &amp;nodemask);</span>
+<span class="quote">&gt; +	page = __alloc_buddy_huge_page(h, gfp_mask, nid, nodemask);</span>
+<span class="quote">&gt;  	mpol_cond_put(mpol);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	return page;</span>
+<span class="quote">&gt; @@ -1633,30 +1635,26 @@ struct page *__alloc_buddy_huge_page_with_mpol(struct hstate *h,</span>
+<span class="quote">&gt;   */</span>
+<span class="quote">&gt;  struct page *alloc_huge_page_node(struct hstate *h, int nid)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; +	gfp_t gfp_mask = htlb_alloc_mask(h);</span>
+<span class="quote">&gt;  	struct page *page = NULL;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +	if (nid != NUMA_NO_NODE)</span>
+<span class="quote">&gt; +		gfp_mask |= __GFP_THISNODE;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  	spin_lock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt;  	if (h-&gt;free_huge_pages - h-&gt;resv_huge_pages &gt; 0)</span>
+<span class="quote">&gt;  		page = dequeue_huge_page_node(h, nid);</span>
+<span class="quote">&gt;  	spin_unlock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	if (!page) {</span>
+<span class="quote">&gt; -		nodemask_t nmask;</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; -		if (nid != NUMA_NO_NODE) {</span>
+<span class="quote">&gt; -			nmask = NODE_MASK_NONE;</span>
+<span class="quote">&gt; -			node_set(nid, nmask);</span>
+<span class="quote">&gt; -		} else {</span>
+<span class="quote">&gt; -			nmask = node_states[N_MEMORY];</span>
+<span class="quote">&gt; -		}</span>
+<span class="quote">&gt; -		page = __alloc_buddy_huge_page(h, nid, &amp;nmask);</span>
+<span class="quote">&gt; -	}</span>
+<span class="quote">&gt; +	if (!page)</span>
+<span class="quote">&gt; +		page = __alloc_buddy_huge_page(h, gfp_mask, nid, NULL);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	return page;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  struct page *alloc_huge_page_nodemask(struct hstate *h, nodemask_t *nmask)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; +	gfp_t gfp_mask = htlb_alloc_mask(h);</span>
+<span class="quote">&gt;  	struct page *page = NULL;</span>
+<span class="quote">&gt;  	int node;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; @@ -1673,7 +1671,7 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, nodemask_t *nmask)</span>
+<span class="quote">&gt;  		return page;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/* No reservations, try to overcommit */</span>
+<span class="quote">&gt; -	return __alloc_buddy_huge_page(h, NUMA_NO_NODE, nmask);</span>
+<span class="quote">&gt; +	return __alloc_buddy_huge_page(h, gfp_mask, NUMA_NO_NODE, nmask);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  /*</span>
+<span class="quote">&gt; @@ -1701,7 +1699,8 @@ static int gather_surplus_pages(struct hstate *h, int delta)</span>
+<span class="quote">&gt;  retry:</span>
+<span class="quote">&gt;  	spin_unlock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt;  	for (i = 0; i &lt; needed; i++) {</span>
+<span class="quote">&gt; -		page = __alloc_buddy_huge_page(h, NUMA_NO_NODE, NULL);</span>
+<span class="quote">&gt; +		page = __alloc_buddy_huge_page(h, htlb_alloc_mask(h),</span>
+<span class="quote">&gt; +				NUMA_NO_NODE, NULL);</span>
+<span class="quote">&gt;  		if (!page) {</span>
+<span class="quote">&gt;  			alloc_ok = false;</span>
+<span class="quote">&gt;  			break;</span>
+<span class="quote">&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - June 14, 2017, 3:28 p.m.</div>
+<pre class="content">
+On Wed 14-06-17 17:06:47, Vlastimil Babka wrote:
+<span class="quote">&gt; On 06/14/2017 03:42 PM, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; On Wed 14-06-17 15:18:26, Vlastimil Babka wrote:</span>
+<span class="quote">&gt; &gt;&gt; On 06/13/2017 11:00 AM, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; [...]</span>
+<span class="quote">&gt; &gt;&gt;&gt; @@ -1717,13 +1640,22 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)</span>
+<span class="quote">&gt; &gt;&gt;&gt;  		page = dequeue_huge_page_node(h, nid);</span>
+<span class="quote">&gt; &gt;&gt;&gt;  	spin_unlock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt; &gt;&gt;&gt;  </span>
+<span class="quote">&gt; &gt;&gt;&gt; -	if (!page)</span>
+<span class="quote">&gt; &gt;&gt;&gt; -		page = __alloc_buddy_huge_page_no_mpol(h, nid);</span>
+<span class="quote">&gt; &gt;&gt;&gt; +	if (!page) {</span>
+<span class="quote">&gt; &gt;&gt;&gt; +		nodemask_t nmask;</span>
+<span class="quote">&gt; &gt;&gt;&gt; +</span>
+<span class="quote">&gt; &gt;&gt;&gt; +		if (nid != NUMA_NO_NODE) {</span>
+<span class="quote">&gt; &gt;&gt;&gt; +			nmask = NODE_MASK_NONE;</span>
+<span class="quote">&gt; &gt;&gt;&gt; +			node_set(nid, nmask);</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; TBH I don&#39;t like this hack too much, and would rather see __GFP_THISNODE</span>
+<span class="quote">&gt; &gt;&gt; involved, which picks a different (short) zonelist. Also it&#39;s allocating</span>
+<span class="quote">&gt; &gt;&gt; nodemask on stack, which we generally avoid? Although the callers</span>
+<span class="quote">&gt; &gt;&gt; currently seem to be shallow.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Fair enough. That would require pulling gfp mask handling up the call</span>
+<span class="quote">&gt; &gt; chain. This on top of this patch + refreshes for other patches later in</span>
+<span class="quote">&gt; &gt; the series as they will conflict now?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; For the orig patch + fold (squashed locally from your mmotm/... branch)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Acked-by: Vlastimil Babka &lt;vbabka@suse.cz&gt;</span>
+
+Thanks!
+<span class="quote">
+&gt; Please update the commit description which still mentions the nodemask</span>
+<span class="quote">&gt; emulation of __GFP_THISNODE.</span>
+
+yes I will do that when squashing them.
+<span class="quote">
+&gt; Also I noticed that the goal of patch 2 is already partially achieved</span>
+<span class="quote">&gt; here, because alloc_huge_page_nodemask() will now allocate using</span>
+<span class="quote">&gt; zonelist. It won&#39;t dequeue that way yet, though.</span>
+
+well, the primary point if the later is to allow for the preferred node.
+I didn&#39;t find a proper way to split the two things and still have a
+reasonably comprehensible diff. So I&#39;ve focused on the real allocation
+here and pools in the other patch. Hope that makes some sense.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="p_header">index 3d5f25d589b3..afc87de5de5c 100644</span>
+<span class="p_header">--- a/mm/hugetlb.c</span>
+<span class="p_header">+++ b/mm/hugetlb.c</span>
+<span class="p_chunk">@@ -1532,17 +1532,18 @@</span> <span class="p_context"> int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)</span>
+ }
+ 
+ static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,
+<span class="p_del">-		int nid, nodemask_t *nmask)</span>
+<span class="p_add">+		gfp_t gfp_mask, int nid, nodemask_t *nmask)</span>
+ {
+ 	int order = huge_page_order(h);
+<span class="p_del">-	gfp_t gfp = htlb_alloc_mask(h)|__GFP_COMP|__GFP_REPEAT|__GFP_NOWARN;</span>
+ 
+<span class="p_add">+	gfp_mask |= __GFP_COMP|__GFP_REPEAT|__GFP_NOWARN;</span>
+ 	if (nid == NUMA_NO_NODE)
+ 		nid = numa_mem_id();
+<span class="p_del">-	return __alloc_pages_nodemask(gfp, order, nid, nmask);</span>
+<span class="p_add">+	return __alloc_pages_nodemask(gfp_mask, order, nid, nmask);</span>
+ }
+ 
+<span class="p_del">-static struct page *__alloc_buddy_huge_page(struct hstate *h, int nid, nodemask_t *nmask)</span>
+<span class="p_add">+static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,</span>
+<span class="p_add">+		int nid, nodemask_t *nmask)</span>
+ {
+ 	struct page *page;
+ 	unsigned int r_nid;
+<span class="p_chunk">@@ -1583,7 +1584,7 @@</span> <span class="p_context"> static struct page *__alloc_buddy_huge_page(struct hstate *h, int nid, nodemask_</span>
+ 	}
+ 	spin_unlock(&amp;hugetlb_lock);
+ 
+<span class="p_del">-	page = __hugetlb_alloc_buddy_huge_page(h, nid, nmask);</span>
+<span class="p_add">+	page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask, nid, nmask);</span>
+ 
+ 	spin_lock(&amp;hugetlb_lock);
+ 	if (page) {
+<span class="p_chunk">@@ -1616,11 +1617,12 @@</span> <span class="p_context"> struct page *__alloc_buddy_huge_page_with_mpol(struct hstate *h,</span>
+ {
+ 	struct page *page;
+ 	struct mempolicy *mpol;
+<span class="p_add">+	gfp_t gfp_mask = htlb_alloc_mask(h);</span>
+ 	int nid;
+ 	nodemask_t *nodemask;
+ 
+<span class="p_del">-	nid = huge_node(vma, addr, htlb_alloc_mask(h), &amp;mpol, &amp;nodemask);</span>
+<span class="p_del">-	page = __alloc_buddy_huge_page(h, nid, nodemask);</span>
+<span class="p_add">+	nid = huge_node(vma, addr, gfp_mask, &amp;mpol, &amp;nodemask);</span>
+<span class="p_add">+	page = __alloc_buddy_huge_page(h, gfp_mask, nid, nodemask);</span>
+ 	mpol_cond_put(mpol);
+ 
+ 	return page;
+<span class="p_chunk">@@ -1633,30 +1635,26 @@</span> <span class="p_context"> struct page *__alloc_buddy_huge_page_with_mpol(struct hstate *h,</span>
+  */
+ struct page *alloc_huge_page_node(struct hstate *h, int nid)
+ {
+<span class="p_add">+	gfp_t gfp_mask = htlb_alloc_mask(h);</span>
+ 	struct page *page = NULL;
+ 
+<span class="p_add">+	if (nid != NUMA_NO_NODE)</span>
+<span class="p_add">+		gfp_mask |= __GFP_THISNODE;</span>
+<span class="p_add">+</span>
+ 	spin_lock(&amp;hugetlb_lock);
+ 	if (h-&gt;free_huge_pages - h-&gt;resv_huge_pages &gt; 0)
+ 		page = dequeue_huge_page_node(h, nid);
+ 	spin_unlock(&amp;hugetlb_lock);
+ 
+<span class="p_del">-	if (!page) {</span>
+<span class="p_del">-		nodemask_t nmask;</span>
+<span class="p_del">-</span>
+<span class="p_del">-		if (nid != NUMA_NO_NODE) {</span>
+<span class="p_del">-			nmask = NODE_MASK_NONE;</span>
+<span class="p_del">-			node_set(nid, nmask);</span>
+<span class="p_del">-		} else {</span>
+<span class="p_del">-			nmask = node_states[N_MEMORY];</span>
+<span class="p_del">-		}</span>
+<span class="p_del">-		page = __alloc_buddy_huge_page(h, nid, &amp;nmask);</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+	if (!page)</span>
+<span class="p_add">+		page = __alloc_buddy_huge_page(h, gfp_mask, nid, NULL);</span>
+ 
+ 	return page;
+ }
+ 
+ struct page *alloc_huge_page_nodemask(struct hstate *h, nodemask_t *nmask)
+ {
+<span class="p_add">+	gfp_t gfp_mask = htlb_alloc_mask(h);</span>
+ 	struct page *page = NULL;
+ 	int node;
+ 
+<span class="p_chunk">@@ -1673,7 +1671,7 @@</span> <span class="p_context"> struct page *alloc_huge_page_nodemask(struct hstate *h, nodemask_t *nmask)</span>
+ 		return page;
+ 
+ 	/* No reservations, try to overcommit */
+<span class="p_del">-	return __alloc_buddy_huge_page(h, NUMA_NO_NODE, nmask);</span>
+<span class="p_add">+	return __alloc_buddy_huge_page(h, gfp_mask, NUMA_NO_NODE, nmask);</span>
+ }
+ 
+ /*
+<span class="p_chunk">@@ -1701,7 +1699,8 @@</span> <span class="p_context"> static int gather_surplus_pages(struct hstate *h, int delta)</span>
+ retry:
+ 	spin_unlock(&amp;hugetlb_lock);
+ 	for (i = 0; i &lt; needed; i++) {
+<span class="p_del">-		page = __alloc_buddy_huge_page(h, NUMA_NO_NODE, NULL);</span>
+<span class="p_add">+		page = __alloc_buddy_huge_page(h, htlb_alloc_mask(h),</span>
+<span class="p_add">+				NUMA_NO_NODE, NULL);</span>
+ 		if (!page) {
+ 			alloc_ok = false;
+ 			break;
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

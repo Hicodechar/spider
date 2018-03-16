@@ -1,0 +1,380 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[15/18] sched: Streamline the task migration locking a little - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [15/18] sched: Streamline the task migration locking a little</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>June 11, 2015, 12:46 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20150611124743.755256708@infradead.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/6588211/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/6588211/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/6588211/">/patch/6588211/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id AED73C0020
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 11 Jun 2015 12:54:48 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id A9BD8205E8
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 11 Jun 2015 12:54:47 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 9AE3020645
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 11 Jun 2015 12:54:46 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1754496AbbFKMyj (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 11 Jun 2015 08:54:39 -0400
+Received: from bombadil.infradead.org ([198.137.202.9]:56781 &quot;EHLO
+	bombadil.infradead.org&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1753211AbbFKMyC (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 11 Jun 2015 08:54:02 -0400
+Received: from 178-85-85-44.dynamic.upc.nl ([178.85.85.44] helo=twins)
+	by bombadil.infradead.org with esmtpsa (Exim 4.80.1 #2 (Red Hat
+	Linux)) id 1Z31zP-0000rP-54; Thu, 11 Jun 2015 12:53:47 +0000
+Received: by twins (Postfix, from userid 0)
+	id 7EF731254D6D1; Thu, 11 Jun 2015 14:53:41 +0200 (CEST)
+Message-Id: &lt;20150611124743.755256708@infradead.org&gt;
+User-Agent: quilt/0.61-1
+Date: Thu, 11 Jun 2015 14:46:51 +0200
+From: Peter Zijlstra &lt;peterz@infradead.org&gt;
+To: umgwanakikbuti@gmail.com, mingo@elte.hu
+Cc: ktkhai@parallels.com, rostedt@goodmis.org, tglx@linutronix.de,
+	juri.lelli@gmail.com, pang.xunlei@linaro.org, oleg@redhat.com,
+	wanpeng.li@linux.intel.com, linux-kernel@vger.kernel.org,
+	peterz@infradead.org
+Subject: [PATCH 15/18] sched: Streamline the task migration locking a little
+References: &lt;20150611124636.448700267@infradead.org&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline; filename=peterz-sched-migrate-locking.patch
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	T_RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - June 11, 2015, 12:46 p.m.</div>
+<pre class="content">
+The whole migrate_task{,s}() locking seems a little shaky, there&#39;s a
+lot of dropping an require happening. Pull the locking up into the
+callers as far as possible to streamline the lot.
+<span class="signed-off-by">
+Signed-off-by: Peter Zijlstra (Intel) &lt;peterz@infradead.org&gt;</span>
+---
+ kernel/sched/core.c |   76 +++++++++++++++++++++++-----------------------------
+ 1 file changed, 34 insertions(+), 42 deletions(-)
+
+
+
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- a/kernel/sched/core.c</span>
+<span class="p_header">+++ b/kernel/sched/core.c</span>
+<span class="p_chunk">@@ -1065,10 +1065,8 @@</span> <span class="p_context"> void check_preempt_curr(struct rq *rq, s</span>
+  *
+  * Returns (locked) new rq. Old rq&#39;s lock is released.
+  */
+<span class="p_del">-static struct rq *move_queued_task(struct task_struct *p, int new_cpu)</span>
+<span class="p_add">+static struct rq *move_queued_task(struct rq *rq, struct task_struct *p, int new_cpu)</span>
+ {
+<span class="p_del">-	struct rq *rq = task_rq(p);</span>
+<span class="p_del">-</span>
+ 	lockdep_assert_held(&amp;rq-&gt;lock);
+ 
+ 	dequeue_task(rq, p, 0);
+<span class="p_chunk">@@ -1100,41 +1098,19 @@</span> <span class="p_context"> struct migration_arg {</span>
+  *
+  * So we race with normal scheduler movements, but that&#39;s OK, as long
+  * as the task is no longer on this CPU.
+<span class="p_del">- *</span>
+<span class="p_del">- * Returns non-zero if task was successfully migrated.</span>
+  */
+<span class="p_del">-static int __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)</span>
+<span class="p_add">+static struct rq *__migrate_task(struct rq *rq, struct task_struct *p, int dest_cpu)</span>
+ {
+<span class="p_del">-	struct rq *rq;</span>
+<span class="p_del">-	int ret = 0;</span>
+<span class="p_del">-</span>
+ 	if (unlikely(!cpu_active(dest_cpu)))
+<span class="p_del">-		return ret;</span>
+<span class="p_del">-</span>
+<span class="p_del">-	rq = cpu_rq(src_cpu);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	raw_spin_lock(&amp;p-&gt;pi_lock);</span>
+<span class="p_del">-	raw_spin_lock(&amp;rq-&gt;lock);</span>
+<span class="p_del">-	/* Already moved. */</span>
+<span class="p_del">-	if (task_cpu(p) != src_cpu)</span>
+<span class="p_del">-		goto done;</span>
+<span class="p_add">+		return rq;</span>
+ 
+ 	/* Affinity changed (again). */
+ 	if (!cpumask_test_cpu(dest_cpu, tsk_cpus_allowed(p)))
+<span class="p_del">-		goto fail;</span>
+<span class="p_add">+		return rq;</span>
+ 
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * If we&#39;re not on a rq, the next wake-up will ensure we&#39;re</span>
+<span class="p_del">-	 * placed properly.</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	if (task_on_rq_queued(p))</span>
+<span class="p_del">-		rq = move_queued_task(p, dest_cpu);</span>
+<span class="p_del">-done:</span>
+<span class="p_del">-	ret = 1;</span>
+<span class="p_del">-fail:</span>
+<span class="p_del">-	raw_spin_unlock(&amp;rq-&gt;lock);</span>
+<span class="p_del">-	raw_spin_unlock(&amp;p-&gt;pi_lock);</span>
+<span class="p_del">-	return ret;</span>
+<span class="p_add">+	rq = move_queued_task(rq, p, dest_cpu);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return rq;</span>
+ }
+ 
+ /*
+<span class="p_chunk">@@ -1145,6 +1121,8 @@</span> <span class="p_context"> static int __migrate_task(struct task_st</span>
+ static int migration_cpu_stop(void *data)
+ {
+ 	struct migration_arg *arg = data;
+<span class="p_add">+	struct task_struct *p = arg-&gt;task;</span>
+<span class="p_add">+	struct rq *rq = this_rq();</span>
+ 
+ 	/*
+ 	 * The original target cpu might have gone down and we might
+<span class="p_chunk">@@ -1157,7 +1135,19 @@</span> <span class="p_context"> static int migration_cpu_stop(void *data</span>
+ 	 * during wakeups, see set_cpus_allowed_ptr()&#39;s TASK_WAKING test.
+ 	 */
+ 	sched_ttwu_pending();
+<span class="p_del">-	__migrate_task(arg-&gt;task, raw_smp_processor_id(), arg-&gt;dest_cpu);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	raw_spin_lock(&amp;p-&gt;pi_lock);</span>
+<span class="p_add">+	raw_spin_lock(&amp;rq-&gt;lock);</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * If task_rq(p) != rq, it cannot be migrated here, because we&#39;re</span>
+<span class="p_add">+	 * holding rq-&gt;lock, if p-&gt;on_rq == 0 it cannot get enqueued because</span>
+<span class="p_add">+	 * we&#39;re holding p-&gt;pi_lock.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (task_rq(p) == rq &amp;&amp; task_on_rq_queued(p))</span>
+<span class="p_add">+		rq = __migrate_task(rq, p, arg-&gt;dest_cpu);</span>
+<span class="p_add">+	raw_spin_unlock(&amp;rq-&gt;lock);</span>
+<span class="p_add">+	raw_spin_unlock(&amp;p-&gt;pi_lock);</span>
+<span class="p_add">+</span>
+ 	local_irq_enable();
+ 	return 0;
+ }
+<span class="p_chunk">@@ -1212,7 +1202,7 @@</span> <span class="p_context"> int set_cpus_allowed_ptr(struct task_str</span>
+ 		tlb_migrate_finish(p-&gt;mm);
+ 		return 0;
+ 	} else if (task_on_rq_queued(p))
+<span class="p_del">-		rq = move_queued_task(p, dest_cpu);</span>
+<span class="p_add">+		rq = move_queued_task(rq, p, dest_cpu);</span>
+ out:
+ 	task_rq_unlock(rq, p, &amp;flags);
+ 
+<span class="p_chunk">@@ -5049,9 +5039,9 @@</span> <span class="p_context"> static struct task_struct fake_task = {</span>
+  * there&#39;s no concurrency possible, we hold the required locks anyway
+  * because of lock validation efforts.
+  */
+<span class="p_del">-static void migrate_tasks(unsigned int dead_cpu)</span>
+<span class="p_add">+static void migrate_tasks(struct rq *dead_rq)</span>
+ {
+<span class="p_del">-	struct rq *rq = cpu_rq(dead_cpu);</span>
+<span class="p_add">+	struct rq *rq = dead_rq;</span>
+ 	struct task_struct *next, *stop = rq-&gt;stop;
+ 	int dest_cpu;
+ 
+<span class="p_chunk">@@ -5073,7 +5063,7 @@</span> <span class="p_context"> static void migrate_tasks(unsigned int d</span>
+ 	 */
+ 	update_rq_clock(rq);
+ 
+<span class="p_del">-	for ( ; ; ) {</span>
+<span class="p_add">+	for (;;) {</span>
+ 		/*
+ 		 * There&#39;s this thread running, bail when that&#39;s the only
+ 		 * remaining thread.
+<span class="p_chunk">@@ -5086,12 +5076,14 @@</span> <span class="p_context"> static void migrate_tasks(unsigned int d</span>
+ 		next-&gt;sched_class-&gt;put_prev_task(rq, next);
+ 
+ 		/* Find suitable destination for @next, with force if needed. */
+<span class="p_del">-		dest_cpu = select_fallback_rq(dead_cpu, next);</span>
+<span class="p_del">-		raw_spin_unlock(&amp;rq-&gt;lock);</span>
+<span class="p_del">-</span>
+<span class="p_del">-		__migrate_task(next, dead_cpu, dest_cpu);</span>
+<span class="p_add">+		dest_cpu = select_fallback_rq(dead_rq-&gt;cpu, next);</span>
+ 
+<span class="p_del">-		raw_spin_lock(&amp;rq-&gt;lock);</span>
+<span class="p_add">+		rq = __migrate_task(rq, next, dest_cpu);</span>
+<span class="p_add">+		if (rq != dead_rq) {</span>
+<span class="p_add">+			raw_spin_unlock(&amp;rq-&gt;lock);</span>
+<span class="p_add">+			rq = dead_rq;</span>
+<span class="p_add">+			raw_spin_lock(&amp;rq-&gt;lock);</span>
+<span class="p_add">+		}</span>
+ 	}
+ 
+ 	rq-&gt;stop = stop;
+<span class="p_chunk">@@ -5343,7 +5335,7 @@</span> <span class="p_context"> migration_call(struct notifier_block *nf</span>
+ 			BUG_ON(!cpumask_test_cpu(cpu, rq-&gt;rd-&gt;span));
+ 			set_rq_offline(rq);
+ 		}
+<span class="p_del">-		migrate_tasks(cpu);</span>
+<span class="p_add">+		migrate_tasks(rq);</span>
+ 		BUG_ON(rq-&gt;nr_running != 1); /* the migration thread */
+ 		raw_spin_unlock_irqrestore(&amp;rq-&gt;lock, flags);
+ 		break;
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

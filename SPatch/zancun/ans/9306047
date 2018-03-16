@@ -1,0 +1,474 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,v5] x86,mm,sched: make lazy TLB mode even lazier - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,v5] x86,mm,sched: make lazy TLB mode even lazier</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=181">Rik van Riel</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Aug. 30, 2016, 9:09 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20160830170943.20549d65@cuia.usersys.redhat.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9306047/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9306047/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9306047/">/patch/9306047/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	3C494601C0 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 30 Aug 2016 21:10:12 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 26FB428D4C
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 30 Aug 2016 21:10:12 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 180B828D5B; Tue, 30 Aug 2016 21:10:12 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 49F9028D4C
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 30 Aug 2016 21:10:11 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1758600AbcH3VJv (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 30 Aug 2016 17:09:51 -0400
+Received: from mx1.redhat.com ([209.132.183.28]:35350 &quot;EHLO mx1.redhat.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1758471AbcH3VJr (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 30 Aug 2016 17:09:47 -0400
+Received: from int-mx09.intmail.prod.int.phx2.redhat.com
+	(int-mx09.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256
+	bits)) (No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id CCE29C04D298;
+	Tue, 30 Aug 2016 21:09:46 +0000 (UTC)
+Received: from cuia.usersys.redhat.com (dhcp-17-33.bos.redhat.com
+	[10.18.17.33])
+	by int-mx09.intmail.prod.int.phx2.redhat.com (8.14.4/8.14.4) with
+	ESMTP id u7UL9jPE016263
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256
+	verify=NO); Tue, 30 Aug 2016 17:09:45 -0400
+Date: Tue, 30 Aug 2016 17:09:43 -0400
+From: Rik van Riel &lt;riel@redhat.com&gt;
+To: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+Cc: Ingo Molnar &lt;mingo@kernel.org&gt;, &quot;H. Peter Anvin&quot; &lt;hpa@zytor.com&gt;,
+	serebrin@google.com, Peter Zijlstra &lt;peterz@infradead.org&gt;,
+	Linux Kernel Mailing List &lt;linux-kernel@vger.kernel.org&gt;,
+	Andrew Lutomirski &lt;luto@kernel.org&gt;,
+	Borislav Petkov &lt;bp@suse.de&gt;, Mel Gorman &lt;mgorman@suse.de&gt;,
+	Thomas Gleixner &lt;tglx@linutronix.de&gt;
+Subject: [PATCH RFC v5] x86,mm,sched: make lazy TLB mode even lazier
+Message-ID: &lt;20160830170943.20549d65@cuia.usersys.redhat.com&gt;
+In-Reply-To: &lt;20160830155332.505b30f0@cuia.usersys.redhat.com&gt;
+References: &lt;20160825150515.02c2d8ea@riellap.home.surriel.com&gt;
+	&lt;7E7CF02F-F0B1-493A-98B3-B078174811DA@zytor.com&gt;
+	&lt;20160825170133.0a783ae8@riellap.home.surriel.com&gt;
+	&lt;20160827080316.GA11325@gmail.com&gt;
+	&lt;CA+55aFxfaBNRP_H__JjdEr75r2oWpah=vu7560a_aXn=Ay6r0A@mail.gmail.com&gt;
+	&lt;20160830155332.505b30f0@cuia.usersys.redhat.com&gt;
+Organization: Red Hat, Inc
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.68 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16
+	(mx1.redhat.com [10.5.110.31]);
+	Tue, 30 Aug 2016 21:09:47 +0000 (UTC)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=181">Rik van Riel</a> - Aug. 30, 2016, 9:09 p.m.</div>
+<pre class="content">
+On Tue, 30 Aug 2016 15:53:32 -0400
+Rik van Riel &lt;riel@redhat.com&gt; wrote:
+<span class="quote">
+&gt; On Sat, 27 Aug 2016 16:02:25 -0700</span>
+<span class="quote">&gt; Linus Torvalds &lt;torvalds@linux-foundation.org&gt; wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; The only remaining comment is that I&#39;d make that</span>
+<span class="quote">&gt; &gt; lazy_tlb_can_skip_flush() function just use a switch table for the</span>
+<span class="quote">&gt; &gt; tlbstate comparisons rather than the repeated conditionals.  </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; After staring at the code for an hour or so yesterday, I found a race</span>
+<span class="quote">&gt; condition. It took me a few minutes to realize we can fix it with a</span>
+<span class="quote">&gt; cmpxchg at context switch time, and then most of a day to realize that</span>
+<span class="quote">&gt; we only need that cmpxchg in the context switch code if the old tlb</span>
+<span class="quote">&gt; state is TLBSTATE_LAZY.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Context switch times when the tlb state is something else should be</span>
+<span class="quote">&gt; unaffected.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The 4th version of the patch (below) closes that race condition, and</span>
+<span class="quote">&gt; includes the improvements suggested by Ingo and you.</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; &gt; I&#39;d love to see the results from Benjamin - maybe it helps a lot, and</span>
+<span class="quote">&gt; &gt; maybe it doesn&#39;t. But regardless, the patch makes sense to me.  </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I would love to see test results from Ben, as well.  Ben? :)</span>
+
+The kbuild test robot helpfully reminded me that I forgot to enable
+CONFIG_PARAVIRT in my build. v5 adds a one-line change in paravirt_types.h,
+to match the changed prototype for flush_tlb_others.
+
+Sorry about the noise.
+
+---8&lt;---
+
+Subject: x86,mm,sched: make lazy TLB mode even lazier
+
+Lazy TLB mode can result in an idle CPU being woken up for a TLB
+flush, when all it really needed to do was flush %CR3 before the
+next context switch.
+
+This is mostly fine on bare metal, though sub-optimal from a power
+saving point of view, and deeper C-states could make TLB flushes
+take a little longer than desired.
+
+On virtual machines, the pain can be much worse, especially if a
+currently non-running VCPU is woken up for a TLB invalidation
+IPI, on a CPU that is busy running another task. It could take
+a while before that IPI is handled, leading to performance issues.
+
+This patch deals with the issue by introducing a third TLB state,
+TLBSTATE_FLUSH, which causes %CR3 to be flushed at the next
+context switch.
+
+A CPU that transitions from TLBSTATE_LAZY to TLBSTATE_OK during
+the attempted transition to TLBSTATE_FLUSH will get a TLB flush
+IPI, just like a CPU that was in TLBSTATE_OK to begin with.
+
+Nothing is done for a CPU that is already in TLBSTATE_FLUSH mode.
+<span class="signed-off-by">
+Signed-off-by: Rik van Riel &lt;riel@redhat.com&gt;</span>
+Reported-by: Benjamin Serebrin &lt;serebrin@google.com&gt;
+---
+ arch/x86/include/asm/paravirt_types.h |  2 +-
+ arch/x86/include/asm/tlbflush.h       |  3 +-
+ arch/x86/include/asm/uv/uv.h          |  6 ++--
+ arch/x86/mm/tlb.c                     | 64 ++++++++++++++++++++++++++++++++---
+ arch/x86/platform/uv/tlb_uv.c         |  2 +-
+ 5 files changed, 67 insertions(+), 10 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/include/asm/paravirt_types.h b/arch/x86/include/asm/paravirt_types.h</span>
+<span class="p_header">index 7fa9e7740ba3..b7e695c90c43 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/paravirt_types.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/paravirt_types.h</span>
+<span class="p_chunk">@@ -225,7 +225,7 @@</span> <span class="p_context"> struct pv_mmu_ops {</span>
+ 	void (*flush_tlb_user)(void);
+ 	void (*flush_tlb_kernel)(void);
+ 	void (*flush_tlb_single)(unsigned long addr);
+<span class="p_del">-	void (*flush_tlb_others)(const struct cpumask *cpus,</span>
+<span class="p_add">+	void (*flush_tlb_others)(struct cpumask *cpus,</span>
+ 				 struct mm_struct *mm,
+ 				 unsigned long start,
+ 				 unsigned long end);
+<span class="p_header">diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">index 4e5be94e079a..c3dbacbc49be 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -304,12 +304,13 @@</span> <span class="p_context"> extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);</span>
+ 
+ #define flush_tlb()	flush_tlb_current_task()
+ 
+<span class="p_del">-void native_flush_tlb_others(const struct cpumask *cpumask,</span>
+<span class="p_add">+void native_flush_tlb_others(struct cpumask *cpumask,</span>
+ 				struct mm_struct *mm,
+ 				unsigned long start, unsigned long end);
+ 
+ #define TLBSTATE_OK	1
+ #define TLBSTATE_LAZY	2
+<span class="p_add">+#define TLBSTATE_FLUSH	3</span>
+ 
+ static inline void reset_lazy_tlbstate(void)
+ {
+<span class="p_header">diff --git a/arch/x86/include/asm/uv/uv.h b/arch/x86/include/asm/uv/uv.h</span>
+<span class="p_header">index 062921ef34e9..7e83cc633ba1 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/uv/uv.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/uv/uv.h</span>
+<span class="p_chunk">@@ -13,7 +13,7 @@</span> <span class="p_context"> extern int is_uv_system(void);</span>
+ extern void uv_cpu_init(void);
+ extern void uv_nmi_init(void);
+ extern void uv_system_init(void);
+<span class="p_del">-extern const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,</span>
+<span class="p_add">+extern struct cpumask *uv_flush_tlb_others(struct cpumask *cpumask,</span>
+ 						 struct mm_struct *mm,
+ 						 unsigned long start,
+ 						 unsigned long end,
+<span class="p_chunk">@@ -25,8 +25,8 @@</span> <span class="p_context"> static inline enum uv_system_type get_uv_system_type(void) { return UV_NONE; }</span>
+ static inline int is_uv_system(void)	{ return 0; }
+ static inline void uv_cpu_init(void)	{ }
+ static inline void uv_system_init(void)	{ }
+<span class="p_del">-static inline const struct cpumask *</span>
+<span class="p_del">-uv_flush_tlb_others(const struct cpumask *cpumask, struct mm_struct *mm,</span>
+<span class="p_add">+static inline struct cpumask *</span>
+<span class="p_add">+uv_flush_tlb_others(struct cpumask *cpumask, struct mm_struct *mm,</span>
+ 		    unsigned long start, unsigned long end, unsigned int cpu)
+ { return cpumask; }
+ 
+<span class="p_header">diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c</span>
+<span class="p_header">index 5643fd0b1a7d..634248b38db9 100644</span>
+<span class="p_header">--- a/arch/x86/mm/tlb.c</span>
+<span class="p_header">+++ b/arch/x86/mm/tlb.c</span>
+<span class="p_chunk">@@ -140,10 +140,24 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ 	}
+ #ifdef CONFIG_SMP
+ 	  else {
+<span class="p_add">+		int *tlbstate = this_cpu_ptr(&amp;cpu_tlbstate.state);</span>
+<span class="p_add">+		int oldstate = *tlbstate;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (unlikely(oldstate == TLBSTATE_LAZY)) {</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * The TLB flush code (lazy_tlb_can_skip_flush) can</span>
+<span class="p_add">+			 * move the TLB state to TLBSTATE_FLUSH concurrently</span>
+<span class="p_add">+			 * with a context switch. Using cmpxchg here will catch</span>
+<span class="p_add">+			 * that transition, causing a TLB flush below.</span>
+<span class="p_add">+			 */</span>
+<span class="p_add">+			oldstate = cmpxchg(tlbstate, oldstate, TLBSTATE_OK);</span>
+<span class="p_add">+		}</span>
+ 		this_cpu_write(cpu_tlbstate.state, TLBSTATE_OK);
+<span class="p_add">+</span>
+ 		BUG_ON(this_cpu_read(cpu_tlbstate.active_mm) != next);
+ 
+<span class="p_del">-		if (!cpumask_test_cpu(cpu, mm_cpumask(next))) {</span>
+<span class="p_add">+		if (oldstate == TLBSTATE_FLUSH ||</span>
+<span class="p_add">+				!cpumask_test_cpu(cpu, mm_cpumask(next))) {</span>
+ 			/*
+ 			 * On established mms, the mm_cpumask is only changed
+ 			 * from irq context, from ptep_clear_flush() while in
+<span class="p_chunk">@@ -242,11 +256,44 @@</span> <span class="p_context"> static void flush_tlb_func(void *info)</span>
+ 
+ }
+ 
+<span class="p_del">-void native_flush_tlb_others(const struct cpumask *cpumask,</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Determine whether a CPU&#39;s TLB needs to be flushed now, or whether the</span>
+<span class="p_add">+ * flush can be delayed until the next context switch, by changing the</span>
+<span class="p_add">+ * tlbstate from TLBSTATE_LAZY to TLBSTATE_FLUSH.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static bool lazy_tlb_can_skip_flush(int cpu)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	int *tlbstate = &amp;per_cpu(cpu_tlbstate.state, cpu);</span>
+<span class="p_add">+	int old;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	switch (*tlbstate) {</span>
+<span class="p_add">+	case TLBSTATE_FLUSH:</span>
+<span class="p_add">+		/* The TLB will be flushed on the next context switch. */</span>
+<span class="p_add">+		return true;</span>
+<span class="p_add">+	case TLBSTATE_LAZY:</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * The CPU is in TLBSTATE_LAZY, which could context switch back</span>
+<span class="p_add">+		 * to TLBSTATE_OK, re-using the old TLB state without a flush.</span>
+<span class="p_add">+		 * If that happened, send a TLB flush IPI.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * Otherwise, the state is now TLBSTATE_FLUSH, and TLB will</span>
+<span class="p_add">+		 * be flushed at the next context switch. Skip the IPI.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		old = cmpxchg(tlbstate, TLBSTATE_LAZY, TLBSTATE_FLUSH);</span>
+<span class="p_add">+		return old != TLBSTATE_OK;</span>
+<span class="p_add">+	case TLBSTATE_OK:</span>
+<span class="p_add">+	default:</span>
+<span class="p_add">+		/* A task on the CPU is actively using the mm. Flush the TLB. */</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+void native_flush_tlb_others(struct cpumask *cpumask,</span>
+ 				 struct mm_struct *mm, unsigned long start,
+ 				 unsigned long end)
+ {
+ 	struct flush_tlb_info info;
+<span class="p_add">+	unsigned int cpu;</span>
+ 
+ 	if (end == 0)
+ 		end = start + PAGE_SIZE;
+<span class="p_chunk">@@ -262,8 +309,6 @@</span> <span class="p_context"> void native_flush_tlb_others(const struct cpumask *cpumask,</span>
+ 				(end - start) &gt;&gt; PAGE_SHIFT);
+ 
+ 	if (is_uv_system()) {
+<span class="p_del">-		unsigned int cpu;</span>
+<span class="p_del">-</span>
+ 		cpu = smp_processor_id();
+ 		cpumask = uv_flush_tlb_others(cpumask, mm, start, end, cpu);
+ 		if (cpumask)
+<span class="p_chunk">@@ -271,6 +316,17 @@</span> <span class="p_context"> void native_flush_tlb_others(const struct cpumask *cpumask,</span>
+ 								&amp;info, 1);
+ 		return;
+ 	}
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Instead of sending IPIs to CPUs in lazy TLB mode, move that</span>
+<span class="p_add">+	 * CPU&#39;s TLB state to TLBSTATE_FLUSH, causing the TLB to be flushed</span>
+<span class="p_add">+	 * at the next context switch.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	for_each_cpu(cpu, cpumask) {</span>
+<span class="p_add">+		if (lazy_tlb_can_skip_flush(cpu))</span>
+<span class="p_add">+			cpumask_clear_cpu(cpu, cpumask);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+ 	smp_call_function_many(cpumask, flush_tlb_func, &amp;info, 1);
+ }
+ 
+<span class="p_header">diff --git a/arch/x86/platform/uv/tlb_uv.c b/arch/x86/platform/uv/tlb_uv.c</span>
+<span class="p_header">index fdb4d42b4ce5..7a2221a81e77 100644</span>
+<span class="p_header">--- a/arch/x86/platform/uv/tlb_uv.c</span>
+<span class="p_header">+++ b/arch/x86/platform/uv/tlb_uv.c</span>
+<span class="p_chunk">@@ -1090,7 +1090,7 @@</span> <span class="p_context"> static int set_distrib_bits(struct cpumask *flush_mask, struct bau_control *bcp,</span>
+  * Returns pointer to cpumask if some remote flushing remains to be
+  * done.  The returned pointer is valid till preemption is re-enabled.
+  */
+<span class="p_del">-const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,</span>
+<span class="p_add">+struct cpumask *uv_flush_tlb_others(struct cpumask *cpumask,</span>
+ 						struct mm_struct *mm,
+ 						unsigned long start,
+ 						unsigned long end,
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

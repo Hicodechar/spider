@@ -1,0 +1,1444 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,1/5] mm: Rework {set,clear,mm}_tlb_flush_pending() - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,1/5] mm: Rework {set,clear,mm}_tlb_flush_pending()</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>June 7, 2017, 4:15 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170607162013.705678923@infradead.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9771919/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9771919/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9771919/">/patch/9771919/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	6786D6034B for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  7 Jun 2017 16:22:16 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 464A528469
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  7 Jun 2017 16:22:16 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 3AFB42850E; Wed,  7 Jun 2017 16:22:16 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.8 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	RCVD_IN_DNSWL_HI,T_DKIM_INVALID autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id B0EE928469
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  7 Jun 2017 16:22:15 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751608AbdFGQVs (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 7 Jun 2017 12:21:48 -0400
+Received: from bombadil.infradead.org ([65.50.211.133]:33754 &quot;EHLO
+	bombadil.infradead.org&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751403AbdFGQVc (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 7 Jun 2017 12:21:32 -0400
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209;
+	h=Content-Type:MIME-Version:References:
+	Subject:Cc:To:From:Date:Message-Id:Sender:Reply-To:Content-Transfer-Encoding:
+	Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:
+	Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=Rl4lBeleIGk2BGeou2rOAP3l4+rKloqSjec8pPgaA8c=;
+	b=KifhQvGowcRMmPeCQs/oB5cBLk
+	TwvoPECiJhMC9tH4OFOmDOf68jxyo0DNUjmvonzabqML1iQaxlcQahjE1e2X1oBMzQgrsQ24qctBX
+	OmSJ7rtP2v9US8jEvU1qYAtqQy8RCA86H3z2kLKs8Fud9lb+ZOVA3yCG7HIOLbRp7KPBxmf/CRBMh
+	Cdm1bbXrPbLiwuSlEVjhLbQdD/PGzGtZiGRqwhDf8hvxC4bJ5x+rQCcSaT2OKg+0h+AMHdAflAMdG
+	mrPiUIz9rl2pkeBQYuEmQGbjpVAB3PDt6VjiitVuXHNDXv/vTAkUgVU6NvQPMBVA3TsBekQ00h4xL
+	sahNYxNA==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100]
+	helo=hirez.programming.kicks-ass.net)
+	by bombadil.infradead.org with esmtpsa (Exim 4.87 #1 (Red Hat Linux))
+	id 1dIdhy-0007Uo-JI; Wed, 07 Jun 2017 16:21:23 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 0)
+	id 7BA9620268297; Wed,  7 Jun 2017 18:21:19 +0200 (CEST)
+Message-Id: &lt;20170607162013.705678923@infradead.org&gt;
+User-Agent: quilt/0.63-1
+Date: Wed, 07 Jun 2017 18:15:02 +0200
+From: Peter Zijlstra &lt;peterz@infradead.org&gt;
+To: torvalds@linux-foundation.org, will.deacon@arm.com,
+	oleg@redhat.com, paulmck@linux.vnet.ibm.com,
+	benh@kernel.crashing.org, mpe@ellerman.id.au, npiggin@gmail.com
+Cc: linux-kernel@vger.kernel.org, mingo@kernel.org,
+	stern@rowland.harvard.edu, peterz@infradead.org,
+	Mel Gorman &lt;mgorman@suse.de&gt;, Rik van Riel &lt;riel@redhat.com&gt;
+Subject: [RFC][PATCH 1/5] mm: Rework {set,clear,mm}_tlb_flush_pending()
+References: &lt;20170607161501.819948352@infradead.org&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline; filename=peterz-mm_tlb_flush_pending.patch
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - June 7, 2017, 4:15 p.m.</div>
+<pre class="content">
+Commit:
+
+  af2c1401e6f9 (&quot;mm: numa: guarantee that tlb_flush_pending updates are visible before page table updates&quot;)
+
+added smp_mb__before_spinlock() to set_tlb_flush_pending(). I think we
+can solve the same problem without this barrier.
+
+If instead we mandate that mm_tlb_flush_pending() is used while
+holding the PTL we&#39;re guaranteed to observe prior
+set_tlb_flush_pending() instances.
+
+For this to work we need to rework migrate_misplaced_transhuge_page()
+a little and move the test up into do_huge_pmd_numa_page().
+
+Cc: Mel Gorman &lt;mgorman@suse.de&gt;
+Cc: Rik van Riel &lt;riel@redhat.com&gt;
+<span class="signed-off-by">Signed-off-by: Peter Zijlstra (Intel) &lt;peterz@infradead.org&gt;</span>
+---
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - June 9, 2017, 2:45 p.m.</div>
+<pre class="content">
+On Wed, Jun 07, 2017 at 06:15:02PM +0200, Peter Zijlstra wrote:
+<span class="quote">&gt; Commit:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   af2c1401e6f9 (&quot;mm: numa: guarantee that tlb_flush_pending updates are visible before page table updates&quot;)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; added smp_mb__before_spinlock() to set_tlb_flush_pending(). I think we</span>
+<span class="quote">&gt; can solve the same problem without this barrier.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If instead we mandate that mm_tlb_flush_pending() is used while</span>
+<span class="quote">&gt; holding the PTL we&#39;re guaranteed to observe prior</span>
+<span class="quote">&gt; set_tlb_flush_pending() instances.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; For this to work we need to rework migrate_misplaced_transhuge_page()</span>
+<span class="quote">&gt; a little and move the test up into do_huge_pmd_numa_page().</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Cc: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+<span class="quote">&gt; Cc: Rik van Riel &lt;riel@redhat.com&gt;</span>
+<span class="quote">&gt; Signed-off-by: Peter Zijlstra (Intel) &lt;peterz@infradead.org&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt; --- a/include/linux/mm_types.h</span>
+<span class="quote">&gt; +++ b/include/linux/mm_types.h</span>
+<span class="quote">&gt; @@ -527,18 +527,16 @@ static inline cpumask_t *mm_cpumask(stru</span>
+<span class="quote">&gt;   */</span>
+<span class="quote">&gt;  static inline bool mm_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; -	barrier();</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Must be called with PTL held; such that our PTL acquire will have</span>
+<span class="quote">&gt; +	 * observed the store from set_tlb_flush_pending().</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt;  	return mm-&gt;tlb_flush_pending;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  static inline void set_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	mm-&gt;tlb_flush_pending = true;</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; -	/*</span>
+<span class="quote">&gt; -	 * Guarantee that the tlb_flush_pending store does not leak into the</span>
+<span class="quote">&gt; -	 * critical section updating the page tables</span>
+<span class="quote">&gt; -	 */</span>
+<span class="quote">&gt; -	smp_mb__before_spinlock();</span>
+<span class="quote">&gt; +	barrier();</span>
+
+Why do you need the barrier() here? Isn&#39;t the ptl unlock sufficient?
+
+Will
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - June 9, 2017, 6:42 p.m.</div>
+<pre class="content">
+On Fri, Jun 09, 2017 at 03:45:54PM +0100, Will Deacon wrote:
+<span class="quote">&gt; On Wed, Jun 07, 2017 at 06:15:02PM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; Commit:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;   af2c1401e6f9 (&quot;mm: numa: guarantee that tlb_flush_pending updates are visible before page table updates&quot;)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; added smp_mb__before_spinlock() to set_tlb_flush_pending(). I think we</span>
+<span class="quote">&gt; &gt; can solve the same problem without this barrier.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; If instead we mandate that mm_tlb_flush_pending() is used while</span>
+<span class="quote">&gt; &gt; holding the PTL we&#39;re guaranteed to observe prior</span>
+<span class="quote">&gt; &gt; set_tlb_flush_pending() instances.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; For this to work we need to rework migrate_misplaced_transhuge_page()</span>
+<span class="quote">&gt; &gt; a little and move the test up into do_huge_pmd_numa_page().</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Cc: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+<span class="quote">&gt; &gt; Cc: Rik van Riel &lt;riel@redhat.com&gt;</span>
+<span class="quote">&gt; &gt; Signed-off-by: Peter Zijlstra (Intel) &lt;peterz@infradead.org&gt;</span>
+<span class="quote">&gt; &gt; ---</span>
+<span class="quote">&gt; &gt; --- a/include/linux/mm_types.h</span>
+<span class="quote">&gt; &gt; +++ b/include/linux/mm_types.h</span>
+<span class="quote">&gt; &gt; @@ -527,18 +527,16 @@ static inline cpumask_t *mm_cpumask(stru</span>
+<span class="quote">&gt; &gt;   */</span>
+<span class="quote">&gt; &gt;  static inline bool mm_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt;  {</span>
+<span class="quote">&gt; &gt; -	barrier();</span>
+<span class="quote">&gt; &gt; +	/*</span>
+<span class="quote">&gt; &gt; +	 * Must be called with PTL held; such that our PTL acquire will have</span>
+<span class="quote">&gt; &gt; +	 * observed the store from set_tlb_flush_pending().</span>
+<span class="quote">&gt; &gt; +	 */</span>
+<span class="quote">&gt; &gt;  	return mm-&gt;tlb_flush_pending;</span>
+<span class="quote">&gt; &gt;  }</span>
+<span class="quote">&gt; &gt;  static inline void set_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt;  {</span>
+<span class="quote">&gt; &gt;  	mm-&gt;tlb_flush_pending = true;</span>
+<span class="quote">&gt; &gt; -</span>
+<span class="quote">&gt; &gt; -	/*</span>
+<span class="quote">&gt; &gt; -	 * Guarantee that the tlb_flush_pending store does not leak into the</span>
+<span class="quote">&gt; &gt; -	 * critical section updating the page tables</span>
+<span class="quote">&gt; &gt; -	 */</span>
+<span class="quote">&gt; &gt; -	smp_mb__before_spinlock();</span>
+<span class="quote">&gt; &gt; +	barrier();</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Why do you need the barrier() here? Isn&#39;t the ptl unlock sufficient?</span>
+
+General paranioa I think. I&#39;ll have another look.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - July 28, 2017, 5:45 p.m.</div>
+<pre class="content">
+On Fri, Jun 09, 2017 at 03:45:54PM +0100, Will Deacon wrote:
+<span class="quote">&gt; On Wed, Jun 07, 2017 at 06:15:02PM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; Commit:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;   af2c1401e6f9 (&quot;mm: numa: guarantee that tlb_flush_pending updates are visible before page table updates&quot;)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; added smp_mb__before_spinlock() to set_tlb_flush_pending(). I think we</span>
+<span class="quote">&gt; &gt; can solve the same problem without this barrier.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; If instead we mandate that mm_tlb_flush_pending() is used while</span>
+<span class="quote">&gt; &gt; holding the PTL we&#39;re guaranteed to observe prior</span>
+<span class="quote">&gt; &gt; set_tlb_flush_pending() instances.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; For this to work we need to rework migrate_misplaced_transhuge_page()</span>
+<span class="quote">&gt; &gt; a little and move the test up into do_huge_pmd_numa_page().</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Cc: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+<span class="quote">&gt; &gt; Cc: Rik van Riel &lt;riel@redhat.com&gt;</span>
+<span class="quote">&gt; &gt; Signed-off-by: Peter Zijlstra (Intel) &lt;peterz@infradead.org&gt;</span>
+<span class="quote">&gt; &gt; ---</span>
+<span class="quote">&gt; &gt; --- a/include/linux/mm_types.h</span>
+<span class="quote">&gt; &gt; +++ b/include/linux/mm_types.h</span>
+<span class="quote">&gt; &gt; @@ -527,18 +527,16 @@ static inline cpumask_t *mm_cpumask(stru</span>
+<span class="quote">&gt; &gt;   */</span>
+<span class="quote">&gt; &gt;  static inline bool mm_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt;  {</span>
+<span class="quote">&gt; &gt; -	barrier();</span>
+<span class="quote">&gt; &gt; +	/*</span>
+<span class="quote">&gt; &gt; +	 * Must be called with PTL held; such that our PTL acquire will have</span>
+<span class="quote">&gt; &gt; +	 * observed the store from set_tlb_flush_pending().</span>
+<span class="quote">&gt; &gt; +	 */</span>
+<span class="quote">&gt; &gt;  	return mm-&gt;tlb_flush_pending;</span>
+<span class="quote">&gt; &gt;  }</span>
+<span class="quote">&gt; &gt;  static inline void set_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt;  {</span>
+<span class="quote">&gt; &gt;  	mm-&gt;tlb_flush_pending = true;</span>
+<span class="quote">&gt; &gt; -</span>
+<span class="quote">&gt; &gt; -	/*</span>
+<span class="quote">&gt; &gt; -	 * Guarantee that the tlb_flush_pending store does not leak into the</span>
+<span class="quote">&gt; &gt; -	 * critical section updating the page tables</span>
+<span class="quote">&gt; &gt; -	 */</span>
+<span class="quote">&gt; &gt; -	smp_mb__before_spinlock();</span>
+<span class="quote">&gt; &gt; +	barrier();</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Why do you need the barrier() here? Isn&#39;t the ptl unlock sufficient?</span>
+
+So I was going through these here patches again, and wrote the
+following comment:
+
+static inline void set_tlb_flush_pending(struct mm_struct *mm)
+{
+	mm-&gt;tlb_flush_pending = true;
+	/*
+	 * The only time this value is relevant is when there are indeed pages
+	 * to flush. And we&#39;ll only flush pages after changing them, which
+	 * requires the PTL.
+	 *
+	 * So the ordering here is:
+	 *
+	 * 	mm-&gt;tlb_flush_pending = true;
+	 * 	spin_lock(&amp;ptl);
+	 *	...
+	 * 	set_pte_at();
+	 * 	spin_unlock(&amp;ptl);
+	 *
+	 *
+	 * 				spin_lock(&amp;ptl)
+	 * 				mm_tlb_flush_pending();
+	 * 				....
+	 * 				spin_unlock(&amp;ptl);
+	 *
+	 * 	flush_tlb_range();
+	 * 	mm-&gt;tlb_flush_pending = false;
+	 */
+}
+
+And while the ptl locks are indeed sufficient to constrain the true
+assignment, what constrains the false assignment? As in the above there
+is nothing stopping the false from ending up visible at
+mm_tlb_flush_pending().
+
+Or does flush_tlb_range() have implicit ordering? It does on x86, but is
+this generally so?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - Aug. 1, 2017, 10:31 a.m.</div>
+<pre class="content">
+On Fri, Jul 28, 2017 at 07:45:33PM +0200, Peter Zijlstra wrote:
+<span class="quote">&gt; On Fri, Jun 09, 2017 at 03:45:54PM +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; On Wed, Jun 07, 2017 at 06:15:02PM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; &gt; Commit:</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt;   af2c1401e6f9 (&quot;mm: numa: guarantee that tlb_flush_pending updates are visible before page table updates&quot;)</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; added smp_mb__before_spinlock() to set_tlb_flush_pending(). I think we</span>
+<span class="quote">&gt; &gt; &gt; can solve the same problem without this barrier.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; If instead we mandate that mm_tlb_flush_pending() is used while</span>
+<span class="quote">&gt; &gt; &gt; holding the PTL we&#39;re guaranteed to observe prior</span>
+<span class="quote">&gt; &gt; &gt; set_tlb_flush_pending() instances.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; For this to work we need to rework migrate_misplaced_transhuge_page()</span>
+<span class="quote">&gt; &gt; &gt; a little and move the test up into do_huge_pmd_numa_page().</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Cc: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+<span class="quote">&gt; &gt; &gt; Cc: Rik van Riel &lt;riel@redhat.com&gt;</span>
+<span class="quote">&gt; &gt; &gt; Signed-off-by: Peter Zijlstra (Intel) &lt;peterz@infradead.org&gt;</span>
+<span class="quote">&gt; &gt; &gt; ---</span>
+<span class="quote">&gt; &gt; &gt; --- a/include/linux/mm_types.h</span>
+<span class="quote">&gt; &gt; &gt; +++ b/include/linux/mm_types.h</span>
+<span class="quote">&gt; &gt; &gt; @@ -527,18 +527,16 @@ static inline cpumask_t *mm_cpumask(stru</span>
+<span class="quote">&gt; &gt; &gt;   */</span>
+<span class="quote">&gt; &gt; &gt;  static inline bool mm_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt; &gt;  {</span>
+<span class="quote">&gt; &gt; &gt; -	barrier();</span>
+<span class="quote">&gt; &gt; &gt; +	/*</span>
+<span class="quote">&gt; &gt; &gt; +	 * Must be called with PTL held; such that our PTL acquire will have</span>
+<span class="quote">&gt; &gt; &gt; +	 * observed the store from set_tlb_flush_pending().</span>
+<span class="quote">&gt; &gt; &gt; +	 */</span>
+<span class="quote">&gt; &gt; &gt;  	return mm-&gt;tlb_flush_pending;</span>
+<span class="quote">&gt; &gt; &gt;  }</span>
+<span class="quote">&gt; &gt; &gt;  static inline void set_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt; &gt;  {</span>
+<span class="quote">&gt; &gt; &gt;  	mm-&gt;tlb_flush_pending = true;</span>
+<span class="quote">&gt; &gt; &gt; -</span>
+<span class="quote">&gt; &gt; &gt; -	/*</span>
+<span class="quote">&gt; &gt; &gt; -	 * Guarantee that the tlb_flush_pending store does not leak into the</span>
+<span class="quote">&gt; &gt; &gt; -	 * critical section updating the page tables</span>
+<span class="quote">&gt; &gt; &gt; -	 */</span>
+<span class="quote">&gt; &gt; &gt; -	smp_mb__before_spinlock();</span>
+<span class="quote">&gt; &gt; &gt; +	barrier();</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Why do you need the barrier() here? Isn&#39;t the ptl unlock sufficient?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So I was going through these here patches again, and wrote the</span>
+<span class="quote">&gt; following comment:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; static inline void set_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="quote">&gt; {</span>
+<span class="quote">&gt; 	mm-&gt;tlb_flush_pending = true;</span>
+<span class="quote">&gt; 	/*</span>
+<span class="quote">&gt; 	 * The only time this value is relevant is when there are indeed pages</span>
+<span class="quote">&gt; 	 * to flush. And we&#39;ll only flush pages after changing them, which</span>
+<span class="quote">&gt; 	 * requires the PTL.</span>
+<span class="quote">&gt; 	 *</span>
+<span class="quote">&gt; 	 * So the ordering here is:</span>
+<span class="quote">&gt; 	 *</span>
+<span class="quote">&gt; 	 * 	mm-&gt;tlb_flush_pending = true;</span>
+<span class="quote">&gt; 	 * 	spin_lock(&amp;ptl);</span>
+<span class="quote">&gt; 	 *	...</span>
+<span class="quote">&gt; 	 * 	set_pte_at();</span>
+<span class="quote">&gt; 	 * 	spin_unlock(&amp;ptl);</span>
+<span class="quote">&gt; 	 *</span>
+<span class="quote">&gt; 	 *</span>
+<span class="quote">&gt; 	 * 				spin_lock(&amp;ptl)</span>
+<span class="quote">&gt; 	 * 				mm_tlb_flush_pending();</span>
+<span class="quote">&gt; 	 * 				....</span>
+<span class="quote">&gt; 	 * 				spin_unlock(&amp;ptl);</span>
+<span class="quote">&gt; 	 *</span>
+<span class="quote">&gt; 	 * 	flush_tlb_range();</span>
+<span class="quote">&gt; 	 * 	mm-&gt;tlb_flush_pending = false;</span>
+<span class="quote">&gt; 	 */</span>
+<span class="quote">&gt; }</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; And while the ptl locks are indeed sufficient to constrain the true</span>
+<span class="quote">&gt; assignment, what constrains the false assignment? As in the above there</span>
+<span class="quote">&gt; is nothing stopping the false from ending up visible at</span>
+<span class="quote">&gt; mm_tlb_flush_pending().</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Or does flush_tlb_range() have implicit ordering? It does on x86, but is</span>
+<span class="quote">&gt; this generally so?</span>
+
+Looks like that&#39;s what&#39;s currently relied upon:
+
+  /* Clearing is done after a TLB flush, which also provides a barrier. */
+
+It also provides barrier semantics on arm/arm64. In reality, I suspect
+all archs have to provide some order between set_pte_at and flush_tlb_range
+which is sufficient to hold up clearing the flag. :/
+
+Will
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=245">Benjamin Herrenschmidt</a> - Aug. 1, 2017, 12:02 p.m.</div>
+<pre class="content">
+On Tue, 2017-08-01 at 11:31 +0100, Will Deacon wrote:
+<span class="quote">&gt; Looks like that&#39;s what&#39;s currently relied upon:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   /* Clearing is done after a TLB flush, which also provides a barrier. */</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It also provides barrier semantics on arm/arm64. In reality, I suspect</span>
+<span class="quote">&gt; all archs have to provide some order between set_pte_at and flush_tlb_range</span>
+<span class="quote">&gt; which is sufficient to hold up clearing the flag. :/</span>
+
+Hrm... not explicitely.
+
+Most archs (powerpc among them) have set_pte_at be just a dumb store,
+so the only barrier it has is the surrounding PTL.
+
+Now flush_tlb_range() I assume has some internal strong barriers but
+none of that is well defined or documented at all, so I suspect all
+bets are off.
+
+Ben.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 1, 2017, 12:14 p.m.</div>
+<pre class="content">
+On Tue, Aug 01, 2017 at 10:02:45PM +1000, Benjamin Herrenschmidt wrote:
+<span class="quote">&gt; On Tue, 2017-08-01 at 11:31 +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; Looks like that&#39;s what&#39;s currently relied upon:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;   /* Clearing is done after a TLB flush, which also provides a barrier. */</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; It also provides barrier semantics on arm/arm64. In reality, I suspect</span>
+<span class="quote">&gt; &gt; all archs have to provide some order between set_pte_at and flush_tlb_range</span>
+<span class="quote">&gt; &gt; which is sufficient to hold up clearing the flag. :/</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Hrm... not explicitely.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Most archs (powerpc among them) have set_pte_at be just a dumb store,</span>
+<span class="quote">&gt; so the only barrier it has is the surrounding PTL.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Now flush_tlb_range() I assume has some internal strong barriers but</span>
+<span class="quote">&gt; none of that is well defined or documented at all, so I suspect all</span>
+<span class="quote">&gt; bets are off.</span>
+
+Right.. but seeing how we&#39;re in fact relying on things here it might be
+time to go figure this out and document bits.
+
+*sigh*, I suppose its going to be me doing this.. :-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 1, 2017, 4:39 p.m.</div>
+<pre class="content">
+On Tue, Aug 01, 2017 at 02:14:19PM +0200, Peter Zijlstra wrote:
+<span class="quote">&gt; On Tue, Aug 01, 2017 at 10:02:45PM +1000, Benjamin Herrenschmidt wrote:</span>
+<span class="quote">&gt; &gt; On Tue, 2017-08-01 at 11:31 +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; &gt; Looks like that&#39;s what&#39;s currently relied upon:</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt;   /* Clearing is done after a TLB flush, which also provides a barrier. */</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; It also provides barrier semantics on arm/arm64. In reality, I suspect</span>
+<span class="quote">&gt; &gt; &gt; all archs have to provide some order between set_pte_at and flush_tlb_range</span>
+<span class="quote">&gt; &gt; &gt; which is sufficient to hold up clearing the flag. :/</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Hrm... not explicitely.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Most archs (powerpc among them) have set_pte_at be just a dumb store,</span>
+<span class="quote">&gt; &gt; so the only barrier it has is the surrounding PTL.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Now flush_tlb_range() I assume has some internal strong barriers but</span>
+<span class="quote">&gt; &gt; none of that is well defined or documented at all, so I suspect all</span>
+<span class="quote">&gt; &gt; bets are off.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Right.. but seeing how we&#39;re in fact relying on things here it might be</span>
+<span class="quote">&gt; time to go figure this out and document bits.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; *sigh*, I suppose its going to be me doing this.. :-)</span>
+
+
+So on the related question; does on_each_cpu() provide a full smp_mb(),
+I think we can answer: yes.
+
+on_each_cpu() does IPIs to all _other_ CPUs, and those IPIs are using
+llist_add() which is cmpxchg() which implies smp_mb().
+
+After that it runs the local function.
+
+So we can see on_each_cpu() as doing a smp_mb() before running @func.
+
+
+xtensa - it uses on_each_cpu() for TLB invalidates.
+
+x86 - we use either on_each_cpu() (flush_tlb_all(),
+flush_tlb_kernel_range()) or we use flush_tlb_mm_range() which does an
+atomic_inc_return() at the very start. Not to mention that actually
+flushing TLBs itself is a barrier. Arguably flush_tlb_mm_range() should
+first do _others* and then self, because others will use
+smp_call_function_many() and see above.
+
+(TODO look into paravirt)
+
+Tile - does mb() in flush_remote()
+
+sparc32-smp !?
+
+sparc64 -- nope, no-op functions, TLB flushes are contained inside the PTL.
+
+sh - yes, per smp_call_function
+
+s390 - has atomics when it flushes. ptep_modify_prot_start() can set
+mm-&gt;flush_mm = 1, at which point flush_tlb_range() will actually do
+something, in that case there will be a smp_mb as per the atomics.
+Otherwise the TLB invalidate is contained inside the PTL.
+
+powerpc - radix - PTESYNC
+	  hash - flush inside PTL
+
+
+parisc - has all PTE and TLB operations serialized using a global lock
+
+nm10300 - *ugh* but yes, smp_call_function() for remote CPUs
+
+mips - smp_call_function for remote CPUs
+
+metag - mmio write
+
+m32r - doesn&#39;t seem to have smp_mb()
+
+ia64 - smp_call_function_*()
+
+hexagon - HVM trap, no smp_mb()
+
+blackfin - nommu
+
+arm - dsb ish
+
+arm64  - dsb ish
+
+arc - no barrier
+
+alpha - no barrier
+
+
+Now the architectures that do not have a barrier, like alpha, arc,
+metag, the  PTL spin_unlock has a smp_mb, however I don&#39;t think that is
+enough, because then the flush_tlb_range() might still be pending. That
+said, these architectures probably don&#39;t have transparant huge pages so
+it doesn&#39;t matter.
+
+
+Still this is all rather unsatisfactory. Either we should define
+flush_tlb*() to imply a barrier when its not a no-op (sparc64/ppc-hash)
+or simply make clear_tlb_flush_pending() an smp_store_release().
+
+I prefer the latter option.
+
+Opinions?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - Aug. 1, 2017, 4:44 p.m.</div>
+<pre class="content">
+On Tue, Aug 01, 2017 at 06:39:03PM +0200, Peter Zijlstra wrote:
+<span class="quote">&gt; Still this is all rather unsatisfactory. Either we should define</span>
+<span class="quote">&gt; flush_tlb*() to imply a barrier when its not a no-op (sparc64/ppc-hash)</span>
+<span class="quote">&gt; or simply make clear_tlb_flush_pending() an smp_store_release().</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I prefer the latter option.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Opinions?</span>
+
+I prefer the latter option too, since I&#39;d like to relax the arm64 TLB
+flushing to have weaker barriers for the local case. Granted, that doesn&#39;t
+break the NUMA migration code, but it would make the barrier semantics of
+the TLB invalidation routines even more subtle if we were to define them
+generally.
+
+Will
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 1, 2017, 4:48 p.m.</div>
+<pre class="content">
+On Tue, Aug 01, 2017 at 05:44:14PM +0100, Will Deacon wrote:
+<span class="quote">&gt; On Tue, Aug 01, 2017 at 06:39:03PM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; Still this is all rather unsatisfactory. Either we should define</span>
+<span class="quote">&gt; &gt; flush_tlb*() to imply a barrier when its not a no-op (sparc64/ppc-hash)</span>
+<span class="quote">&gt; &gt; or simply make clear_tlb_flush_pending() an smp_store_release().</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I prefer the latter option.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Opinions?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I prefer the latter option too, since I&#39;d like to relax the arm64 TLB</span>
+<span class="quote">&gt; flushing to have weaker barriers for the local case. Granted, that doesn&#39;t</span>
+<span class="quote">&gt; break the NUMA migration code, but it would make the barrier semantics of</span>
+<span class="quote">&gt; the TLB invalidation routines even more subtle if we were to define them</span>
+<span class="quote">&gt; generally.</span>
+
+Another &#39;fun&#39; question, is smp_mb() strong enough to order against the
+TLB invalidate? Because we really want to clear this flag _after_.
+
+PowerPC for example uses PTESYNC before the TBLIE, so does a SYNC after
+work? Ben?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=245">Benjamin Herrenschmidt</a> - Aug. 1, 2017, 10:42 p.m.</div>
+<pre class="content">
+On Tue, 2017-08-01 at 14:14 +0200, Peter Zijlstra wrote:
+<span class="quote">&gt; Right.. but seeing how we&#39;re in fact relying on things here it might be</span>
+<span class="quote">&gt; time to go figure this out and document bits.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; *sigh*, I suppose its going to be me doing this.. :-)</span>
+
+Thanks mate ! :-)
+
+Cheers
+Ben.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 1, 2017, 10:59 p.m.</div>
+<pre class="content">
+On Tue, Aug 01, 2017 at 06:48:20PM +0200, Peter Zijlstra wrote:
+<span class="quote">&gt; On Tue, Aug 01, 2017 at 05:44:14PM +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; On Tue, Aug 01, 2017 at 06:39:03PM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; &gt; Still this is all rather unsatisfactory. Either we should define</span>
+<span class="quote">&gt; &gt; &gt; flush_tlb*() to imply a barrier when its not a no-op (sparc64/ppc-hash)</span>
+<span class="quote">&gt; &gt; &gt; or simply make clear_tlb_flush_pending() an smp_store_release().</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; I prefer the latter option.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Opinions?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I prefer the latter option too, since I&#39;d like to relax the arm64 TLB</span>
+<span class="quote">&gt; &gt; flushing to have weaker barriers for the local case. Granted, that doesn&#39;t</span>
+<span class="quote">&gt; &gt; break the NUMA migration code, but it would make the barrier semantics of</span>
+<span class="quote">&gt; &gt; the TLB invalidation routines even more subtle if we were to define them</span>
+<span class="quote">&gt; &gt; generally.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Another &#39;fun&#39; question, is smp_mb() strong enough to order against the</span>
+<span class="quote">&gt; TLB invalidate? Because we really want to clear this flag _after_.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; PowerPC for example uses PTESYNC before the TBLIE, so does a SYNC after</span>
+<span class="quote">&gt; work? Ben?</span>
+
+From what I gather it is not. You have TLBSYNC for it. So the good news
+is that PPC-radix does all that and is fully serialized on the tlb
+flush. Not sure for the PPC-hash case.
+
+At the same time, smp_mb() is not sufficient on ARM either, they need a
+DSB barrier on both ends.
+
+So are we going to mandate tlb flush implementations are completely
+ordered ?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=245">Benjamin Herrenschmidt</a> - Aug. 2, 2017, 12:17 a.m.</div>
+<pre class="content">
+On Tue, 2017-08-01 at 18:48 +0200, Peter Zijlstra wrote:
+<span class="quote">&gt; On Tue, Aug 01, 2017 at 05:44:14PM +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; On Tue, Aug 01, 2017 at 06:39:03PM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; &gt; Still this is all rather unsatisfactory. Either we should define</span>
+<span class="quote">&gt; &gt; &gt; flush_tlb*() to imply a barrier when its not a no-op (sparc64/ppc-hash)</span>
+<span class="quote">&gt; &gt; &gt; or simply make clear_tlb_flush_pending() an smp_store_release().</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; I prefer the latter option.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Opinions?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I prefer the latter option too, since I&#39;d like to relax the arm64 TLB</span>
+<span class="quote">&gt; &gt; flushing to have weaker barriers for the local case. Granted, that doesn&#39;t</span>
+<span class="quote">&gt; &gt; break the NUMA migration code, but it would make the barrier semantics of</span>
+<span class="quote">&gt; &gt; the TLB invalidation routines even more subtle if we were to define them</span>
+<span class="quote">&gt; &gt; generally.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Another &#39;fun&#39; question, is smp_mb() strong enough to order against the</span>
+<span class="quote">&gt; TLB invalidate? Because we really want to clear this flag _after_.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; PowerPC for example uses PTESYNC before the TBLIE, so does a SYNC after</span>
+<span class="quote">&gt; work? Ben?</span>
+
+I have no idea. But then our tlbie has a ptesync after too no ? And
+afaik a ptesync is a superset of sync.
+
+Cheers,
+Ben.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=245">Benjamin Herrenschmidt</a> - Aug. 2, 2017, 1:23 a.m.</div>
+<pre class="content">
+On Wed, 2017-08-02 at 00:59 +0200, Peter Zijlstra wrote:
+<span class="quote">&gt; &gt; PowerPC for example uses PTESYNC before the TBLIE, so does a SYNC after</span>
+<span class="quote">&gt; &gt; work? Ben?</span>
+<span class="quote">&gt; &gt; From what I gather it is not. You have TLBSYNC for it. So the good news</span>
+
+tlbsync is pretty much a nop these days. ptesync is a strict superset
+of sync and we have it after every tlbie.
+<span class="quote">
+&gt; is that PPC-radix does all that and is fully serialized on the tlb</span>
+<span class="quote">&gt; flush. Not sure for the PPC-hash case.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; At the same time, smp_mb() is not sufficient on ARM either, they need a</span>
+<span class="quote">&gt; DSB barrier on both ends.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So are we going to mandate tlb flush implementations are completely</span>
+<span class="quote">&gt; ordered ?</span>
+
+Cheers,
+Ben.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 2, 2017, 8:11 a.m.</div>
+<pre class="content">
+On Wed, Aug 02, 2017 at 11:23:12AM +1000, Benjamin Herrenschmidt wrote:
+<span class="quote">&gt; On Wed, 2017-08-02 at 00:59 +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; &gt; PowerPC for example uses PTESYNC before the TBLIE, so does a SYNC after</span>
+<span class="quote">&gt; &gt; &gt; work? Ben?</span>
+<span class="quote">&gt; &gt; &gt; From what I gather it is not. You have TLBSYNC for it. So the good news</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; tlbsync is pretty much a nop these days. ptesync is a strict superset</span>
+<span class="quote">&gt; of sync and we have it after every tlbie.</span>
+
+In the radix code, yes. I got lost going through the hash code, and I
+didn&#39;t look at the 32bit code at all.
+
+So the radix code does:
+
+ PTESYNC
+ TLBIE
+ EIEIO; TLBSYNC; PTESYNC
+
+which should be completely ordered against anything prior and anything
+following, and is I think the behaviour we want from TLB flushes in
+general, but is very much not provided by a number of architectures
+afaict.
+
+Ah, found the hash-64 code, yes that&#39;s good too. The hash32 code lives
+in asm and confuses me, it has a bunch of SYNC, SYNC_601 and isync in.
+The nohash variant seems to do a isync after tlbwe, but again no clue.
+
+
+Now, do I go and attempt fixing all that needs fixing?
+
+
+x86 is good, our CR3 writes or INVLPG stuff is fully serializing.
+
+arm is good, it does DSB ISH before and after
+
+arm64 looks good too, although it plays silly games with the first
+barrier, but I trust that to be sufficient.
+
+But I&#39;ll have to go dig up arch manuals for the rest, if they include
+the relevant information at all of course :/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - Aug. 2, 2017, 8:15 a.m.</div>
+<pre class="content">
+On Wed, Aug 02, 2017 at 10:11:06AM +0200, Peter Zijlstra wrote:
+<span class="quote">&gt; On Wed, Aug 02, 2017 at 11:23:12AM +1000, Benjamin Herrenschmidt wrote:</span>
+<span class="quote">&gt; &gt; On Wed, 2017-08-02 at 00:59 +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; PowerPC for example uses PTESYNC before the TBLIE, so does a SYNC after</span>
+<span class="quote">&gt; &gt; &gt; &gt; work? Ben?</span>
+<span class="quote">&gt; &gt; &gt; &gt; From what I gather it is not. You have TLBSYNC for it. So the good news</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; tlbsync is pretty much a nop these days. ptesync is a strict superset</span>
+<span class="quote">&gt; &gt; of sync and we have it after every tlbie.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; In the radix code, yes. I got lost going through the hash code, and I</span>
+<span class="quote">&gt; didn&#39;t look at the 32bit code at all.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So the radix code does:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  PTESYNC</span>
+<span class="quote">&gt;  TLBIE</span>
+<span class="quote">&gt;  EIEIO; TLBSYNC; PTESYNC</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; which should be completely ordered against anything prior and anything</span>
+<span class="quote">&gt; following, and is I think the behaviour we want from TLB flushes in</span>
+<span class="quote">&gt; general, but is very much not provided by a number of architectures</span>
+<span class="quote">&gt; afaict.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Ah, found the hash-64 code, yes that&#39;s good too. The hash32 code lives</span>
+<span class="quote">&gt; in asm and confuses me, it has a bunch of SYNC, SYNC_601 and isync in.</span>
+<span class="quote">&gt; The nohash variant seems to do a isync after tlbwe, but again no clue.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Now, do I go and attempt fixing all that needs fixing?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; x86 is good, our CR3 writes or INVLPG stuff is fully serializing.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; arm is good, it does DSB ISH before and after</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; arm64 looks good too, although it plays silly games with the first</span>
+<span class="quote">&gt; barrier, but I trust that to be sufficient.</span>
+
+The first barrier only orders prior stores for us, because page table
+updates are made using stores. A prior load could be reordered past the
+invalidation, but can&#39;t make it past the second barrier.
+
+I really think we should avoid defining TLB invalidation in terms of
+smp_mb() because it&#39;s a lot more subtle than that.
+
+Will
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - Aug. 2, 2017, 8:43 a.m.</div>
+<pre class="content">
+On Wed, Aug 02, 2017 at 09:15:23AM +0100, Will Deacon wrote:
+<span class="quote">&gt; On Wed, Aug 02, 2017 at 10:11:06AM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; On Wed, Aug 02, 2017 at 11:23:12AM +1000, Benjamin Herrenschmidt wrote:</span>
+<span class="quote">&gt; &gt; &gt; On Wed, 2017-08-02 at 00:59 +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; PowerPC for example uses PTESYNC before the TBLIE, so does a SYNC after</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; work? Ben?</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; From what I gather it is not. You have TLBSYNC for it. So the good news</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; tlbsync is pretty much a nop these days. ptesync is a strict superset</span>
+<span class="quote">&gt; &gt; &gt; of sync and we have it after every tlbie.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; In the radix code, yes. I got lost going through the hash code, and I</span>
+<span class="quote">&gt; &gt; didn&#39;t look at the 32bit code at all.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; So the radix code does:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;  PTESYNC</span>
+<span class="quote">&gt; &gt;  TLBIE</span>
+<span class="quote">&gt; &gt;  EIEIO; TLBSYNC; PTESYNC</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; which should be completely ordered against anything prior and anything</span>
+<span class="quote">&gt; &gt; following, and is I think the behaviour we want from TLB flushes in</span>
+<span class="quote">&gt; &gt; general, but is very much not provided by a number of architectures</span>
+<span class="quote">&gt; &gt; afaict.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Ah, found the hash-64 code, yes that&#39;s good too. The hash32 code lives</span>
+<span class="quote">&gt; &gt; in asm and confuses me, it has a bunch of SYNC, SYNC_601 and isync in.</span>
+<span class="quote">&gt; &gt; The nohash variant seems to do a isync after tlbwe, but again no clue.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Now, do I go and attempt fixing all that needs fixing?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; x86 is good, our CR3 writes or INVLPG stuff is fully serializing.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; arm is good, it does DSB ISH before and after</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; arm64 looks good too, although it plays silly games with the first</span>
+<span class="quote">&gt; &gt; barrier, but I trust that to be sufficient.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The first barrier only orders prior stores for us, because page table</span>
+<span class="quote">&gt; updates are made using stores. A prior load could be reordered past the</span>
+<span class="quote">&gt; invalidation, but can&#39;t make it past the second barrier.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I really think we should avoid defining TLB invalidation in terms of</span>
+<span class="quote">&gt; smp_mb() because it&#39;s a lot more subtle than that.</span>
+
+Another worry I have here is with architectures that can optimise the
+&quot;only need to flush the local TLB&quot; case. For example, this version of &#39;R&#39;:
+
+
+P0:
+WRITE_ONCE(x, 1);
+smp_mb();
+WRITE_ONCE(y, 1);
+
+P1:
+WRITE_ONCE(y, 2);
+flush_tlb_range(...);  // Only needs to flush the local TLB
+r0 = READ_ONCE(x);
+
+
+It doesn&#39;t seem unreasonable to me for y==2 &amp;&amp; r0==0 if the
+flush_tlb_range(...) ends up only doing local invalidation. As a concrete
+example, imagine a CPU with a page table walker that can snoop the local
+store-buffer. Then, the local flush_tlb_range in P1 only needs to progress
+the write to y as far as the store-buffer before it can invalidate the local
+TLB. Once the TLB is invalidated, it can read x knowing that the translation
+is up-to-date wrt the page table, but that read doesn&#39;t need to wait for
+write to y to become visible to other CPUs.
+
+So flush_tlb_range is actually weaker than smp_mb in some respects, yet the
+flush_tlb_pending stuff will still work correctly.
+
+Will
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 2, 2017, 8:45 a.m.</div>
+<pre class="content">
+On Wed, Aug 02, 2017 at 09:15:23AM +0100, Will Deacon wrote:
+<span class="quote">&gt; On Wed, Aug 02, 2017 at 10:11:06AM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">
+&gt; &gt; arm64 looks good too, although it plays silly games with the first</span>
+<span class="quote">&gt; &gt; barrier, but I trust that to be sufficient.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The first barrier only orders prior stores for us, because page table</span>
+<span class="quote">&gt; updates are made using stores. A prior load could be reordered past the</span>
+<span class="quote">&gt; invalidation, but can&#39;t make it past the second barrier.</span>
+
+So then you rely on the program not having any loads pending to the
+address you&#39;re about to invalidate, right? Otherwise we can do the TLBI
+and then the load to insta-repopulate the TLB entry you just wanted
+dead.
+
+That later DSB ISH is too late for that.
+
+Isn&#39;t that somewhat fragile?
+<span class="quote">
+&gt; I really think we should avoid defining TLB invalidation in terms of</span>
+<span class="quote">&gt; smp_mb() because it&#39;s a lot more subtle than that.</span>
+
+I&#39;m tempted to say stronger, smp_mb() only provides order, we want full
+serialization. Everything before stays before and _completes_ before.
+Everything after happens after (if the primitives actually do something
+at all of course, sparc64 for instance has no-op flush_tlb*).
+
+While such semantics might be slightly too strong for what we currently
+need, it is what powerpc, x86 and arm currently implement and are fairly
+easy to reason about. If we weaken it, stuff gets confusing again.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 2, 2017, 8:51 a.m.</div>
+<pre class="content">
+On Wed, Aug 02, 2017 at 09:43:50AM +0100, Will Deacon wrote:
+<span class="quote">&gt; On Wed, Aug 02, 2017 at 09:15:23AM +0100, Will Deacon wrote:</span>
+<span class="quote">
+&gt; &gt; I really think we should avoid defining TLB invalidation in terms of</span>
+<span class="quote">&gt; &gt; smp_mb() because it&#39;s a lot more subtle than that.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Another worry I have here is with architectures that can optimise the</span>
+<span class="quote">&gt; &quot;only need to flush the local TLB&quot; case. For example, this version of &#39;R&#39;:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; P0:</span>
+<span class="quote">&gt; WRITE_ONCE(x, 1);</span>
+<span class="quote">&gt; smp_mb();</span>
+<span class="quote">&gt; WRITE_ONCE(y, 1);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; P1:</span>
+<span class="quote">&gt; WRITE_ONCE(y, 2);</span>
+<span class="quote">&gt; flush_tlb_range(...);  // Only needs to flush the local TLB</span>
+<span class="quote">&gt; r0 = READ_ONCE(x);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It doesn&#39;t seem unreasonable to me for y==2 &amp;&amp; r0==0 if the</span>
+<span class="quote">&gt; flush_tlb_range(...) ends up only doing local invalidation. As a concrete</span>
+<span class="quote">&gt; example, imagine a CPU with a page table walker that can snoop the local</span>
+<span class="quote">&gt; store-buffer. Then, the local flush_tlb_range in P1 only needs to progress</span>
+<span class="quote">&gt; the write to y as far as the store-buffer before it can invalidate the local</span>
+<span class="quote">&gt; TLB. Once the TLB is invalidated, it can read x knowing that the translation</span>
+<span class="quote">&gt; is up-to-date wrt the page table, but that read doesn&#39;t need to wait for</span>
+<span class="quote">&gt; write to y to become visible to other CPUs.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So flush_tlb_range is actually weaker than smp_mb in some respects, yet the</span>
+<span class="quote">&gt; flush_tlb_pending stuff will still work correctly.</span>
+
+So while I think you&#39;re right, and we could live with this, after all,
+if we know the mm is CPU local, there shouldn&#39;t be any SMP concerns wrt
+its page tables. Do you really want to make this more complicated?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - Aug. 2, 2017, 9:02 a.m.</div>
+<pre class="content">
+On Wed, Aug 02, 2017 at 10:51:11AM +0200, Peter Zijlstra wrote:
+<span class="quote">&gt; On Wed, Aug 02, 2017 at 09:43:50AM +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; On Wed, Aug 02, 2017 at 09:15:23AM +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; &gt; I really think we should avoid defining TLB invalidation in terms of</span>
+<span class="quote">&gt; &gt; &gt; smp_mb() because it&#39;s a lot more subtle than that.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Another worry I have here is with architectures that can optimise the</span>
+<span class="quote">&gt; &gt; &quot;only need to flush the local TLB&quot; case. For example, this version of &#39;R&#39;:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; P0:</span>
+<span class="quote">&gt; &gt; WRITE_ONCE(x, 1);</span>
+<span class="quote">&gt; &gt; smp_mb();</span>
+<span class="quote">&gt; &gt; WRITE_ONCE(y, 1);</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; P1:</span>
+<span class="quote">&gt; &gt; WRITE_ONCE(y, 2);</span>
+<span class="quote">&gt; &gt; flush_tlb_range(...);  // Only needs to flush the local TLB</span>
+<span class="quote">&gt; &gt; r0 = READ_ONCE(x);</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; It doesn&#39;t seem unreasonable to me for y==2 &amp;&amp; r0==0 if the</span>
+<span class="quote">&gt; &gt; flush_tlb_range(...) ends up only doing local invalidation. As a concrete</span>
+<span class="quote">&gt; &gt; example, imagine a CPU with a page table walker that can snoop the local</span>
+<span class="quote">&gt; &gt; store-buffer. Then, the local flush_tlb_range in P1 only needs to progress</span>
+<span class="quote">&gt; &gt; the write to y as far as the store-buffer before it can invalidate the local</span>
+<span class="quote">&gt; &gt; TLB. Once the TLB is invalidated, it can read x knowing that the translation</span>
+<span class="quote">&gt; &gt; is up-to-date wrt the page table, but that read doesn&#39;t need to wait for</span>
+<span class="quote">&gt; &gt; write to y to become visible to other CPUs.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; So flush_tlb_range is actually weaker than smp_mb in some respects, yet the</span>
+<span class="quote">&gt; &gt; flush_tlb_pending stuff will still work correctly.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So while I think you&#39;re right, and we could live with this, after all,</span>
+<span class="quote">&gt; if we know the mm is CPU local, there shouldn&#39;t be any SMP concerns wrt</span>
+<span class="quote">&gt; its page tables. Do you really want to make this more complicated?</span>
+
+It gives us a nice performance lift on arm64 and I have a patch...[1]
+
+Will
+
+[1]
+https://git.kernel.org/pub/scm/linux/kernel/git/will/linux.git/commit/?h=aarch64/devel&amp;id=1c7cf53658f0fa16338d1f8406285ae28fd5f616
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - Aug. 2, 2017, 9:02 a.m.</div>
+<pre class="content">
+On Wed, Aug 02, 2017 at 10:45:51AM +0200, Peter Zijlstra wrote:
+<span class="quote">&gt; On Wed, Aug 02, 2017 at 09:15:23AM +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; On Wed, Aug 02, 2017 at 10:11:06AM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; &gt; arm64 looks good too, although it plays silly games with the first</span>
+<span class="quote">&gt; &gt; &gt; barrier, but I trust that to be sufficient.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; The first barrier only orders prior stores for us, because page table</span>
+<span class="quote">&gt; &gt; updates are made using stores. A prior load could be reordered past the</span>
+<span class="quote">&gt; &gt; invalidation, but can&#39;t make it past the second barrier.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So then you rely on the program not having any loads pending to the</span>
+<span class="quote">&gt; address you&#39;re about to invalidate, right? Otherwise we can do the TLBI</span>
+<span class="quote">&gt; and then the load to insta-repopulate the TLB entry you just wanted</span>
+<span class="quote">&gt; dead.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; That later DSB ISH is too late for that.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Isn&#39;t that somewhat fragile?</span>
+
+We only initiate the TLB invalidation after the page table update is
+observable to the page table walker, so any repopulation will cause a fill
+using the new page table entry.
+<span class="quote">
+&gt; &gt; I really think we should avoid defining TLB invalidation in terms of</span>
+<span class="quote">&gt; &gt; smp_mb() because it&#39;s a lot more subtle than that.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I&#39;m tempted to say stronger, smp_mb() only provides order, we want full</span>
+<span class="quote">&gt; serialization. Everything before stays before and _completes_ before.</span>
+<span class="quote">&gt; Everything after happens after (if the primitives actually do something</span>
+<span class="quote">&gt; at all of course, sparc64 for instance has no-op flush_tlb*).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; While such semantics might be slightly too strong for what we currently</span>
+<span class="quote">&gt; need, it is what powerpc, x86 and arm currently implement and are fairly</span>
+<span class="quote">&gt; easy to reason about. If we weaken it, stuff gets confusing again.</span>
+
+My problem with this is that we&#39;re strengthening the semantics for no actual
+use-case, but at the same time this will have a real performance impact.
+
+Will
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 2, 2017, 9:18 a.m.</div>
+<pre class="content">
+On Wed, Aug 02, 2017 at 10:02:28AM +0100, Will Deacon wrote:
+<span class="quote">&gt; On Wed, Aug 02, 2017 at 10:45:51AM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; On Wed, Aug 02, 2017 at 09:15:23AM +0100, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; &gt; On Wed, Aug 02, 2017 at 10:11:06AM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; arm64 looks good too, although it plays silly games with the first</span>
+<span class="quote">&gt; &gt; &gt; &gt; barrier, but I trust that to be sufficient.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; The first barrier only orders prior stores for us, because page table</span>
+<span class="quote">&gt; &gt; &gt; updates are made using stores. A prior load could be reordered past the</span>
+<span class="quote">&gt; &gt; &gt; invalidation, but can&#39;t make it past the second barrier.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; So then you rely on the program not having any loads pending to the</span>
+<span class="quote">&gt; &gt; address you&#39;re about to invalidate, right? Otherwise we can do the TLBI</span>
+<span class="quote">&gt; &gt; and then the load to insta-repopulate the TLB entry you just wanted</span>
+<span class="quote">&gt; &gt; dead.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; That later DSB ISH is too late for that.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Isn&#39;t that somewhat fragile?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; We only initiate the TLB invalidation after the page table update is</span>
+<span class="quote">&gt; observable to the page table walker, so any repopulation will cause a fill</span>
+<span class="quote">&gt; using the new page table entry.</span>
+
+Ah, indeed. Might be worth a comment tho.
+<span class="quote">
+&gt; &gt; &gt; I really think we should avoid defining TLB invalidation in terms of</span>
+<span class="quote">&gt; &gt; &gt; smp_mb() because it&#39;s a lot more subtle than that.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I&#39;m tempted to say stronger, smp_mb() only provides order, we want full</span>
+<span class="quote">&gt; &gt; serialization. Everything before stays before and _completes_ before.</span>
+<span class="quote">&gt; &gt; Everything after happens after (if the primitives actually do something</span>
+<span class="quote">&gt; &gt; at all of course, sparc64 for instance has no-op flush_tlb*).</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; While such semantics might be slightly too strong for what we currently</span>
+<span class="quote">&gt; &gt; need, it is what powerpc, x86 and arm currently implement and are fairly</span>
+<span class="quote">&gt; &gt; easy to reason about. If we weaken it, stuff gets confusing again.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; My problem with this is that we&#39;re strengthening the semantics for no actual</span>
+<span class="quote">&gt; use-case, but at the same time this will have a real performance impact.</span>
+
+Well, you could put in a dmb(ish) in the local case, that&#39;s loads
+cheaper than the dsb(ish) you need for the !local case. But OK..
+
+Back to staring at dodgy arch code..
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=245">Benjamin Herrenschmidt</a> - Aug. 2, 2017, 1:57 p.m.</div>
+<pre class="content">
+On Wed, 2017-08-02 at 10:11 +0200, Peter Zijlstra wrote:
+<span class="quote">
+&gt; which should be completely ordered against anything prior and anything</span>
+<span class="quote">&gt; following, and is I think the behaviour we want from TLB flushes in</span>
+<span class="quote">&gt; general, but is very much not provided by a number of architectures</span>
+<span class="quote">&gt; afaict.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Ah, found the hash-64 code, yes that&#39;s good too. The hash32 code lives</span>
+<span class="quote">&gt; in asm and confuses me, it has a bunch of SYNC, SYNC_601 and isync in.</span>
+<span class="quote">&gt; The nohash variant seems to do a isync after tlbwe, but again no clue.</span>
+
+Doing some archeology ? :-)
+
+In the hash32 days ptesync didn&#39;t exist, sync had all the needed
+semantics. tlbew isn&#39;t a proper invalidate per-se, but isync will flush
+the shadow TLBs, but I wouldn&#39;t bother too much about these, if needed
+I can go fix them.
+<span class="quote">
+&gt; Now, do I go and attempt fixing all that needs fixing?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; x86 is good, our CR3 writes or INVLPG stuff is fully serializing.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; arm is good, it does DSB ISH before and after</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; arm64 looks good too, although it plays silly games with the first</span>
+<span class="quote">&gt; barrier, but I trust that to be sufficient.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; But I&#39;ll have to go dig up arch manuals for the rest, if they include</span>
+<span class="quote">&gt; the relevant information at all of course :/</span>
+
+Ben.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 2, 2017, 3:46 p.m.</div>
+<pre class="content">
+On Wed, Aug 02, 2017 at 11:57:04PM +1000, Benjamin Herrenschmidt wrote:
+<span class="quote">&gt; On Wed, 2017-08-02 at 10:11 +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; which should be completely ordered against anything prior and anything</span>
+<span class="quote">&gt; &gt; following, and is I think the behaviour we want from TLB flushes in</span>
+<span class="quote">&gt; &gt; general, but is very much not provided by a number of architectures</span>
+<span class="quote">&gt; &gt; afaict.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Ah, found the hash-64 code, yes that&#39;s good too. The hash32 code lives</span>
+<span class="quote">&gt; &gt; in asm and confuses me, it has a bunch of SYNC, SYNC_601 and isync in.</span>
+<span class="quote">&gt; &gt; The nohash variant seems to do a isync after tlbwe, but again no clue.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Doing some archeology ? :-)</span>
+
+I thought ppc32 is still a popular platform for embedded, and not
+actually knowing what kind of mmu those sport (if one at all of course),
+I just looked at all of them.
+
+Also, I&#39;d been looking at all arch tlb invalidate code in any case :-)
+(and yes my head hurts because of it)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=245">Benjamin Herrenschmidt</a> - Aug. 2, 2017, 10:54 p.m.</div>
+<pre class="content">
+On Wed, 2017-08-02 at 10:02 +0100, Will Deacon wrote:
+<span class="quote">&gt; &gt; &gt; So flush_tlb_range is actually weaker than smp_mb in some respects, yet the</span>
+<span class="quote">&gt; &gt; &gt; flush_tlb_pending stuff will still work correctly.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; So while I think you&#39;re right, and we could live with this, after all,</span>
+<span class="quote">&gt; &gt; if we know the mm is CPU local, there shouldn&#39;t be any SMP concerns wrt</span>
+<span class="quote">&gt; &gt; its page tables. Do you really want to make this more complicated?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It gives us a nice performance lift on arm64 and I have a patch...[1]</span>
+
+We do that on powerpc too, though there are ongoing questions a to
+whether an smp_mb() after setting the mask bit in switch_mm is
+sufficient vs. prefetch brining entries in the TLB after the context is
+switched. But that&#39;s a powerpc specific issue. Nick Piggin is working
+on sorting that out.
+
+Cheers,
+Ben.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- a/include/linux/mm_types.h</span>
+<span class="p_header">+++ b/include/linux/mm_types.h</span>
+<span class="p_chunk">@@ -527,18 +527,16 @@</span> <span class="p_context"> static inline cpumask_t *mm_cpumask(stru</span>
+  */
+ static inline bool mm_tlb_flush_pending(struct mm_struct *mm)
+ {
+<span class="p_del">-	barrier();</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Must be called with PTL held; such that our PTL acquire will have</span>
+<span class="p_add">+	 * observed the store from set_tlb_flush_pending().</span>
+<span class="p_add">+	 */</span>
+ 	return mm-&gt;tlb_flush_pending;
+ }
+ static inline void set_tlb_flush_pending(struct mm_struct *mm)
+ {
+ 	mm-&gt;tlb_flush_pending = true;
+<span class="p_del">-</span>
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * Guarantee that the tlb_flush_pending store does not leak into the</span>
+<span class="p_del">-	 * critical section updating the page tables</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	smp_mb__before_spinlock();</span>
+<span class="p_add">+	barrier();</span>
+ }
+ /* Clearing is done after a TLB flush, which also provides a barrier. */
+ static inline void clear_tlb_flush_pending(struct mm_struct *mm)
+<span class="p_header">--- a/mm/huge_memory.c</span>
+<span class="p_header">+++ b/mm/huge_memory.c</span>
+<span class="p_chunk">@@ -1410,6 +1410,7 @@</span> <span class="p_context"> int do_huge_pmd_numa_page(struct vm_faul</span>
+ 	unsigned long haddr = vmf-&gt;address &amp; HPAGE_PMD_MASK;
+ 	int page_nid = -1, this_nid = numa_node_id();
+ 	int target_nid, last_cpupid = -1;
+<span class="p_add">+	bool need_flush = false;</span>
+ 	bool page_locked;
+ 	bool migrated = false;
+ 	bool was_writable;
+<span class="p_chunk">@@ -1490,10 +1491,29 @@</span> <span class="p_context"> int do_huge_pmd_numa_page(struct vm_faul</span>
+ 	}
+ 
+ 	/*
+<span class="p_add">+	 * Since we took the NUMA fault, we must have observed the !accessible</span>
+<span class="p_add">+	 * bit. Make sure all other CPUs agree with that, to avoid them</span>
+<span class="p_add">+	 * modifying the page we&#39;re about to migrate.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Must be done under PTL such that we&#39;ll observe the relevant</span>
+<span class="p_add">+	 * set_tlb_flush_pending().</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (mm_tlb_flush_pending(mm))</span>
+<span class="p_add">+		need_flush = true;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+ 	 * Migrate the THP to the requested node, returns with page unlocked
+ 	 * and access rights restored.
+ 	 */
+ 	spin_unlock(vmf-&gt;ptl);
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * We are not sure a pending tlb flush here is for a huge page</span>
+<span class="p_add">+	 * mapping or not. Hence use the tlb range variant</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (need_flush)</span>
+<span class="p_add">+		flush_tlb_range(vma, haddr, haddr + HPAGE_PMD_SIZE);</span>
+<span class="p_add">+</span>
+ 	migrated = migrate_misplaced_transhuge_page(vma-&gt;vm_mm, vma,
+ 				vmf-&gt;pmd, pmd, vmf-&gt;address, page, target_nid);
+ 	if (migrated) {
+<span class="p_header">--- a/mm/migrate.c</span>
+<span class="p_header">+++ b/mm/migrate.c</span>
+<span class="p_chunk">@@ -1935,12 +1935,6 @@</span> <span class="p_context"> int migrate_misplaced_transhuge_page(str</span>
+ 		put_page(new_page);
+ 		goto out_fail;
+ 	}
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * We are not sure a pending tlb flush here is for a huge page</span>
+<span class="p_del">-	 * mapping or not. Hence use the tlb range variant</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	if (mm_tlb_flush_pending(mm))</span>
+<span class="p_del">-		flush_tlb_range(vma, mmun_start, mmun_end);</span>
+ 
+ 	/* Prepare a page as a migration target */
+ 	__SetPageLocked(new_page);
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

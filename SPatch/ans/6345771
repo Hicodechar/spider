@@ -1,0 +1,597 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[tip:perf/core] perf stat: Fix metrics calculation with event qualifiers - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [tip:perf/core] perf stat: Fix metrics calculation with event qualifiers</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=60001">tip-bot for Jacob Shin</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>May 6, 2015, 3:07 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;tip-a0aa21e2281f89a197ad8e7bd8008f3b7b735dfc@git.kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/6345771/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/6345771/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/6345771/">/patch/6345771/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id 996F8BEEE1
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  6 May 2015 03:08:44 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 3999E20220
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  6 May 2015 03:08:43 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 8967320211
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  6 May 2015 03:08:41 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1757220AbbEFDI1 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 5 May 2015 23:08:27 -0400
+Received: from terminus.zytor.com ([198.137.202.10]:36040 &quot;EHLO
+	terminus.zytor.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1756965AbbEFDIW (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 5 May 2015 23:08:22 -0400
+Received: from terminus.zytor.com (localhost [127.0.0.1])
+	by terminus.zytor.com (8.14.8/8.14.7) with ESMTP id t4637lsw017502;
+	Tue, 5 May 2015 20:07:52 -0700
+Received: (from tipbot@localhost)
+	by terminus.zytor.com (8.14.8/8.14.7/Submit) id t4637kY1017497;
+	Tue, 5 May 2015 20:07:46 -0700
+Date: Tue, 5 May 2015 20:07:46 -0700
+X-Authentication-Warning: terminus.zytor.com: tipbot set sender to
+	tipbot@zytor.com using -f
+From: tip-bot for Andi Kleen &lt;tipbot@zytor.com&gt;
+Message-ID: &lt;tip-a0aa21e2281f89a197ad8e7bd8008f3b7b735dfc@git.kernel.org&gt;
+Cc: jolsa@kernel.org, linux-kernel@vger.kernel.org, mingo@kernel.org,
+	a.p.zijlstra@chello.nl, dsahern@gmail.com, hpa@zytor.com,
+	namhyung@kernel.org, wcohen@redhat.com, andi@firstfloor.org,
+	paulus@samba.org, acme@redhat.com, tglx@linutronix.de, ak@linux.intel.com
+Reply-To: paulus@samba.org, acme@redhat.com, andi@firstfloor.org,
+	ak@linux.intel.com, tglx@linutronix.de, a.p.zijlstra@chello.nl,
+	dsahern@gmail.com, mingo@kernel.org, jolsa@kernel.org,
+	linux-kernel@vger.kernel.org, wcohen@redhat.com,
+	namhyung@kernel.org, hpa@zytor.com
+In-Reply-To: &lt;1428441919-23099-3-git-send-email-jolsa@kernel.org&gt;
+References: &lt;1428441919-23099-3-git-send-email-jolsa@kernel.org&gt;
+To: linux-tip-commits@vger.kernel.org
+Subject: [tip:perf/core] perf stat:
+	Fix metrics calculation with event qualifiers
+Git-Commit-ID: a0aa21e2281f89a197ad8e7bd8008f3b7b735dfc
+X-Mailer: tip-git-log-daemon
+Robot-ID: &lt;tip-bot.git.kernel.org&gt;
+Robot-Unsubscribe: Contact &lt;mailto:hpa@kernel.org&gt;
+	to get blacklisted from these emails
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	T_RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=60001">tip-bot for Jacob Shin</a> - May 6, 2015, 3:07 a.m.</div>
+<pre class="content">
+Commit-ID:  a0aa21e2281f89a197ad8e7bd8008f3b7b735dfc
+Gitweb:     http://git.kernel.org/tip/a0aa21e2281f89a197ad8e7bd8008f3b7b735dfc
+Author:     Andi Kleen &lt;ak@linux.intel.com&gt;
+AuthorDate: Tue, 7 Apr 2015 23:25:15 +0200
+Committer:  Arnaldo Carvalho de Melo &lt;acme@redhat.com&gt;
+CommitDate: Wed, 29 Apr 2015 10:38:04 -0300
+
+perf stat: Fix metrics calculation with event qualifiers
+
+Currently in perf IPC and other metrics cannot be directly shown
+separately for both user and kernel in a single run. The problem was
+that the metrics matching code did not check event qualifiers.
+
+With this patch the following case works correctly.
+
+% perf stat -e cycles:k,cycles:u,instructions:k,instructions:u true
+
+ Performance counter stats for &#39;true&#39;:
+
+           531,718      cycles:k
+           203,895      cycles:u
+           338,151      instructions:k            #    0.64  insns per cycle
+           105,961      instructions:u            #    0.52  insns per cycle
+
+       0.002989739 seconds time elapsed
+
+Previously it would misreport the ratios because they were matching the
+wrong value.
+
+The patch is fairly big, but quite mechanic as it just adds context
+indexes everywhere.
+
+Reported-by: William Cohen &lt;wcohen@redhat.com&gt;
+<span class="signed-off-by">Signed-off-by: Andi Kleen &lt;ak@linux.intel.com&gt;</span>
+<span class="acked-by">Acked-by: Namhyung Kim &lt;namhyung@kernel.org&gt;</span>
+Cc: Andi Kleen &lt;andi@firstfloor.org&gt;
+Cc: David Ahern &lt;dsahern@gmail.com&gt;
+Cc: Paul Mackerras &lt;paulus@samba.org&gt;
+Cc: Peter Zijlstra &lt;a.p.zijlstra@chello.nl&gt;
+Cc: William Cohen &lt;wcohen@redhat.com&gt;
+Link: http://lkml.kernel.org/r/1428441919-23099-3-git-send-email-jolsa@kernel.org
+<span class="signed-off-by">Signed-off-by: Jiri Olsa &lt;jolsa@kernel.org&gt;</span>
+<span class="signed-off-by">Signed-off-by: Arnaldo Carvalho de Melo &lt;acme@redhat.com&gt;</span>
+---
+ tools/perf/builtin-stat.c | 129 +++++++++++++++++++++++++++-------------------
+ 1 file changed, 77 insertions(+), 52 deletions(-)
+
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/tools/perf/builtin-stat.c b/tools/perf/builtin-stat.c</span>
+<span class="p_header">index 3dbd8c5..52f4330 100644</span>
+<span class="p_header">--- a/tools/perf/builtin-stat.c</span>
+<span class="p_header">+++ b/tools/perf/builtin-stat.c</span>
+<span class="p_chunk">@@ -247,21 +247,35 @@</span> <span class="p_context"> out_free:</span>
+ 	return -1;
+ }
+ 
+<span class="p_add">+#define NUM_CTX 3</span>
+<span class="p_add">+</span>
+<span class="p_add">+enum { CTX_USER, CTX_KERNEL, CTX_ALL };</span>
+<span class="p_add">+</span>
+ static struct stats runtime_nsecs_stats[MAX_NR_CPUS];
+<span class="p_del">-static struct stats runtime_cycles_stats[MAX_NR_CPUS];</span>
+<span class="p_del">-static struct stats runtime_stalled_cycles_front_stats[MAX_NR_CPUS];</span>
+<span class="p_del">-static struct stats runtime_stalled_cycles_back_stats[MAX_NR_CPUS];</span>
+<span class="p_del">-static struct stats runtime_branches_stats[MAX_NR_CPUS];</span>
+<span class="p_del">-static struct stats runtime_cacherefs_stats[MAX_NR_CPUS];</span>
+<span class="p_del">-static struct stats runtime_l1_dcache_stats[MAX_NR_CPUS];</span>
+<span class="p_del">-static struct stats runtime_l1_icache_stats[MAX_NR_CPUS];</span>
+<span class="p_del">-static struct stats runtime_ll_cache_stats[MAX_NR_CPUS];</span>
+<span class="p_del">-static struct stats runtime_itlb_cache_stats[MAX_NR_CPUS];</span>
+<span class="p_del">-static struct stats runtime_dtlb_cache_stats[MAX_NR_CPUS];</span>
+<span class="p_del">-static struct stats runtime_cycles_in_tx_stats[MAX_NR_CPUS];</span>
+<span class="p_add">+static struct stats runtime_cycles_stats[NUM_CTX][MAX_NR_CPUS];</span>
+<span class="p_add">+static struct stats runtime_stalled_cycles_front_stats[NUM_CTX][MAX_NR_CPUS];</span>
+<span class="p_add">+static struct stats runtime_stalled_cycles_back_stats[NUM_CTX][MAX_NR_CPUS];</span>
+<span class="p_add">+static struct stats runtime_branches_stats[NUM_CTX][MAX_NR_CPUS];</span>
+<span class="p_add">+static struct stats runtime_cacherefs_stats[NUM_CTX][MAX_NR_CPUS];</span>
+<span class="p_add">+static struct stats runtime_l1_dcache_stats[NUM_CTX][MAX_NR_CPUS];</span>
+<span class="p_add">+static struct stats runtime_l1_icache_stats[NUM_CTX][MAX_NR_CPUS];</span>
+<span class="p_add">+static struct stats runtime_ll_cache_stats[NUM_CTX][MAX_NR_CPUS];</span>
+<span class="p_add">+static struct stats runtime_itlb_cache_stats[NUM_CTX][MAX_NR_CPUS];</span>
+<span class="p_add">+static struct stats runtime_dtlb_cache_stats[NUM_CTX][MAX_NR_CPUS];</span>
+<span class="p_add">+static struct stats runtime_cycles_in_tx_stats[NUM_CTX][MAX_NR_CPUS];</span>
+ static struct stats walltime_nsecs_stats;
+<span class="p_del">-static struct stats runtime_transaction_stats[MAX_NR_CPUS];</span>
+<span class="p_del">-static struct stats runtime_elision_stats[MAX_NR_CPUS];</span>
+<span class="p_add">+static struct stats runtime_transaction_stats[NUM_CTX][MAX_NR_CPUS];</span>
+<span class="p_add">+static struct stats runtime_elision_stats[NUM_CTX][MAX_NR_CPUS];</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int evsel_context(struct perf_evsel *evsel)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (evsel-&gt;attr.exclude_kernel)</span>
+<span class="p_add">+		return CTX_USER;</span>
+<span class="p_add">+	if (evsel-&gt;attr.exclude_user)</span>
+<span class="p_add">+		return CTX_KERNEL;</span>
+<span class="p_add">+	/* Handle hypervisor too? */</span>
+<span class="p_add">+	return CTX_ALL;</span>
+<span class="p_add">+}</span>
+ 
+ static void perf_stat__reset_stats(struct perf_evlist *evlist)
+ {
+<span class="p_chunk">@@ -356,37 +370,39 @@</span> <span class="p_context"> static struct perf_evsel *nth_evsel(int n)</span>
+ static void update_shadow_stats(struct perf_evsel *counter, u64 *count,
+ 				int cpu)
+ {
+<span class="p_add">+	int ctx = evsel_context(counter);</span>
+<span class="p_add">+</span>
+ 	if (perf_evsel__match(counter, SOFTWARE, SW_TASK_CLOCK))
+ 		update_stats(&amp;runtime_nsecs_stats[cpu], count[0]);
+ 	else if (perf_evsel__match(counter, HARDWARE, HW_CPU_CYCLES))
+<span class="p_del">-		update_stats(&amp;runtime_cycles_stats[cpu], count[0]);</span>
+<span class="p_add">+		update_stats(&amp;runtime_cycles_stats[ctx][cpu], count[0]);</span>
+ 	else if (transaction_run &amp;&amp;
+ 		 perf_evsel__cmp(counter, nth_evsel(T_CYCLES_IN_TX)))
+<span class="p_del">-		update_stats(&amp;runtime_cycles_in_tx_stats[cpu], count[0]);</span>
+<span class="p_add">+		update_stats(&amp;runtime_transaction_stats[ctx][cpu], count[0]);</span>
+ 	else if (transaction_run &amp;&amp;
+ 		 perf_evsel__cmp(counter, nth_evsel(T_TRANSACTION_START)))
+<span class="p_del">-		update_stats(&amp;runtime_transaction_stats[cpu], count[0]);</span>
+<span class="p_add">+		update_stats(&amp;runtime_transaction_stats[ctx][cpu], count[0]);</span>
+ 	else if (transaction_run &amp;&amp;
+ 		 perf_evsel__cmp(counter, nth_evsel(T_ELISION_START)))
+<span class="p_del">-		update_stats(&amp;runtime_elision_stats[cpu], count[0]);</span>
+<span class="p_add">+		update_stats(&amp;runtime_elision_stats[ctx][cpu], count[0]);</span>
+ 	else if (perf_evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_FRONTEND))
+<span class="p_del">-		update_stats(&amp;runtime_stalled_cycles_front_stats[cpu], count[0]);</span>
+<span class="p_add">+		update_stats(&amp;runtime_stalled_cycles_front_stats[ctx][cpu], count[0]);</span>
+ 	else if (perf_evsel__match(counter, HARDWARE, HW_STALLED_CYCLES_BACKEND))
+<span class="p_del">-		update_stats(&amp;runtime_stalled_cycles_back_stats[cpu], count[0]);</span>
+<span class="p_add">+		update_stats(&amp;runtime_stalled_cycles_back_stats[ctx][cpu], count[0]);</span>
+ 	else if (perf_evsel__match(counter, HARDWARE, HW_BRANCH_INSTRUCTIONS))
+<span class="p_del">-		update_stats(&amp;runtime_branches_stats[cpu], count[0]);</span>
+<span class="p_add">+		update_stats(&amp;runtime_branches_stats[ctx][cpu], count[0]);</span>
+ 	else if (perf_evsel__match(counter, HARDWARE, HW_CACHE_REFERENCES))
+<span class="p_del">-		update_stats(&amp;runtime_cacherefs_stats[cpu], count[0]);</span>
+<span class="p_add">+		update_stats(&amp;runtime_cacherefs_stats[ctx][cpu], count[0]);</span>
+ 	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_L1D))
+<span class="p_del">-		update_stats(&amp;runtime_l1_dcache_stats[cpu], count[0]);</span>
+<span class="p_add">+		update_stats(&amp;runtime_l1_dcache_stats[ctx][cpu], count[0]);</span>
+ 	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_L1I))
+<span class="p_del">-		update_stats(&amp;runtime_l1_icache_stats[cpu], count[0]);</span>
+<span class="p_add">+		update_stats(&amp;runtime_ll_cache_stats[ctx][cpu], count[0]);</span>
+ 	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_LL))
+<span class="p_del">-		update_stats(&amp;runtime_ll_cache_stats[cpu], count[0]);</span>
+<span class="p_add">+		update_stats(&amp;runtime_ll_cache_stats[ctx][cpu], count[0]);</span>
+ 	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_DTLB))
+<span class="p_del">-		update_stats(&amp;runtime_dtlb_cache_stats[cpu], count[0]);</span>
+<span class="p_add">+		update_stats(&amp;runtime_dtlb_cache_stats[ctx][cpu], count[0]);</span>
+ 	else if (perf_evsel__match(counter, HW_CACHE, HW_CACHE_ITLB))
+<span class="p_del">-		update_stats(&amp;runtime_itlb_cache_stats[cpu], count[0]);</span>
+<span class="p_add">+		update_stats(&amp;runtime_itlb_cache_stats[ctx][cpu], count[0]);</span>
+ }
+ 
+ static void zero_per_pkg(struct perf_evsel *counter)
+<span class="p_chunk">@@ -908,8 +924,9 @@</span> <span class="p_context"> static void print_stalled_cycles_frontend(int cpu,</span>
+ {
+ 	double total, ratio = 0.0;
+ 	const char *color;
+<span class="p_add">+	int ctx = evsel_context(evsel);</span>
+ 
+<span class="p_del">-	total = avg_stats(&amp;runtime_cycles_stats[cpu]);</span>
+<span class="p_add">+	total = avg_stats(&amp;runtime_cycles_stats[ctx][cpu]);</span>
+ 
+ 	if (total)
+ 		ratio = avg / total * 100.0;
+<span class="p_chunk">@@ -927,8 +944,9 @@</span> <span class="p_context"> static void print_stalled_cycles_backend(int cpu,</span>
+ {
+ 	double total, ratio = 0.0;
+ 	const char *color;
+<span class="p_add">+	int ctx = evsel_context(evsel);</span>
+ 
+<span class="p_del">-	total = avg_stats(&amp;runtime_cycles_stats[cpu]);</span>
+<span class="p_add">+	total = avg_stats(&amp;runtime_cycles_stats[ctx][cpu]);</span>
+ 
+ 	if (total)
+ 		ratio = avg / total * 100.0;
+<span class="p_chunk">@@ -946,8 +964,9 @@</span> <span class="p_context"> static void print_branch_misses(int cpu,</span>
+ {
+ 	double total, ratio = 0.0;
+ 	const char *color;
+<span class="p_add">+	int ctx = evsel_context(evsel);</span>
+ 
+<span class="p_del">-	total = avg_stats(&amp;runtime_branches_stats[cpu]);</span>
+<span class="p_add">+	total = avg_stats(&amp;runtime_branches_stats[ctx][cpu]);</span>
+ 
+ 	if (total)
+ 		ratio = avg / total * 100.0;
+<span class="p_chunk">@@ -965,8 +984,9 @@</span> <span class="p_context"> static void print_l1_dcache_misses(int cpu,</span>
+ {
+ 	double total, ratio = 0.0;
+ 	const char *color;
+<span class="p_add">+	int ctx = evsel_context(evsel);</span>
+ 
+<span class="p_del">-	total = avg_stats(&amp;runtime_l1_dcache_stats[cpu]);</span>
+<span class="p_add">+	total = avg_stats(&amp;runtime_l1_dcache_stats[ctx][cpu]);</span>
+ 
+ 	if (total)
+ 		ratio = avg / total * 100.0;
+<span class="p_chunk">@@ -984,8 +1004,9 @@</span> <span class="p_context"> static void print_l1_icache_misses(int cpu,</span>
+ {
+ 	double total, ratio = 0.0;
+ 	const char *color;
+<span class="p_add">+	int ctx = evsel_context(evsel);</span>
+ 
+<span class="p_del">-	total = avg_stats(&amp;runtime_l1_icache_stats[cpu]);</span>
+<span class="p_add">+	total = avg_stats(&amp;runtime_l1_icache_stats[ctx][cpu]);</span>
+ 
+ 	if (total)
+ 		ratio = avg / total * 100.0;
+<span class="p_chunk">@@ -1003,8 +1024,9 @@</span> <span class="p_context"> static void print_dtlb_cache_misses(int cpu,</span>
+ {
+ 	double total, ratio = 0.0;
+ 	const char *color;
+<span class="p_add">+	int ctx = evsel_context(evsel);</span>
+ 
+<span class="p_del">-	total = avg_stats(&amp;runtime_dtlb_cache_stats[cpu]);</span>
+<span class="p_add">+	total = avg_stats(&amp;runtime_dtlb_cache_stats[ctx][cpu]);</span>
+ 
+ 	if (total)
+ 		ratio = avg / total * 100.0;
+<span class="p_chunk">@@ -1022,8 +1044,9 @@</span> <span class="p_context"> static void print_itlb_cache_misses(int cpu,</span>
+ {
+ 	double total, ratio = 0.0;
+ 	const char *color;
+<span class="p_add">+	int ctx = evsel_context(evsel);</span>
+ 
+<span class="p_del">-	total = avg_stats(&amp;runtime_itlb_cache_stats[cpu]);</span>
+<span class="p_add">+	total = avg_stats(&amp;runtime_itlb_cache_stats[ctx][cpu]);</span>
+ 
+ 	if (total)
+ 		ratio = avg / total * 100.0;
+<span class="p_chunk">@@ -1041,8 +1064,9 @@</span> <span class="p_context"> static void print_ll_cache_misses(int cpu,</span>
+ {
+ 	double total, ratio = 0.0;
+ 	const char *color;
+<span class="p_add">+	int ctx = evsel_context(evsel);</span>
+ 
+<span class="p_del">-	total = avg_stats(&amp;runtime_ll_cache_stats[cpu]);</span>
+<span class="p_add">+	total = avg_stats(&amp;runtime_ll_cache_stats[ctx][cpu]);</span>
+ 
+ 	if (total)
+ 		ratio = avg / total * 100.0;
+<span class="p_chunk">@@ -1060,6 +1084,7 @@</span> <span class="p_context"> static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)</span>
+ 	double sc =  evsel-&gt;scale;
+ 	const char *fmt;
+ 	int cpu = cpu_map__id_to_cpu(id);
+<span class="p_add">+	int ctx = evsel_context(evsel);</span>
+ 
+ 	if (csv_output) {
+ 		fmt = sc != 1.0 ?  &quot;%.2f%s&quot; : &quot;%.0f%s&quot;;
+<span class="p_chunk">@@ -1091,15 +1116,15 @@</span> <span class="p_context"> static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)</span>
+ 		return;
+ 
+ 	if (perf_evsel__match(evsel, HARDWARE, HW_INSTRUCTIONS)) {
+<span class="p_del">-		total = avg_stats(&amp;runtime_cycles_stats[cpu]);</span>
+<span class="p_add">+		total = avg_stats(&amp;runtime_cycles_stats[ctx][cpu]);</span>
+ 		if (total) {
+ 			ratio = avg / total;
+ 			fprintf(output, &quot; #   %5.2f  insns per cycle        &quot;, ratio);
+ 		} else {
+ 			fprintf(output, &quot;                                   &quot;);
+ 		}
+<span class="p_del">-		total = avg_stats(&amp;runtime_stalled_cycles_front_stats[cpu]);</span>
+<span class="p_del">-		total = max(total, avg_stats(&amp;runtime_stalled_cycles_back_stats[cpu]));</span>
+<span class="p_add">+		total = avg_stats(&amp;runtime_stalled_cycles_front_stats[ctx][cpu]);</span>
+<span class="p_add">+		total = max(total, avg_stats(&amp;runtime_stalled_cycles_back_stats[ctx][cpu]));</span>
+ 
+ 		if (total &amp;&amp; avg) {
+ 			ratio = total / avg;
+<span class="p_chunk">@@ -1110,46 +1135,46 @@</span> <span class="p_context"> static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)</span>
+ 		}
+ 
+ 	} else if (perf_evsel__match(evsel, HARDWARE, HW_BRANCH_MISSES) &amp;&amp;
+<span class="p_del">-			runtime_branches_stats[cpu].n != 0) {</span>
+<span class="p_add">+			runtime_branches_stats[ctx][cpu].n != 0) {</span>
+ 		print_branch_misses(cpu, evsel, avg);
+ 	} else if (
+ 		evsel-&gt;attr.type == PERF_TYPE_HW_CACHE &amp;&amp;
+ 		evsel-&gt;attr.config ==  ( PERF_COUNT_HW_CACHE_L1D |
+ 					((PERF_COUNT_HW_CACHE_OP_READ) &lt;&lt; 8) |
+ 					((PERF_COUNT_HW_CACHE_RESULT_MISS) &lt;&lt; 16)) &amp;&amp;
+<span class="p_del">-			runtime_l1_dcache_stats[cpu].n != 0) {</span>
+<span class="p_add">+			runtime_l1_dcache_stats[ctx][cpu].n != 0) {</span>
+ 		print_l1_dcache_misses(cpu, evsel, avg);
+ 	} else if (
+ 		evsel-&gt;attr.type == PERF_TYPE_HW_CACHE &amp;&amp;
+ 		evsel-&gt;attr.config ==  ( PERF_COUNT_HW_CACHE_L1I |
+ 					((PERF_COUNT_HW_CACHE_OP_READ) &lt;&lt; 8) |
+ 					((PERF_COUNT_HW_CACHE_RESULT_MISS) &lt;&lt; 16)) &amp;&amp;
+<span class="p_del">-			runtime_l1_icache_stats[cpu].n != 0) {</span>
+<span class="p_add">+			runtime_l1_icache_stats[ctx][cpu].n != 0) {</span>
+ 		print_l1_icache_misses(cpu, evsel, avg);
+ 	} else if (
+ 		evsel-&gt;attr.type == PERF_TYPE_HW_CACHE &amp;&amp;
+ 		evsel-&gt;attr.config ==  ( PERF_COUNT_HW_CACHE_DTLB |
+ 					((PERF_COUNT_HW_CACHE_OP_READ) &lt;&lt; 8) |
+ 					((PERF_COUNT_HW_CACHE_RESULT_MISS) &lt;&lt; 16)) &amp;&amp;
+<span class="p_del">-			runtime_dtlb_cache_stats[cpu].n != 0) {</span>
+<span class="p_add">+			runtime_dtlb_cache_stats[ctx][cpu].n != 0) {</span>
+ 		print_dtlb_cache_misses(cpu, evsel, avg);
+ 	} else if (
+ 		evsel-&gt;attr.type == PERF_TYPE_HW_CACHE &amp;&amp;
+ 		evsel-&gt;attr.config ==  ( PERF_COUNT_HW_CACHE_ITLB |
+ 					((PERF_COUNT_HW_CACHE_OP_READ) &lt;&lt; 8) |
+ 					((PERF_COUNT_HW_CACHE_RESULT_MISS) &lt;&lt; 16)) &amp;&amp;
+<span class="p_del">-			runtime_itlb_cache_stats[cpu].n != 0) {</span>
+<span class="p_add">+			runtime_itlb_cache_stats[ctx][cpu].n != 0) {</span>
+ 		print_itlb_cache_misses(cpu, evsel, avg);
+ 	} else if (
+ 		evsel-&gt;attr.type == PERF_TYPE_HW_CACHE &amp;&amp;
+ 		evsel-&gt;attr.config ==  ( PERF_COUNT_HW_CACHE_LL |
+ 					((PERF_COUNT_HW_CACHE_OP_READ) &lt;&lt; 8) |
+ 					((PERF_COUNT_HW_CACHE_RESULT_MISS) &lt;&lt; 16)) &amp;&amp;
+<span class="p_del">-			runtime_ll_cache_stats[cpu].n != 0) {</span>
+<span class="p_add">+			runtime_ll_cache_stats[ctx][cpu].n != 0) {</span>
+ 		print_ll_cache_misses(cpu, evsel, avg);
+ 	} else if (perf_evsel__match(evsel, HARDWARE, HW_CACHE_MISSES) &amp;&amp;
+<span class="p_del">-			runtime_cacherefs_stats[cpu].n != 0) {</span>
+<span class="p_del">-		total = avg_stats(&amp;runtime_cacherefs_stats[cpu]);</span>
+<span class="p_add">+			runtime_cacherefs_stats[ctx][cpu].n != 0) {</span>
+<span class="p_add">+		total = avg_stats(&amp;runtime_cacherefs_stats[ctx][cpu]);</span>
+ 
+ 		if (total)
+ 			ratio = avg * 100 / total;
+<span class="p_chunk">@@ -1171,15 +1196,15 @@</span> <span class="p_context"> static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)</span>
+ 		}
+ 	} else if (transaction_run &amp;&amp;
+ 		   perf_evsel__cmp(evsel, nth_evsel(T_CYCLES_IN_TX))) {
+<span class="p_del">-		total = avg_stats(&amp;runtime_cycles_stats[cpu]);</span>
+<span class="p_add">+		total = avg_stats(&amp;runtime_cycles_stats[ctx][cpu]);</span>
+ 		if (total)
+ 			fprintf(output,
+ 				&quot; #   %5.2f%% transactional cycles   &quot;,
+ 				100.0 * (avg / total));
+ 	} else if (transaction_run &amp;&amp;
+ 		   perf_evsel__cmp(evsel, nth_evsel(T_CYCLES_IN_TX_CP))) {
+<span class="p_del">-		total = avg_stats(&amp;runtime_cycles_stats[cpu]);</span>
+<span class="p_del">-		total2 = avg_stats(&amp;runtime_cycles_in_tx_stats[cpu]);</span>
+<span class="p_add">+		total = avg_stats(&amp;runtime_cycles_stats[ctx][cpu]);</span>
+<span class="p_add">+		total2 = avg_stats(&amp;runtime_cycles_in_tx_stats[ctx][cpu]);</span>
+ 		if (total2 &lt; avg)
+ 			total2 = avg;
+ 		if (total)
+<span class="p_chunk">@@ -1189,8 +1214,8 @@</span> <span class="p_context"> static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)</span>
+ 	} else if (transaction_run &amp;&amp;
+ 		   perf_evsel__cmp(evsel, nth_evsel(T_TRANSACTION_START)) &amp;&amp;
+ 		   avg &gt; 0 &amp;&amp;
+<span class="p_del">-		   runtime_cycles_in_tx_stats[cpu].n != 0) {</span>
+<span class="p_del">-		total = avg_stats(&amp;runtime_cycles_in_tx_stats[cpu]);</span>
+<span class="p_add">+		   runtime_cycles_in_tx_stats[ctx][cpu].n != 0) {</span>
+<span class="p_add">+		total = avg_stats(&amp;runtime_cycles_in_tx_stats[ctx][cpu]);</span>
+ 
+ 		if (total)
+ 			ratio = total / avg;
+<span class="p_chunk">@@ -1199,8 +1224,8 @@</span> <span class="p_context"> static void abs_printout(int id, int nr, struct perf_evsel *evsel, double avg)</span>
+ 	} else if (transaction_run &amp;&amp;
+ 		   perf_evsel__cmp(evsel, nth_evsel(T_ELISION_START)) &amp;&amp;
+ 		   avg &gt; 0 &amp;&amp;
+<span class="p_del">-		   runtime_cycles_in_tx_stats[cpu].n != 0) {</span>
+<span class="p_del">-		total = avg_stats(&amp;runtime_cycles_in_tx_stats[cpu]);</span>
+<span class="p_add">+		   runtime_cycles_in_tx_stats[ctx][cpu].n != 0) {</span>
+<span class="p_add">+		total = avg_stats(&amp;runtime_cycles_in_tx_stats[ctx][cpu]);</span>
+ 
+ 		if (total)
+ 			ratio = total / avg;
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

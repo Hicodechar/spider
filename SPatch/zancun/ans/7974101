@@ -1,0 +1,297 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[2/2] oom reaper: handle anonymous mlocked pages - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [2/2] oom reaper: handle anonymous mlocked pages</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Jan. 7, 2016, 8:14 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20160107081402.GA27868@dhcp22.suse.cz&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7974101/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7974101/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7974101/">/patch/7974101/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork1.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork1.web.kernel.org (Postfix) with ESMTP id D2F1D9F38D
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  7 Jan 2016 08:14:14 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 0F49920172
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  7 Jan 2016 08:14:14 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 1EDFB2012D
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  7 Jan 2016 08:14:13 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752560AbcAGIOK (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 7 Jan 2016 03:14:10 -0500
+Received: from mail-wm0-f47.google.com ([74.125.82.47]:33754 &quot;EHLO
+	mail-wm0-f47.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752311AbcAGIOG (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 7 Jan 2016 03:14:06 -0500
+Received: by mail-wm0-f47.google.com with SMTP id f206so87583928wmf.0
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Thu, 07 Jan 2016 00:14:05 -0800 (PST)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20130820;
+	h=date:from:to:cc:subject:message-id:references:mime-version
+	:content-type:content-disposition:in-reply-to:user-agent;
+	bh=4FRyeFth5Rpv9fFuIMecl8eIVl6WJlODAI3nCxzEsYE=;
+	b=JTdI1Py3n0JkQN2j4vI1qesCsLYkMI3xB4H49V3ONlW4yBUXjhu2eFICQkHShJo37E
+	v+Q/+AhKi9VNl1MoqdbLcXitnE9RR8FJ9KqturJvguhh/kV2kQm+rV0cmpafWZLxl/ZH
+	YbWEy88nP+38pHkZV2Jf/y7I4uxJmfFTl+frgLqKLx+cJHaFZNTLOk7Nfq9Zp8a6eG2Z
+	Dp+JHDHb7Uxink5UpOKdoid4ysJsE1z+VAnM6a5BEh50sbUFgdvjf90V5Yq2DibM1Q5w
+	F3DBElHuosF1vg92/mYrbY2XB75VImKGQifvy2XeJV91ts8BQ4EvZP6htoTZsL5mw+Af
+	2JEw==
+X-Received: by 10.194.9.169 with SMTP id a9mr110966594wjb.60.1452154445268; 
+	Thu, 07 Jan 2016 00:14:05 -0800 (PST)
+Received: from localhost (nat1.scz.suse.com. [213.151.88.250])
+	by smtp.gmail.com with ESMTPSA id
+	i2sm10569055wjx.42.2016.01.07.00.14.04
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Thu, 07 Jan 2016 00:14:04 -0800 (PST)
+Date: Thu, 7 Jan 2016 09:14:02 +0100
+From: Michal Hocko &lt;mhocko@kernel.org&gt;
+To: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: Mel Gorman &lt;mgorman@suse.de&gt;,
+	Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;,
+	David Rientjes &lt;rientjes@google.com&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Oleg Nesterov &lt;oleg@redhat.com&gt;, Hugh Dickins &lt;hughd@google.com&gt;,
+	Andrea Argangeli &lt;andrea@kernel.org&gt;,
+	Rik van Riel &lt;riel@redhat.com&gt;, linux-mm@kvack.org,
+	LKML &lt;linux-kernel@vger.kernel.org&gt;
+Subject: Re: [PATCH 2/2] oom reaper: handle anonymous mlocked pages
+Message-ID: &lt;20160107081402.GA27868@dhcp22.suse.cz&gt;
+References: &lt;1452094975-551-1-git-send-email-mhocko@kernel.org&gt;
+	&lt;1452094975-551-3-git-send-email-mhocko@kernel.org&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: &lt;1452094975-551-3-git-send-email-mhocko@kernel.org&gt;
+User-Agent: Mutt/1.5.24 (2015-08-30)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Jan. 7, 2016, 8:14 a.m.</div>
+<pre class="content">
+On Wed 06-01-16 16:42:55, Michal Hocko wrote:
+<span class="quote">&gt; Anonymous mappings</span>
+<span class="quote">&gt; are not visible by any other process so doing a munlock before unmap</span>
+<span class="quote">&gt; is safe to do from the semantic point of view.</span>
+
+I was too conservative here. I have completely forgoten about the lazy
+mlock handling during try_to_unmap which would keep the page mlocked if
+there is an mlocked vma mapping that page. So we can safely do what I
+was proposing originally. I hope I am not missing anything now. Here is
+the replacement patch
+---
+From 9aa92fc1c7f0f1c55d2efab0239dbb10a9dce001 Mon Sep 17 00:00:00 2001
+<span class="from">From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+Date: Wed, 6 Jan 2016 10:48:39 +0100
+Subject: [PATCH] oom reaper: handle mlocked pages
+
+__oom_reap_vmas current skips over all mlocked vmas because they need a
+special treatment before they are unmapped. This is primarily done for
+simplicity. There is no reason to skip over them and reduce the amount
+of reclaimed memory. This is safe from the semantic point of view
+because try_to_unmap_one during rmap walk would keep tell the reclaim
+to cull the page back and mlock it again.
+
+munlock_vma_pages_all is also safe to be called from the oom reaper
+context because it doesn&#39;t sit on any locks but mmap_sem (for read).
+<span class="signed-off-by">
+Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+---
+ mm/oom_kill.c | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="p_header">index 1ece40b94725..0e4af31db96f 100644</span>
+<span class="p_header">--- a/mm/oom_kill.c</span>
+<span class="p_header">+++ b/mm/oom_kill.c</span>
+<span class="p_chunk">@@ -445,13 +445,6 @@</span> <span class="p_context"> static bool __oom_reap_vmas(struct mm_struct *mm)</span>
+ 			continue;
+ 
+ 		/*
+<span class="p_del">-		 * mlocked VMAs require explicit munlocking before unmap.</span>
+<span class="p_del">-		 * Let&#39;s keep it simple here and skip such VMAs.</span>
+<span class="p_del">-		 */</span>
+<span class="p_del">-		if (vma-&gt;vm_flags &amp; VM_LOCKED)</span>
+<span class="p_del">-			continue;</span>
+<span class="p_del">-</span>
+<span class="p_del">-		/*</span>
+ 		 * Only anonymous pages have a good chance to be dropped
+ 		 * without additional steps which we cannot afford as we
+ 		 * are OOM already.
+<span class="p_chunk">@@ -461,9 +454,12 @@</span> <span class="p_context"> static bool __oom_reap_vmas(struct mm_struct *mm)</span>
+ 		 * we do not want to block exit_mmap by keeping mm ref
+ 		 * count elevated without a good reason.
+ 		 */
+<span class="p_del">-		if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED))</span>
+<span class="p_add">+		if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED)) {</span>
+<span class="p_add">+			if (vma-&gt;vm_flags &amp; VM_LOCKED)</span>
+<span class="p_add">+				munlock_vma_pages_all(vma);</span>
+ 			unmap_page_range(&amp;tlb, vma, vma-&gt;vm_start, vma-&gt;vm_end,
+ 					 &amp;details);
+<span class="p_add">+		}</span>
+ 	}
+ 	tlb_finish_mmu(&amp;tlb, 0, -1);
+ 	up_read(&amp;mm-&gt;mmap_sem);
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

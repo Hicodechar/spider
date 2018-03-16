@@ -1,0 +1,558 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,v2,12/31] KVM: arm/arm64: Handle shadow stage 2 page faults - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,v2,12/31] KVM: arm/arm64: Handle shadow stage 2 page faults</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=174677">Jintack Lim</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Oct. 3, 2017, 3:10 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1507000273-3735-10-git-send-email-jintack.lim@linaro.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9981563/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9981563/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9981563/">/patch/9981563/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	06080602B8 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  3 Oct 2017 03:17:57 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id E9FFC2887F
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  3 Oct 2017 03:17:56 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id DE63D28889; Tue,  3 Oct 2017 03:17:56 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.5 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,RCVD_IN_DNSWL_HI,RCVD_IN_SORBS_SPAM
+	autolearn=unavailable version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 2519E2887F
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  3 Oct 2017 03:17:56 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751981AbdJCDRk (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 2 Oct 2017 23:17:40 -0400
+Received: from mail-it0-f49.google.com ([209.85.214.49]:45076 &quot;EHLO
+	mail-it0-f49.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751477AbdJCDLw (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 2 Oct 2017 23:11:52 -0400
+Received: by mail-it0-f49.google.com with SMTP id x15so9995729itb.0
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Mon, 02 Oct 2017 20:11:51 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=linaro.org; s=google;
+	h=from:to:cc:subject:date:message-id:in-reply-to:references;
+	bh=BtGwFuK3p9VeVHhpyZTNcwAe4jYasIJNJwevSLVezNY=;
+	b=AtcOiyF7dlB7F5K06L96mgbPxq35K3FpdlERJs44tHQ1QjeikQpPOqjdwIwMrYS00X
+	GGCXmRveeWWwGxWORneqNxX2PtYy0dNaXeuhGYq98VfCWBxbw49U+C6e5ZRFpKjIei0T
+	XgWKKOitl30dqItHpjAhL3cyODiNkbL4pgU8k=
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+	:references;
+	bh=BtGwFuK3p9VeVHhpyZTNcwAe4jYasIJNJwevSLVezNY=;
+	b=Z2iTn89WZ7GzkI8ElRWvNQ8BcYWSXo7ELaXtYhfpjGtQ7ZYQcPNKUUWY8z01tku9m6
+	fK8p0T67E0+p42YmWdlUEobbtd1GDNMQk1bulIfHG1DEcDEJAjeDXpxsDedCM7Zs0ALH
+	FQ+U7SSc+4Mlxd3+6SCdDAy5kPDf9WPXix0OM7DekIOzkmrdrVoGMvWn5mQdT05vZExY
+	FFVxPgrk5YFarFeHZz6RmP5Gj/jkIgLNF3tV81qdnE0lhnoXBKs8vnAfjMzQRLiHLkZP
+	IVPSjIugfBlnUx16Ln7V5DHg/tEsImbuO6XiMHfwFytrm0r7F3FcE6fUVPyhjFriKmE1
+	NamQ==
+X-Gm-Message-State: AHPjjUjxEeRV6LWBT1JAQLQF+bzPARaQXMaa7B1t72slpELKgNneIZVv
+	KCY5n8f+8Yqw0J8D+awC0gME+g==
+X-Google-Smtp-Source: AOwi7QCyZbEpm3FGjG9igGd+MUzKGTYaJIt3ZCmLDGRswDgERji89dDLRs53MtrR9YSHHht49vkbyA==
+X-Received: by 10.36.13.82 with SMTP id 79mr23709277itx.129.1507000311339;
+	Mon, 02 Oct 2017 20:11:51 -0700 (PDT)
+Received: from node.jintackl-qv28633.kvmarm-pg0.wisc.cloudlab.us
+	(c220g1-031126.wisc.cloudlab.us. [128.104.222.76])
+	by smtp.gmail.com with ESMTPSA id
+	h84sm5367193iod.72.2017.10.02.20.11.49
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+	Mon, 02 Oct 2017 20:11:50 -0700 (PDT)
+From: Jintack Lim &lt;jintack.lim@linaro.org&gt;
+To: christoffer.dall@linaro.org, marc.zyngier@arm.com,
+	kvmarm@lists.cs.columbia.edu
+Cc: jintack@cs.columbia.edu, pbonzini@redhat.com, rkrcmar@redhat.com,
+	catalin.marinas@arm.com, will.deacon@arm.com,
+	linux@armlinux.org.uk, mark.rutland@arm.com,
+	linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org,
+	linux-kernel@vger.kernel.org, Jintack Lim &lt;jintack.lim@linaro.org&gt;
+Subject: [RFC PATCH v2 12/31] KVM: arm/arm64: Handle shadow stage 2 page
+	faults
+Date: Mon,  2 Oct 2017 22:10:54 -0500
+Message-Id: &lt;1507000273-3735-10-git-send-email-jintack.lim@linaro.org&gt;
+X-Mailer: git-send-email 1.9.1
+In-Reply-To: &lt;1507000273-3735-1-git-send-email-jintack.lim@linaro.org&gt;
+References: &lt;1507000273-3735-1-git-send-email-jintack.lim@linaro.org&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=174677">Jintack Lim</a> - Oct. 3, 2017, 3:10 a.m.</div>
+<pre class="content">
+<span class="from">From: Christoffer Dall &lt;christoffer.dall@linaro.org&gt;</span>
+
+If we are faulting on a shadow stage 2 translation, we first walk the
+guest hypervisor&#39;s stage 2 page table to see if it has a mapping. If
+not, we inject a stage 2 page fault to the virtual EL2. Otherwise, we
+create a mapping in the shadow stage 2 page table.
+
+Note that we have to deal with two IPAs when we got a showdow stage 2
+page fault. One is the address we faulted on, and is in the L2 guest
+phys space. The other is from the guest stage-2 page table walk, and is
+in the L1 guest phys space.  To differentiate them, we rename variable
+names so that fault_ipa is used for the former and ipa is used for the
+latter.
+<span class="signed-off-by">
+Signed-off-by: Christoffer Dall &lt;christoffer.dall@linaro.org&gt;</span>
+<span class="signed-off-by">Signed-off-by: Jintack Lim &lt;jintack.lim@linaro.org&gt;</span>
+---
+
+Notes:
+    v1--&gt;v2:
+    - Added a common function to inject s2 faults.
+    - Align L1 IPA as well as L2 IPA in transparent_hugepage_adjust(). This will
+    come in handy when creating a rmap entry with both IPAs.
+
+ arch/arm/include/asm/kvm_emulate.h   |  7 ++++
+ arch/arm/include/asm/kvm_mmu.h       |  4 ++
+ arch/arm64/include/asm/kvm_emulate.h |  5 +++
+ arch/arm64/include/asm/kvm_mmu.h     |  1 +
+ arch/arm64/kvm/mmu-nested.c          |  8 ++++
+ virt/kvm/arm/mmio.c                  | 12 +++---
+ virt/kvm/arm/mmu.c                   | 75 +++++++++++++++++++++++++++++-------
+ 7 files changed, 92 insertions(+), 20 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/arm/include/asm/kvm_emulate.h b/arch/arm/include/asm/kvm_emulate.h</span>
+<span class="p_header">index 24a3fbf..8136464 100644</span>
+<span class="p_header">--- a/arch/arm/include/asm/kvm_emulate.h</span>
+<span class="p_header">+++ b/arch/arm/include/asm/kvm_emulate.h</span>
+<span class="p_chunk">@@ -297,4 +297,11 @@</span> <span class="p_context"> static inline struct kvm_s2_vmid *vcpu_get_active_vmid(struct kvm_vcpu *vcpu)</span>
+ {
+ 	return &amp;vcpu-&gt;kvm-&gt;arch.mmu.vmid;
+ }
+<span class="p_add">+</span>
+<span class="p_add">+/* arm architecture doesn&#39;t support the nesting */</span>
+<span class="p_add">+static inline bool kvm_is_shadow_s2_fault(struct kvm_vcpu *vcpu)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return false;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ #endif /* __ARM_KVM_EMULATE_H__ */
+<span class="p_header">diff --git a/arch/arm/include/asm/kvm_mmu.h b/arch/arm/include/asm/kvm_mmu.h</span>
+<span class="p_header">index 5fab21a..6a22846 100644</span>
+<span class="p_header">--- a/arch/arm/include/asm/kvm_mmu.h</span>
+<span class="p_header">+++ b/arch/arm/include/asm/kvm_mmu.h</span>
+<span class="p_chunk">@@ -242,6 +242,10 @@</span> <span class="p_context"> static inline void kvm_nested_s2_free(struct kvm *kvm) { }</span>
+ static inline void kvm_nested_s2_wp(struct kvm *kvm) { }
+ static inline void kvm_nested_s2_clear(struct kvm *kvm) { }
+ static inline void kvm_nested_s2_flush(struct kvm *kvm) { }
+<span class="p_add">+static inline int kvm_inject_s2_fault(struct kvm_vcpu *vcpu, u64 esr_el2)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+ 
+ static inline u64 kvm_get_vttbr(struct kvm_s2_vmid *vmid,
+ 				struct kvm_s2_mmu *mmu)
+<span class="p_header">diff --git a/arch/arm64/include/asm/kvm_emulate.h b/arch/arm64/include/asm/kvm_emulate.h</span>
+<span class="p_header">index f476576..c66554b 100644</span>
+<span class="p_header">--- a/arch/arm64/include/asm/kvm_emulate.h</span>
+<span class="p_header">+++ b/arch/arm64/include/asm/kvm_emulate.h</span>
+<span class="p_chunk">@@ -390,4 +390,9 @@</span> <span class="p_context"> static inline unsigned long vcpu_data_host_to_guest(struct kvm_vcpu *vcpu,</span>
+ 	return data;		/* Leave LE untouched */
+ }
+ 
+<span class="p_add">+static inline bool kvm_is_shadow_s2_fault(struct kvm_vcpu *vcpu)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return vcpu_nested_stage2_enabled(vcpu) &amp;&amp; !is_hyp_ctxt(vcpu);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ #endif /* __ARM64_KVM_EMULATE_H__ */
+<span class="p_header">diff --git a/arch/arm64/include/asm/kvm_mmu.h b/arch/arm64/include/asm/kvm_mmu.h</span>
+<span class="p_header">index c4efcd5..425e4a2 100644</span>
+<span class="p_header">--- a/arch/arm64/include/asm/kvm_mmu.h</span>
+<span class="p_header">+++ b/arch/arm64/include/asm/kvm_mmu.h</span>
+<span class="p_chunk">@@ -342,6 +342,7 @@</span> <span class="p_context"> int kvm_walk_nested_s2(struct kvm_vcpu *vcpu, phys_addr_t gipa,</span>
+ void kvm_nested_s2_wp(struct kvm *kvm);
+ void kvm_nested_s2_clear(struct kvm *kvm);
+ void kvm_nested_s2_flush(struct kvm *kvm);
+<span class="p_add">+int kvm_inject_s2_fault(struct kvm_vcpu *vcpu, u64 esr_el2);</span>
+ 
+ static inline u64 kvm_get_vttbr(struct kvm_s2_vmid *vmid,
+ 				struct kvm_s2_mmu *mmu)
+<span class="p_header">diff --git a/arch/arm64/kvm/mmu-nested.c b/arch/arm64/kvm/mmu-nested.c</span>
+<span class="p_header">index fb694b7..75570cc 100644</span>
+<span class="p_header">--- a/arch/arm64/kvm/mmu-nested.c</span>
+<span class="p_header">+++ b/arch/arm64/kvm/mmu-nested.c</span>
+<span class="p_chunk">@@ -60,6 +60,14 @@</span> <span class="p_context"> static int esr_s2_fault(struct kvm_vcpu *vcpu, int level, u32 fsc)</span>
+ 	return esr;
+ }
+ 
+<span class="p_add">+int kvm_inject_s2_fault(struct kvm_vcpu *vcpu, u64 esr_el2)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	vcpu-&gt;arch.ctxt.sys_regs[FAR_EL2] = vcpu-&gt;arch.fault.far_el2;</span>
+<span class="p_add">+	vcpu-&gt;arch.ctxt.sys_regs[HPFAR_EL2] = vcpu-&gt;arch.fault.hpfar_el2;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return kvm_inject_nested_sync(vcpu, esr_el2);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ static int check_base_s2_limits(struct kvm_vcpu *vcpu, struct s2_walk_info *wi,
+ 				int level, int input_size, int stride)
+ {
+<span class="p_header">diff --git a/virt/kvm/arm/mmio.c b/virt/kvm/arm/mmio.c</span>
+<span class="p_header">index b6e715f..a1009c2 100644</span>
+<span class="p_header">--- a/virt/kvm/arm/mmio.c</span>
+<span class="p_header">+++ b/virt/kvm/arm/mmio.c</span>
+<span class="p_chunk">@@ -153,7 +153,7 @@</span> <span class="p_context"> static int decode_hsr(struct kvm_vcpu *vcpu, bool *is_write, int *len)</span>
+ }
+ 
+ int io_mem_abort(struct kvm_vcpu *vcpu, struct kvm_run *run,
+<span class="p_del">-		 phys_addr_t fault_ipa)</span>
+<span class="p_add">+		 phys_addr_t ipa)</span>
+ {
+ 	unsigned long data;
+ 	unsigned long rt;
+<span class="p_chunk">@@ -182,22 +182,22 @@</span> <span class="p_context"> int io_mem_abort(struct kvm_vcpu *vcpu, struct kvm_run *run,</span>
+ 		data = vcpu_data_guest_to_host(vcpu, vcpu_get_reg(vcpu, rt),
+ 					       len);
+ 
+<span class="p_del">-		trace_kvm_mmio(KVM_TRACE_MMIO_WRITE, len, fault_ipa, data);</span>
+<span class="p_add">+		trace_kvm_mmio(KVM_TRACE_MMIO_WRITE, len, ipa, data);</span>
+ 		kvm_mmio_write_buf(data_buf, len, data);
+ 
+<span class="p_del">-		ret = kvm_io_bus_write(vcpu, KVM_MMIO_BUS, fault_ipa, len,</span>
+<span class="p_add">+		ret = kvm_io_bus_write(vcpu, KVM_MMIO_BUS, ipa, len,</span>
+ 				       data_buf);
+ 	} else {
+ 		trace_kvm_mmio(KVM_TRACE_MMIO_READ_UNSATISFIED, len,
+<span class="p_del">-			       fault_ipa, 0);</span>
+<span class="p_add">+			       ipa, 0);</span>
+ 
+<span class="p_del">-		ret = kvm_io_bus_read(vcpu, KVM_MMIO_BUS, fault_ipa, len,</span>
+<span class="p_add">+		ret = kvm_io_bus_read(vcpu, KVM_MMIO_BUS, ipa, len,</span>
+ 				      data_buf);
+ 	}
+ 
+ 	/* Now prepare kvm_run for the potential return to userland. */
+ 	run-&gt;mmio.is_write	= is_write;
+<span class="p_del">-	run-&gt;mmio.phys_addr	= fault_ipa;</span>
+<span class="p_add">+	run-&gt;mmio.phys_addr	= ipa;</span>
+ 	run-&gt;mmio.len		= len;
+ 
+ 	if (!ret) {
+<span class="p_header">diff --git a/virt/kvm/arm/mmu.c b/virt/kvm/arm/mmu.c</span>
+<span class="p_header">index 3143f81..25d3d73 100644</span>
+<span class="p_header">--- a/virt/kvm/arm/mmu.c</span>
+<span class="p_header">+++ b/virt/kvm/arm/mmu.c</span>
+<span class="p_chunk">@@ -1098,7 +1098,8 @@</span> <span class="p_context"> int kvm_phys_addr_ioremap(struct kvm *kvm, phys_addr_t guest_ipa,</span>
+ 	return ret;
+ }
+ 
+<span class="p_del">-static bool transparent_hugepage_adjust(kvm_pfn_t *pfnp, phys_addr_t *ipap)</span>
+<span class="p_add">+static bool transparent_hugepage_adjust(kvm_pfn_t *pfnp, phys_addr_t *ipap,</span>
+<span class="p_add">+					phys_addr_t *fault_ipap)</span>
+ {
+ 	kvm_pfn_t pfn = *pfnp;
+ 	gfn_t gfn = *ipap &gt;&gt; PAGE_SHIFT;
+<span class="p_chunk">@@ -1126,6 +1127,7 @@</span> <span class="p_context"> static bool transparent_hugepage_adjust(kvm_pfn_t *pfnp, phys_addr_t *ipap)</span>
+ 		mask = PTRS_PER_PMD - 1;
+ 		VM_BUG_ON((gfn &amp; mask) != (pfn &amp; mask));
+ 		if (pfn &amp; mask) {
+<span class="p_add">+			*fault_ipap &amp;= PMD_MASK;</span>
+ 			*ipap &amp;= PMD_MASK;
+ 			kvm_release_pfn_clean(pfn);
+ 			pfn &amp;= ~mask;
+<span class="p_chunk">@@ -1337,13 +1339,15 @@</span> <span class="p_context"> static void kvm_send_hwpoison_signal(unsigned long address,</span>
+ }
+ 
+ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
+<span class="p_del">-			  struct kvm_memory_slot *memslot, unsigned long hva,</span>
+<span class="p_del">-			  unsigned long fault_status)</span>
+<span class="p_add">+			  struct kvm_s2_trans *nested,</span>
+<span class="p_add">+			  struct kvm_memory_slot *memslot,</span>
+<span class="p_add">+			  unsigned long hva, unsigned long fault_status)</span>
+ {
+ 	int ret;
+ 	bool write_fault, writable, hugetlb = false, force_pte = false;
+ 	unsigned long mmu_seq;
+<span class="p_del">-	gfn_t gfn = fault_ipa &gt;&gt; PAGE_SHIFT;</span>
+<span class="p_add">+	phys_addr_t ipa = fault_ipa;</span>
+<span class="p_add">+	gfn_t gfn;</span>
+ 	struct kvm *kvm = vcpu-&gt;kvm;
+ 	struct kvm_mmu_memory_cache *memcache = &amp;vcpu-&gt;arch.mmu_page_cache;
+ 	struct vm_area_struct *vma;
+<span class="p_chunk">@@ -1368,9 +1372,23 @@</span> <span class="p_context"> static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,</span>
+ 		return -EFAULT;
+ 	}
+ 
+<span class="p_del">-	if (is_vm_hugetlb_page(vma) &amp;&amp; !logging_active) {</span>
+<span class="p_add">+	if (kvm_is_shadow_s2_fault(vcpu)) {</span>
+<span class="p_add">+		ipa = nested-&gt;output;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * If we&#39;re about to create a shadow stage 2 entry, then we</span>
+<span class="p_add">+		 * can only create huge mappings if the guest hypervisor also</span>
+<span class="p_add">+		 * uses a huge mapping.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (nested-&gt;block_size != PMD_SIZE)</span>
+<span class="p_add">+			force_pte = true;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	gfn = ipa &gt;&gt; PAGE_SHIFT;</span>
+<span class="p_add">+</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!force_pte &amp;&amp; is_vm_hugetlb_page(vma) &amp;&amp; !logging_active) {</span>
+ 		hugetlb = true;
+<span class="p_del">-		gfn = (fault_ipa &amp; PMD_MASK) &gt;&gt; PAGE_SHIFT;</span>
+<span class="p_add">+		gfn = (ipa &amp; PMD_MASK) &gt;&gt; PAGE_SHIFT;</span>
+ 	} else {
+ 		/*
+ 		 * Pages belonging to memslots that don&#39;t have the same
+<span class="p_chunk">@@ -1438,7 +1456,7 @@</span> <span class="p_context"> static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,</span>
+ 		goto out_unlock;
+ 
+ 	if (!hugetlb &amp;&amp; !force_pte)
+<span class="p_del">-		hugetlb = transparent_hugepage_adjust(&amp;pfn, &amp;fault_ipa);</span>
+<span class="p_add">+		hugetlb = transparent_hugepage_adjust(&amp;pfn, &amp;ipa, &amp;fault_ipa);</span>
+ 
+ 	if (hugetlb) {
+ 		pmd_t new_pmd = pfn_pmd(pfn, mem_type);
+<span class="p_chunk">@@ -1525,8 +1543,10 @@</span> <span class="p_context"> static void handle_access_fault(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa)</span>
+ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)
+ {
+ 	unsigned long fault_status;
+<span class="p_del">-	phys_addr_t fault_ipa;</span>
+<span class="p_add">+	phys_addr_t fault_ipa; /* The address we faulted on */</span>
+<span class="p_add">+	phys_addr_t ipa; /* Always the IPA in the L1 guest phys space */</span>
+ 	struct kvm_memory_slot *memslot;
+<span class="p_add">+	struct kvm_s2_trans nested_trans;</span>
+ 	unsigned long hva;
+ 	bool is_iabt, write_fault, writable;
+ 	gfn_t gfn;
+<span class="p_chunk">@@ -1538,7 +1558,7 @@</span> <span class="p_context"> int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)</span>
+ 		return 1;
+ 	}
+ 
+<span class="p_del">-	fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);</span>
+<span class="p_add">+	ipa = fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);</span>
+ 
+ 	trace_kvm_guest_fault(*vcpu_pc(vcpu), kvm_vcpu_get_hsr(vcpu),
+ 			      kvm_vcpu_get_hfar(vcpu), fault_ipa);
+<span class="p_chunk">@@ -1547,6 +1567,12 @@</span> <span class="p_context"> int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)</span>
+ 	fault_status = kvm_vcpu_trap_get_fault_type(vcpu);
+ 	if (fault_status != FSC_FAULT &amp;&amp; fault_status != FSC_PERM &amp;&amp;
+ 	    fault_status != FSC_ACCESS) {
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * We must never see an address size fault on shadow stage 2</span>
+<span class="p_add">+		 * page table walk, because we would have injected an addr</span>
+<span class="p_add">+		 * size fault when we walked the nested s2 page and not</span>
+<span class="p_add">+		 * create the shadow entry.</span>
+<span class="p_add">+		 */</span>
+ 		kvm_err(&quot;Unsupported FSC: EC=%#x xFSC=%#lx ESR_EL2=%#lx\n&quot;,
+ 			kvm_vcpu_trap_get_class(vcpu),
+ 			(unsigned long)kvm_vcpu_trap_get_fault(vcpu),
+<span class="p_chunk">@@ -1556,7 +1582,27 @@</span> <span class="p_context"> int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)</span>
+ 
+ 	idx = srcu_read_lock(&amp;vcpu-&gt;kvm-&gt;srcu);
+ 
+<span class="p_del">-	gfn = fault_ipa &gt;&gt; PAGE_SHIFT;</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * We may have faulted on a shadow stage 2 page table if we are</span>
+<span class="p_add">+	 * running a nested guest.  In this case, we have to resovle the L2</span>
+<span class="p_add">+	 * IPA to the L1 IPA first, before knowing what kind of memory should</span>
+<span class="p_add">+	 * back the L1 IPA.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * If the shadow stage 2 page table walk faults, then we simply inject</span>
+<span class="p_add">+	 * this to the guest and carry on.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (kvm_is_shadow_s2_fault(vcpu)) {</span>
+<span class="p_add">+		nested_trans.esr = 0;</span>
+<span class="p_add">+		ret = kvm_walk_nested_s2(vcpu, fault_ipa, &amp;nested_trans);</span>
+<span class="p_add">+		if (nested_trans.esr)</span>
+<span class="p_add">+			kvm_inject_s2_fault(vcpu, nested_trans.esr);</span>
+<span class="p_add">+		if (ret)</span>
+<span class="p_add">+			goto out_unlock;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		ipa = nested_trans.output;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	gfn = ipa &gt;&gt; PAGE_SHIFT;</span>
+ 	memslot = gfn_to_memslot(vcpu-&gt;kvm, gfn);
+ 	hva = gfn_to_hva_memslot_prot(memslot, gfn, &amp;writable);
+ 	write_fault = kvm_is_write_fault(vcpu);
+<span class="p_chunk">@@ -1590,13 +1636,13 @@</span> <span class="p_context"> int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)</span>
+ 		 * faulting VA. This is always 12 bits, irrespective
+ 		 * of the page size.
+ 		 */
+<span class="p_del">-		fault_ipa |= kvm_vcpu_get_hfar(vcpu) &amp; ((1 &lt;&lt; 12) - 1);</span>
+<span class="p_del">-		ret = io_mem_abort(vcpu, run, fault_ipa);</span>
+<span class="p_add">+		ipa |= kvm_vcpu_get_hfar(vcpu) &amp; ((1 &lt;&lt; 12) - 1);</span>
+<span class="p_add">+		ret = io_mem_abort(vcpu, run, ipa);</span>
+ 		goto out_unlock;
+ 	}
+ 
+ 	/* Userspace should not be able to register out-of-bounds IPAs */
+<span class="p_del">-	VM_BUG_ON(fault_ipa &gt;= KVM_PHYS_SIZE);</span>
+<span class="p_add">+	VM_BUG_ON(ipa &gt;= KVM_PHYS_SIZE);</span>
+ 
+ 	if (fault_status == FSC_ACCESS) {
+ 		handle_access_fault(vcpu, fault_ipa);
+<span class="p_chunk">@@ -1604,7 +1650,8 @@</span> <span class="p_context"> int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run)</span>
+ 		goto out_unlock;
+ 	}
+ 
+<span class="p_del">-	ret = user_mem_abort(vcpu, fault_ipa, memslot, hva, fault_status);</span>
+<span class="p_add">+	ret = user_mem_abort(vcpu, fault_ipa, &amp;nested_trans,</span>
+<span class="p_add">+			     memslot, hva, fault_status);</span>
+ 	if (ret == 0)
+ 		ret = 1;
+ out_unlock:
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

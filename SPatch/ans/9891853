@@ -1,0 +1,671 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[4.4,18/58] mm, mprotect: flush TLB if potentially racing with a parallel reclaim leaving stale TLB entries - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [4.4,18/58] mm, mprotect: flush TLB if potentially racing with a parallel reclaim leaving stale TLB entries</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=37061">gregkh@linuxfoundation.org</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Aug. 9, 2017, 7:41 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170809194147.234463750@linuxfoundation.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9891853/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9891853/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9891853/">/patch/9891853/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	8B36260384 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  9 Aug 2017 19:53:07 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 7B2AC28816
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  9 Aug 2017 19:53:07 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 700A428A8D; Wed,  9 Aug 2017 19:53:07 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id EE24F28816
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  9 Aug 2017 19:53:03 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752408AbdHITnE (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 9 Aug 2017 15:43:04 -0400
+Received: from mail.linuxfoundation.org ([140.211.169.12]:45312 &quot;EHLO
+	mail.linuxfoundation.org&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752339AbdHITnB (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 9 Aug 2017 15:43:01 -0400
+Received: from localhost (unknown [104.132.0.100])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id DD21DBC9;
+	Wed,  9 Aug 2017 19:42:32 +0000 (UTC)
+From: Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;,
+	stable@vger.kernel.org, Nadav Amit &lt;nadav.amit@gmail.com&gt;,
+	Mel Gorman &lt;mgorman@suse.de&gt;, Andy Lutomirski &lt;luto@kernel.org&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+Subject: [PATCH 4.4 18/58] mm,
+	mprotect: flush TLB if potentially racing with a parallel reclaim
+	leaving stale TLB entries
+Date: Wed,  9 Aug 2017 12:41:30 -0700
+Message-Id: &lt;20170809194147.234463750@linuxfoundation.org&gt;
+X-Mailer: git-send-email 2.14.0
+In-Reply-To: &lt;20170809194146.501519882@linuxfoundation.org&gt;
+References: &lt;20170809194146.501519882@linuxfoundation.org&gt;
+User-Agent: quilt/0.65
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=37061">gregkh@linuxfoundation.org</a> - Aug. 9, 2017, 7:41 p.m.</div>
+<pre class="content">
+4.4-stable review patch.  If anyone has any objections, please let me know.
+
+------------------
+<span class="from">
+From: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+
+commit 3ea277194daaeaa84ce75180ec7c7a2075027a68 upstream.
+
+Stable note for 4.4: The upstream patch patches madvise(MADV_FREE) but 4.4
+	does not have support for that feature. The changelog is left
+	as-is but the hunk related to madvise is omitted from the backport.
+
+Nadav Amit identified a theoritical race between page reclaim and
+mprotect due to TLB flushes being batched outside of the PTL being held.
+
+He described the race as follows:
+
+        CPU0                            CPU1
+        ----                            ----
+                                        user accesses memory using RW PTE
+                                        [PTE now cached in TLB]
+        try_to_unmap_one()
+        ==&gt; ptep_get_and_clear()
+        ==&gt; set_tlb_ubc_flush_pending()
+                                        mprotect(addr, PROT_READ)
+                                        ==&gt; change_pte_range()
+                                        ==&gt; [ PTE non-present - no flush ]
+
+                                        user writes using cached RW PTE
+        ...
+
+        try_to_unmap_flush()
+
+The same type of race exists for reads when protecting for PROT_NONE and
+also exists for operations that can leave an old TLB entry behind such
+as munmap, mremap and madvise.
+
+For some operations like mprotect, it&#39;s not necessarily a data integrity
+issue but it is a correctness issue as there is a window where an
+mprotect that limits access still allows access.  For munmap, it&#39;s
+potentially a data integrity issue although the race is massive as an
+munmap, mmap and return to userspace must all complete between the
+window when reclaim drops the PTL and flushes the TLB.  However, it&#39;s
+theoritically possible so handle this issue by flushing the mm if
+reclaim is potentially currently batching TLB flushes.
+
+Other instances where a flush is required for a present pte should be ok
+as either the page lock is held preventing parallel reclaim or a page
+reference count is elevated preventing a parallel free leading to
+corruption.  In the case of page_mkclean there isn&#39;t an obvious path
+that userspace could take advantage of without using the operations that
+are guarded by this patch.  Other users such as gup as a race with
+reclaim looks just at PTEs.  huge page variants should be ok as they
+don&#39;t race with reclaim.  mincore only looks at PTEs.  userfault also
+should be ok as if a parallel reclaim takes place, it will either fault
+the page back in or read some of the data before the flush occurs
+triggering a fault.
+
+Note that a variant of this patch was acked by Andy Lutomirski but this
+was for the x86 parts on top of his PCID work which didn&#39;t make the 4.13
+merge window as expected.  His ack is dropped from this version and
+there will be a follow-on patch on top of PCID that will include his
+ack.
+
+[akpm@linux-foundation.org: tweak comments]
+[akpm@linux-foundation.org: fix spello]
+Link: http://lkml.kernel.org/r/20170717155523.emckq2esjro6hf3z@suse.de
+Reported-by: Nadav Amit &lt;nadav.amit@gmail.com&gt;
+<span class="signed-off-by">Signed-off-by: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+Cc: Andy Lutomirski &lt;luto@kernel.org&gt;
+<span class="signed-off-by">Signed-off-by: Andrew Morton &lt;akpm@linux-foundation.org&gt;</span>
+<span class="signed-off-by">Signed-off-by: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;</span>
+<span class="signed-off-by">Signed-off-by: Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;</span>
+---
+ include/linux/mm_types.h |    4 ++++
+ mm/internal.h            |    5 ++++-
+ mm/memory.c              |    1 +
+ mm/mprotect.c            |    1 +
+ mm/mremap.c              |    1 +
+ mm/rmap.c                |   36 ++++++++++++++++++++++++++++++++++++
+ 6 files changed, 47 insertions(+), 1 deletion(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=91021">Ben Hutchings</a> - Aug. 11, 2017, 5:45 p.m.</div>
+<pre class="content">
+On Wed, 2017-08-09 at 12:41 -0700, Greg Kroah-Hartman wrote:
+<span class="quote">&gt; 4.4-stable review patch.  If anyone has any objections, please let me know.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; ------------------</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; From: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; commit 3ea277194daaeaa84ce75180ec7c7a2075027a68 upstream.</span>
+[...]
+<span class="quote">&gt; +/*</span>
+<span class="quote">&gt; + * Reclaim unmaps pages under the PTL but do not flush the TLB prior to</span>
+<span class="quote">&gt; + * releasing the PTL if TLB flushes are batched. It&#39;s possible for a parallel</span>
+<span class="quote">&gt; + * operation such as mprotect or munmap to race between reclaim unmapping</span>
+<span class="quote">&gt; + * the page and flushing the page. If this race occurs, it potentially allows</span>
+<span class="quote">&gt; + * access to data via a stale TLB entry. Tracking all mm&#39;s that have TLB</span>
+<span class="quote">&gt; + * batching in flight would be expensive during reclaim so instead track</span>
+<span class="quote">&gt; + * whether TLB batching occurred in the past and if so then do a flush here</span>
+<span class="quote">&gt; + * if required. This will cost one additional flush per reclaim cycle paid</span>
+<span class="quote">&gt; + * by the first operation at risk such as mprotect and mumap.</span>
+<span class="quote">&gt; + *</span>
+<span class="quote">&gt; + * This must be called under the PTL so that an access to tlb_flush_batched</span>
+<span class="quote">&gt; + * that is potentially a &quot;reclaim vs mprotect/munmap/etc&quot; race will synchronise</span>
+<span class="quote">&gt; + * via the PTL.</span>
+
+What about USE_SPLIT_PTE_PTLOCKS?  I don&#39;t see how you can use &quot;the PTL&quot;
+to synchronise access to a per-mm flag.
+
+Ben.
+<span class="quote">
+&gt; + */</span>
+<span class="quote">&gt; +void flush_tlb_batched_pending(struct mm_struct *mm)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	if (mm-&gt;tlb_flush_batched) {</span>
+<span class="quote">&gt; +		flush_tlb_mm(mm);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +		/*</span>
+<span class="quote">&gt; +		 * Do not allow the compiler to re-order the clearing of</span>
+<span class="quote">&gt; +		 * tlb_flush_batched before the tlb is flushed.</span>
+<span class="quote">&gt; +		 */</span>
+<span class="quote">&gt; +		barrier();</span>
+<span class="quote">&gt; +		mm-&gt;tlb_flush_batched = false;</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt;  #else</span>
+<span class="quote">&gt;  static void set_tlb_ubc_flush_pending(struct mm_struct *mm,</span>
+<span class="quote">&gt;  		struct page *page, bool writable)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=55071">Nadav Amit</a> - Aug. 13, 2017, 6:27 a.m.</div>
+<pre class="content">
+Ben Hutchings &lt;ben.hutchings@codethink.co.uk&gt; wrote:
+<span class="quote">
+&gt; On Wed, 2017-08-09 at 12:41 -0700, Greg Kroah-Hartman wrote:</span>
+<span class="quote">&gt;&gt; 4.4-stable review patch.  If anyone has any objections, please let me know.</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; ------------------</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; From: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; commit 3ea277194daaeaa84ce75180ec7c7a2075027a68 upstream.</span>
+<span class="quote">&gt; [...]</span>
+<span class="quote">&gt;&gt; +/*</span>
+<span class="quote">&gt;&gt; + * Reclaim unmaps pages under the PTL but do not flush the TLB prior to</span>
+<span class="quote">&gt;&gt; + * releasing the PTL if TLB flushes are batched. It&#39;s possible for a parallel</span>
+<span class="quote">&gt;&gt; + * operation such as mprotect or munmap to race between reclaim unmapping</span>
+<span class="quote">&gt;&gt; + * the page and flushing the page. If this race occurs, it potentially allows</span>
+<span class="quote">&gt;&gt; + * access to data via a stale TLB entry. Tracking all mm&#39;s that have TLB</span>
+<span class="quote">&gt;&gt; + * batching in flight would be expensive during reclaim so instead track</span>
+<span class="quote">&gt;&gt; + * whether TLB batching occurred in the past and if so then do a flush here</span>
+<span class="quote">&gt;&gt; + * if required. This will cost one additional flush per reclaim cycle paid</span>
+<span class="quote">&gt;&gt; + * by the first operation at risk such as mprotect and mumap.</span>
+<span class="quote">&gt;&gt; + *</span>
+<span class="quote">&gt;&gt; + * This must be called under the PTL so that an access to tlb_flush_batched</span>
+<span class="quote">&gt;&gt; + * that is potentially a &quot;reclaim vs mprotect/munmap/etc&quot; race will synchronise</span>
+<span class="quote">&gt;&gt; + * via the PTL.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; What about USE_SPLIT_PTE_PTLOCKS?  I don&#39;t see how you can use &quot;the PTL&quot;</span>
+<span class="quote">&gt; to synchronise access to a per-mm flag.</span>
+
+Although it is a per-mm flag, the only situations we care about it are those
+in which “the PTL” (i.e. the same PTL) is accessed by both the reclaimer
+(which batches the flushes) and mprotect/munmap/etc.
+
+Nadav
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=24451">Mel Gorman</a> - Aug. 14, 2017, 8 a.m.</div>
+<pre class="content">
+On Fri, Aug 11, 2017 at 06:45:49PM +0100, Ben Hutchings wrote:
+<span class="quote">&gt; On Wed, 2017-08-09 at 12:41 -0700, Greg Kroah-Hartman wrote:</span>
+<span class="quote">&gt; &gt; 4.4-stable review patch.  If anyone has any objections, please let me know.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; ------------------</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; From: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; commit 3ea277194daaeaa84ce75180ec7c7a2075027a68 upstream.</span>
+<span class="quote">&gt; [...]</span>
+<span class="quote">&gt; &gt; +/*</span>
+<span class="quote">&gt; &gt; + * Reclaim unmaps pages under the PTL but do not flush the TLB prior to</span>
+<span class="quote">&gt; &gt; + * releasing the PTL if TLB flushes are batched. It&#39;s possible for a parallel</span>
+<span class="quote">&gt; &gt; + * operation such as mprotect or munmap to race between reclaim unmapping</span>
+<span class="quote">&gt; &gt; + * the page and flushing the page. If this race occurs, it potentially allows</span>
+<span class="quote">&gt; &gt; + * access to data via a stale TLB entry. Tracking all mm&#39;s that have TLB</span>
+<span class="quote">&gt; &gt; + * batching in flight would be expensive during reclaim so instead track</span>
+<span class="quote">&gt; &gt; + * whether TLB batching occurred in the past and if so then do a flush here</span>
+<span class="quote">&gt; &gt; + * if required. This will cost one additional flush per reclaim cycle paid</span>
+<span class="quote">&gt; &gt; + * by the first operation at risk such as mprotect and mumap.</span>
+<span class="quote">&gt; &gt; + *</span>
+<span class="quote">&gt; &gt; + * This must be called under the PTL so that an access to tlb_flush_batched</span>
+<span class="quote">&gt; &gt; + * that is potentially a &quot;reclaim vs mprotect/munmap/etc&quot; race will synchronise</span>
+<span class="quote">&gt; &gt; + * via the PTL.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; What about USE_SPLIT_PTE_PTLOCKS?  I don&#39;t see how you can use &quot;the PTL&quot;</span>
+<span class="quote">&gt; to synchronise access to a per-mm flag.</span>
+<span class="quote">&gt; </span>
+
+In this context, the primary concern is a race with clearing and
+checking PTEs at the location protected by a single PTL lock. While the
+flag in question is a per-mm flag, the ordering only matters when a race
+can potentially occur.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=91021">Ben Hutchings</a> - Aug. 15, 2017, 1:36 p.m.</div>
+<pre class="content">
+On Sat, 2017-08-12 at 23:27 -0700, Nadav Amit wrote:
+<span class="quote">&gt; Ben Hutchings &lt;ben.hutchings@codethink.co.uk&gt; wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; On Wed, 2017-08-09 at 12:41 -0700, Greg Kroah-Hartman wrote:</span>
+<span class="quote">&gt; &gt;&gt; 4.4-stable review patch.  If anyone has any objections, please let me know.</span>
+<span class="quote">&gt; &gt;&gt; </span>
+<span class="quote">&gt; &gt;&gt; ------------------</span>
+<span class="quote">&gt; &gt;&gt; </span>
+<span class="quote">&gt; &gt;&gt; From: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+<span class="quote">&gt; &gt;&gt; </span>
+<span class="quote">&gt; &gt;&gt; commit 3ea277194daaeaa84ce75180ec7c7a2075027a68 upstream.</span>
+<span class="quote">&gt; &gt; [...]</span>
+<span class="quote">&gt; &gt;&gt; +/*</span>
+<span class="quote">&gt; &gt;&gt; + * Reclaim unmaps pages under the PTL but do not flush the TLB prior to</span>
+<span class="quote">&gt; &gt;&gt; + * releasing the PTL if TLB flushes are batched. It&#39;s possible for a parallel</span>
+<span class="quote">&gt; &gt;&gt; + * operation such as mprotect or munmap to race between reclaim unmapping</span>
+<span class="quote">&gt; &gt;&gt; + * the page and flushing the page. If this race occurs, it potentially allows</span>
+<span class="quote">&gt; &gt;&gt; + * access to data via a stale TLB entry. Tracking all mm&#39;s that have TLB</span>
+<span class="quote">&gt; &gt;&gt; + * batching in flight would be expensive during reclaim so instead track</span>
+<span class="quote">&gt; &gt;&gt; + * whether TLB batching occurred in the past and if so then do a flush here</span>
+<span class="quote">&gt; &gt;&gt; + * if required. This will cost one additional flush per reclaim cycle paid</span>
+<span class="quote">&gt; &gt;&gt; + * by the first operation at risk such as mprotect and mumap.</span>
+<span class="quote">&gt; &gt;&gt; + *</span>
+<span class="quote">&gt; &gt;&gt; + * This must be called under the PTL so that an access to tlb_flush_batched</span>
+<span class="quote">&gt; &gt;&gt; + * that is potentially a &quot;reclaim vs mprotect/munmap/etc&quot; race will synchronise</span>
+<span class="quote">&gt; &gt;&gt; + * via the PTL.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; What about USE_SPLIT_PTE_PTLOCKS?  I don&#39;t see how you can use &quot;the PTL&quot;</span>
+<span class="quote">&gt; &gt; to synchronise access to a per-mm flag.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Although it is a per-mm flag, the only situations we care about it are those</span>
+<span class="quote">&gt; in which “the PTL” (i.e. the same PTL) is accessed by both the reclaimer</span>
+<span class="quote">&gt; (which batches the flushes) and mprotect/munmap/etc.</span>
+
+Is there anything that presents this sequence?
+
+P0                              P1                             P2
+--                              --                             --
+
+change_pte_range() [ptl=X]
+-&gt; flush_tlb_batch_pending()
+   -&gt; flush_tlb_mm()
+                                try_to_unmap_one() [ptl=Y]
+                                -&gt; set_tlb_ubc_flush_pending()
+                                   -&gt; tlb_flush_batched = true
+   -&gt; tlb_flush_batched = false
+
+change_pte_range() [ptl=Y]
+                                                               -&gt;
+flush_tlb_batch_pending()
+                                                                  (nop)
+
+Ben.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=55071">Nadav Amit</a> - Aug. 15, 2017, 4:39 p.m.</div>
+<pre class="content">
+Ben Hutchings &lt;ben.hutchings@codethink.co.uk&gt; wrote:
+<span class="quote">
+&gt; On Sat, 2017-08-12 at 23:27 -0700, Nadav Amit wrote:</span>
+<span class="quote">&gt;&gt; Ben Hutchings &lt;ben.hutchings@codethink.co.uk&gt; wrote:</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt;&gt; On Wed, 2017-08-09 at 12:41 -0700, Greg Kroah-Hartman wrote:</span>
+<span class="quote">&gt;&gt;&gt;&gt; 4.4-stable review patch.  If anyone has any objections, please let me know.</span>
+<span class="quote">&gt;&gt;&gt;&gt; </span>
+<span class="quote">&gt;&gt;&gt;&gt; ------------------</span>
+<span class="quote">&gt;&gt;&gt;&gt; </span>
+<span class="quote">&gt;&gt;&gt;&gt; From: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; </span>
+<span class="quote">&gt;&gt;&gt;&gt; commit 3ea277194daaeaa84ce75180ec7c7a2075027a68 upstream.</span>
+<span class="quote">&gt;&gt;&gt; [...]</span>
+<span class="quote">&gt;&gt;&gt;&gt; +/*</span>
+<span class="quote">&gt;&gt;&gt;&gt; + * Reclaim unmaps pages under the PTL but do not flush the TLB prior to</span>
+<span class="quote">&gt;&gt;&gt;&gt; + * releasing the PTL if TLB flushes are batched. It&#39;s possible for a parallel</span>
+<span class="quote">&gt;&gt;&gt;&gt; + * operation such as mprotect or munmap to race between reclaim unmapping</span>
+<span class="quote">&gt;&gt;&gt;&gt; + * the page and flushing the page. If this race occurs, it potentially allows</span>
+<span class="quote">&gt;&gt;&gt;&gt; + * access to data via a stale TLB entry. Tracking all mm&#39;s that have TLB</span>
+<span class="quote">&gt;&gt;&gt;&gt; + * batching in flight would be expensive during reclaim so instead track</span>
+<span class="quote">&gt;&gt;&gt;&gt; + * whether TLB batching occurred in the past and if so then do a flush here</span>
+<span class="quote">&gt;&gt;&gt;&gt; + * if required. This will cost one additional flush per reclaim cycle paid</span>
+<span class="quote">&gt;&gt;&gt;&gt; + * by the first operation at risk such as mprotect and mumap.</span>
+<span class="quote">&gt;&gt;&gt;&gt; + *</span>
+<span class="quote">&gt;&gt;&gt;&gt; + * This must be called under the PTL so that an access to tlb_flush_batched</span>
+<span class="quote">&gt;&gt;&gt;&gt; + * that is potentially a &quot;reclaim vs mprotect/munmap/etc&quot; race will synchronise</span>
+<span class="quote">&gt;&gt;&gt;&gt; + * via the PTL.</span>
+<span class="quote">&gt;&gt;&gt; </span>
+<span class="quote">&gt;&gt;&gt; What about USE_SPLIT_PTE_PTLOCKS?  I don&#39;t see how you can use &quot;the PTL&quot;</span>
+<span class="quote">&gt;&gt;&gt; to synchronise access to a per-mm flag.</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; Although it is a per-mm flag, the only situations we care about it are those</span>
+<span class="quote">&gt;&gt; in which “the PTL” (i.e. the same PTL) is accessed by both the reclaimer</span>
+<span class="quote">&gt;&gt; (which batches the flushes) and mprotect/munmap/etc.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Is there anything that presents this sequence?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; P0                              P1                             P2</span>
+<span class="quote">&gt; --                              --                             --</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; change_pte_range() [ptl=X]</span>
+<span class="quote">&gt; -&gt; flush_tlb_batch_pending()</span>
+<span class="quote">&gt;   -&gt; flush_tlb_mm()</span>
+<span class="quote">&gt;                                try_to_unmap_one() [ptl=Y]</span>
+<span class="quote">&gt;                                -&gt; set_tlb_ubc_flush_pending()</span>
+<span class="quote">&gt;                                   -&gt; tlb_flush_batched = true</span>
+<span class="quote">&gt;   -&gt; tlb_flush_batched = false</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; change_pte_range() [ptl=Y]</span>
+<span class="quote">&gt;                                                               -&gt;</span>
+<span class="quote">&gt; flush_tlb_batch_pending()</span>
+<span class="quote">&gt;                                                                  (nop)</span>
+
+I think (but not sure) that you regard a similar concern I raised before.
+Mel gave an answer [1], but I cannot say I feel very comfortable with it.
+
+[1] http://www.spinics.net/lists/linux-mm/msg131265.html
+
+Nadav
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- a/include/linux/mm_types.h</span>
+<span class="p_header">+++ b/include/linux/mm_types.h</span>
+<span class="p_chunk">@@ -504,6 +504,10 @@</span> <span class="p_context"> struct mm_struct {</span>
+ 	 */
+ 	bool tlb_flush_pending;
+ #endif
+<span class="p_add">+#ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH</span>
+<span class="p_add">+	/* See flush_tlb_batched_pending() */</span>
+<span class="p_add">+	bool tlb_flush_batched;</span>
+<span class="p_add">+#endif</span>
+ 	struct uprobes_state uprobes_state;
+ #ifdef CONFIG_X86_INTEL_MPX
+ 	/* address of the bounds directory */
+<span class="p_header">--- a/mm/internal.h</span>
+<span class="p_header">+++ b/mm/internal.h</span>
+<span class="p_chunk">@@ -453,6 +453,7 @@</span> <span class="p_context"> struct tlbflush_unmap_batch;</span>
+ #ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
+ void try_to_unmap_flush(void);
+ void try_to_unmap_flush_dirty(void);
+<span class="p_add">+void flush_tlb_batched_pending(struct mm_struct *mm);</span>
+ #else
+ static inline void try_to_unmap_flush(void)
+ {
+<span class="p_chunk">@@ -460,6 +461,8 @@</span> <span class="p_context"> static inline void try_to_unmap_flush(vo</span>
+ static inline void try_to_unmap_flush_dirty(void)
+ {
+ }
+<span class="p_del">-</span>
+<span class="p_add">+static inline void flush_tlb_batched_pending(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+ #endif /* CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH */
+ #endif	/* __MM_INTERNAL_H */
+<span class="p_header">--- a/mm/memory.c</span>
+<span class="p_header">+++ b/mm/memory.c</span>
+<span class="p_chunk">@@ -1127,6 +1127,7 @@</span> <span class="p_context"> again:</span>
+ 	init_rss_vec(rss);
+ 	start_pte = pte_offset_map_lock(mm, pmd, addr, &amp;ptl);
+ 	pte = start_pte;
+<span class="p_add">+	flush_tlb_batched_pending(mm);</span>
+ 	arch_enter_lazy_mmu_mode();
+ 	do {
+ 		pte_t ptent = *pte;
+<span class="p_header">--- a/mm/mprotect.c</span>
+<span class="p_header">+++ b/mm/mprotect.c</span>
+<span class="p_chunk">@@ -72,6 +72,7 @@</span> <span class="p_context"> static unsigned long change_pte_range(st</span>
+ 	if (!pte)
+ 		return 0;
+ 
+<span class="p_add">+	flush_tlb_batched_pending(vma-&gt;vm_mm);</span>
+ 	arch_enter_lazy_mmu_mode();
+ 	do {
+ 		oldpte = *pte;
+<span class="p_header">--- a/mm/mremap.c</span>
+<span class="p_header">+++ b/mm/mremap.c</span>
+<span class="p_chunk">@@ -135,6 +135,7 @@</span> <span class="p_context"> static void move_ptes(struct vm_area_str</span>
+ 	new_ptl = pte_lockptr(mm, new_pmd);
+ 	if (new_ptl != old_ptl)
+ 		spin_lock_nested(new_ptl, SINGLE_DEPTH_NESTING);
+<span class="p_add">+	flush_tlb_batched_pending(vma-&gt;vm_mm);</span>
+ 	arch_enter_lazy_mmu_mode();
+ 
+ 	for (; old_addr &lt; old_end; old_pte++, old_addr += PAGE_SIZE,
+<span class="p_header">--- a/mm/rmap.c</span>
+<span class="p_header">+++ b/mm/rmap.c</span>
+<span class="p_chunk">@@ -649,6 +649,13 @@</span> <span class="p_context"> static void set_tlb_ubc_flush_pending(st</span>
+ 	tlb_ubc-&gt;flush_required = true;
+ 
+ 	/*
+<span class="p_add">+	 * Ensure compiler does not re-order the setting of tlb_flush_batched</span>
+<span class="p_add">+	 * before the PTE is cleared.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	barrier();</span>
+<span class="p_add">+	mm-&gt;tlb_flush_batched = true;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+ 	 * If the PTE was dirty then it&#39;s best to assume it&#39;s writable. The
+ 	 * caller must use try_to_unmap_flush_dirty() or try_to_unmap_flush()
+ 	 * before the page is queued for IO.
+<span class="p_chunk">@@ -675,6 +682,35 @@</span> <span class="p_context"> static bool should_defer_flush(struct mm</span>
+ 
+ 	return should_defer;
+ }
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Reclaim unmaps pages under the PTL but do not flush the TLB prior to</span>
+<span class="p_add">+ * releasing the PTL if TLB flushes are batched. It&#39;s possible for a parallel</span>
+<span class="p_add">+ * operation such as mprotect or munmap to race between reclaim unmapping</span>
+<span class="p_add">+ * the page and flushing the page. If this race occurs, it potentially allows</span>
+<span class="p_add">+ * access to data via a stale TLB entry. Tracking all mm&#39;s that have TLB</span>
+<span class="p_add">+ * batching in flight would be expensive during reclaim so instead track</span>
+<span class="p_add">+ * whether TLB batching occurred in the past and if so then do a flush here</span>
+<span class="p_add">+ * if required. This will cost one additional flush per reclaim cycle paid</span>
+<span class="p_add">+ * by the first operation at risk such as mprotect and mumap.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This must be called under the PTL so that an access to tlb_flush_batched</span>
+<span class="p_add">+ * that is potentially a &quot;reclaim vs mprotect/munmap/etc&quot; race will synchronise</span>
+<span class="p_add">+ * via the PTL.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+void flush_tlb_batched_pending(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (mm-&gt;tlb_flush_batched) {</span>
+<span class="p_add">+		flush_tlb_mm(mm);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Do not allow the compiler to re-order the clearing of</span>
+<span class="p_add">+		 * tlb_flush_batched before the tlb is flushed.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		barrier();</span>
+<span class="p_add">+		mm-&gt;tlb_flush_batched = false;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+ #else
+ static void set_tlb_ubc_flush_pending(struct mm_struct *mm,
+ 		struct page *page, bool writable)
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,366 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v3] mm: vmalloc: Replace purge_lock spinlock with atomic refcount - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v3] mm: vmalloc: Replace purge_lock spinlock with atomic refcount</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=101">Christoph Hellwig</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Oct. 15, 2016, 4:46 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20161015164613.GA26079@infradead.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9377849/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9377849/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9377849/">/patch/9377849/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	D270C6075E for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 15 Oct 2016 16:46:30 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id C271D2943C
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 15 Oct 2016 16:46:30 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id B3CAD29444; Sat, 15 Oct 2016 16:46:30 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 4549C2943C
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 15 Oct 2016 16:46:30 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1754807AbcJOQqY (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Sat, 15 Oct 2016 12:46:24 -0400
+Received: from bombadil.infradead.org ([198.137.202.9]:33208 &quot;EHLO
+	bombadil.infradead.org&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751488AbcJOQqP (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Sat, 15 Oct 2016 12:46:15 -0400
+Received: from hch by bombadil.infradead.org with local (Exim 4.85_2 #1 (Red
+	Hat Linux)) id 1bvS6A-00083u-0S; Sat, 15 Oct 2016 16:46:14 +0000
+Date: Sat, 15 Oct 2016 09:46:13 -0700
+From: Christoph Hellwig &lt;hch@infradead.org&gt;
+To: Joel Fernandes &lt;joelaf@google.com&gt;
+Cc: linux-kernel@vger.kernel.org, linux-rt-users@vger.kernel.org,
+	Chris Wilson &lt;chris@chris-wilson.co.uk&gt;,
+	Jisheng Zhang &lt;jszhang@marvell.com&gt;, John Dias &lt;joaodias@google.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	&quot;open list:MEMORY MANAGEMENT&quot; &lt;linux-mm@kvack.org&gt;
+Subject: Re: [PATCH v3] mm: vmalloc: Replace purge_lock spinlock with atomic
+	refcount
+Message-ID: &lt;20161015164613.GA26079@infradead.org&gt;
+References: &lt;1476535979-27467-1-git-send-email-joelaf@google.com&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: &lt;1476535979-27467-1-git-send-email-joelaf@google.com&gt;
+User-Agent: Mutt/1.6.1 (2016-04-27)
+X-SRS-Rewrite: SMTP reverse-path rewritten from &lt;hch@infradead.org&gt; by
+	bombadil.infradead.org. See http://www.infradead.org/rpr.html
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=101">Christoph Hellwig</a> - Oct. 15, 2016, 4:46 p.m.</div>
+<pre class="content">
+atomic_t magic for llocking is always a bit iffy.
+
+The real question is: what is purge_lock even supposed to protect?
+
+ - purge_fragmented_blocks seems to have it&#39;s own local protection.
+ - all handling of of valist is implicity protected by the atomic
+   list deletion in llist_del_all
+ - the manipulation of vmap_lazy_nr already is atomic
+ - flush_tlb_kernel_range should not require any synchronization
+ - the calls to __free_vmap_area are sychronized by vmap_area_lock
+ - *start and *end always point to on-stack variables, never mind
+   that the caller never looks at the updated values anyway.
+
+And once we use the cmpxchg in llist_del_all as the effectit protection
+against multiple concurrent callers (slightly sloopy) there just be
+nothing else to synchronize.
+
+And while we&#39;re at it the code structure here is totally grotty.
+
+So what about the patch below (only boot tested):
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/vmalloc.c b/mm/vmalloc.c</span>
+<span class="p_header">index f2481cb..c2b9a98 100644</span>
+<span class="p_header">--- a/mm/vmalloc.c</span>
+<span class="p_header">+++ b/mm/vmalloc.c</span>
+<span class="p_chunk">@@ -613,82 +613,43 @@</span> <span class="p_context"> void set_iounmap_nonlazy(void)</span>
+ 	atomic_set(&amp;vmap_lazy_nr, lazy_max_pages()+1);
+ }
+ 
+<span class="p_del">-/*</span>
+<span class="p_del">- * Purges all lazily-freed vmap areas.</span>
+<span class="p_del">- *</span>
+<span class="p_del">- * If sync is 0 then don&#39;t purge if there is already a purge in progress.</span>
+<span class="p_del">- * If force_flush is 1, then flush kernel TLBs between *start and *end even</span>
+<span class="p_del">- * if we found no lazy vmap areas to unmap (callers can use this to optimise</span>
+<span class="p_del">- * their own TLB flushing).</span>
+<span class="p_del">- * Returns with *start = min(*start, lowest purged address)</span>
+<span class="p_del">- *              *end = max(*end, highest purged address)</span>
+<span class="p_del">- */</span>
+<span class="p_del">-static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,</span>
+<span class="p_del">-					int sync, int force_flush)</span>
+<span class="p_add">+static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)</span>
+ {
+<span class="p_del">-	static DEFINE_SPINLOCK(purge_lock);</span>
+ 	struct llist_node *valist;
+ 	struct vmap_area *va;
+ 	struct vmap_area *n_va;
+ 	int nr = 0;
+ 
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * If sync is 0 but force_flush is 1, we&#39;ll go sync anyway but callers</span>
+<span class="p_del">-	 * should not expect such behaviour. This just simplifies locking for</span>
+<span class="p_del">-	 * the case that isn&#39;t actually used at the moment anyway.</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	if (!sync &amp;&amp; !force_flush) {</span>
+<span class="p_del">-		if (!spin_trylock(&amp;purge_lock))</span>
+<span class="p_del">-			return;</span>
+<span class="p_del">-	} else</span>
+<span class="p_del">-		spin_lock(&amp;purge_lock);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	if (sync)</span>
+<span class="p_del">-		purge_fragmented_blocks_allcpus();</span>
+<span class="p_del">-</span>
+ 	valist = llist_del_all(&amp;vmap_purge_list);
+ 	llist_for_each_entry(va, valist, purge_list) {
+<span class="p_del">-		if (va-&gt;va_start &lt; *start)</span>
+<span class="p_del">-			*start = va-&gt;va_start;</span>
+<span class="p_del">-		if (va-&gt;va_end &gt; *end)</span>
+<span class="p_del">-			*end = va-&gt;va_end;</span>
+<span class="p_add">+		if (va-&gt;va_start &lt; start)</span>
+<span class="p_add">+			start = va-&gt;va_start;</span>
+<span class="p_add">+		if (va-&gt;va_end &gt; end)</span>
+<span class="p_add">+			end = va-&gt;va_end;</span>
+ 		nr += (va-&gt;va_end - va-&gt;va_start) &gt;&gt; PAGE_SHIFT;
+ 	}
+ 
+<span class="p_del">-	if (nr)</span>
+<span class="p_del">-		atomic_sub(nr, &amp;vmap_lazy_nr);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	if (nr || force_flush)</span>
+<span class="p_del">-		flush_tlb_kernel_range(*start, *end);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	if (nr) {</span>
+<span class="p_del">-		spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_del">-		llist_for_each_entry_safe(va, n_va, valist, purge_list)</span>
+<span class="p_del">-			__free_vmap_area(va);</span>
+<span class="p_del">-		spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_del">-	}</span>
+<span class="p_del">-	spin_unlock(&amp;purge_lock);</span>
+<span class="p_del">-}</span>
+<span class="p_add">+	if (!nr)</span>
+<span class="p_add">+		return false;</span>
+ 
+<span class="p_del">-/*</span>
+<span class="p_del">- * Kick off a purge of the outstanding lazy areas. Don&#39;t bother if somebody</span>
+<span class="p_del">- * is already purging.</span>
+<span class="p_del">- */</span>
+<span class="p_del">-static void try_purge_vmap_area_lazy(void)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	unsigned long start = ULONG_MAX, end = 0;</span>
+<span class="p_add">+	atomic_sub(nr, &amp;vmap_lazy_nr);</span>
+ 
+<span class="p_del">-	__purge_vmap_area_lazy(&amp;start, &amp;end, 0, 0);</span>
+<span class="p_add">+	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	llist_for_each_entry_safe(va, n_va, valist, purge_list)</span>
+<span class="p_add">+		__free_vmap_area(va);</span>
+<span class="p_add">+	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	return true;</span>
+ }
+ 
+ /*
+<span class="p_del">- * Kick off a purge of the outstanding lazy areas.</span>
+<span class="p_add">+ * Kick off a purge of the outstanding lazy areas, including the fragment</span>
+<span class="p_add">+ * blocks on the per-cpu lists.</span>
+  */
+ static void purge_vmap_area_lazy(void)
+ {
+<span class="p_del">-	unsigned long start = ULONG_MAX, end = 0;</span>
+<span class="p_add">+	purge_fragmented_blocks_allcpus();</span>
+<span class="p_add">+	__purge_vmap_area_lazy(ULONG_MAX, 0);</span>
+ 
+<span class="p_del">-	__purge_vmap_area_lazy(&amp;start, &amp;end, 1, 0);</span>
+ }
+ 
+ /*
+<span class="p_chunk">@@ -706,8 +667,12 @@</span> <span class="p_context"> static void free_vmap_area_noflush(struct vmap_area *va)</span>
+ 	/* After this point, we may free va at any time */
+ 	llist_add(&amp;va-&gt;purge_list, &amp;vmap_purge_list);
+ 
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Kick off a purge of the outstanding lazy areas. Don&#39;t bother to</span>
+<span class="p_add">+	 * to purge the per-cpu lists of fragmented blocks.</span>
+<span class="p_add">+	 */</span>
+ 	if (unlikely(nr_lazy &gt; lazy_max_pages()))
+<span class="p_del">-		try_purge_vmap_area_lazy();</span>
+<span class="p_add">+		__purge_vmap_area_lazy(ULONG_MAX, 0);</span>
+ }
+ 
+ /*
+<span class="p_chunk">@@ -1094,7 +1059,9 @@</span> <span class="p_context"> void vm_unmap_aliases(void)</span>
+ 		rcu_read_unlock();
+ 	}
+ 
+<span class="p_del">-	__purge_vmap_area_lazy(&amp;start, &amp;end, 1, flush);</span>
+<span class="p_add">+	purge_fragmented_blocks_allcpus();</span>
+<span class="p_add">+	if (!__purge_vmap_area_lazy(start, end) &amp;&amp; flush)</span>
+<span class="p_add">+		flush_tlb_kernel_range(start, end);</span>
+ }
+ EXPORT_SYMBOL_GPL(vm_unmap_aliases);
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

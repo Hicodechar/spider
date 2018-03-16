@@ -1,0 +1,614 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>fork: fix incorrect fput of -&gt;exe_file causing use-after-free - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    fork: fix incorrect fput of -&gt;exe_file causing use-after-free</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=90951">Eric Biggers</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Aug. 23, 2017, 9:14 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170823211408.31198-1-ebiggers3@gmail.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9918381/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9918381/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9918381/">/patch/9918381/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	2ADDF600C5 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 23 Aug 2017 21:16:02 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 1DCBB28A62
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 23 Aug 2017 21:16:02 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 10AD128A64; Wed, 23 Aug 2017 21:16:02 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.5 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID, DKIM_VALID_AU, FREEMAIL_FROM, RCVD_IN_DNSWL_HI,
+	RCVD_IN_SORBS_SPAM autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 7CF2628A62
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 23 Aug 2017 21:16:01 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S932661AbdHWVP5 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 23 Aug 2017 17:15:57 -0400
+Received: from mail-pg0-f65.google.com ([74.125.83.65]:33123 &quot;EHLO
+	mail-pg0-f65.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751728AbdHWVPz (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 23 Aug 2017 17:15:55 -0400
+Received: by mail-pg0-f65.google.com with SMTP id 189so820016pgj.0;
+	Wed, 23 Aug 2017 14:15:55 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=gmail.com; s=20161025;
+	h=from:to:cc:subject:date:message-id;
+	bh=j8ZmQ2AU9qCn0Gz/eXuPopQ/nA+hy5DqokNOXB5nogY=;
+	b=MjLepXAXOJqIWANg9r4kvVlLNnJgXWaEaYHiR1OcgFjZss95oP4q1+rONX38W8Sn3K
+	H66JtNRaoCNgox1pnq3FnJEZyBDh5RkiJ9dvRqBOwsAlxslps/T2AvY5MOBA1ewzrtst
+	HtiLHfVqrwVaPL2/bEJ3UilbH6BJf1iLDYJF3HXmUdRLo9Q6GqQJIcGBqQtTu3F2LGos
+	lYZwWOLEltUdoeuKtj/VmjwwyRfd0VFezAa3gs0Oi7LfODSXTY3Bi3JbXFz2Amd8XQiF
+	mlu7zlbzgwv6IsBhwqKoIK4Z8IHV+AC1qY3jOZlqbVHPhaiGwz5ZQ8kOF/B5iCPZ5hXb
+	3gFQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:from:to:cc:subject:date:message-id;
+	bh=j8ZmQ2AU9qCn0Gz/eXuPopQ/nA+hy5DqokNOXB5nogY=;
+	b=ai6yqSQDLmkoc02pxOfY2Iss8NoBCcLEQbAKNfCmI4WopQVFl7PHFWd7ffULYSG8Jm
+	Lp7R78lvyR88+SH8D1a/GFtMwJgvryk2ppuF3Gk5HSCpFR623A0xfyc/zQcNvxfLePS2
+	8WkxtR02c8h9AfGhZ7WSssLx+HCsmcK0ZcBnHB5RAObYV9ul6o8qNOOgRhJYJXhQiS9G
+	ycolmPc2B0K5gYA1KBjb4O3xBUFwrtULdfE0VeacNpk+YFNkEwFi7pKvN1Rc3RYcv+0l
+	gDwB7kwKTWmk5aHxhiR3Kt1apeEZjkV8rzQUm7RmUDGBwId+aNsdMveqWMPGesvXU1L8
+	EuUA==
+X-Gm-Message-State: AHYfb5jxN1Zmo1+xpniEwJ8t5NaDz4WrdRghP+keOJm6W+q/VhDGI/8/
+	cFlTqGuEV3zSYw==
+X-Received: by 10.98.78.71 with SMTP id c68mr4214744pfb.209.1503522955364;
+	Wed, 23 Aug 2017 14:15:55 -0700 (PDT)
+Received: from ebiggers-linuxstation.kir.corp.google.com ([100.66.174.81])
+	by smtp.gmail.com with ESMTPSA id
+	16sm5827580pfn.188.2017.08.23.14.15.54
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+	Wed, 23 Aug 2017 14:15:54 -0700 (PDT)
+From: Eric Biggers &lt;ebiggers3@gmail.com&gt;
+To: linux-mm@kvack.org
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	linux-kernel@vger.kernel.org, Dmitry Vyukov &lt;dvyukov@google.com&gt;,
+	Ingo Molnar &lt;mingo@kernel.org&gt;, Konstantin Khlebnikov &lt;koct9i@gmail.com&gt;,
+	Michal Hocko &lt;mhocko@suse.com&gt;, Oleg Nesterov &lt;oleg@redhat.com&gt;,
+	Peter Zijlstra &lt;peterz@infradead.org&gt;,
+	Vlastimil Babka &lt;vbabka@suse.cz&gt;, stable@vger.kernel.org,
+	Eric Biggers &lt;ebiggers@google.com&gt;
+Subject: [PATCH] fork: fix incorrect fput of -&gt;exe_file causing
+	use-after-free
+Date: Wed, 23 Aug 2017 14:14:08 -0700
+Message-Id: &lt;20170823211408.31198-1-ebiggers3@gmail.com&gt;
+X-Mailer: git-send-email 2.14.1.342.g6490525c54-goog
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=90951">Eric Biggers</a> - Aug. 23, 2017, 9:14 p.m.</div>
+<pre class="content">
+<span class="from">From: Eric Biggers &lt;ebiggers@google.com&gt;</span>
+
+Commit 7c051267931a (&quot;mm, fork: make dup_mmap wait for mmap_sem for
+write killable&quot;) made it possible to kill a forking task while it is
+waiting to acquire its -&gt;mmap_sem for write, in dup_mmap().  However, it
+was overlooked that this introduced an new error path before a reference
+is taken on the mm_struct&#39;s -&gt;exe_file.  Since the -&gt;exe_file of the new
+mm_struct was already set to the old -&gt;exe_file by the memcpy() in
+dup_mm(), it was possible for the mmput() in the error path of dup_mm()
+to drop a reference to -&gt;exe_file which was never taken.  This caused
+the struct file to later be freed prematurely.
+
+Fix it by updating mm_init() to NULL out the -&gt;exe_file, in the same
+place it clears other things like the list of mmaps.
+
+This bug was found by syzkaller.  It can be reproduced using the
+following C program:
+
+    #define _GNU_SOURCE
+    #include &lt;pthread.h&gt;
+    #include &lt;stdlib.h&gt;
+    #include &lt;sys/mman.h&gt;
+    #include &lt;sys/syscall.h&gt;
+    #include &lt;sys/wait.h&gt;
+    #include &lt;unistd.h&gt;
+
+    static void *mmap_thread(void *_arg)
+    {
+        for (;;) {
+            mmap(NULL, 0x1000000, PROT_READ,
+                 MAP_POPULATE|MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+        }
+    }
+
+    static void *fork_thread(void *_arg)
+    {
+        usleep(rand() % 10000);
+        fork();
+    }
+
+    int main(void)
+    {
+        fork();
+        fork();
+        fork();
+        for (;;) {
+            if (fork() == 0) {
+                pthread_t t;
+
+                pthread_create(&amp;t, NULL, mmap_thread, NULL);
+                pthread_create(&amp;t, NULL, fork_thread, NULL);
+                usleep(rand() % 10000);
+                syscall(__NR_exit_group, 0);
+            }
+            wait(NULL);
+        }
+    }
+
+No special kernel config options are needed.  It usually causes a NULL
+pointer dereference in __remove_shared_vm_struct() during exit, or in
+dup_mmap() (which is usually inlined into copy_process()) during fork.
+Both are due to a vm_area_struct&#39;s -&gt;vm_file being used after it&#39;s
+already been freed.
+
+Fixes: 7c051267931a (&quot;mm, fork: make dup_mmap wait for mmap_sem for write killable&quot;)
+Google-Bug-Id: 64772007
+Cc: Dmitry Vyukov &lt;dvyukov@google.com&gt;
+Cc: Ingo Molnar &lt;mingo@kernel.org&gt;
+Cc: Konstantin Khlebnikov &lt;koct9i@gmail.com&gt;
+Cc: Michal Hocko &lt;mhocko@suse.com&gt;
+Cc: Oleg Nesterov &lt;oleg@redhat.com&gt;
+Cc: Peter Zijlstra &lt;peterz@infradead.org&gt;
+Cc: Vlastimil Babka &lt;vbabka@suse.cz&gt;
+Cc: stable@vger.kernel.org # v4.7+
+<span class="signed-off-by">Signed-off-by: Eric Biggers &lt;ebiggers@google.com&gt;</span>
+---
+ kernel/fork.c | 1 +
+ 1 file changed, 1 insertion(+)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=12">Oleg Nesterov</a> - Aug. 24, 2017, 1:20 p.m.</div>
+<pre class="content">
+On 08/23, Eric Biggers wrote:
+<span class="quote">&gt;</span>
+<span class="quote">&gt; From: Eric Biggers &lt;ebiggers@google.com&gt;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Commit 7c051267931a (&quot;mm, fork: make dup_mmap wait for mmap_sem for</span>
+<span class="quote">&gt; write killable&quot;) made it possible to kill a forking task while it is</span>
+<span class="quote">&gt; waiting to acquire its -&gt;mmap_sem for write, in dup_mmap().  However, it</span>
+<span class="quote">&gt; was overlooked that this introduced an new error path before a reference</span>
+<span class="quote">&gt; is taken on the mm_struct&#39;s -&gt;exe_file.</span>
+
+Hmm. Unless I am totally confused, the same problem with mm-&gt;exol_area?
+I&#39;ll recheck....
+<span class="quote">
+&gt; --- a/kernel/fork.c</span>
+<span class="quote">&gt; +++ b/kernel/fork.c</span>
+<span class="quote">&gt; @@ -806,6 +806,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,</span>
+<span class="quote">&gt;  	mm_init_cpumask(mm);</span>
+<span class="quote">&gt;  	mm_init_aio(mm);</span>
+<span class="quote">&gt;  	mm_init_owner(mm, p);</span>
+<span class="quote">&gt; +	RCU_INIT_POINTER(mm-&gt;exe_file, NULL);</span>
+
+Can&#39;t we simply move
+
+	RCU_INIT_POINTER(mm-&gt;exe_file, get_mm_exe_file(oldmm));
+
+from dup_mmap() here? Afaics this doesn&#39;t need mmap_sem.
+
+Good catch!
+
+Oleg.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=30282">Mark Rutland</a> - Aug. 24, 2017, 3:02 p.m.</div>
+<pre class="content">
+On Wed, Aug 23, 2017 at 02:14:08PM -0700, Eric Biggers wrote:
+<span class="quote">&gt; From: Eric Biggers &lt;ebiggers@google.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Commit 7c051267931a (&quot;mm, fork: make dup_mmap wait for mmap_sem for</span>
+<span class="quote">&gt; write killable&quot;) made it possible to kill a forking task while it is</span>
+<span class="quote">&gt; waiting to acquire its -&gt;mmap_sem for write, in dup_mmap().  However, it</span>
+<span class="quote">&gt; was overlooked that this introduced an new error path before a reference</span>
+<span class="quote">&gt; is taken on the mm_struct&#39;s -&gt;exe_file.  Since the -&gt;exe_file of the new</span>
+<span class="quote">&gt; mm_struct was already set to the old -&gt;exe_file by the memcpy() in</span>
+<span class="quote">&gt; dup_mm(), it was possible for the mmput() in the error path of dup_mm()</span>
+<span class="quote">&gt; to drop a reference to -&gt;exe_file which was never taken.  This caused</span>
+<span class="quote">&gt; the struct file to later be freed prematurely.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Fix it by updating mm_init() to NULL out the -&gt;exe_file, in the same</span>
+<span class="quote">&gt; place it clears other things like the list of mmaps.</span>
+<span class="quote">
+&gt; diff --git a/kernel/fork.c b/kernel/fork.c</span>
+<span class="quote">&gt; index e075b7780421..cbbea277b3fb 100644</span>
+<span class="quote">&gt; --- a/kernel/fork.c</span>
+<span class="quote">&gt; +++ b/kernel/fork.c</span>
+<span class="quote">&gt; @@ -806,6 +806,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,</span>
+<span class="quote">&gt;  	mm_init_cpumask(mm);</span>
+<span class="quote">&gt;  	mm_init_aio(mm);</span>
+<span class="quote">&gt;  	mm_init_owner(mm, p);</span>
+<span class="quote">&gt; +	RCU_INIT_POINTER(mm-&gt;exe_file, NULL);</span>
+<span class="quote">&gt;  	mmu_notifier_mm_init(mm);</span>
+<span class="quote">&gt;  	init_tlb_flush_pending(mm);</span>
+<span class="quote">&gt;  #if defined(CONFIG_TRANSPARENT_HUGEPAGE) &amp;&amp; !USE_SPLIT_PMD_PTLOCKS</span>
+
+I&#39;ve been seeing similar issues on arm64 with use-after-free of a file
+and other memory corruption [1].
+
+This patch seems to fix that; a test that normally fired in a few
+minutes has been happily running for hours with this applied.
+
+Thanks,
+Mark.
+
+[1] https://lkml.kernel.org/r/20170824113743.GA14737@leverpostej
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=90951">Eric Biggers</a> - Aug. 24, 2017, 4:59 p.m.</div>
+<pre class="content">
+On Thu, Aug 24, 2017 at 03:20:41PM +0200, Oleg Nesterov wrote:
+<span class="quote">&gt; On 08/23, Eric Biggers wrote:</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; From: Eric Biggers &lt;ebiggers@google.com&gt;</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Commit 7c051267931a (&quot;mm, fork: make dup_mmap wait for mmap_sem for</span>
+<span class="quote">&gt; &gt; write killable&quot;) made it possible to kill a forking task while it is</span>
+<span class="quote">&gt; &gt; waiting to acquire its -&gt;mmap_sem for write, in dup_mmap().  However, it</span>
+<span class="quote">&gt; &gt; was overlooked that this introduced an new error path before a reference</span>
+<span class="quote">&gt; &gt; is taken on the mm_struct&#39;s -&gt;exe_file.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Hmm. Unless I am totally confused, the same problem with mm-&gt;exol_area?</span>
+<span class="quote">&gt; I&#39;ll recheck....</span>
+
+I&#39;m not sure what you mean by -&gt;exol_area.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt; --- a/kernel/fork.c</span>
+<span class="quote">&gt; &gt; +++ b/kernel/fork.c</span>
+<span class="quote">&gt; &gt; @@ -806,6 +806,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,</span>
+<span class="quote">&gt; &gt;  	mm_init_cpumask(mm);</span>
+<span class="quote">&gt; &gt;  	mm_init_aio(mm);</span>
+<span class="quote">&gt; &gt;  	mm_init_owner(mm, p);</span>
+<span class="quote">&gt; &gt; +	RCU_INIT_POINTER(mm-&gt;exe_file, NULL);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Can&#39;t we simply move</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 	RCU_INIT_POINTER(mm-&gt;exe_file, get_mm_exe_file(oldmm));</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; from dup_mmap() here? Afaics this doesn&#39;t need mmap_sem.</span>
+<span class="quote">&gt; </span>
+
+Two problems, even assuming that get_mm_exe_file() doesn&#39;t require mmap_sem:
+
+- If mm_alloc_pgd() or init_new_context() in mm_init() fails, mm_init() doesn&#39;t
+  do the full mmput(), so the file reference would not be dropped.  So it would
+  need to be changed to drop the file reference too.
+
+- The file would also be set when called from mm_alloc() which is used when
+  exec&#39;ing a new task.  *Maybe* it would be safe to do temporarily, but it&#39;s
+  pointless because -&gt;exe_file will be set later by flush_old_exec().
+
+Eric
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=30282">Mark Rutland</a> - Aug. 25, 2017, 10:49 a.m.</div>
+<pre class="content">
+On Thu, Aug 24, 2017 at 04:02:49PM +0100, Mark Rutland wrote:
+<span class="quote">&gt; On Wed, Aug 23, 2017 at 02:14:08PM -0700, Eric Biggers wrote:</span>
+<span class="quote">&gt; &gt; From: Eric Biggers &lt;ebiggers@google.com&gt;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Commit 7c051267931a (&quot;mm, fork: make dup_mmap wait for mmap_sem for</span>
+<span class="quote">&gt; &gt; write killable&quot;) made it possible to kill a forking task while it is</span>
+<span class="quote">&gt; &gt; waiting to acquire its -&gt;mmap_sem for write, in dup_mmap().  However, it</span>
+<span class="quote">&gt; &gt; was overlooked that this introduced an new error path before a reference</span>
+<span class="quote">&gt; &gt; is taken on the mm_struct&#39;s -&gt;exe_file.  Since the -&gt;exe_file of the new</span>
+<span class="quote">&gt; &gt; mm_struct was already set to the old -&gt;exe_file by the memcpy() in</span>
+<span class="quote">&gt; &gt; dup_mm(), it was possible for the mmput() in the error path of dup_mm()</span>
+<span class="quote">&gt; &gt; to drop a reference to -&gt;exe_file which was never taken.  This caused</span>
+<span class="quote">&gt; &gt; the struct file to later be freed prematurely.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Fix it by updating mm_init() to NULL out the -&gt;exe_file, in the same</span>
+<span class="quote">&gt; &gt; place it clears other things like the list of mmaps.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; diff --git a/kernel/fork.c b/kernel/fork.c</span>
+<span class="quote">&gt; &gt; index e075b7780421..cbbea277b3fb 100644</span>
+<span class="quote">&gt; &gt; --- a/kernel/fork.c</span>
+<span class="quote">&gt; &gt; +++ b/kernel/fork.c</span>
+<span class="quote">&gt; &gt; @@ -806,6 +806,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,</span>
+<span class="quote">&gt; &gt;  	mm_init_cpumask(mm);</span>
+<span class="quote">&gt; &gt;  	mm_init_aio(mm);</span>
+<span class="quote">&gt; &gt;  	mm_init_owner(mm, p);</span>
+<span class="quote">&gt; &gt; +	RCU_INIT_POINTER(mm-&gt;exe_file, NULL);</span>
+<span class="quote">&gt; &gt;  	mmu_notifier_mm_init(mm);</span>
+<span class="quote">&gt; &gt;  	init_tlb_flush_pending(mm);</span>
+<span class="quote">&gt; &gt;  #if defined(CONFIG_TRANSPARENT_HUGEPAGE) &amp;&amp; !USE_SPLIT_PMD_PTLOCKS</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I&#39;ve been seeing similar issues on arm64 with use-after-free of a file</span>
+<span class="quote">&gt; and other memory corruption [1].</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This patch seems to fix that; a test that normally fired in a few</span>
+<span class="quote">&gt; minutes has been happily running for hours with this applied.</span>
+
+Those haven&#39;t triggered after 24 hours, and in 16+ hours of fuzzing with
+this applied, I haven&#39;t seen new issues. FWIW:
+<span class="tested-by">
+Tested-by: Mark Rutland &lt;mark.rutland@arm.com&gt;</span>
+
+Thanks,
+Mark.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=12">Oleg Nesterov</a> - Aug. 25, 2017, 2:40 p.m.</div>
+<pre class="content">
+On 08/24, Eric Biggers wrote:
+<span class="quote">&gt;</span>
+<span class="quote">&gt; On Thu, Aug 24, 2017 at 03:20:41PM +0200, Oleg Nesterov wrote:</span>
+<span class="quote">&gt; &gt; On 08/23, Eric Biggers wrote:</span>
+<span class="quote">&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; From: Eric Biggers &lt;ebiggers@google.com&gt;</span>
+<span class="quote">&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; Commit 7c051267931a (&quot;mm, fork: make dup_mmap wait for mmap_sem for</span>
+<span class="quote">&gt; &gt; &gt; write killable&quot;) made it possible to kill a forking task while it is</span>
+<span class="quote">&gt; &gt; &gt; waiting to acquire its -&gt;mmap_sem for write, in dup_mmap().  However, it</span>
+<span class="quote">&gt; &gt; &gt; was overlooked that this introduced an new error path before a reference</span>
+<span class="quote">&gt; &gt; &gt; is taken on the mm_struct&#39;s -&gt;exe_file.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Hmm. Unless I am totally confused, the same problem with mm-&gt;exol_area?</span>
+<span class="quote">&gt; &gt; I&#39;ll recheck....</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I&#39;m not sure what you mean by -&gt;exol_area.</span>
+
+I meant mm-&gt;uprobes_state.xol_area, sorry
+<span class="quote">
+&gt; &gt; &gt; --- a/kernel/fork.c</span>
+<span class="quote">&gt; &gt; &gt; +++ b/kernel/fork.c</span>
+<span class="quote">&gt; &gt; &gt; @@ -806,6 +806,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,</span>
+<span class="quote">&gt; &gt; &gt;  	mm_init_cpumask(mm);</span>
+<span class="quote">&gt; &gt; &gt;  	mm_init_aio(mm);</span>
+<span class="quote">&gt; &gt; &gt;  	mm_init_owner(mm, p);</span>
+<span class="quote">&gt; &gt; &gt; +	RCU_INIT_POINTER(mm-&gt;exe_file, NULL);</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Can&#39;t we simply move</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; 	RCU_INIT_POINTER(mm-&gt;exe_file, get_mm_exe_file(oldmm));</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; from dup_mmap() here? Afaics this doesn&#39;t need mmap_sem.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Two problems, even assuming that get_mm_exe_file() doesn&#39;t require mmap_sem:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; - If mm_alloc_pgd() or init_new_context() in mm_init() fails, mm_init() doesn&#39;t</span>
+<span class="quote">&gt;   do the full mmput(), so the file reference would not be dropped.  So it would</span>
+<span class="quote">&gt;   need to be changed to drop the file reference too.</span>
+
+Ah yes, I forgot that mm_init() can fail after that, thanks for correcting me.
+
+Oleg.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=90951">Eric Biggers</a> - Aug. 28, 2017, 3:55 p.m.</div>
+<pre class="content">
+On Fri, Aug 25, 2017 at 04:40:36PM +0200, Oleg Nesterov wrote:
+<span class="quote">&gt; On 08/24, Eric Biggers wrote:</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; On Thu, Aug 24, 2017 at 03:20:41PM +0200, Oleg Nesterov wrote:</span>
+<span class="quote">&gt; &gt; &gt; On 08/23, Eric Biggers wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; From: Eric Biggers &lt;ebiggers@google.com&gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; Commit 7c051267931a (&quot;mm, fork: make dup_mmap wait for mmap_sem for</span>
+<span class="quote">&gt; &gt; &gt; &gt; write killable&quot;) made it possible to kill a forking task while it is</span>
+<span class="quote">&gt; &gt; &gt; &gt; waiting to acquire its -&gt;mmap_sem for write, in dup_mmap().  However, it</span>
+<span class="quote">&gt; &gt; &gt; &gt; was overlooked that this introduced an new error path before a reference</span>
+<span class="quote">&gt; &gt; &gt; &gt; is taken on the mm_struct&#39;s -&gt;exe_file.</span>
+<span class="quote">&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; Hmm. Unless I am totally confused, the same problem with mm-&gt;exol_area?</span>
+<span class="quote">&gt; &gt; &gt; I&#39;ll recheck....</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; I&#39;m not sure what you mean by -&gt;exol_area.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I meant mm-&gt;uprobes_state.xol_area, sorry</span>
+<span class="quote">&gt; </span>
+
+Yep, that&#39;s a bug too.  I was able to cause a use-after-free using the same
+reproducer program I gave in my commit message, after setting a uprobe
+tracepoint on the beginning of the fork_thread() function.  I&#39;ll send a patch to
+fix it when I have a chance.
+
+Eric
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=64541">Jason A. Donenfeld</a> - Nov. 16, 2017, 10:24 p.m.</div>
+<pre class="content">
+Hey Eric,
+
+This is a pretty late response to the thread, but in case you&#39;re
+curious, since Ubuntu forgot to backport this (I already emailed them
+about it), I actually experienced a set of boxes that hit this bug in
+the wild and were crashing every 2 weeks or so, when under highload.
+It&#39;s pretty amazing that syzkaller unearthed this, resulting in a nice
+test case, making it possible to debug and fix the error. Otherwise
+it&#39;d be a real heisenbug.
+
+So, thanks.
+
+Jason
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/kernel/fork.c b/kernel/fork.c</span>
+<span class="p_header">index e075b7780421..cbbea277b3fb 100644</span>
+<span class="p_header">--- a/kernel/fork.c</span>
+<span class="p_header">+++ b/kernel/fork.c</span>
+<span class="p_chunk">@@ -806,6 +806,7 @@</span> <span class="p_context"> static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,</span>
+ 	mm_init_cpumask(mm);
+ 	mm_init_aio(mm);
+ 	mm_init_owner(mm, p);
+<span class="p_add">+	RCU_INIT_POINTER(mm-&gt;exe_file, NULL);</span>
+ 	mmu_notifier_mm_init(mm);
+ 	init_tlb_flush_pending(mm);
+ #if defined(CONFIG_TRANSPARENT_HUGEPAGE) &amp;&amp; !USE_SPLIT_PMD_PTLOCKS
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

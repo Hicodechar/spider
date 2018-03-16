@@ -1,0 +1,1246 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[PATCHv12,26/37] mm: rework mapcount accounting to enable 4k mapping of THPs - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [PATCHv12,26/37] mm: rework mapcount accounting to enable 4k mapping of THPs</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=40781">Kirill A. Shutemov</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Oct. 6, 2015, 3:23 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1444145044-72349-27-git-send-email-kirill.shutemov@linux.intel.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7336211/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7336211/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7336211/">/patch/7336211/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork1.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork1.web.kernel.org (Postfix) with ESMTP id E6FBF9F32B
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  6 Oct 2015 15:25:27 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 58AA6205EB
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  6 Oct 2015 15:25:26 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 15E702061D
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  6 Oct 2015 15:25:24 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753582AbbJFPZJ (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 6 Oct 2015 11:25:09 -0400
+Received: from mga11.intel.com ([192.55.52.93]:65178 &quot;EHLO mga11.intel.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1753104AbbJFPY4 (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 6 Oct 2015 11:24:56 -0400
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+	by fmsmga102.fm.intel.com with ESMTP; 06 Oct 2015 08:24:56 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i=&quot;5.17,644,1437462000&quot;; d=&quot;scan&#39;208&quot;;a=&quot;820576868&quot;
+Received: from black.fi.intel.com ([10.237.72.93])
+	by orsmga002.jf.intel.com with ESMTP; 06 Oct 2015 08:24:50 -0700
+Received: by black.fi.intel.com (Postfix, from userid 1000)
+	id AD6EC79B; Tue,  6 Oct 2015 18:24:09 +0300 (EEST)
+From: &quot;Kirill A. Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;
+To: Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Andrea Arcangeli &lt;aarcange@redhat.com&gt;, Hugh Dickins &lt;hughd@google.com&gt;
+Cc: Dave Hansen &lt;dave.hansen@intel.com&gt;, Mel Gorman &lt;mgorman@suse.de&gt;,
+	Rik van Riel &lt;riel@redhat.com&gt;, Vlastimil Babka &lt;vbabka@suse.cz&gt;,
+	Christoph Lameter &lt;cl@gentwo.org&gt;,
+	Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;,
+	Steve Capper &lt;steve.capper@linaro.org&gt;,
+	&quot;Aneesh Kumar K.V&quot; &lt;aneesh.kumar@linux.vnet.ibm.com&gt;,
+	Johannes Weiner &lt;hannes@cmpxchg.org&gt;, Michal Hocko &lt;mhocko@suse.cz&gt;,
+	Jerome Marchand &lt;jmarchan@redhat.com&gt;,
+	Sasha Levin &lt;sasha.levin@oracle.com&gt;,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	&quot;Kirill A. Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;
+Subject: [PATCHv12 26/37] mm: rework mapcount accounting to enable 4k
+	mapping of THPs
+Date: Tue,  6 Oct 2015 18:23:53 +0300
+Message-Id: &lt;1444145044-72349-27-git-send-email-kirill.shutemov@linux.intel.com&gt;
+X-Mailer: git-send-email 2.5.3
+In-Reply-To: &lt;1444145044-72349-1-git-send-email-kirill.shutemov@linux.intel.com&gt;
+References: &lt;1444145044-72349-1-git-send-email-kirill.shutemov@linux.intel.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	T_RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=40781">Kirill A. Shutemov</a> - Oct. 6, 2015, 3:23 p.m.</div>
+<pre class="content">
+We&#39;re going to allow mapping of individual 4k pages of THP compound.
+It means we need to track mapcount on per small page basis.
+
+Straight-forward approach is to use -&gt;_mapcount in all subpages to track
+how many time this subpage is mapped with PMDs or PTEs combined. But
+this is rather expensive: mapping or unmapping of a THP page with PMD
+would require HPAGE_PMD_NR atomic operations instead of single we have
+now.
+
+The idea is to store separately how many times the page was mapped as
+whole -- compound_mapcount. This frees up -&gt;_mapcount in subpages to
+track PTE mapcount.
+
+We use the same approach as with compound page destructor and compound
+order to store compound_mapcount: use space in first tail page,
+-&gt;mapping this time.
+
+Any time we map/unmap whole compound page (THP or hugetlb) -- we
+increment/decrement compound_mapcount. When we map part of compound page
+with PTE we operate on -&gt;_mapcount of the subpage.
+
+page_mapcount() counts both: PTE and PMD mappings of the page.
+
+Basically, we have mapcount for a subpage spread over two counters.
+It makes tricky to detect when last mapcount for a page goes away.
+
+We introduced PageDoubleMap() for this. When we split THP PMD for the
+first time and there&#39;s other PMD mapping left we offset up -&gt;_mapcount
+in all subpages by one and set PG_double_map on the compound page.
+These additional references go away with last compound_mapcount.
+
+This approach provides a way to detect when last mapcount goes away on
+per small page basis without introducing new overhead for most common
+cases.
+<span class="signed-off-by">
+Signed-off-by: Kirill A. Shutemov &lt;kirill.shutemov@linux.intel.com&gt;</span>
+<span class="tested-by">Tested-by: Aneesh Kumar K.V &lt;aneesh.kumar@linux.vnet.ibm.com&gt;</span>
+<span class="acked-by">Acked-by: Jerome Marchand &lt;jmarchan@redhat.com&gt;</span>
+---
+ include/linux/mm.h         | 26 +++++++++++-
+ include/linux/mm_types.h   |  1 +
+ include/linux/page-flags.h | 37 +++++++++++++++++
+ include/linux/rmap.h       |  4 +-
+ mm/debug.c                 |  5 ++-
+ mm/huge_memory.c           |  2 +-
+ mm/hugetlb.c               |  4 +-
+ mm/memory.c                |  2 +-
+ mm/migrate.c               |  2 +-
+ mm/page_alloc.c            | 13 ++++--
+ mm/rmap.c                  | 99 +++++++++++++++++++++++++++++++++++-----------
+ 11 files changed, 160 insertions(+), 35 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=4407">Naoya Horiguchi</a> - Oct. 27, 2015, 6:18 a.m.</div>
+<pre class="content">
+On Tue, Oct 06, 2015 at 06:23:53PM +0300, Kirill A. Shutemov wrote:
+<span class="quote">&gt; We&#39;re going to allow mapping of individual 4k pages of THP compound.</span>
+<span class="quote">&gt; It means we need to track mapcount on per small page basis.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Straight-forward approach is to use -&gt;_mapcount in all subpages to track</span>
+<span class="quote">&gt; how many time this subpage is mapped with PMDs or PTEs combined. But</span>
+<span class="quote">&gt; this is rather expensive: mapping or unmapping of a THP page with PMD</span>
+<span class="quote">&gt; would require HPAGE_PMD_NR atomic operations instead of single we have</span>
+<span class="quote">&gt; now.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; The idea is to store separately how many times the page was mapped as</span>
+<span class="quote">&gt; whole -- compound_mapcount. This frees up -&gt;_mapcount in subpages to</span>
+<span class="quote">&gt; track PTE mapcount.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; We use the same approach as with compound page destructor and compound</span>
+<span class="quote">&gt; order to store compound_mapcount: use space in first tail page,</span>
+<span class="quote">&gt; -&gt;mapping this time.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Any time we map/unmap whole compound page (THP or hugetlb) -- we</span>
+<span class="quote">&gt; increment/decrement compound_mapcount. When we map part of compound page</span>
+<span class="quote">&gt; with PTE we operate on -&gt;_mapcount of the subpage.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; page_mapcount() counts both: PTE and PMD mappings of the page.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Basically, we have mapcount for a subpage spread over two counters.</span>
+<span class="quote">&gt; It makes tricky to detect when last mapcount for a page goes away.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; We introduced PageDoubleMap() for this. When we split THP PMD for the</span>
+<span class="quote">&gt; first time and there&#39;s other PMD mapping left we offset up -&gt;_mapcount</span>
+<span class="quote">&gt; in all subpages by one and set PG_double_map on the compound page.</span>
+<span class="quote">&gt; These additional references go away with last compound_mapcount.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; This approach provides a way to detect when last mapcount goes away on</span>
+<span class="quote">&gt; per small page basis without introducing new overhead for most common</span>
+<span class="quote">&gt; cases.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Signed-off-by: Kirill A. Shutemov &lt;kirill.shutemov@linux.intel.com&gt;</span>
+<span class="quote">&gt; Tested-by: Aneesh Kumar K.V &lt;aneesh.kumar@linux.vnet.ibm.com&gt;</span>
+<span class="quote">&gt; Acked-by: Jerome Marchand &lt;jmarchan@redhat.com&gt;</span>
+
+I found that recent mmotm hit the following BUG_ON() by reading
+/proc/kpageflags over pfn backed by a thp.
+
+  [  268.024519] page:ffffea00033e0000 count:0 mapcount:0 mapping:          (null) index:0x700000200
+  [  268.026076] flags: 0x4000000000000000()
+  [  268.026778] page dumped because: VM_BUG_ON_PAGE(!PageHead(page))
+  [  268.027816] page-&gt;mem_cgroup:ffff88021588cc00
+  [  268.028638] ------------[ cut here ]------------
+  [  268.029932] kernel BUG at /src/linux-dev/include/linux/page-flags.h:552!
+  [  268.031092] invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC
+  [  268.032125] Modules linked in: cfg80211 rfkill crc32c_intel virtio_balloon serio_raw i2c_piix4 virtio_blk virtio_net ata_generic pata_acpi
+  [  268.032598] CPU: 0 PID: 1183 Comm: page-types Not tainted 4.2.0-mmotm-2015-10-21-14-41-151027-1418-00014-41+ #179
+  [  268.032598] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+  [  268.032598] task: ffff880214a08bc0 ti: ffff880213e2c000 task.ti: ffff880213e2c000
+  [  268.032598] RIP: 0010:[&lt;ffffffff812434b6&gt;]  [&lt;ffffffff812434b6&gt;] stable_page_flags+0x336/0x340
+  [  268.032598] RSP: 0018:ffff880213e2fda8  EFLAGS: 00010292
+  [  268.032598] RAX: 0000000000000021 RBX: ffff8802150a39c0 RCX: 0000000000000000
+  [  268.032598] RDX: ffff88021ec0ff38 RSI: ffff88021ec0d658 RDI: ffff88021ec0d658
+  [  268.032598] RBP: ffff880213e2fdc8 R08: 000000000000000a R09: 000000000000132f
+  [  268.032598] R10: 0000000000000000 R11: 000000000000132f R12: 4000000000000000
+  [  268.032598] R13: ffffea00033e6340 R14: 00007fff8449e430 R15: ffffea00033e6340
+  [  268.032598] FS:  00007ff7f9525700(0000) GS:ffff88021ec00000(0000) knlGS:0000000000000000
+  [  268.032598] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+  [  268.032598] CR2: 000000000063b800 CR3: 00000000d9e71000 CR4: 00000000000006f0
+  [  268.032598] Stack:
+  [  268.032598]  ffff8800db82df80 ffff8802150a39c0 0000000000000008 00000000000cf98d
+  [  268.032598]  ffff880213e2fe18 ffffffff81243588 00007fff8449e430 ffff880213e2ff20
+  [  268.032598]  000000000063b800 ffff8802150a39c0 fffffffffffffffb ffff880213e2ff20
+  [  268.032598] Call Trace:
+  [  268.032598]  [&lt;ffffffff81243588&gt;] kpageflags_read+0xc8/0x130
+  [  268.032598]  [&lt;ffffffff81235848&gt;] proc_reg_read+0x48/0x70
+  [  268.032598]  [&lt;ffffffff811d6b08&gt;] __vfs_read+0x28/0xd0
+  [  268.032598]  [&lt;ffffffff812ee43e&gt;] ? security_file_permission+0xae/0xc0
+  [  268.032598]  [&lt;ffffffff811d6f53&gt;] ? rw_verify_area+0x53/0xf0
+  [  268.032598]  [&lt;ffffffff811d707a&gt;] vfs_read+0x8a/0x130
+  [  268.032598]  [&lt;ffffffff811d7bf7&gt;] SyS_pread64+0x77/0x90
+  [  268.032598]  [&lt;ffffffff81648117&gt;] entry_SYSCALL_64_fastpath+0x12/0x6a
+  [  268.032598] Code: ca 00 00 40 01 48 39 c1 48 0f 44 da e9 a2 fd ff ff 48 c7 c6 50 a6 a1 8 1 e8 58 ab f4 ff 0f 0b 48 c7 c6 90 a2 a1 81 e8 4a ab f4 ff &lt;0f&gt; 0b 0f 1f 84 00 00 00 00 00 66 66 66 66 90 55 48 89 e5 41 57
+  [  268.032598] RIP  [&lt;ffffffff812434b6&gt;] stable_page_flags+0x336/0x340
+  [  268.032598]  RSP &lt;ffff880213e2fda8&gt;
+  [  268.070504] ---[ end trace e5d18553088c026a ]---
+
+page_mapcount() could be called for a tail page, so VM_BUG_ON_PAGE(!PageHead())
+in PageDoubleMap() introduced by this patch seems too strong restriction.
+Could you handle this?
+
+Thanks,
+Naoya Horiguchi--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=874">Kirill A. Shutemov</a> - Oct. 27, 2015, 9:30 a.m.</div>
+<pre class="content">
+On Tue, Oct 27, 2015 at 06:18:01AM +0000, Naoya Horiguchi wrote:
+<span class="quote">&gt; On Tue, Oct 06, 2015 at 06:23:53PM +0300, Kirill A. Shutemov wrote:</span>
+<span class="quote">&gt; &gt; We&#39;re going to allow mapping of individual 4k pages of THP compound.</span>
+<span class="quote">&gt; &gt; It means we need to track mapcount on per small page basis.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Straight-forward approach is to use -&gt;_mapcount in all subpages to track</span>
+<span class="quote">&gt; &gt; how many time this subpage is mapped with PMDs or PTEs combined. But</span>
+<span class="quote">&gt; &gt; this is rather expensive: mapping or unmapping of a THP page with PMD</span>
+<span class="quote">&gt; &gt; would require HPAGE_PMD_NR atomic operations instead of single we have</span>
+<span class="quote">&gt; &gt; now.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; The idea is to store separately how many times the page was mapped as</span>
+<span class="quote">&gt; &gt; whole -- compound_mapcount. This frees up -&gt;_mapcount in subpages to</span>
+<span class="quote">&gt; &gt; track PTE mapcount.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; We use the same approach as with compound page destructor and compound</span>
+<span class="quote">&gt; &gt; order to store compound_mapcount: use space in first tail page,</span>
+<span class="quote">&gt; &gt; -&gt;mapping this time.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Any time we map/unmap whole compound page (THP or hugetlb) -- we</span>
+<span class="quote">&gt; &gt; increment/decrement compound_mapcount. When we map part of compound page</span>
+<span class="quote">&gt; &gt; with PTE we operate on -&gt;_mapcount of the subpage.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; page_mapcount() counts both: PTE and PMD mappings of the page.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Basically, we have mapcount for a subpage spread over two counters.</span>
+<span class="quote">&gt; &gt; It makes tricky to detect when last mapcount for a page goes away.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; We introduced PageDoubleMap() for this. When we split THP PMD for the</span>
+<span class="quote">&gt; &gt; first time and there&#39;s other PMD mapping left we offset up -&gt;_mapcount</span>
+<span class="quote">&gt; &gt; in all subpages by one and set PG_double_map on the compound page.</span>
+<span class="quote">&gt; &gt; These additional references go away with last compound_mapcount.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; This approach provides a way to detect when last mapcount goes away on</span>
+<span class="quote">&gt; &gt; per small page basis without introducing new overhead for most common</span>
+<span class="quote">&gt; &gt; cases.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Signed-off-by: Kirill A. Shutemov &lt;kirill.shutemov@linux.intel.com&gt;</span>
+<span class="quote">&gt; &gt; Tested-by: Aneesh Kumar K.V &lt;aneesh.kumar@linux.vnet.ibm.com&gt;</span>
+<span class="quote">&gt; &gt; Acked-by: Jerome Marchand &lt;jmarchan@redhat.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I found that recent mmotm hit the following BUG_ON() by reading</span>
+<span class="quote">&gt; /proc/kpageflags over pfn backed by a thp.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   [  268.024519] page:ffffea00033e0000 count:0 mapcount:0 mapping:          (null) index:0x700000200</span>
+<span class="quote">&gt;   [  268.026076] flags: 0x4000000000000000()</span>
+<span class="quote">&gt;   [  268.026778] page dumped because: VM_BUG_ON_PAGE(!PageHead(page))</span>
+<span class="quote">&gt;   [  268.027816] page-&gt;mem_cgroup:ffff88021588cc00</span>
+<span class="quote">&gt;   [  268.028638] ------------[ cut here ]------------</span>
+<span class="quote">&gt;   [  268.029932] kernel BUG at /src/linux-dev/include/linux/page-flags.h:552!</span>
+<span class="quote">&gt;   [  268.031092] invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC</span>
+<span class="quote">&gt;   [  268.032125] Modules linked in: cfg80211 rfkill crc32c_intel virtio_balloon serio_raw i2c_piix4 virtio_blk virtio_net ata_generic pata_acpi</span>
+<span class="quote">&gt;   [  268.032598] CPU: 0 PID: 1183 Comm: page-types Not tainted 4.2.0-mmotm-2015-10-21-14-41-151027-1418-00014-41+ #179</span>
+<span class="quote">&gt;   [  268.032598] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011</span>
+<span class="quote">&gt;   [  268.032598] task: ffff880214a08bc0 ti: ffff880213e2c000 task.ti: ffff880213e2c000</span>
+<span class="quote">&gt;   [  268.032598] RIP: 0010:[&lt;ffffffff812434b6&gt;]  [&lt;ffffffff812434b6&gt;] stable_page_flags+0x336/0x340</span>
+<span class="quote">&gt;   [  268.032598] RSP: 0018:ffff880213e2fda8  EFLAGS: 00010292</span>
+<span class="quote">&gt;   [  268.032598] RAX: 0000000000000021 RBX: ffff8802150a39c0 RCX: 0000000000000000</span>
+<span class="quote">&gt;   [  268.032598] RDX: ffff88021ec0ff38 RSI: ffff88021ec0d658 RDI: ffff88021ec0d658</span>
+<span class="quote">&gt;   [  268.032598] RBP: ffff880213e2fdc8 R08: 000000000000000a R09: 000000000000132f</span>
+<span class="quote">&gt;   [  268.032598] R10: 0000000000000000 R11: 000000000000132f R12: 4000000000000000</span>
+<span class="quote">&gt;   [  268.032598] R13: ffffea00033e6340 R14: 00007fff8449e430 R15: ffffea00033e6340</span>
+<span class="quote">&gt;   [  268.032598] FS:  00007ff7f9525700(0000) GS:ffff88021ec00000(0000) knlGS:0000000000000000</span>
+<span class="quote">&gt;   [  268.032598] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033</span>
+<span class="quote">&gt;   [  268.032598] CR2: 000000000063b800 CR3: 00000000d9e71000 CR4: 00000000000006f0</span>
+<span class="quote">&gt;   [  268.032598] Stack:</span>
+<span class="quote">&gt;   [  268.032598]  ffff8800db82df80 ffff8802150a39c0 0000000000000008 00000000000cf98d</span>
+<span class="quote">&gt;   [  268.032598]  ffff880213e2fe18 ffffffff81243588 00007fff8449e430 ffff880213e2ff20</span>
+<span class="quote">&gt;   [  268.032598]  000000000063b800 ffff8802150a39c0 fffffffffffffffb ffff880213e2ff20</span>
+<span class="quote">&gt;   [  268.032598] Call Trace:</span>
+<span class="quote">&gt;   [  268.032598]  [&lt;ffffffff81243588&gt;] kpageflags_read+0xc8/0x130</span>
+<span class="quote">&gt;   [  268.032598]  [&lt;ffffffff81235848&gt;] proc_reg_read+0x48/0x70</span>
+<span class="quote">&gt;   [  268.032598]  [&lt;ffffffff811d6b08&gt;] __vfs_read+0x28/0xd0</span>
+<span class="quote">&gt;   [  268.032598]  [&lt;ffffffff812ee43e&gt;] ? security_file_permission+0xae/0xc0</span>
+<span class="quote">&gt;   [  268.032598]  [&lt;ffffffff811d6f53&gt;] ? rw_verify_area+0x53/0xf0</span>
+<span class="quote">&gt;   [  268.032598]  [&lt;ffffffff811d707a&gt;] vfs_read+0x8a/0x130</span>
+<span class="quote">&gt;   [  268.032598]  [&lt;ffffffff811d7bf7&gt;] SyS_pread64+0x77/0x90</span>
+<span class="quote">&gt;   [  268.032598]  [&lt;ffffffff81648117&gt;] entry_SYSCALL_64_fastpath+0x12/0x6a</span>
+<span class="quote">&gt;   [  268.032598] Code: ca 00 00 40 01 48 39 c1 48 0f 44 da e9 a2 fd ff ff 48 c7 c6 50 a6 a1 8 1 e8 58 ab f4 ff 0f 0b 48 c7 c6 90 a2 a1 81 e8 4a ab f4 ff &lt;0f&gt; 0b 0f 1f 84 00 00 00 00 00 66 66 66 66 90 55 48 89 e5 41 57</span>
+<span class="quote">&gt;   [  268.032598] RIP  [&lt;ffffffff812434b6&gt;] stable_page_flags+0x336/0x340</span>
+<span class="quote">&gt;   [  268.032598]  RSP &lt;ffff880213e2fda8&gt;</span>
+<span class="quote">&gt;   [  268.070504] ---[ end trace e5d18553088c026a ]---</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; page_mapcount() could be called for a tail page, so VM_BUG_ON_PAGE(!PageHead())</span>
+<span class="quote">&gt; in PageDoubleMap() introduced by this patch seems too strong restriction.</span>
+
+Hm. page_mapcount() calls PageDoubleMap() only for head pages.
+<span class="quote">
+&gt; Could you handle this?</span>
+
+Do you have a reproducer?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=4407">Naoya Horiguchi</a> - Oct. 27, 2015, 11:24 p.m.</div>
+<pre class="content">
+On Tue, Oct 27, 2015 at 11:30:55AM +0200, Kirill A. Shutemov wrote:
+<span class="quote">&gt; On Tue, Oct 27, 2015 at 06:18:01AM +0000, Naoya Horiguchi wrote:</span>
+<span class="quote">&gt; &gt; On Tue, Oct 06, 2015 at 06:23:53PM +0300, Kirill A. Shutemov wrote:</span>
+<span class="quote">&gt; &gt; &gt; We&#39;re going to allow mapping of individual 4k pages of THP compound.</span>
+<span class="quote">&gt; &gt; &gt; It means we need to track mapcount on per small page basis.</span>
+<span class="quote">&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; Straight-forward approach is to use -&gt;_mapcount in all subpages to track</span>
+<span class="quote">&gt; &gt; &gt; how many time this subpage is mapped with PMDs or PTEs combined. But</span>
+<span class="quote">&gt; &gt; &gt; this is rather expensive: mapping or unmapping of a THP page with PMD</span>
+<span class="quote">&gt; &gt; &gt; would require HPAGE_PMD_NR atomic operations instead of single we have</span>
+<span class="quote">&gt; &gt; &gt; now.</span>
+<span class="quote">&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; The idea is to store separately how many times the page was mapped as</span>
+<span class="quote">&gt; &gt; &gt; whole -- compound_mapcount. This frees up -&gt;_mapcount in subpages to</span>
+<span class="quote">&gt; &gt; &gt; track PTE mapcount.</span>
+<span class="quote">&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; We use the same approach as with compound page destructor and compound</span>
+<span class="quote">&gt; &gt; &gt; order to store compound_mapcount: use space in first tail page,</span>
+<span class="quote">&gt; &gt; &gt; -&gt;mapping this time.</span>
+<span class="quote">&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; Any time we map/unmap whole compound page (THP or hugetlb) -- we</span>
+<span class="quote">&gt; &gt; &gt; increment/decrement compound_mapcount. When we map part of compound page</span>
+<span class="quote">&gt; &gt; &gt; with PTE we operate on -&gt;_mapcount of the subpage.</span>
+<span class="quote">&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; page_mapcount() counts both: PTE and PMD mappings of the page.</span>
+<span class="quote">&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; Basically, we have mapcount for a subpage spread over two counters.</span>
+<span class="quote">&gt; &gt; &gt; It makes tricky to detect when last mapcount for a page goes away.</span>
+<span class="quote">&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; We introduced PageDoubleMap() for this. When we split THP PMD for the</span>
+<span class="quote">&gt; &gt; &gt; first time and there&#39;s other PMD mapping left we offset up -&gt;_mapcount</span>
+<span class="quote">&gt; &gt; &gt; in all subpages by one and set PG_double_map on the compound page.</span>
+<span class="quote">&gt; &gt; &gt; These additional references go away with last compound_mapcount.</span>
+<span class="quote">&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; This approach provides a way to detect when last mapcount goes away on</span>
+<span class="quote">&gt; &gt; &gt; per small page basis without introducing new overhead for most common</span>
+<span class="quote">&gt; &gt; &gt; cases.</span>
+<span class="quote">&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; Signed-off-by: Kirill A. Shutemov &lt;kirill.shutemov@linux.intel.com&gt;</span>
+<span class="quote">&gt; &gt; &gt; Tested-by: Aneesh Kumar K.V &lt;aneesh.kumar@linux.vnet.ibm.com&gt;</span>
+<span class="quote">&gt; &gt; &gt; Acked-by: Jerome Marchand &lt;jmarchan@redhat.com&gt;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I found that recent mmotm hit the following BUG_ON() by reading</span>
+<span class="quote">&gt; &gt; /proc/kpageflags over pfn backed by a thp.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;   [  268.024519] page:ffffea00033e0000 count:0 mapcount:0 mapping:          (null) index:0x700000200</span>
+<span class="quote">&gt; &gt;   [  268.026076] flags: 0x4000000000000000()</span>
+<span class="quote">&gt; &gt;   [  268.026778] page dumped because: VM_BUG_ON_PAGE(!PageHead(page))</span>
+<span class="quote">&gt; &gt;   [  268.027816] page-&gt;mem_cgroup:ffff88021588cc00</span>
+<span class="quote">&gt; &gt;   [  268.028638] ------------[ cut here ]------------</span>
+<span class="quote">&gt; &gt;   [  268.029932] kernel BUG at /src/linux-dev/include/linux/page-flags.h:552!</span>
+<span class="quote">&gt; &gt;   [  268.031092] invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC</span>
+<span class="quote">&gt; &gt;   [  268.032125] Modules linked in: cfg80211 rfkill crc32c_intel virtio_balloon serio_raw i2c_piix4 virtio_blk virtio_net ata_generic pata_acpi</span>
+<span class="quote">&gt; &gt;   [  268.032598] CPU: 0 PID: 1183 Comm: page-types Not tainted 4.2.0-mmotm-2015-10-21-14-41-151027-1418-00014-41+ #179</span>
+<span class="quote">&gt; &gt;   [  268.032598] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011</span>
+<span class="quote">&gt; &gt;   [  268.032598] task: ffff880214a08bc0 ti: ffff880213e2c000 task.ti: ffff880213e2c000</span>
+<span class="quote">&gt; &gt;   [  268.032598] RIP: 0010:[&lt;ffffffff812434b6&gt;]  [&lt;ffffffff812434b6&gt;] stable_page_flags+0x336/0x340</span>
+<span class="quote">&gt; &gt;   [  268.032598] RSP: 0018:ffff880213e2fda8  EFLAGS: 00010292</span>
+<span class="quote">&gt; &gt;   [  268.032598] RAX: 0000000000000021 RBX: ffff8802150a39c0 RCX: 0000000000000000</span>
+<span class="quote">&gt; &gt;   [  268.032598] RDX: ffff88021ec0ff38 RSI: ffff88021ec0d658 RDI: ffff88021ec0d658</span>
+<span class="quote">&gt; &gt;   [  268.032598] RBP: ffff880213e2fdc8 R08: 000000000000000a R09: 000000000000132f</span>
+<span class="quote">&gt; &gt;   [  268.032598] R10: 0000000000000000 R11: 000000000000132f R12: 4000000000000000</span>
+<span class="quote">&gt; &gt;   [  268.032598] R13: ffffea00033e6340 R14: 00007fff8449e430 R15: ffffea00033e6340</span>
+<span class="quote">&gt; &gt;   [  268.032598] FS:  00007ff7f9525700(0000) GS:ffff88021ec00000(0000) knlGS:0000000000000000</span>
+<span class="quote">&gt; &gt;   [  268.032598] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033</span>
+<span class="quote">&gt; &gt;   [  268.032598] CR2: 000000000063b800 CR3: 00000000d9e71000 CR4: 00000000000006f0</span>
+<span class="quote">&gt; &gt;   [  268.032598] Stack:</span>
+<span class="quote">&gt; &gt;   [  268.032598]  ffff8800db82df80 ffff8802150a39c0 0000000000000008 00000000000cf98d</span>
+<span class="quote">&gt; &gt;   [  268.032598]  ffff880213e2fe18 ffffffff81243588 00007fff8449e430 ffff880213e2ff20</span>
+<span class="quote">&gt; &gt;   [  268.032598]  000000000063b800 ffff8802150a39c0 fffffffffffffffb ffff880213e2ff20</span>
+<span class="quote">&gt; &gt;   [  268.032598] Call Trace:</span>
+<span class="quote">&gt; &gt;   [  268.032598]  [&lt;ffffffff81243588&gt;] kpageflags_read+0xc8/0x130</span>
+<span class="quote">&gt; &gt;   [  268.032598]  [&lt;ffffffff81235848&gt;] proc_reg_read+0x48/0x70</span>
+<span class="quote">&gt; &gt;   [  268.032598]  [&lt;ffffffff811d6b08&gt;] __vfs_read+0x28/0xd0</span>
+<span class="quote">&gt; &gt;   [  268.032598]  [&lt;ffffffff812ee43e&gt;] ? security_file_permission+0xae/0xc0</span>
+<span class="quote">&gt; &gt;   [  268.032598]  [&lt;ffffffff811d6f53&gt;] ? rw_verify_area+0x53/0xf0</span>
+<span class="quote">&gt; &gt;   [  268.032598]  [&lt;ffffffff811d707a&gt;] vfs_read+0x8a/0x130</span>
+<span class="quote">&gt; &gt;   [  268.032598]  [&lt;ffffffff811d7bf7&gt;] SyS_pread64+0x77/0x90</span>
+<span class="quote">&gt; &gt;   [  268.032598]  [&lt;ffffffff81648117&gt;] entry_SYSCALL_64_fastpath+0x12/0x6a</span>
+<span class="quote">&gt; &gt;   [  268.032598] Code: ca 00 00 40 01 48 39 c1 48 0f 44 da e9 a2 fd ff ff 48 c7 c6 50 a6 a1 8 1 e8 58 ab f4 ff 0f 0b 48 c7 c6 90 a2 a1 81 e8 4a ab f4 ff &lt;0f&gt; 0b 0f 1f 84 00 00 00 00 00 66 66 66 66 90 55 48 89 e5 41 57</span>
+<span class="quote">&gt; &gt;   [  268.032598] RIP  [&lt;ffffffff812434b6&gt;] stable_page_flags+0x336/0x340</span>
+<span class="quote">&gt; &gt;   [  268.032598]  RSP &lt;ffff880213e2fda8&gt;</span>
+<span class="quote">&gt; &gt;   [  268.070504] ---[ end trace e5d18553088c026a ]---</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; page_mapcount() could be called for a tail page, so VM_BUG_ON_PAGE(!PageHead())</span>
+<span class="quote">&gt; &gt; in PageDoubleMap() introduced by this patch seems too strong restriction.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Hm. page_mapcount() calls PageDoubleMap() only for head pages.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; Could you handle this?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Do you have a reproducer?</span>
+
+Yes, first you run a simple thp allocation like below in the background:
+
+  #include &lt;sys/mman.h&gt;
+  #include &lt;string.h&gt;
+
+  #define BASEADDR 0x700000000000
+
+  int main(int argc, char *argv[])
+  {
+          char *addr;
+          int length = 0x200000;
+
+          while (1) {
+                  addr = mmap((void *)BASEADDR, length, PROT_READ|PROT_WRITE,
+                              MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+                  memset(addr, 0, length);
+                  munmap(addr, length);
+          }
+          return 0;
+  }
+
+, and then you call tools/vm/page-types.c tool with -p pid option.
+After a few calls, the above bug should reproduce.
+
+Thanks,
+Naoya Horiguchi--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=4407">Naoya Horiguchi</a> - Oct. 29, 2015, 8:19 a.m.</div>
+<pre class="content">
+On Tue, Oct 06, 2015 at 06:23:53PM +0300, Kirill A. Shutemov wrote:
+...
+<span class="quote">&gt; diff --git a/mm/migrate.c b/mm/migrate.c</span>
+<span class="quote">&gt; index 0268013cce63..45fadab47c53 100644</span>
+<span class="quote">&gt; --- a/mm/migrate.c</span>
+<span class="quote">&gt; +++ b/mm/migrate.c</span>
+<span class="quote">&gt; @@ -165,7 +165,7 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,</span>
+<span class="quote">&gt;  		if (PageAnon(new))</span>
+<span class="quote">&gt;  			hugepage_add_anon_rmap(new, vma, addr);</span>
+<span class="quote">&gt;  		else</span>
+<span class="quote">&gt; -			page_dup_rmap(new);</span>
+<span class="quote">&gt; +			page_dup_rmap(new, false);</span>
+
+This is for hugetlb page, so the second argument should be true, right?
+
+Thanks,
+Naoya Horiguchi
+<span class="quote">
+&gt;  	} else if (PageAnon(new))</span>
+<span class="quote">&gt;  		page_add_anon_rmap(new, vma, addr, false);</span>
+<span class="quote">&gt;  	else--</span>
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=874">Kirill A. Shutemov</a> - Oct. 29, 2015, 9:50 p.m.</div>
+<pre class="content">
+On Tue, Oct 27, 2015 at 11:24:22PM +0000, Naoya Horiguchi wrote:
+<span class="quote">&gt; On Tue, Oct 27, 2015 at 11:30:55AM +0200, Kirill A. Shutemov wrote:</span>
+<span class="quote">&gt; &gt; On Tue, Oct 27, 2015 at 06:18:01AM +0000, Naoya Horiguchi wrote:</span>
+<span class="quote">&gt; &gt; &gt; On Tue, Oct 06, 2015 at 06:23:53PM +0300, Kirill A. Shutemov wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; We&#39;re going to allow mapping of individual 4k pages of THP compound.</span>
+<span class="quote">&gt; &gt; &gt; &gt; It means we need to track mapcount on per small page basis.</span>
+<span class="quote">&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; Straight-forward approach is to use -&gt;_mapcount in all subpages to track</span>
+<span class="quote">&gt; &gt; &gt; &gt; how many time this subpage is mapped with PMDs or PTEs combined. But</span>
+<span class="quote">&gt; &gt; &gt; &gt; this is rather expensive: mapping or unmapping of a THP page with PMD</span>
+<span class="quote">&gt; &gt; &gt; &gt; would require HPAGE_PMD_NR atomic operations instead of single we have</span>
+<span class="quote">&gt; &gt; &gt; &gt; now.</span>
+<span class="quote">&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; The idea is to store separately how many times the page was mapped as</span>
+<span class="quote">&gt; &gt; &gt; &gt; whole -- compound_mapcount. This frees up -&gt;_mapcount in subpages to</span>
+<span class="quote">&gt; &gt; &gt; &gt; track PTE mapcount.</span>
+<span class="quote">&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; We use the same approach as with compound page destructor and compound</span>
+<span class="quote">&gt; &gt; &gt; &gt; order to store compound_mapcount: use space in first tail page,</span>
+<span class="quote">&gt; &gt; &gt; &gt; -&gt;mapping this time.</span>
+<span class="quote">&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; Any time we map/unmap whole compound page (THP or hugetlb) -- we</span>
+<span class="quote">&gt; &gt; &gt; &gt; increment/decrement compound_mapcount. When we map part of compound page</span>
+<span class="quote">&gt; &gt; &gt; &gt; with PTE we operate on -&gt;_mapcount of the subpage.</span>
+<span class="quote">&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; page_mapcount() counts both: PTE and PMD mappings of the page.</span>
+<span class="quote">&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; Basically, we have mapcount for a subpage spread over two counters.</span>
+<span class="quote">&gt; &gt; &gt; &gt; It makes tricky to detect when last mapcount for a page goes away.</span>
+<span class="quote">&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; We introduced PageDoubleMap() for this. When we split THP PMD for the</span>
+<span class="quote">&gt; &gt; &gt; &gt; first time and there&#39;s other PMD mapping left we offset up -&gt;_mapcount</span>
+<span class="quote">&gt; &gt; &gt; &gt; in all subpages by one and set PG_double_map on the compound page.</span>
+<span class="quote">&gt; &gt; &gt; &gt; These additional references go away with last compound_mapcount.</span>
+<span class="quote">&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; This approach provides a way to detect when last mapcount goes away on</span>
+<span class="quote">&gt; &gt; &gt; &gt; per small page basis without introducing new overhead for most common</span>
+<span class="quote">&gt; &gt; &gt; &gt; cases.</span>
+<span class="quote">&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; Signed-off-by: Kirill A. Shutemov &lt;kirill.shutemov@linux.intel.com&gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; Tested-by: Aneesh Kumar K.V &lt;aneesh.kumar@linux.vnet.ibm.com&gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; Acked-by: Jerome Marchand &lt;jmarchan@redhat.com&gt;</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; I found that recent mmotm hit the following BUG_ON() by reading</span>
+<span class="quote">&gt; &gt; &gt; /proc/kpageflags over pfn backed by a thp.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt;   [  268.024519] page:ffffea00033e0000 count:0 mapcount:0 mapping:          (null) index:0x700000200</span>
+<span class="quote">&gt; &gt; &gt;   [  268.026076] flags: 0x4000000000000000()</span>
+<span class="quote">&gt; &gt; &gt;   [  268.026778] page dumped because: VM_BUG_ON_PAGE(!PageHead(page))</span>
+<span class="quote">&gt; &gt; &gt;   [  268.027816] page-&gt;mem_cgroup:ffff88021588cc00</span>
+<span class="quote">&gt; &gt; &gt;   [  268.028638] ------------[ cut here ]------------</span>
+<span class="quote">&gt; &gt; &gt;   [  268.029932] kernel BUG at /src/linux-dev/include/linux/page-flags.h:552!</span>
+<span class="quote">&gt; &gt; &gt;   [  268.031092] invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032125] Modules linked in: cfg80211 rfkill crc32c_intel virtio_balloon serio_raw i2c_piix4 virtio_blk virtio_net ata_generic pata_acpi</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598] CPU: 0 PID: 1183 Comm: page-types Not tainted 4.2.0-mmotm-2015-10-21-14-41-151027-1418-00014-41+ #179</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598] Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598] task: ffff880214a08bc0 ti: ffff880213e2c000 task.ti: ffff880213e2c000</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598] RIP: 0010:[&lt;ffffffff812434b6&gt;]  [&lt;ffffffff812434b6&gt;] stable_page_flags+0x336/0x340</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598] RSP: 0018:ffff880213e2fda8  EFLAGS: 00010292</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598] RAX: 0000000000000021 RBX: ffff8802150a39c0 RCX: 0000000000000000</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598] RDX: ffff88021ec0ff38 RSI: ffff88021ec0d658 RDI: ffff88021ec0d658</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598] RBP: ffff880213e2fdc8 R08: 000000000000000a R09: 000000000000132f</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598] R10: 0000000000000000 R11: 000000000000132f R12: 4000000000000000</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598] R13: ffffea00033e6340 R14: 00007fff8449e430 R15: ffffea00033e6340</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598] FS:  00007ff7f9525700(0000) GS:ffff88021ec00000(0000) knlGS:0000000000000000</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598] CR2: 000000000063b800 CR3: 00000000d9e71000 CR4: 00000000000006f0</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598] Stack:</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598]  ffff8800db82df80 ffff8802150a39c0 0000000000000008 00000000000cf98d</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598]  ffff880213e2fe18 ffffffff81243588 00007fff8449e430 ffff880213e2ff20</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598]  000000000063b800 ffff8802150a39c0 fffffffffffffffb ffff880213e2ff20</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598] Call Trace:</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598]  [&lt;ffffffff81243588&gt;] kpageflags_read+0xc8/0x130</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598]  [&lt;ffffffff81235848&gt;] proc_reg_read+0x48/0x70</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598]  [&lt;ffffffff811d6b08&gt;] __vfs_read+0x28/0xd0</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598]  [&lt;ffffffff812ee43e&gt;] ? security_file_permission+0xae/0xc0</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598]  [&lt;ffffffff811d6f53&gt;] ? rw_verify_area+0x53/0xf0</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598]  [&lt;ffffffff811d707a&gt;] vfs_read+0x8a/0x130</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598]  [&lt;ffffffff811d7bf7&gt;] SyS_pread64+0x77/0x90</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598]  [&lt;ffffffff81648117&gt;] entry_SYSCALL_64_fastpath+0x12/0x6a</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598] Code: ca 00 00 40 01 48 39 c1 48 0f 44 da e9 a2 fd ff ff 48 c7 c6 50 a6 a1 8 1 e8 58 ab f4 ff 0f 0b 48 c7 c6 90 a2 a1 81 e8 4a ab f4 ff &lt;0f&gt; 0b 0f 1f 84 00 00 00 00 00 66 66 66 66 90 55 48 89 e5 41 57</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598] RIP  [&lt;ffffffff812434b6&gt;] stable_page_flags+0x336/0x340</span>
+<span class="quote">&gt; &gt; &gt;   [  268.032598]  RSP &lt;ffff880213e2fda8&gt;</span>
+<span class="quote">&gt; &gt; &gt;   [  268.070504] ---[ end trace e5d18553088c026a ]---</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; page_mapcount() could be called for a tail page, so VM_BUG_ON_PAGE(!PageHead())</span>
+<span class="quote">&gt; &gt; &gt; in PageDoubleMap() introduced by this patch seems too strong restriction.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Hm. page_mapcount() calls PageDoubleMap() only for head pages.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Could you handle this?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Do you have a reproducer?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yes, first you run a simple thp allocation like below in the background:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   #include &lt;sys/mman.h&gt;</span>
+<span class="quote">&gt;   #include &lt;string.h&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   #define BASEADDR 0x700000000000</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   int main(int argc, char *argv[])</span>
+<span class="quote">&gt;   {</span>
+<span class="quote">&gt;           char *addr;</span>
+<span class="quote">&gt;           int length = 0x200000;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;           while (1) {</span>
+<span class="quote">&gt;                   addr = mmap((void *)BASEADDR, length, PROT_READ|PROT_WRITE,</span>
+<span class="quote">&gt;                               MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);</span>
+<span class="quote">&gt;                   memset(addr, 0, length);</span>
+<span class="quote">&gt;                   munmap(addr, length);</span>
+<span class="quote">&gt;           }</span>
+<span class="quote">&gt;           return 0;</span>
+<span class="quote">&gt;   }</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; , and then you call tools/vm/page-types.c tool with -p pid option.</span>
+<span class="quote">&gt; After a few calls, the above bug should reproduce.</span>
+
+Okay, the problem is that the page was freed under stable_page_flags().
+
+Is the code performance sensitive? Can we get reference to the page before
+touching it? If not, we can rewrite the helper like this:
+
+static inline int PageDoubleMap(struct page *page)
+{
+	return PageHead(page) &amp;&amp; test_bit(PG_double_map, &amp;page[1].flags);                         
+}
+
+Just dropping the check would be wrong, I think, as we access the next
+page.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=4407">Naoya Horiguchi</a> - Oct. 30, 2015, 8:33 a.m.</div>
+<pre class="content">
+On Thu, Oct 29, 2015 at 11:50:47PM +0200, Kirill A. Shutemov wrote:
+...
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Okay, the problem is that the page was freed under stable_page_flags().</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Is the code performance sensitive? Can we get reference to the page before</span>
+<span class="quote">&gt; touching it? If not, we can rewrite the helper like this:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; static inline int PageDoubleMap(struct page *page)</span>
+<span class="quote">&gt; {</span>
+<span class="quote">&gt; 	return PageHead(page) &amp;&amp; test_bit(PG_double_map, &amp;page[1].flags);                         </span>
+<span class="quote">&gt; }</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Just dropping the check would be wrong, I think, as we access the next</span>
+<span class="quote">&gt; page.</span>
+<span class="quote">&gt; </span>
+
+I don&#39;t think this interface is performance sensitive, but hopefully the
+impact on other workload is minimum. So I like the above rewritten one.
+
+Thanks,
+Naoya Horiguchi--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/include/linux/mm.h b/include/linux/mm.h</span>
+<span class="p_header">index 6e0315ded151..2808f5733318 100644</span>
+<span class="p_header">--- a/include/linux/mm.h</span>
+<span class="p_header">+++ b/include/linux/mm.h</span>
+<span class="p_chunk">@@ -387,6 +387,19 @@</span> <span class="p_context"> static inline int is_vmalloc_or_module_addr(const void *x)</span>
+ 
+ extern void kvfree(const void *addr);
+ 
+<span class="p_add">+static inline atomic_t *compound_mapcount_ptr(struct page *page)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return &amp;page[1].compound_mapcount;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline int compound_mapcount(struct page *page)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (!PageCompound(page))</span>
+<span class="p_add">+		return 0;</span>
+<span class="p_add">+	page = compound_head(page);</span>
+<span class="p_add">+	return atomic_read(compound_mapcount_ptr(page)) + 1;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ /*
+  * The atomic page-&gt;_mapcount, starts from -1: so that transitions
+  * both from it and to it can be tracked, using atomic_inc_and_test
+<span class="p_chunk">@@ -399,8 +412,17 @@</span> <span class="p_context"> static inline void page_mapcount_reset(struct page *page)</span>
+ 
+ static inline int page_mapcount(struct page *page)
+ {
+<span class="p_add">+	int ret;</span>
+ 	VM_BUG_ON_PAGE(PageSlab(page), page);
+<span class="p_del">-	return atomic_read(&amp;page-&gt;_mapcount) + 1;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ret = atomic_read(&amp;page-&gt;_mapcount) + 1;</span>
+<span class="p_add">+	if (PageCompound(page)) {</span>
+<span class="p_add">+		page = compound_head(page);</span>
+<span class="p_add">+		ret += atomic_read(compound_mapcount_ptr(page)) + 1;</span>
+<span class="p_add">+		if (PageDoubleMap(page))</span>
+<span class="p_add">+			ret--;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	return ret;</span>
+ }
+ 
+ static inline int page_count(struct page *page)
+<span class="p_chunk">@@ -911,7 +933,7 @@</span> <span class="p_context"> static inline pgoff_t page_file_index(struct page *page)</span>
+  */
+ static inline int page_mapped(struct page *page)
+ {
+<span class="p_del">-	return atomic_read(&amp;(page)-&gt;_mapcount) &gt;= 0;</span>
+<span class="p_add">+	return atomic_read(&amp;(page)-&gt;_mapcount) + compound_mapcount(page) &gt;= 0;</span>
+ }
+ 
+ /*
+<span class="p_header">diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h</span>
+<span class="p_header">index 202736c2e9d4..152293bc4e5b 100644</span>
+<span class="p_header">--- a/include/linux/mm_types.h</span>
+<span class="p_header">+++ b/include/linux/mm_types.h</span>
+<span class="p_chunk">@@ -54,6 +54,7 @@</span> <span class="p_context"> struct page {</span>
+ 						 * see PAGE_MAPPING_ANON below.
+ 						 */
+ 		void *s_mem;			/* slab first object */
+<span class="p_add">+		atomic_t compound_mapcount;	/* first tail page */</span>
+ 	};
+ 
+ 	/* Second double word */
+<span class="p_header">diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h</span>
+<span class="p_header">index 47902a1388f0..360675bfe733 100644</span>
+<span class="p_header">--- a/include/linux/page-flags.h</span>
+<span class="p_header">+++ b/include/linux/page-flags.h</span>
+<span class="p_chunk">@@ -126,6 +126,9 @@</span> <span class="p_context"> enum pageflags {</span>
+ 
+ 	/* SLOB */
+ 	PG_slob_free = PG_private,
+<span class="p_add">+</span>
+<span class="p_add">+	/* Compound pages. Stored in first tail page&#39;s flags */</span>
+<span class="p_add">+	PG_double_map = PG_private_2,</span>
+ };
+ 
+ #ifndef __GENERATING_BOUNDS_H
+<span class="p_chunk">@@ -519,10 +522,44 @@</span> <span class="p_context"> static inline int PageTransTail(struct page *page)</span>
+ 	return PageTail(page);
+ }
+ 
+<span class="p_add">+/*</span>
+<span class="p_add">+ * PageDoubleMap indicates that the compound page is mapped with PTEs as well</span>
+<span class="p_add">+ * as PMDs.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This is required for optimization of rmap oprations for THP: we can postpone</span>
+<span class="p_add">+ * per small page mapcount accounting (and its overhead from atomic operations)</span>
+<span class="p_add">+ * until the first PMD split.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * For the page PageDoubleMap means -&gt;_mapcount in all sub-pages is offset up</span>
+<span class="p_add">+ * by one. This reference will go away with last compound_mapcount.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * See also __split_huge_pmd_locked() and page_remove_anon_compound_rmap().</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static inline int PageDoubleMap(struct page *page)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	VM_BUG_ON_PAGE(!PageHead(page), page);</span>
+<span class="p_add">+	return test_bit(PG_double_map, &amp;page[1].flags);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline int TestSetPageDoubleMap(struct page *page)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	VM_BUG_ON_PAGE(!PageHead(page), page);</span>
+<span class="p_add">+	return test_and_set_bit(PG_double_map, &amp;page[1].flags);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline int TestClearPageDoubleMap(struct page *page)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	VM_BUG_ON_PAGE(!PageHead(page), page);</span>
+<span class="p_add">+	return test_and_clear_bit(PG_double_map, &amp;page[1].flags);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ #else
+ TESTPAGEFLAG_FALSE(TransHuge)
+ TESTPAGEFLAG_FALSE(TransCompound)
+ TESTPAGEFLAG_FALSE(TransTail)
+<span class="p_add">+TESTPAGEFLAG_FALSE(DoubleMap)</span>
+<span class="p_add">+	TESTSETFLAG_FALSE(DoubleMap)</span>
+<span class="p_add">+	TESTCLEARFLAG_FALSE(DoubleMap)</span>
+ #endif
+ 
+ /*
+<span class="p_header">diff --git a/include/linux/rmap.h b/include/linux/rmap.h</span>
+<span class="p_header">index 082928aba785..6b6233fafb53 100644</span>
+<span class="p_header">--- a/include/linux/rmap.h</span>
+<span class="p_header">+++ b/include/linux/rmap.h</span>
+<span class="p_chunk">@@ -184,9 +184,9 @@</span> <span class="p_context"> void hugepage_add_anon_rmap(struct page *, struct vm_area_struct *,</span>
+ void hugepage_add_new_anon_rmap(struct page *, struct vm_area_struct *,
+ 				unsigned long);
+ 
+<span class="p_del">-static inline void page_dup_rmap(struct page *page)</span>
+<span class="p_add">+static inline void page_dup_rmap(struct page *page, bool compound)</span>
+ {
+<span class="p_del">-	atomic_inc(&amp;page-&gt;_mapcount);</span>
+<span class="p_add">+	atomic_inc(compound ? compound_mapcount_ptr(page) : &amp;page-&gt;_mapcount);</span>
+ }
+ 
+ /*
+<span class="p_header">diff --git a/mm/debug.c b/mm/debug.c</span>
+<span class="p_header">index afe95cf61456..836276586185 100644</span>
+<span class="p_header">--- a/mm/debug.c</span>
+<span class="p_header">+++ b/mm/debug.c</span>
+<span class="p_chunk">@@ -79,9 +79,12 @@</span> <span class="p_context"> static void dump_flags(unsigned long flags,</span>
+ void dump_page_badflags(struct page *page, const char *reason,
+ 		unsigned long badflags)
+ {
+<span class="p_del">-	pr_emerg(&quot;page:%p count:%d mapcount:%d mapping:%p index:%#lx\n&quot;,</span>
+<span class="p_add">+	pr_emerg(&quot;page:%p count:%d mapcount:%d mapping:%p index:%#lx&quot;,</span>
+ 		  page, atomic_read(&amp;page-&gt;_count), page_mapcount(page),
+ 		  page-&gt;mapping, page-&gt;index);
+<span class="p_add">+	if (PageCompound(page))</span>
+<span class="p_add">+		pr_cont(&quot; compound_mapcount: %d&quot;, compound_mapcount(page));</span>
+<span class="p_add">+	pr_cont(&quot;\n&quot;);</span>
+ 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS);
+ 	dump_flags(page-&gt;flags, pageflag_names, ARRAY_SIZE(pageflag_names));
+ 	if (reason)
+<span class="p_header">diff --git a/mm/huge_memory.c b/mm/huge_memory.c</span>
+<span class="p_header">index 149e2548fa5e..a5da7807985e 100644</span>
+<span class="p_header">--- a/mm/huge_memory.c</span>
+<span class="p_header">+++ b/mm/huge_memory.c</span>
+<span class="p_chunk">@@ -1020,7 +1020,7 @@</span> <span class="p_context"> int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,</span>
+ 	src_page = pmd_page(pmd);
+ 	VM_BUG_ON_PAGE(!PageHead(src_page), src_page);
+ 	get_page(src_page);
+<span class="p_del">-	page_dup_rmap(src_page);</span>
+<span class="p_add">+	page_dup_rmap(src_page, true);</span>
+ 	add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
+ 
+ 	pmdp_set_wrprotect(src_mm, addr, src_pmd);
+<span class="p_header">diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="p_header">index af5ddf1b09d0..3c7db92e1f0b 100644</span>
+<span class="p_header">--- a/mm/hugetlb.c</span>
+<span class="p_header">+++ b/mm/hugetlb.c</span>
+<span class="p_chunk">@@ -3026,7 +3026,7 @@</span> <span class="p_context"> int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,</span>
+ 			entry = huge_ptep_get(src_pte);
+ 			ptepage = pte_page(entry);
+ 			get_page(ptepage);
+<span class="p_del">-			page_dup_rmap(ptepage);</span>
+<span class="p_add">+			page_dup_rmap(ptepage, true);</span>
+ 			set_huge_pte_at(dst, addr, dst_pte, entry);
+ 			hugetlb_count_add(pages_per_huge_page(h), dst);
+ 		}
+<span class="p_chunk">@@ -3509,7 +3509,7 @@</span> <span class="p_context"> retry:</span>
+ 		ClearPagePrivate(page);
+ 		hugepage_add_new_anon_rmap(page, vma, address);
+ 	} else
+<span class="p_del">-		page_dup_rmap(page);</span>
+<span class="p_add">+		page_dup_rmap(page, true);</span>
+ 	new_pte = make_huge_pte(vma, page, ((vma-&gt;vm_flags &amp; VM_WRITE)
+ 				&amp;&amp; (vma-&gt;vm_flags &amp; VM_SHARED)));
+ 	set_huge_pte_at(mm, address, ptep, new_pte);
+<span class="p_header">diff --git a/mm/memory.c b/mm/memory.c</span>
+<span class="p_header">index 3ae5ed168d00..f6e3c3b1aa29 100644</span>
+<span class="p_header">--- a/mm/memory.c</span>
+<span class="p_header">+++ b/mm/memory.c</span>
+<span class="p_chunk">@@ -867,7 +867,7 @@</span> <span class="p_context"> copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,</span>
+ 	page = vm_normal_page(vma, addr, pte);
+ 	if (page) {
+ 		get_page(page);
+<span class="p_del">-		page_dup_rmap(page);</span>
+<span class="p_add">+		page_dup_rmap(page, false);</span>
+ 		if (PageAnon(page))
+ 			rss[MM_ANONPAGES]++;
+ 		else
+<span class="p_header">diff --git a/mm/migrate.c b/mm/migrate.c</span>
+<span class="p_header">index 0268013cce63..45fadab47c53 100644</span>
+<span class="p_header">--- a/mm/migrate.c</span>
+<span class="p_header">+++ b/mm/migrate.c</span>
+<span class="p_chunk">@@ -165,7 +165,7 @@</span> <span class="p_context"> static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,</span>
+ 		if (PageAnon(new))
+ 			hugepage_add_anon_rmap(new, vma, addr);
+ 		else
+<span class="p_del">-			page_dup_rmap(new);</span>
+<span class="p_add">+			page_dup_rmap(new, false);</span>
+ 	} else if (PageAnon(new))
+ 		page_add_anon_rmap(new, vma, addr, false);
+ 	else
+<span class="p_header">diff --git a/mm/page_alloc.c b/mm/page_alloc.c</span>
+<span class="p_header">index 3112b23cb596..c1a967bd85e6 100644</span>
+<span class="p_header">--- a/mm/page_alloc.c</span>
+<span class="p_header">+++ b/mm/page_alloc.c</span>
+<span class="p_chunk">@@ -473,6 +473,7 @@</span> <span class="p_context"> void prep_compound_page(struct page *page, unsigned int order)</span>
+ 		p-&gt;mapping = TAIL_MAPPING;
+ 		set_compound_head(p, page);
+ 	}
+<span class="p_add">+	atomic_set(compound_mapcount_ptr(page), -1);</span>
+ }
+ 
+ #ifdef CONFIG_DEBUG_PAGEALLOC
+<span class="p_chunk">@@ -737,7 +738,7 @@</span> <span class="p_context"> static inline int free_pages_check(struct page *page)</span>
+ 	const char *bad_reason = NULL;
+ 	unsigned long bad_flags = 0;
+ 
+<span class="p_del">-	if (unlikely(page_mapcount(page)))</span>
+<span class="p_add">+	if (unlikely(atomic_read(&amp;page-&gt;_mapcount) != -1))</span>
+ 		bad_reason = &quot;nonzero mapcount&quot;;
+ 	if (unlikely(page-&gt;mapping != NULL))
+ 		bad_reason = &quot;non-NULL mapping&quot;;
+<span class="p_chunk">@@ -861,7 +862,13 @@</span> <span class="p_context"> static int free_tail_pages_check(struct page *head_page, struct page *page)</span>
+ 		ret = 0;
+ 		goto out;
+ 	}
+<span class="p_del">-	if (page-&gt;mapping != TAIL_MAPPING) {</span>
+<span class="p_add">+	/* mapping in first tail page is used for compound_mapcount() */</span>
+<span class="p_add">+	if (page - head_page == 1) {</span>
+<span class="p_add">+		if (unlikely(compound_mapcount(page))) {</span>
+<span class="p_add">+			bad_page(page, &quot;nonzero compound_mapcount&quot;, 0);</span>
+<span class="p_add">+			goto out;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	} else if (page-&gt;mapping != TAIL_MAPPING) {</span>
+ 		bad_page(page, &quot;corrupted mapping in tail page&quot;, 0);
+ 		goto out;
+ 	}
+<span class="p_chunk">@@ -1337,7 +1344,7 @@</span> <span class="p_context"> static inline int check_new_page(struct page *page)</span>
+ 	const char *bad_reason = NULL;
+ 	unsigned long bad_flags = 0;
+ 
+<span class="p_del">-	if (unlikely(page_mapcount(page)))</span>
+<span class="p_add">+	if (unlikely(atomic_read(&amp;page-&gt;_mapcount) != -1))</span>
+ 		bad_reason = &quot;nonzero mapcount&quot;;
+ 	if (unlikely(page-&gt;mapping != NULL))
+ 		bad_reason = &quot;non-NULL mapping&quot;;
+<span class="p_header">diff --git a/mm/rmap.c b/mm/rmap.c</span>
+<span class="p_header">index d4d7a1fe0b1d..8cbcf9527629 100644</span>
+<span class="p_header">--- a/mm/rmap.c</span>
+<span class="p_header">+++ b/mm/rmap.c</span>
+<span class="p_chunk">@@ -1146,7 +1146,7 @@</span> <span class="p_context"> static void __page_check_anon_rmap(struct page *page,</span>
+ 	 * over the call to page_add_new_anon_rmap.
+ 	 */
+ 	BUG_ON(page_anon_vma(page)-&gt;root != vma-&gt;anon_vma-&gt;root);
+<span class="p_del">-	BUG_ON(page-&gt;index != linear_page_index(vma, address));</span>
+<span class="p_add">+	BUG_ON(page_to_pgoff(page) != linear_page_index(vma, address));</span>
+ #endif
+ }
+ 
+<span class="p_chunk">@@ -1176,9 +1176,29 @@</span> <span class="p_context"> void page_add_anon_rmap(struct page *page,</span>
+ void do_page_add_anon_rmap(struct page *page,
+ 	struct vm_area_struct *vma, unsigned long address, int flags)
+ {
+<span class="p_del">-	int first = atomic_inc_and_test(&amp;page-&gt;_mapcount);</span>
+<span class="p_add">+	bool compound = flags &amp; RMAP_COMPOUND;</span>
+<span class="p_add">+	bool first;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (PageTransCompound(page)) {</span>
+<span class="p_add">+		VM_BUG_ON_PAGE(!PageLocked(page), page);</span>
+<span class="p_add">+		if (compound) {</span>
+<span class="p_add">+			atomic_t *mapcount;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			VM_BUG_ON_PAGE(!PageTransHuge(page), page);</span>
+<span class="p_add">+			mapcount = compound_mapcount_ptr(page);</span>
+<span class="p_add">+			first = atomic_inc_and_test(mapcount);</span>
+<span class="p_add">+		} else {</span>
+<span class="p_add">+			/* Anon THP always mapped first with PMD */</span>
+<span class="p_add">+			first = 0;</span>
+<span class="p_add">+			VM_BUG_ON_PAGE(!page_mapcount(page), page);</span>
+<span class="p_add">+			atomic_inc(&amp;page-&gt;_mapcount);</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		VM_BUG_ON_PAGE(compound, page);</span>
+<span class="p_add">+		first = atomic_inc_and_test(&amp;page-&gt;_mapcount);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+ 	if (first) {
+<span class="p_del">-		bool compound = flags &amp; RMAP_COMPOUND;</span>
+ 		int nr = compound ? hpage_nr_pages(page) : 1;
+ 		/*
+ 		 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
+<span class="p_chunk">@@ -1197,6 +1217,7 @@</span> <span class="p_context"> void do_page_add_anon_rmap(struct page *page,</span>
+ 		return;
+ 
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+<span class="p_add">+</span>
+ 	/* address might be in next vma when migration races vma_adjust */
+ 	if (first)
+ 		__page_set_anon_rmap(page, vma, address,
+<span class="p_chunk">@@ -1223,10 +1244,16 @@</span> <span class="p_context"> void page_add_new_anon_rmap(struct page *page,</span>
+ 
+ 	VM_BUG_ON_VMA(address &lt; vma-&gt;vm_start || address &gt;= vma-&gt;vm_end, vma);
+ 	SetPageSwapBacked(page);
+<span class="p_del">-	atomic_set(&amp;page-&gt;_mapcount, 0); /* increment count (starts at -1) */</span>
+ 	if (compound) {
+ 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+<span class="p_add">+		/* increment count (starts at -1) */</span>
+<span class="p_add">+		atomic_set(compound_mapcount_ptr(page), 0);</span>
+ 		__inc_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		/* Anon THP always mapped first with PMD */</span>
+<span class="p_add">+		VM_BUG_ON_PAGE(PageTransCompound(page), page);</span>
+<span class="p_add">+		/* increment count (starts at -1) */</span>
+<span class="p_add">+		atomic_set(&amp;page-&gt;_mapcount, 0);</span>
+ 	}
+ 	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, nr);
+ 	__page_set_anon_rmap(page, vma, address, 1);
+<span class="p_chunk">@@ -1256,12 +1283,15 @@</span> <span class="p_context"> static void page_remove_file_rmap(struct page *page)</span>
+ 
+ 	memcg = mem_cgroup_begin_page_stat(page);
+ 
+<span class="p_del">-	/* page still mapped by someone else? */</span>
+<span class="p_del">-	if (!atomic_add_negative(-1, &amp;page-&gt;_mapcount))</span>
+<span class="p_add">+	/* Hugepages are not counted in NR_FILE_MAPPED for now. */</span>
+<span class="p_add">+	if (unlikely(PageHuge(page))) {</span>
+<span class="p_add">+		/* hugetlb pages are always mapped with pmds */</span>
+<span class="p_add">+		atomic_dec(compound_mapcount_ptr(page));</span>
+ 		goto out;
+<span class="p_add">+	}</span>
+ 
+<span class="p_del">-	/* Hugepages are not counted in NR_FILE_MAPPED for now. */</span>
+<span class="p_del">-	if (unlikely(PageHuge(page)))</span>
+<span class="p_add">+	/* page still mapped by someone else? */</span>
+<span class="p_add">+	if (!atomic_add_negative(-1, &amp;page-&gt;_mapcount))</span>
+ 		goto out;
+ 
+ 	/*
+<span class="p_chunk">@@ -1278,6 +1308,39 @@</span> <span class="p_context"> out:</span>
+ 	mem_cgroup_end_page_stat(memcg);
+ }
+ 
+<span class="p_add">+static void page_remove_anon_compound_rmap(struct page *page)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	int i, nr;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!atomic_add_negative(-1, compound_mapcount_ptr(page)))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Hugepages are not counted in NR_ANON_PAGES for now. */</span>
+<span class="p_add">+	if (unlikely(PageHuge(page)))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!IS_ENABLED(CONFIG_TRANSPARENT_HUGEPAGE))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (TestClearPageDoubleMap(page)) {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Subpages can be mapped with PTEs too. Check how many of</span>
+<span class="p_add">+		 * themi are still mapped.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		for (i = 0, nr = 0; i &lt; HPAGE_PMD_NR; i++) {</span>
+<span class="p_add">+			if (atomic_add_negative(-1, &amp;page[i]._mapcount))</span>
+<span class="p_add">+				nr++;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		nr = HPAGE_PMD_NR;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (nr)</span>
+<span class="p_add">+		__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ /**
+  * page_remove_rmap - take down pte mapping from a page
+  * @page:	page to remove mapping from
+<span class="p_chunk">@@ -1287,33 +1350,25 @@</span> <span class="p_context"> out:</span>
+  */
+ void page_remove_rmap(struct page *page, bool compound)
+ {
+<span class="p_del">-	int nr = compound ? hpage_nr_pages(page) : 1;</span>
+<span class="p_del">-</span>
+ 	if (!PageAnon(page)) {
+ 		VM_BUG_ON_PAGE(compound &amp;&amp; !PageHuge(page), page);
+ 		page_remove_file_rmap(page);
+ 		return;
+ 	}
+ 
+<span class="p_add">+	if (compound)</span>
+<span class="p_add">+		return page_remove_anon_compound_rmap(page);</span>
+<span class="p_add">+</span>
+ 	/* page still mapped by someone else? */
+ 	if (!atomic_add_negative(-1, &amp;page-&gt;_mapcount))
+ 		return;
+ 
+<span class="p_del">-	/* Hugepages are not counted in NR_ANON_PAGES for now. */</span>
+<span class="p_del">-	if (unlikely(PageHuge(page)))</span>
+<span class="p_del">-		return;</span>
+<span class="p_del">-</span>
+ 	/*
+ 	 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
+ 	 * these counters are not modified in interrupt context, and
+ 	 * pte lock(a spinlock) is held, which implies preemption disabled.
+ 	 */
+<span class="p_del">-	if (compound) {</span>
+<span class="p_del">-		VM_BUG_ON_PAGE(!PageTransHuge(page), page);</span>
+<span class="p_del">-		__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);</span>
+<span class="p_del">-	}</span>
+<span class="p_del">-</span>
+<span class="p_del">-	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES, -nr);</span>
+<span class="p_add">+	__dec_zone_page_state(page, NR_ANON_PAGES);</span>
+ 
+ 	if (unlikely(PageMlocked(page)))
+ 		clear_page_mlock(page);
+<span class="p_chunk">@@ -1769,7 +1824,7 @@</span> <span class="p_context"> void hugepage_add_anon_rmap(struct page *page,</span>
+ 	BUG_ON(!PageLocked(page));
+ 	BUG_ON(!anon_vma);
+ 	/* address might be in next vma when migration races vma_adjust */
+<span class="p_del">-	first = atomic_inc_and_test(&amp;page-&gt;_mapcount);</span>
+<span class="p_add">+	first = atomic_inc_and_test(compound_mapcount_ptr(page));</span>
+ 	if (first)
+ 		__hugepage_set_anon_rmap(page, vma, address, 0);
+ }
+<span class="p_chunk">@@ -1778,7 +1833,7 @@</span> <span class="p_context"> void hugepage_add_new_anon_rmap(struct page *page,</span>
+ 			struct vm_area_struct *vma, unsigned long address)
+ {
+ 	BUG_ON(address &lt; vma-&gt;vm_start || address &gt;= vma-&gt;vm_end);
+<span class="p_del">-	atomic_set(&amp;page-&gt;_mapcount, 0);</span>
+<span class="p_add">+	atomic_set(compound_mapcount_ptr(page), 0);</span>
+ 	__hugepage_set_anon_rmap(page, vma, address, 1);
+ }
+ #endif /* CONFIG_HUGETLB_PAGE */
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

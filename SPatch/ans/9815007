@@ -1,0 +1,657 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[05/15] mm/hmm/mirror: device page fault handler - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [05/15] mm/hmm/mirror: device page fault handler</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=2554">Jerome Glisse</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>June 28, 2017, 6 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170628180047.5386-6-jglisse@redhat.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9815007/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9815007/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9815007/">/patch/9815007/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	0FBF5603D7 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 28 Jun 2017 18:03:41 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id F303428575
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 28 Jun 2017 18:03:40 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id E734628619; Wed, 28 Jun 2017 18:03:40 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 096C328575
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 28 Jun 2017 18:03:40 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752288AbdF1SDe (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 28 Jun 2017 14:03:34 -0400
+Received: from mx1.redhat.com ([209.132.183.28]:45378 &quot;EHLO mx1.redhat.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1752130AbdF1SBQ (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 28 Jun 2017 14:01:16 -0400
+Received: from smtp.corp.redhat.com
+	(int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id EF99080E6A;
+	Wed, 28 Jun 2017 18:01:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mx1.redhat.com EF99080E6A
+Authentication-Results: ext-mx01.extmail.prod.ext.phx2.redhat.com;
+	dmarc=none (p=none dis=none) header.from=redhat.com
+Authentication-Results: ext-mx01.extmail.prod.ext.phx2.redhat.com;
+	spf=pass smtp.mailfrom=jglisse@redhat.com
+DKIM-Filter: OpenDKIM Filter v2.11.0 mx1.redhat.com EF99080E6A
+Received: from localhost.localdomain.com (ovpn-121-68.rdu2.redhat.com
+	[10.10.121.68])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 95A2A5C6F0;
+	Wed, 28 Jun 2017 18:01:08 +0000 (UTC)
+From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= &lt;jglisse@redhat.com&gt;
+To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org
+Cc: John Hubbard &lt;jhubbard@nvidia.com&gt;,
+	Dan Williams &lt;dan.j.williams@intel.com&gt;,
+	David Nellans &lt;dnellans@nvidia.com&gt;,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= &lt;jglisse@redhat.com&gt;,
+	Evgeny Baskakov &lt;ebaskakov@nvidia.com&gt;,
+	Mark Hairgrove &lt;mhairgrove@nvidia.com&gt;,
+	Sherry Cheung &lt;SCheung@nvidia.com&gt;, Subhash Gutti &lt;sgutti@nvidia.com&gt;
+Subject: [PATCH 05/15] mm/hmm/mirror: device page fault handler
+Date: Wed, 28 Jun 2017 14:00:37 -0400
+Message-Id: &lt;20170628180047.5386-6-jglisse@redhat.com&gt;
+In-Reply-To: &lt;20170628180047.5386-1-jglisse@redhat.com&gt;
+References: &lt;20170628180047.5386-1-jglisse@redhat.com&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16
+	(mx1.redhat.com [10.5.110.25]);
+	Wed, 28 Jun 2017 18:01:10 +0000 (UTC)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=2554">Jerome Glisse</a> - June 28, 2017, 6 p.m.</div>
+<pre class="content">
+This handle page fault on behalf of device driver, unlike handle_mm_fault()
+it does not trigger migration back to system memory for device memory.
+<span class="signed-off-by">
+Signed-off-by: Jérôme Glisse &lt;jglisse@redhat.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Evgeny Baskakov &lt;ebaskakov@nvidia.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: John Hubbard &lt;jhubbard@nvidia.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Mark Hairgrove &lt;mhairgrove@nvidia.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Sherry Cheung &lt;SCheung@nvidia.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Subhash Gutti &lt;sgutti@nvidia.com&gt;</span>
+---
+ include/linux/hmm.h |  27 ++++++
+ mm/hmm.c            | 256 +++++++++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 271 insertions(+), 12 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/include/linux/hmm.h b/include/linux/hmm.h</span>
+<span class="p_header">index f254856cd727..248a6e09cb56 100644</span>
+<span class="p_header">--- a/include/linux/hmm.h</span>
+<span class="p_header">+++ b/include/linux/hmm.h</span>
+<span class="p_chunk">@@ -292,6 +292,33 @@</span> <span class="p_context"> int hmm_vma_get_pfns(struct vm_area_struct *vma,</span>
+ 		     unsigned long end,
+ 		     hmm_pfn_t *pfns);
+ bool hmm_vma_range_done(struct vm_area_struct *vma, struct hmm_range *range);
+<span class="p_add">+</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Fault memory on behalf of device driver. Unlike handle_mm_fault(), this will</span>
+<span class="p_add">+ * not migrate any device memory back to system memory. The hmm_pfn_t array will</span>
+<span class="p_add">+ * be updated with the fault result and current snapshot of the CPU page table</span>
+<span class="p_add">+ * for the range.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * The mmap_sem must be taken in read mode before entering and it might be</span>
+<span class="p_add">+ * dropped by the function if the block argument is false. In that case, the</span>
+<span class="p_add">+ * function returns -EAGAIN.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Return value does not reflect if the fault was successful for every single</span>
+<span class="p_add">+ * address or not. Therefore, the caller must to inspect the hmm_pfn_t array to</span>
+<span class="p_add">+ * determine fault status for each address.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Trying to fault inside an invalid vma will result in -EINVAL.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * See the function description in mm/hmm.c for further documentation.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+int hmm_vma_fault(struct vm_area_struct *vma,</span>
+<span class="p_add">+		  struct hmm_range *range,</span>
+<span class="p_add">+		  unsigned long start,</span>
+<span class="p_add">+		  unsigned long end,</span>
+<span class="p_add">+		  hmm_pfn_t *pfns,</span>
+<span class="p_add">+		  bool write,</span>
+<span class="p_add">+		  bool block);</span>
+ #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
+ 
+ 
+<span class="p_header">diff --git a/mm/hmm.c b/mm/hmm.c</span>
+<span class="p_header">index 472d2370a242..e7d5a363d6e5 100644</span>
+<span class="p_header">--- a/mm/hmm.c</span>
+<span class="p_header">+++ b/mm/hmm.c</span>
+<span class="p_chunk">@@ -236,6 +236,36 @@</span> <span class="p_context"> void hmm_mirror_unregister(struct hmm_mirror *mirror)</span>
+ }
+ EXPORT_SYMBOL(hmm_mirror_unregister);
+ 
+<span class="p_add">+struct hmm_vma_walk {</span>
+<span class="p_add">+	struct hmm_range	*range;</span>
+<span class="p_add">+	unsigned long		last;</span>
+<span class="p_add">+	bool			fault;</span>
+<span class="p_add">+	bool			block;</span>
+<span class="p_add">+	bool			write;</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int hmm_vma_do_fault(struct mm_walk *walk,</span>
+<span class="p_add">+			    unsigned long addr,</span>
+<span class="p_add">+			    hmm_pfn_t *pfn)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_REMOTE;</span>
+<span class="p_add">+	struct hmm_vma_walk *hmm_vma_walk = walk-&gt;private;</span>
+<span class="p_add">+	struct vm_area_struct *vma = walk-&gt;vma;</span>
+<span class="p_add">+	int r;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	flags |= hmm_vma_walk-&gt;block ? 0 : FAULT_FLAG_ALLOW_RETRY;</span>
+<span class="p_add">+	flags |= hmm_vma_walk-&gt;write ? FAULT_FLAG_WRITE : 0;</span>
+<span class="p_add">+	r = handle_mm_fault(vma, addr, flags);</span>
+<span class="p_add">+	if (r &amp; VM_FAULT_RETRY)</span>
+<span class="p_add">+		return -EBUSY;</span>
+<span class="p_add">+	if (r &amp; VM_FAULT_ERROR) {</span>
+<span class="p_add">+		*pfn = HMM_PFN_ERROR;</span>
+<span class="p_add">+		return -EFAULT;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return -EAGAIN;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ static void hmm_pfns_special(hmm_pfn_t *pfns,
+ 			     unsigned long addr,
+ 			     unsigned long end)
+<span class="p_chunk">@@ -259,34 +289,62 @@</span> <span class="p_context"> static int hmm_pfns_bad(unsigned long addr,</span>
+ 	return 0;
+ }
+ 
+<span class="p_add">+static void hmm_pfns_clear(hmm_pfn_t *pfns,</span>
+<span class="p_add">+			   unsigned long addr,</span>
+<span class="p_add">+			   unsigned long end)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	for (; addr &lt; end; addr += PAGE_SIZE, pfns++)</span>
+<span class="p_add">+		*pfns = 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ static int hmm_vma_walk_hole(unsigned long addr,
+ 			     unsigned long end,
+ 			     struct mm_walk *walk)
+ {
+<span class="p_del">-	struct hmm_range *range = walk-&gt;private;</span>
+<span class="p_add">+	struct hmm_vma_walk *hmm_vma_walk = walk-&gt;private;</span>
+<span class="p_add">+	struct hmm_range *range = hmm_vma_walk-&gt;range;</span>
+ 	hmm_pfn_t *pfns = range-&gt;pfns;
+ 	unsigned long i;
+ 
+<span class="p_add">+	hmm_vma_walk-&gt;last = addr;</span>
+ 	i = (addr - range-&gt;start) &gt;&gt; PAGE_SHIFT;
+<span class="p_del">-	for (; addr &lt; end; addr += PAGE_SIZE, i++)</span>
+<span class="p_add">+	for (; addr &lt; end; addr += PAGE_SIZE, i++) {</span>
+ 		pfns[i] = HMM_PFN_EMPTY;
+<span class="p_add">+		if (hmm_vma_walk-&gt;fault) {</span>
+<span class="p_add">+			int ret;</span>
+ 
+<span class="p_del">-	return 0;</span>
+<span class="p_add">+			ret = hmm_vma_do_fault(walk, addr, &amp;pfns[i]);</span>
+<span class="p_add">+			if (ret != -EAGAIN)</span>
+<span class="p_add">+				return ret;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return hmm_vma_walk-&gt;fault ? -EAGAIN : 0;</span>
+ }
+ 
+ static int hmm_vma_walk_clear(unsigned long addr,
+ 			      unsigned long end,
+ 			      struct mm_walk *walk)
+ {
+<span class="p_del">-	struct hmm_range *range = walk-&gt;private;</span>
+<span class="p_add">+	struct hmm_vma_walk *hmm_vma_walk = walk-&gt;private;</span>
+<span class="p_add">+	struct hmm_range *range = hmm_vma_walk-&gt;range;</span>
+ 	hmm_pfn_t *pfns = range-&gt;pfns;
+ 	unsigned long i;
+ 
+<span class="p_add">+	hmm_vma_walk-&gt;last = addr;</span>
+ 	i = (addr - range-&gt;start) &gt;&gt; PAGE_SHIFT;
+<span class="p_del">-	for (; addr &lt; end; addr += PAGE_SIZE, i++)</span>
+<span class="p_add">+	for (; addr &lt; end; addr += PAGE_SIZE, i++) {</span>
+ 		pfns[i] = 0;
+<span class="p_add">+		if (hmm_vma_walk-&gt;fault) {</span>
+<span class="p_add">+			int ret;</span>
+ 
+<span class="p_del">-	return 0;</span>
+<span class="p_add">+			ret = hmm_vma_do_fault(walk, addr, &amp;pfns[i]);</span>
+<span class="p_add">+			if (ret != -EAGAIN)</span>
+<span class="p_add">+				return ret;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return hmm_vma_walk-&gt;fault ? -EAGAIN : 0;</span>
+ }
+ 
+ static int hmm_vma_walk_pmd(pmd_t *pmdp,
+<span class="p_chunk">@@ -294,15 +352,18 @@</span> <span class="p_context"> static int hmm_vma_walk_pmd(pmd_t *pmdp,</span>
+ 			    unsigned long end,
+ 			    struct mm_walk *walk)
+ {
+<span class="p_del">-	struct hmm_range *range = walk-&gt;private;</span>
+<span class="p_add">+	struct hmm_vma_walk *hmm_vma_walk = walk-&gt;private;</span>
+<span class="p_add">+	struct hmm_range *range = hmm_vma_walk-&gt;range;</span>
+ 	struct vm_area_struct *vma = walk-&gt;vma;
+ 	hmm_pfn_t *pfns = range-&gt;pfns;
+ 	unsigned long addr = start, i;
+<span class="p_add">+	bool write_fault;</span>
+ 	hmm_pfn_t flag;
+ 	pte_t *ptep;
+ 
+ 	i = (addr - range-&gt;start) &gt;&gt; PAGE_SHIFT;
+ 	flag = vma-&gt;vm_flags &amp; VM_READ ? HMM_PFN_READ : 0;
+<span class="p_add">+	write_fault = hmm_vma_walk-&gt;fault &amp; hmm_vma_walk-&gt;write;</span>
+ 
+ 	if (pmd_none(*pmdp) || pmd_trans_unstable(pmdp)) {
+ 		pmd_t pmd;
+<span class="p_chunk">@@ -321,6 +382,9 @@</span> <span class="p_context"> static int hmm_vma_walk_pmd(pmd_t *pmdp,</span>
+ 		if (pmd_trans_huge(pmd) || pmd_devmap(pmd)) {
+ 			unsigned long pfn = pmd_pfn(pmd) + pte_index(addr);
+ 
+<span class="p_add">+			if (write_fault &amp;&amp; !pmd_write(pmd))</span>
+<span class="p_add">+				return hmm_vma_walk_clear(start, end, walk);</span>
+<span class="p_add">+</span>
+ 			flag |= pmd_write(pmd) ? HMM_PFN_WRITE : 0;
+ 			for (; addr &lt; end; addr += PAGE_SIZE, i++, pfn++)
+ 				pfns[i] = hmm_pfn_t_from_pfn(pfn) | flag;
+<span class="p_chunk">@@ -342,13 +406,55 @@</span> <span class="p_context"> static int hmm_vma_walk_pmd(pmd_t *pmdp,</span>
+ 
+ 		pfns[i] = 0;
+ 
+<span class="p_del">-		if (pte_none(pte) || !pte_present(pte)) {</span>
+<span class="p_add">+		if (pte_none(pte)) {</span>
+ 			pfns[i] = HMM_PFN_EMPTY;
+<span class="p_add">+			if (hmm_vma_walk-&gt;fault)</span>
+<span class="p_add">+				goto fault;</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (!pte_present(pte)) {</span>
+<span class="p_add">+			swp_entry_t entry;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			if (!non_swap_entry(entry)) {</span>
+<span class="p_add">+				if (hmm_vma_walk-&gt;fault)</span>
+<span class="p_add">+					goto fault;</span>
+<span class="p_add">+				continue;</span>
+<span class="p_add">+			}</span>
+<span class="p_add">+</span>
+<span class="p_add">+			entry = pte_to_swp_entry(pte);</span>
+<span class="p_add">+</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * This is a special swap entry, ignore migration, use</span>
+<span class="p_add">+			 * device and report anything else as error.</span>
+<span class="p_add">+			 */</span>
+<span class="p_add">+			if (is_migration_entry(entry)) {</span>
+<span class="p_add">+				if (hmm_vma_walk-&gt;fault) {</span>
+<span class="p_add">+					pte_unmap(ptep);</span>
+<span class="p_add">+					hmm_vma_walk-&gt;last = addr;</span>
+<span class="p_add">+					migration_entry_wait(vma-&gt;vm_mm,</span>
+<span class="p_add">+							     pmdp, addr);</span>
+<span class="p_add">+					return -EAGAIN;</span>
+<span class="p_add">+				}</span>
+<span class="p_add">+				continue;</span>
+<span class="p_add">+			} else {</span>
+<span class="p_add">+				/* Report error for everything else */</span>
+<span class="p_add">+				pfns[i] = HMM_PFN_ERROR;</span>
+<span class="p_add">+			}</span>
+ 			continue;
+ 		}
+ 
+<span class="p_add">+		if (write_fault &amp;&amp; !pte_write(pte))</span>
+<span class="p_add">+			goto fault;</span>
+<span class="p_add">+</span>
+ 		pfns[i] = hmm_pfn_t_from_pfn(pte_pfn(pte)) | flag;
+ 		pfns[i] |= pte_write(pte) ? HMM_PFN_WRITE : 0;
+<span class="p_add">+		continue;</span>
+<span class="p_add">+</span>
+<span class="p_add">+fault:</span>
+<span class="p_add">+		pte_unmap(ptep);</span>
+<span class="p_add">+		/* Fault all pages in range */</span>
+<span class="p_add">+		return hmm_vma_walk_clear(start, end, walk);</span>
+ 	}
+ 	pte_unmap(ptep - 1);
+ 
+<span class="p_chunk">@@ -381,6 +487,7 @@</span> <span class="p_context"> int hmm_vma_get_pfns(struct vm_area_struct *vma,</span>
+ 		     unsigned long end,
+ 		     hmm_pfn_t *pfns)
+ {
+<span class="p_add">+	struct hmm_vma_walk hmm_vma_walk;</span>
+ 	struct mm_walk mm_walk;
+ 	struct hmm *hmm;
+ 
+<span class="p_chunk">@@ -412,9 +519,12 @@</span> <span class="p_context"> int hmm_vma_get_pfns(struct vm_area_struct *vma,</span>
+ 	list_add_rcu(&amp;range-&gt;list, &amp;hmm-&gt;ranges);
+ 	spin_unlock(&amp;hmm-&gt;lock);
+ 
+<span class="p_add">+	hmm_vma_walk.fault = false;</span>
+<span class="p_add">+	hmm_vma_walk.range = range;</span>
+<span class="p_add">+	mm_walk.private = &amp;hmm_vma_walk;</span>
+<span class="p_add">+</span>
+ 	mm_walk.vma = vma;
+ 	mm_walk.mm = vma-&gt;vm_mm;
+<span class="p_del">-	mm_walk.private = range;</span>
+ 	mm_walk.pte_entry = NULL;
+ 	mm_walk.test_walk = NULL;
+ 	mm_walk.hugetlb_entry = NULL;
+<span class="p_chunk">@@ -422,7 +532,6 @@</span> <span class="p_context"> int hmm_vma_get_pfns(struct vm_area_struct *vma,</span>
+ 	mm_walk.pte_hole = hmm_vma_walk_hole;
+ 
+ 	walk_page_range(start, end, &amp;mm_walk);
+<span class="p_del">-</span>
+ 	return 0;
+ }
+ EXPORT_SYMBOL(hmm_vma_get_pfns);
+<span class="p_chunk">@@ -449,7 +558,7 @@</span> <span class="p_context"> EXPORT_SYMBOL(hmm_vma_get_pfns);</span>
+  *
+  * There are two ways to use this :
+  * again:
+<span class="p_del">- *   hmm_vma_get_pfns(vma, range, start, end, pfns);</span>
+<span class="p_add">+ *   hmm_vma_get_pfns(vma, range, start, end, pfns); or hmm_vma_fault(...);</span>
+  *   trans = device_build_page_table_update_transaction(pfns);
+  *   device_page_table_lock();
+  *   if (!hmm_vma_range_done(vma, range)) {
+<span class="p_chunk">@@ -460,7 +569,7 @@</span> <span class="p_context"> EXPORT_SYMBOL(hmm_vma_get_pfns);</span>
+  *   device_page_table_unlock();
+  *
+  * Or:
+<span class="p_del">- *   hmm_vma_get_pfns(vma, range, start, end, pfns);</span>
+<span class="p_add">+ *   hmm_vma_get_pfns(vma, range, start, end, pfns); or hmm_vma_fault(...);</span>
+  *   device_page_table_lock();
+  *   hmm_vma_range_done(vma, range);
+  *   device_update_page_table(pfns);
+<span class="p_chunk">@@ -489,4 +598,127 @@</span> <span class="p_context"> bool hmm_vma_range_done(struct vm_area_struct *vma, struct hmm_range *range)</span>
+ 	return range-&gt;valid;
+ }
+ EXPORT_SYMBOL(hmm_vma_range_done);
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * hmm_vma_fault() - try to fault some address in a virtual address range</span>
+<span class="p_add">+ * @vma: virtual memory area containing the virtual address range</span>
+<span class="p_add">+ * @range: use to track pfns array content validity</span>
+<span class="p_add">+ * @start: fault range virtual start address (inclusive)</span>
+<span class="p_add">+ * @end: fault range virtual end address (exclusive)</span>
+<span class="p_add">+ * @pfns: array of hmm_pfn_t, only entry with fault flag set will be faulted</span>
+<span class="p_add">+ * @write: is it a write fault</span>
+<span class="p_add">+ * @block: allow blocking on fault (if true it sleeps and do not drop mmap_sem)</span>
+<span class="p_add">+ * Returns: 0 success, error otherwise (-EAGAIN means mmap_sem have been drop)</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This is similar to a regular CPU page fault except that it will not trigger</span>
+<span class="p_add">+ * any memory migration if the memory being faulted is not accessible by CPUs.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * On error, for one virtual address in the range, the function will set the</span>
+<span class="p_add">+ * hmm_pfn_t error flag for the corresponding pfn entry.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Expected use pattern:</span>
+<span class="p_add">+ * retry:</span>
+<span class="p_add">+ *   down_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="p_add">+ *   // Find vma and address device wants to fault, initialize hmm_pfn_t</span>
+<span class="p_add">+ *   // array accordingly</span>
+<span class="p_add">+ *   ret = hmm_vma_fault(vma, start, end, pfns, allow_retry);</span>
+<span class="p_add">+ *   switch (ret) {</span>
+<span class="p_add">+ *   case -EAGAIN:</span>
+<span class="p_add">+ *     hmm_vma_range_done(vma, range);</span>
+<span class="p_add">+ *     // You might want to rate limit or yield to play nicely, you may</span>
+<span class="p_add">+ *     // also commit any valid pfn in the array assuming that you are</span>
+<span class="p_add">+ *     // getting true from hmm_vma_range_monitor_end()</span>
+<span class="p_add">+ *     goto retry;</span>
+<span class="p_add">+ *   case 0:</span>
+<span class="p_add">+ *     break;</span>
+<span class="p_add">+ *   default:</span>
+<span class="p_add">+ *     // Handle error !</span>
+<span class="p_add">+ *     up_read(&amp;mm-&gt;mmap_sem)</span>
+<span class="p_add">+ *     return;</span>
+<span class="p_add">+ *   }</span>
+<span class="p_add">+ *   // Take device driver lock that serialize device page table update</span>
+<span class="p_add">+ *   driver_lock_device_page_table_update();</span>
+<span class="p_add">+ *   hmm_vma_range_done(vma, range);</span>
+<span class="p_add">+ *   // Commit pfns we got from hmm_vma_fault()</span>
+<span class="p_add">+ *   driver_unlock_device_page_table_update();</span>
+<span class="p_add">+ *   up_read(&amp;mm-&gt;mmap_sem)</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * YOU MUST CALL hmm_vma_range_done() AFTER THIS FUNCTION RETURN SUCCESS (0)</span>
+<span class="p_add">+ * BEFORE FREEING THE range struct OR YOU WILL HAVE SERIOUS MEMORY CORRUPTION !</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * YOU HAVE BEEN WARNED !</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+int hmm_vma_fault(struct vm_area_struct *vma,</span>
+<span class="p_add">+		  struct hmm_range *range,</span>
+<span class="p_add">+		  unsigned long start,</span>
+<span class="p_add">+		  unsigned long end,</span>
+<span class="p_add">+		  hmm_pfn_t *pfns,</span>
+<span class="p_add">+		  bool write,</span>
+<span class="p_add">+		  bool block)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct hmm_vma_walk hmm_vma_walk;</span>
+<span class="p_add">+	struct mm_walk mm_walk;</span>
+<span class="p_add">+	struct hmm *hmm;</span>
+<span class="p_add">+	int ret;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Sanity check, this really should not happen ! */</span>
+<span class="p_add">+	if (start &lt; vma-&gt;vm_start || start &gt;= vma-&gt;vm_end)</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+	if (end &lt; vma-&gt;vm_start || end &gt; vma-&gt;vm_end)</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	hmm = hmm_register(vma-&gt;vm_mm);</span>
+<span class="p_add">+	if (!hmm) {</span>
+<span class="p_add">+		hmm_pfns_clear(pfns, start, end);</span>
+<span class="p_add">+		return -ENOMEM;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	/* Caller must have registered a mirror using hmm_mirror_register() */</span>
+<span class="p_add">+	if (!hmm-&gt;mmu_notifier.ops)</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Initialize range to track CPU page table update */</span>
+<span class="p_add">+	range-&gt;start = start;</span>
+<span class="p_add">+	range-&gt;pfns = pfns;</span>
+<span class="p_add">+	range-&gt;end = end;</span>
+<span class="p_add">+	spin_lock(&amp;hmm-&gt;lock);</span>
+<span class="p_add">+	range-&gt;valid = true;</span>
+<span class="p_add">+	list_add_rcu(&amp;range-&gt;list, &amp;hmm-&gt;ranges);</span>
+<span class="p_add">+	spin_unlock(&amp;hmm-&gt;lock);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* FIXME support hugetlb fs */</span>
+<span class="p_add">+	if (is_vm_hugetlb_page(vma) || (vma-&gt;vm_flags &amp; VM_SPECIAL)) {</span>
+<span class="p_add">+		hmm_pfns_special(pfns, start, end);</span>
+<span class="p_add">+		return 0;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	hmm_vma_walk.fault = true;</span>
+<span class="p_add">+	hmm_vma_walk.write = write;</span>
+<span class="p_add">+	hmm_vma_walk.block = block;</span>
+<span class="p_add">+	hmm_vma_walk.range = range;</span>
+<span class="p_add">+	mm_walk.private = &amp;hmm_vma_walk;</span>
+<span class="p_add">+	hmm_vma_walk.last = range-&gt;start;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	mm_walk.vma = vma;</span>
+<span class="p_add">+	mm_walk.mm = vma-&gt;vm_mm;</span>
+<span class="p_add">+	mm_walk.pte_entry = NULL;</span>
+<span class="p_add">+	mm_walk.test_walk = NULL;</span>
+<span class="p_add">+	mm_walk.hugetlb_entry = NULL;</span>
+<span class="p_add">+	mm_walk.pmd_entry = hmm_vma_walk_pmd;</span>
+<span class="p_add">+	mm_walk.pte_hole = hmm_vma_walk_hole;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	do {</span>
+<span class="p_add">+		ret = walk_page_range(start, end, &amp;mm_walk);</span>
+<span class="p_add">+		start = hmm_vma_walk.last;</span>
+<span class="p_add">+	} while (ret == -EAGAIN);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (ret) {</span>
+<span class="p_add">+		unsigned long i;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		i = (hmm_vma_walk.last - range-&gt;start) &gt;&gt; PAGE_SHIFT;</span>
+<span class="p_add">+		hmm_pfns_clear(&amp;pfns[i], hmm_vma_walk.last, end);</span>
+<span class="p_add">+		hmm_vma_range_done(vma, range);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	return ret;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL(hmm_vma_fault);</span>
+ #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

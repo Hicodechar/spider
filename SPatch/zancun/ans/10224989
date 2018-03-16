@@ -1,0 +1,655 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v8,08/24] mm: Protect VMA modifications using VMA sequence count - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v8,08/24] mm: Protect VMA modifications using VMA sequence count</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=89031">Laurent Dufour</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Feb. 16, 2018, 3:25 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1518794738-4186-9-git-send-email-ldufour@linux.vnet.ibm.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10224989/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10224989/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10224989/">/patch/10224989/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	7A1F2601E7 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri, 16 Feb 2018 15:31:10 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 67A102951F
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri, 16 Feb 2018 15:31:10 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 5BEE729524; Fri, 16 Feb 2018 15:31:10 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 750C22951F
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri, 16 Feb 2018 15:31:09 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1758225AbeBPPbE (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Fri, 16 Feb 2018 10:31:04 -0500
+Received: from mx0b-001b2d01.pphosted.com ([148.163.158.5]:53914 &quot;EHLO
+	mx0a-001b2d01.pphosted.com&quot; rhost-flags-OK-OK-OK-FAIL)
+	by vger.kernel.org with ESMTP id S1755447AbeBPP0T (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Fri, 16 Feb 2018 10:26:19 -0500
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id
+	w1GFNI2h036625
+	for &lt;linux-kernel@vger.kernel.org&gt;; Fri, 16 Feb 2018 10:26:19 -0500
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2g609gvpyf-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for &lt;linux-kernel@vger.kernel.org&gt;; Fri, 16 Feb 2018 10:26:18 -0500
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use
+	Only! Violators will be prosecuted
+	for &lt;linux-kernel@vger.kernel.org&gt; from &lt;ldufour@linux.vnet.ibm.com&gt;; 
+	Fri, 16 Feb 2018 15:26:16 -0000
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
+	by e06smtp13.uk.ibm.com (192.168.101.143) with IBM ESMTP SMTP
+	Gateway: Authorized Use Only! Violators will be prosecuted; 
+	Fri, 16 Feb 2018 15:26:09 -0000
+Received: from d06av24.portsmouth.uk.ibm.com (mk.ibm.com [9.149.105.60])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with
+	ESMTP id w1GFQ8Ti5832810; Fri, 16 Feb 2018 15:26:08 GMT
+Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 9FD6F42045;
+	Fri, 16 Feb 2018 15:18:52 +0000 (GMT)
+Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 93AD642047;
+	Fri, 16 Feb 2018 15:18:50 +0000 (GMT)
+Received: from nimbus.lab.toulouse-stg.fr.ibm.com (unknown [9.145.186.2])
+	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Fri, 16 Feb 2018 15:18:50 +0000 (GMT)
+From: Laurent Dufour &lt;ldufour@linux.vnet.ibm.com&gt;
+To: paulmck@linux.vnet.ibm.com, peterz@infradead.org,
+	akpm@linux-foundation.org, kirill@shutemov.name,
+	ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net,
+	jack@suse.cz, Matthew Wilcox &lt;willy@infradead.org&gt;,
+	benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org,
+	Thomas Gleixner &lt;tglx@linutronix.de&gt;,
+	Ingo Molnar &lt;mingo@redhat.com&gt;, hpa@zytor.com,
+	Will Deacon &lt;will.deacon@arm.com&gt;,
+	Sergey Senozhatsky &lt;sergey.senozhatsky@gmail.com&gt;,
+	Andrea Arcangeli &lt;aarcange@redhat.com&gt;,
+	Alexei Starovoitov &lt;alexei.starovoitov@gmail.com&gt;,
+	kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com,
+	Daniel Jordan &lt;daniel.m.jordan@oracle.com&gt;
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com,
+	npiggin@gmail.com, bsingharora@gmail.com,
+	Tim Chen &lt;tim.c.chen@linux.intel.com&gt;,
+	linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+Subject: [PATCH v8 08/24] mm: Protect VMA modifications using VMA sequence
+	count
+Date: Fri, 16 Feb 2018 16:25:22 +0100
+X-Mailer: git-send-email 2.7.4
+In-Reply-To: &lt;1518794738-4186-1-git-send-email-ldufour@linux.vnet.ibm.com&gt;
+References: &lt;1518794738-4186-1-git-send-email-ldufour@linux.vnet.ibm.com&gt;
+X-TM-AS-GCONF: 00
+x-cbid: 18021615-0012-0000-0000-000005B18011
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 18021615-0013-0000-0000-0000192D84AB
+Message-Id: &lt;1518794738-4186-9-git-send-email-ldufour@linux.vnet.ibm.com&gt;
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10432:, ,
+	definitions=2018-02-16_06:, , signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0
+	priorityscore=1501
+	malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
+	clxscore=1015 lowpriorityscore=0 impostorscore=0 adultscore=0
+	classifier=spam adjust=0 reason=mlx scancount=1
+	engine=8.0.1-1709140000
+	definitions=main-1802160183
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=89031">Laurent Dufour</a> - Feb. 16, 2018, 3:25 p.m.</div>
+<pre class="content">
+The VMA sequence count has been introduced to allow fast detection of
+VMA modification when running a page fault handler without holding
+the mmap_sem.
+
+This patch provides protection against the VMA modification done in :
+	- madvise()
+	- mpol_rebind_policy()
+	- vma_replace_policy()
+	- change_prot_numa()
+	- mlock(), munlock()
+	- mprotect()
+	- mmap_region()
+	- collapse_huge_page()
+	- userfaultd registering services
+
+In addition, VMA fields which will be read during the speculative fault
+path needs to be written using WRITE_ONCE to prevent write to be split
+and intermediate values to be pushed to other CPUs.
+<span class="signed-off-by">
+Signed-off-by: Laurent Dufour &lt;ldufour@linux.vnet.ibm.com&gt;</span>
+---
+ fs/proc/task_mmu.c |  5 ++++-
+ fs/userfaultfd.c   | 17 +++++++++++++----
+ mm/khugepaged.c    |  3 +++
+ mm/madvise.c       |  6 +++++-
+ mm/mempolicy.c     | 51 ++++++++++++++++++++++++++++++++++-----------------
+ mm/mlock.c         | 13 ++++++++-----
+ mm/mmap.c          | 17 ++++++++++-------
+ mm/mprotect.c      |  4 +++-
+ mm/swap_state.c    |  8 ++++++--
+ 9 files changed, 86 insertions(+), 38 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c</span>
+<span class="p_header">index b66fc8de7d34..adb66e1989ee 100644</span>
+<span class="p_header">--- a/fs/proc/task_mmu.c</span>
+<span class="p_header">+++ b/fs/proc/task_mmu.c</span>
+<span class="p_chunk">@@ -1158,8 +1158,11 @@</span> <span class="p_context"> static ssize_t clear_refs_write(struct file *file, const char __user *buf,</span>
+ 					goto out_mm;
+ 				}
+ 				for (vma = mm-&gt;mmap; vma; vma = vma-&gt;vm_next) {
+<span class="p_del">-					vma-&gt;vm_flags &amp;= ~VM_SOFTDIRTY;</span>
+<span class="p_add">+					vm_write_begin(vma);</span>
+<span class="p_add">+					WRITE_ONCE(vma-&gt;vm_flags,</span>
+<span class="p_add">+						   vma-&gt;vm_flags &amp; ~VM_SOFTDIRTY);</span>
+ 					vma_set_page_prot(vma);
+<span class="p_add">+					vm_write_end(vma);</span>
+ 				}
+ 				downgrade_write(&amp;mm-&gt;mmap_sem);
+ 				break;
+<span class="p_header">diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c</span>
+<span class="p_header">index 87a13a7c8270..1da1ba63c7dd 100644</span>
+<span class="p_header">--- a/fs/userfaultfd.c</span>
+<span class="p_header">+++ b/fs/userfaultfd.c</span>
+<span class="p_chunk">@@ -659,8 +659,11 @@</span> <span class="p_context"> int dup_userfaultfd(struct vm_area_struct *vma, struct list_head *fcs)</span>
+ 
+ 	octx = vma-&gt;vm_userfaultfd_ctx.ctx;
+ 	if (!octx || !(octx-&gt;features &amp; UFFD_FEATURE_EVENT_FORK)) {
+<span class="p_add">+		vm_write_begin(vma);</span>
+ 		vma-&gt;vm_userfaultfd_ctx = NULL_VM_UFFD_CTX;
+<span class="p_del">-		vma-&gt;vm_flags &amp;= ~(VM_UFFD_WP | VM_UFFD_MISSING);</span>
+<span class="p_add">+		WRITE_ONCE(vma-&gt;vm_flags,</span>
+<span class="p_add">+			   vma-&gt;vm_flags &amp; ~(VM_UFFD_WP | VM_UFFD_MISSING));</span>
+<span class="p_add">+		vm_write_end(vma);</span>
+ 		return 0;
+ 	}
+ 
+<span class="p_chunk">@@ -885,8 +888,10 @@</span> <span class="p_context"> static int userfaultfd_release(struct inode *inode, struct file *file)</span>
+ 			vma = prev;
+ 		else
+ 			prev = vma;
+<span class="p_del">-		vma-&gt;vm_flags = new_flags;</span>
+<span class="p_add">+		vm_write_begin(vma);</span>
+<span class="p_add">+		WRITE_ONCE(vma-&gt;vm_flags, new_flags);</span>
+ 		vma-&gt;vm_userfaultfd_ctx = NULL_VM_UFFD_CTX;
+<span class="p_add">+		vm_write_end(vma);</span>
+ 	}
+ 	up_write(&amp;mm-&gt;mmap_sem);
+ 	mmput(mm);
+<span class="p_chunk">@@ -1434,8 +1439,10 @@</span> <span class="p_context"> static int userfaultfd_register(struct userfaultfd_ctx *ctx,</span>
+ 		 * the next vma was merged into the current one and
+ 		 * the current one has not been updated yet.
+ 		 */
+<span class="p_del">-		vma-&gt;vm_flags = new_flags;</span>
+<span class="p_add">+		vm_write_begin(vma);</span>
+<span class="p_add">+		WRITE_ONCE(vma-&gt;vm_flags, new_flags);</span>
+ 		vma-&gt;vm_userfaultfd_ctx.ctx = ctx;
+<span class="p_add">+		vm_write_end(vma);</span>
+ 
+ 	skip:
+ 		prev = vma;
+<span class="p_chunk">@@ -1592,8 +1599,10 @@</span> <span class="p_context"> static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,</span>
+ 		 * the next vma was merged into the current one and
+ 		 * the current one has not been updated yet.
+ 		 */
+<span class="p_del">-		vma-&gt;vm_flags = new_flags;</span>
+<span class="p_add">+		vm_write_begin(vma);</span>
+<span class="p_add">+		WRITE_ONCE(vma-&gt;vm_flags, new_flags);</span>
+ 		vma-&gt;vm_userfaultfd_ctx = NULL_VM_UFFD_CTX;
+<span class="p_add">+		vm_write_end(vma);</span>
+ 
+ 	skip:
+ 		prev = vma;
+<span class="p_header">diff --git a/mm/khugepaged.c b/mm/khugepaged.c</span>
+<span class="p_header">index b7e2268dfc9a..32314e9e48dd 100644</span>
+<span class="p_header">--- a/mm/khugepaged.c</span>
+<span class="p_header">+++ b/mm/khugepaged.c</span>
+<span class="p_chunk">@@ -1006,6 +1006,7 @@</span> <span class="p_context"> static void collapse_huge_page(struct mm_struct *mm,</span>
+ 	if (mm_find_pmd(mm, address) != pmd)
+ 		goto out;
+ 
+<span class="p_add">+	vm_write_begin(vma);</span>
+ 	anon_vma_lock_write(vma-&gt;anon_vma);
+ 
+ 	pte = pte_offset_map(pmd, address);
+<span class="p_chunk">@@ -1041,6 +1042,7 @@</span> <span class="p_context"> static void collapse_huge_page(struct mm_struct *mm,</span>
+ 		pmd_populate(mm, pmd, pmd_pgtable(_pmd));
+ 		spin_unlock(pmd_ptl);
+ 		anon_vma_unlock_write(vma-&gt;anon_vma);
+<span class="p_add">+		vm_write_end(vma);</span>
+ 		result = SCAN_FAIL;
+ 		goto out;
+ 	}
+<span class="p_chunk">@@ -1075,6 +1077,7 @@</span> <span class="p_context"> static void collapse_huge_page(struct mm_struct *mm,</span>
+ 	set_pmd_at(mm, address, pmd, _pmd);
+ 	update_mmu_cache_pmd(vma, address, pmd);
+ 	spin_unlock(pmd_ptl);
+<span class="p_add">+	vm_write_end(vma);</span>
+ 
+ 	*hpage = NULL;
+ 
+<span class="p_header">diff --git a/mm/madvise.c b/mm/madvise.c</span>
+<span class="p_header">index 4d3c922ea1a1..e328f7ab5942 100644</span>
+<span class="p_header">--- a/mm/madvise.c</span>
+<span class="p_header">+++ b/mm/madvise.c</span>
+<span class="p_chunk">@@ -184,7 +184,9 @@</span> <span class="p_context"> static long madvise_behavior(struct vm_area_struct *vma,</span>
+ 	/*
+ 	 * vm_flags is protected by the mmap_sem held in write mode.
+ 	 */
+<span class="p_del">-	vma-&gt;vm_flags = new_flags;</span>
+<span class="p_add">+	vm_write_begin(vma);</span>
+<span class="p_add">+	WRITE_ONCE(vma-&gt;vm_flags, new_flags);</span>
+<span class="p_add">+	vm_write_end(vma);</span>
+ out:
+ 	return error;
+ }
+<span class="p_chunk">@@ -450,9 +452,11 @@</span> <span class="p_context"> static void madvise_free_page_range(struct mmu_gather *tlb,</span>
+ 		.private = tlb,
+ 	};
+ 
+<span class="p_add">+	vm_write_begin(vma);</span>
+ 	tlb_start_vma(tlb, vma);
+ 	walk_page_range(addr, end, &amp;free_walk);
+ 	tlb_end_vma(tlb, vma);
+<span class="p_add">+	vm_write_end(vma);</span>
+ }
+ 
+ static int madvise_free_single_vma(struct vm_area_struct *vma,
+<span class="p_header">diff --git a/mm/mempolicy.c b/mm/mempolicy.c</span>
+<span class="p_header">index a8b7d59002e8..49d731c39e4f 100644</span>
+<span class="p_header">--- a/mm/mempolicy.c</span>
+<span class="p_header">+++ b/mm/mempolicy.c</span>
+<span class="p_chunk">@@ -380,8 +380,11 @@</span> <span class="p_context"> void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)</span>
+ 	struct vm_area_struct *vma;
+ 
+ 	down_write(&amp;mm-&gt;mmap_sem);
+<span class="p_del">-	for (vma = mm-&gt;mmap; vma; vma = vma-&gt;vm_next)</span>
+<span class="p_add">+	for (vma = mm-&gt;mmap; vma; vma = vma-&gt;vm_next) {</span>
+<span class="p_add">+		vm_write_begin(vma);</span>
+ 		mpol_rebind_policy(vma-&gt;vm_policy, new);
+<span class="p_add">+		vm_write_end(vma);</span>
+<span class="p_add">+	}</span>
+ 	up_write(&amp;mm-&gt;mmap_sem);
+ }
+ 
+<span class="p_chunk">@@ -554,9 +557,11 @@</span> <span class="p_context"> unsigned long change_prot_numa(struct vm_area_struct *vma,</span>
+ {
+ 	int nr_updated;
+ 
+<span class="p_add">+	vm_write_begin(vma);</span>
+ 	nr_updated = change_protection(vma, addr, end, PAGE_NONE, 0, 1);
+ 	if (nr_updated)
+ 		count_vm_numa_events(NUMA_PTE_UPDATES, nr_updated);
+<span class="p_add">+	vm_write_end(vma);</span>
+ 
+ 	return nr_updated;
+ }
+<span class="p_chunk">@@ -657,6 +662,7 @@</span> <span class="p_context"> static int vma_replace_policy(struct vm_area_struct *vma,</span>
+ 	if (IS_ERR(new))
+ 		return PTR_ERR(new);
+ 
+<span class="p_add">+	vm_write_begin(vma);</span>
+ 	if (vma-&gt;vm_ops &amp;&amp; vma-&gt;vm_ops-&gt;set_policy) {
+ 		err = vma-&gt;vm_ops-&gt;set_policy(vma, new);
+ 		if (err)
+<span class="p_chunk">@@ -664,11 +670,17 @@</span> <span class="p_context"> static int vma_replace_policy(struct vm_area_struct *vma,</span>
+ 	}
+ 
+ 	old = vma-&gt;vm_policy;
+<span class="p_del">-	vma-&gt;vm_policy = new; /* protected by mmap_sem */</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * The speculative page fault handler access this field without</span>
+<span class="p_add">+	 * hodling the mmap_sem.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	WRITE_ONCE(vma-&gt;vm_policy,  new);</span>
+<span class="p_add">+	vm_write_end(vma);</span>
+ 	mpol_put(old);
+ 
+ 	return 0;
+  err_out:
+<span class="p_add">+	vm_write_end(vma);</span>
+ 	mpol_put(new);
+ 	return err;
+ }
+<span class="p_chunk">@@ -1552,23 +1564,28 @@</span> <span class="p_context"> COMPAT_SYSCALL_DEFINE6(mbind, compat_ulong_t, start, compat_ulong_t, len,</span>
+ struct mempolicy *__get_vma_policy(struct vm_area_struct *vma,
+ 						unsigned long addr)
+ {
+<span class="p_del">-	struct mempolicy *pol = NULL;</span>
+<span class="p_add">+	struct mempolicy *pol;</span>
+ 
+<span class="p_del">-	if (vma) {</span>
+<span class="p_del">-		if (vma-&gt;vm_ops &amp;&amp; vma-&gt;vm_ops-&gt;get_policy) {</span>
+<span class="p_del">-			pol = vma-&gt;vm_ops-&gt;get_policy(vma, addr);</span>
+<span class="p_del">-		} else if (vma-&gt;vm_policy) {</span>
+<span class="p_del">-			pol = vma-&gt;vm_policy;</span>
+<span class="p_add">+	if (!vma)</span>
+<span class="p_add">+		return NULL;</span>
+ 
+<span class="p_del">-			/*</span>
+<span class="p_del">-			 * shmem_alloc_page() passes MPOL_F_SHARED policy with</span>
+<span class="p_del">-			 * a pseudo vma whose vma-&gt;vm_ops=NULL. Take a reference</span>
+<span class="p_del">-			 * count on these policies which will be dropped by</span>
+<span class="p_del">-			 * mpol_cond_put() later</span>
+<span class="p_del">-			 */</span>
+<span class="p_del">-			if (mpol_needs_cond_ref(pol))</span>
+<span class="p_del">-				mpol_get(pol);</span>
+<span class="p_del">-		}</span>
+<span class="p_add">+	if (vma-&gt;vm_ops &amp;&amp; vma-&gt;vm_ops-&gt;get_policy)</span>
+<span class="p_add">+		return vma-&gt;vm_ops-&gt;get_policy(vma, addr);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * This could be called without holding the mmap_sem in the</span>
+<span class="p_add">+	 * speculative page fault handler&#39;s path.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	pol = READ_ONCE(vma-&gt;vm_policy);</span>
+<span class="p_add">+	if (pol) {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * shmem_alloc_page() passes MPOL_F_SHARED policy with</span>
+<span class="p_add">+		 * a pseudo vma whose vma-&gt;vm_ops=NULL. Take a reference</span>
+<span class="p_add">+		 * count on these policies which will be dropped by</span>
+<span class="p_add">+		 * mpol_cond_put() later</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (mpol_needs_cond_ref(pol))</span>
+<span class="p_add">+			mpol_get(pol);</span>
+ 	}
+ 
+ 	return pol;
+<span class="p_header">diff --git a/mm/mlock.c b/mm/mlock.c</span>
+<span class="p_header">index 74e5a6547c3d..c40285c94ced 100644</span>
+<span class="p_header">--- a/mm/mlock.c</span>
+<span class="p_header">+++ b/mm/mlock.c</span>
+<span class="p_chunk">@@ -445,7 +445,9 @@</span> <span class="p_context"> static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,</span>
+ void munlock_vma_pages_range(struct vm_area_struct *vma,
+ 			     unsigned long start, unsigned long end)
+ {
+<span class="p_del">-	vma-&gt;vm_flags &amp;= VM_LOCKED_CLEAR_MASK;</span>
+<span class="p_add">+	vm_write_begin(vma);</span>
+<span class="p_add">+	WRITE_ONCE(vma-&gt;vm_flags, vma-&gt;vm_flags &amp; VM_LOCKED_CLEAR_MASK);</span>
+<span class="p_add">+	vm_write_end(vma);</span>
+ 
+ 	while (start &lt; end) {
+ 		struct page *page;
+<span class="p_chunk">@@ -568,10 +570,11 @@</span> <span class="p_context"> static int mlock_fixup(struct vm_area_struct *vma, struct vm_area_struct **prev,</span>
+ 	 * It&#39;s okay if try_to_unmap_one unmaps a page just after we
+ 	 * set VM_LOCKED, populate_vma_page_range will bring it back.
+ 	 */
+<span class="p_del">-</span>
+<span class="p_del">-	if (lock)</span>
+<span class="p_del">-		vma-&gt;vm_flags = newflags;</span>
+<span class="p_del">-	else</span>
+<span class="p_add">+	if (lock) {</span>
+<span class="p_add">+		vm_write_begin(vma);</span>
+<span class="p_add">+		WRITE_ONCE(vma-&gt;vm_flags, newflags);</span>
+<span class="p_add">+		vm_write_end(vma);</span>
+<span class="p_add">+	} else</span>
+ 		munlock_vma_pages_range(vma, start, end);
+ 
+ out:
+<span class="p_header">diff --git a/mm/mmap.c b/mm/mmap.c</span>
+<span class="p_header">index 671940b72696..c4d944e1be23 100644</span>
+<span class="p_header">--- a/mm/mmap.c</span>
+<span class="p_header">+++ b/mm/mmap.c</span>
+<span class="p_chunk">@@ -847,17 +847,18 @@</span> <span class="p_context"> int __vma_adjust(struct vm_area_struct *vma, unsigned long start,</span>
+ 	}
+ 
+ 	if (start != vma-&gt;vm_start) {
+<span class="p_del">-		vma-&gt;vm_start = start;</span>
+<span class="p_add">+		WRITE_ONCE(vma-&gt;vm_start, start);</span>
+ 		start_changed = true;
+ 	}
+ 	if (end != vma-&gt;vm_end) {
+<span class="p_del">-		vma-&gt;vm_end = end;</span>
+<span class="p_add">+		WRITE_ONCE(vma-&gt;vm_end, end);</span>
+ 		end_changed = true;
+ 	}
+<span class="p_del">-	vma-&gt;vm_pgoff = pgoff;</span>
+<span class="p_add">+	WRITE_ONCE(vma-&gt;vm_pgoff, pgoff);</span>
+ 	if (adjust_next) {
+<span class="p_del">-		next-&gt;vm_start += adjust_next &lt;&lt; PAGE_SHIFT;</span>
+<span class="p_del">-		next-&gt;vm_pgoff += adjust_next;</span>
+<span class="p_add">+		WRITE_ONCE(next-&gt;vm_start,</span>
+<span class="p_add">+			   next-&gt;vm_start + (adjust_next &lt;&lt; PAGE_SHIFT));</span>
+<span class="p_add">+		WRITE_ONCE(next-&gt;vm_pgoff, next-&gt;vm_pgoff + adjust_next);</span>
+ 	}
+ 
+ 	if (root) {
+<span class="p_chunk">@@ -1781,6 +1782,7 @@</span> <span class="p_context"> unsigned long mmap_region(struct file *file, unsigned long addr,</span>
+ out:
+ 	perf_event_mmap(vma);
+ 
+<span class="p_add">+	vm_write_begin(vma);</span>
+ 	vm_stat_account(mm, vm_flags, len &gt;&gt; PAGE_SHIFT);
+ 	if (vm_flags &amp; VM_LOCKED) {
+ 		if (!((vm_flags &amp; VM_SPECIAL) || is_vm_hugetlb_page(vma) ||
+<span class="p_chunk">@@ -1803,6 +1805,7 @@</span> <span class="p_context"> unsigned long mmap_region(struct file *file, unsigned long addr,</span>
+ 	vma-&gt;vm_flags |= VM_SOFTDIRTY;
+ 
+ 	vma_set_page_prot(vma);
+<span class="p_add">+	vm_write_end(vma);</span>
+ 
+ 	return addr;
+ 
+<span class="p_chunk">@@ -2431,8 +2434,8 @@</span> <span class="p_context"> int expand_downwards(struct vm_area_struct *vma,</span>
+ 					mm-&gt;locked_vm += grow;
+ 				vm_stat_account(mm, vma-&gt;vm_flags, grow);
+ 				anon_vma_interval_tree_pre_update_vma(vma);
+<span class="p_del">-				vma-&gt;vm_start = address;</span>
+<span class="p_del">-				vma-&gt;vm_pgoff -= grow;</span>
+<span class="p_add">+				WRITE_ONCE(vma-&gt;vm_start, address);</span>
+<span class="p_add">+				WRITE_ONCE(vma-&gt;vm_pgoff, vma-&gt;vm_pgoff - grow);</span>
+ 				anon_vma_interval_tree_post_update_vma(vma);
+ 				vma_gap_update(vma);
+ 				spin_unlock(&amp;mm-&gt;page_table_lock);
+<span class="p_header">diff --git a/mm/mprotect.c b/mm/mprotect.c</span>
+<span class="p_header">index e3309fcf586b..9b7a71c30287 100644</span>
+<span class="p_header">--- a/mm/mprotect.c</span>
+<span class="p_header">+++ b/mm/mprotect.c</span>
+<span class="p_chunk">@@ -366,7 +366,8 @@</span> <span class="p_context"> mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,</span>
+ 	 * vm_flags and vm_page_prot are protected by the mmap_sem
+ 	 * held in write mode.
+ 	 */
+<span class="p_del">-	vma-&gt;vm_flags = newflags;</span>
+<span class="p_add">+	vm_write_begin(vma);</span>
+<span class="p_add">+	WRITE_ONCE(vma-&gt;vm_flags, newflags);</span>
+ 	dirty_accountable = vma_wants_writenotify(vma, vma-&gt;vm_page_prot);
+ 	vma_set_page_prot(vma);
+ 
+<span class="p_chunk">@@ -381,6 +382,7 @@</span> <span class="p_context"> mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,</span>
+ 			(newflags &amp; VM_WRITE)) {
+ 		populate_vma_page_range(vma, start, end, NULL);
+ 	}
+<span class="p_add">+	vm_write_end(vma);</span>
+ 
+ 	vm_stat_account(mm, oldflags, -nrpages);
+ 	vm_stat_account(mm, newflags, nrpages);
+<span class="p_header">diff --git a/mm/swap_state.c b/mm/swap_state.c</span>
+<span class="p_header">index 39ae7cfad90f..eeef59c2cd76 100644</span>
+<span class="p_header">--- a/mm/swap_state.c</span>
+<span class="p_header">+++ b/mm/swap_state.c</span>
+<span class="p_chunk">@@ -550,6 +550,10 @@</span> <span class="p_context"> static unsigned long swapin_nr_pages(unsigned long offset)</span>
+  * the readahead.
+  *
+  * Caller must hold down_read on the vma-&gt;vm_mm if vma is not NULL.
+<span class="p_add">+ * This is needed to ensure the VMA will not be freed in our back. In the case</span>
+<span class="p_add">+ * of the speculative page fault handler, this cannot happen, even if we don&#39;t</span>
+<span class="p_add">+ * hold the mmap_sem. Callees are assumed to take care of reading VMA&#39;s fields</span>
+<span class="p_add">+ * using READ_ONCE() to read consistent values.</span>
+  */
+ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+ 			struct vm_area_struct *vma, unsigned long addr)
+<span class="p_chunk">@@ -643,9 +647,9 @@</span> <span class="p_context"> static inline void swap_ra_clamp_pfn(struct vm_area_struct *vma,</span>
+ 				     unsigned long *start,
+ 				     unsigned long *end)
+ {
+<span class="p_del">-	*start = max3(lpfn, PFN_DOWN(vma-&gt;vm_start),</span>
+<span class="p_add">+	*start = max3(lpfn, PFN_DOWN(READ_ONCE(vma-&gt;vm_start)),</span>
+ 		      PFN_DOWN(faddr &amp; PMD_MASK));
+<span class="p_del">-	*end = min3(rpfn, PFN_DOWN(vma-&gt;vm_end),</span>
+<span class="p_add">+	*end = min3(rpfn, PFN_DOWN(READ_ONCE(vma-&gt;vm_end)),</span>
+ 		    PFN_DOWN((faddr &amp; PMD_MASK) + PMD_SIZE));
+ }
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,342 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>mm/hugetlbfs: Unmap pages if page fault raced with hole punch - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    mm/hugetlbfs: Unmap pages if page fault raced with hole punch</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=41">Andrew Morton</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Jan. 12, 2016, 4:35 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20160111203554.cd3990ed.akpm@linux-foundation.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/8013481/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/8013481/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/8013481/">/patch/8013481/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id 39B1FBEEE5
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 12 Jan 2016 04:36:16 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 51C9F20377
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 12 Jan 2016 04:36:15 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 53BA720123
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 12 Jan 2016 04:36:14 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1761705AbcALEgL (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 11 Jan 2016 23:36:11 -0500
+Received: from mail.linuxfoundation.org ([140.211.169.12]:40407 &quot;EHLO
+	mail.linuxfoundation.org&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1760002AbcALEgJ (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 11 Jan 2016 23:36:09 -0500
+Received: from localhost (c-71-198-47-131.hsd1.ca.comcast.net
+	[71.198.47.131])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 90E8689C;
+	Tue, 12 Jan 2016 04:36:08 +0000 (UTC)
+Date: Mon, 11 Jan 2016 20:35:54 -0800
+From: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+To: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	Hugh Dickins &lt;hughd@google.com&gt;,
+	Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;,
+	Hillf Danton &lt;hillf.zj@alibaba-inc.com&gt;,
+	Davidlohr Bueso &lt;dave@stgolabs.net&gt;,
+	Dave Hansen &lt;dave.hansen@linux.intel.com&gt;
+Subject: Re: [PATCH] mm/hugetlbfs: Unmap pages if page fault raced with hole
+	punch
+Message-Id: &lt;20160111203554.cd3990ed.akpm@linux-foundation.org&gt;
+In-Reply-To: &lt;5694712B.6040705@oracle.com&gt;
+References: &lt;1452119824-32715-1-git-send-email-mike.kravetz@oracle.com&gt;
+	&lt;20160111143548.f6dc084529530b05b03b8f0c@linux-foundation.org&gt;
+	&lt;56943D00.7090405@oracle.com&gt;
+	&lt;20160111162931.0bea916e.akpm@linux-foundation.org&gt;
+	&lt;569458AB.5000102@oracle.com&gt;
+	&lt;20160111182010.bc4e171b.akpm@linux-foundation.org&gt;
+	&lt;5694712B.6040705@oracle.com&gt;
+X-Mailer: Sylpheed 2.7.1 (GTK+ 2.18.9; x86_64-redhat-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41">Andrew Morton</a> - Jan. 12, 2016, 4:35 a.m.</div>
+<pre class="content">
+On Mon, 11 Jan 2016 19:21:15 -0800 Mike Kravetz &lt;mike.kravetz@oracle.com&gt; wrote:
+<span class="quote">
+&gt; &gt;&gt; Just let me know what is easiest/best for you.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; If you&#39;re saying that</span>
+<span class="quote">&gt; &gt; http://ozlabs.org/~akpm/mmots/broken-out/mm-mempolicy-skip-non-migratable-vmas-when-setting-mpol_mf_lazy.patch</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; That should be,</span>
+<span class="quote">&gt; http://ozlabs.org/~akpm/mmots/broken-out/mm-hugetlbfs-fix-bugs-in-hugetlb_vmtruncate_list.patch</span>
+
+yup.
+<span class="quote">
+&gt; &gt; and</span>
+<span class="quote">&gt; &gt; http://ozlabs.org/~akpm/mmots/broken-out/mm-hugetlbfs-unmap-pages-if-page-fault-raced-with-hole-punch.patch</span>
+<span class="quote">&gt; &gt; are the final everything-works versions then we&#39;re all good to go now.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The only thing that &#39;might&#39; be an issue is the new reference to</span>
+<span class="quote">&gt; hugetlb_vmdelete_list() from remove_inode_hugepages().</span>
+<span class="quote">&gt; hugetlb_vmdelete_list() was after remove_inode_hugepages() in the source</span>
+<span class="quote">&gt; file.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The original patch moved hugetlb_vmdelete_list() to satisfy the new</span>
+<span class="quote">&gt; reference.  I can not tell if that was taken into account in the way the</span>
+<span class="quote">&gt; patches were pulled into your tree.  Will certainly know when it comes</span>
+<span class="quote">&gt; time to build.</span>
+
+um, yes.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- a/fs/hugetlbfs/inode.c~mm-hugetlbfs-unmap-pages-if-page-fault-raced-with-hole-punch-fix</span>
+<span class="p_header">+++ a/fs/hugetlbfs/inode.c</span>
+<span class="p_chunk">@@ -324,6 +324,44 @@</span> <span class="p_context"> static void remove_huge_page(struct page</span>
+ 	delete_from_page_cache(page);
+ }
+ 
+<span class="p_add">+static void</span>
+<span class="p_add">+hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct vm_area_struct *vma;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * end == 0 indicates that the entire range after</span>
+<span class="p_add">+	 * start should be unmapped.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {</span>
+<span class="p_add">+		unsigned long v_offset;</span>
+<span class="p_add">+		unsigned long v_end;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Can the expression below overflow on 32-bit arches?</span>
+<span class="p_add">+		 * No, because the interval tree returns us only those vmas</span>
+<span class="p_add">+		 * which overlap the truncated area starting at pgoff,</span>
+<span class="p_add">+		 * and no vma on a 32-bit arch can span beyond the 4GB.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (vma-&gt;vm_pgoff &lt; start)</span>
+<span class="p_add">+			v_offset = (start - vma-&gt;vm_pgoff) &lt;&lt; PAGE_SHIFT;</span>
+<span class="p_add">+		else</span>
+<span class="p_add">+			v_offset = 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (!end)</span>
+<span class="p_add">+			v_end = vma-&gt;vm_end;</span>
+<span class="p_add">+		else {</span>
+<span class="p_add">+			v_end = ((end - vma-&gt;vm_pgoff) &lt;&lt; PAGE_SHIFT)</span>
+<span class="p_add">+							+ vma-&gt;vm_start;</span>
+<span class="p_add">+			if (v_end &gt; vma-&gt;vm_end)</span>
+<span class="p_add">+				v_end = vma-&gt;vm_end;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+</span>
+<span class="p_add">+		unmap_hugepage_range(vma, vma-&gt;vm_start + v_offset, v_end,</span>
+<span class="p_add">+									NULL);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ /*
+  * remove_inode_hugepages handles two distinct cases: truncation and hole
+  * punch.  There are subtle differences in operation for each case.
+<span class="p_chunk">@@ -458,44 +496,6 @@</span> <span class="p_context"> static void hugetlbfs_evict_inode(struct</span>
+ 	clear_inode(inode);
+ }
+ 
+<span class="p_del">-static inline void</span>
+<span class="p_del">-hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	struct vm_area_struct *vma;</span>
+<span class="p_del">-</span>
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * end == 0 indicates that the entire range after</span>
+<span class="p_del">-	 * start should be unmapped.</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {</span>
+<span class="p_del">-		unsigned long v_offset;</span>
+<span class="p_del">-		unsigned long v_end;</span>
+<span class="p_del">-</span>
+<span class="p_del">-		/*</span>
+<span class="p_del">-		 * Can the expression below overflow on 32-bit arches?</span>
+<span class="p_del">-		 * No, because the interval tree returns us only those vmas</span>
+<span class="p_del">-		 * which overlap the truncated area starting at pgoff,</span>
+<span class="p_del">-		 * and no vma on a 32-bit arch can span beyond the 4GB.</span>
+<span class="p_del">-		 */</span>
+<span class="p_del">-		if (vma-&gt;vm_pgoff &lt; start)</span>
+<span class="p_del">-			v_offset = (start - vma-&gt;vm_pgoff) &lt;&lt; PAGE_SHIFT;</span>
+<span class="p_del">-		else</span>
+<span class="p_del">-			v_offset = 0;</span>
+<span class="p_del">-</span>
+<span class="p_del">-		if (!end)</span>
+<span class="p_del">-			v_end = vma-&gt;vm_end;</span>
+<span class="p_del">-		else {</span>
+<span class="p_del">-			v_end = ((end - vma-&gt;vm_pgoff) &lt;&lt; PAGE_SHIFT)</span>
+<span class="p_del">-							+ vma-&gt;vm_start;</span>
+<span class="p_del">-			if (v_end &gt; vma-&gt;vm_end)</span>
+<span class="p_del">-				v_end = vma-&gt;vm_end;</span>
+<span class="p_del">-		}</span>
+<span class="p_del">-</span>
+<span class="p_del">-		unmap_hugepage_range(vma, vma-&gt;vm_start + v_offset, v_end,</span>
+<span class="p_del">-									NULL);</span>
+<span class="p_del">-	}</span>
+<span class="p_del">-}</span>
+<span class="p_del">-</span>
+ static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
+ {
+ 	pgoff_t pgoff;
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

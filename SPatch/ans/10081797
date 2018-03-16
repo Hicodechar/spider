@@ -1,0 +1,295 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[6/6] x86/mm/kaiser: Optimize __native_flush_tlb - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [6/6] x86/mm/kaiser: Optimize __native_flush_tlb</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Nov. 29, 2017, 10:33 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20171129103512.918991807@infradead.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10081797/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10081797/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10081797/">/patch/10081797/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	DC9706020B for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 29 Nov 2017 10:38:12 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id DA18727CF3
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 29 Nov 2017 10:38:12 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id CDC8D2976B; Wed, 29 Nov 2017 10:38:12 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.8 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	RCVD_IN_DNSWL_HI,T_DKIM_INVALID autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 3D03327CF3
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 29 Nov 2017 10:38:12 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S932285AbdK2KgB (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 29 Nov 2017 05:36:01 -0500
+Received: from bombadil.infradead.org ([65.50.211.133]:54951 &quot;EHLO
+	bombadil.infradead.org&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1753461AbdK2Kf6 (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 29 Nov 2017 05:35:58 -0500
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209;
+	h=Content-Type:MIME-Version:References:
+	Subject:Cc:To:From:Date:Message-Id:Sender:Reply-To:Content-Transfer-Encoding:
+	Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:
+	Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=uRSiB5cQj8ZnF3iUjzL02LFVSpeE505MrNvk81oiLjM=;
+	b=iPPpjiL5Dcp2liYRwhtzI2j/Yc
+	wSGbMi519fS2luj/SBVg9B7GM3lTgczPEPHSpc/eUUjoEe1uXH9VcRoBABsSdlDixkEkJyubT8acy
+	nZ8Wo2BrwakvYbIi0Ci8dDazdTuS3lawchUeJYUA9z+Us+snrxClUpsLlgggjLIDvEZZNjp793IOV
+	jYhI0se+ZfhepI6m3caLEbP520D23fmkChfMPfSlBGDr65HUQ7LeUFgCDTm9yqIJGcm11N5AM7FLz
+	CUlb68/X1SYlqKKwA6aF0gvmNodESIwWILZaaKftZbSzojoRLO0KX1W57eRHr/0EK+WjhQXDlbq6k
+	VzEsVhOQ==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100]
+	helo=hirez.programming.kicks-ass.net)
+	by bombadil.infradead.org with esmtpsa (Exim 4.87 #1 (Red Hat Linux))
+	id 1eJziO-0002wi-M2; Wed, 29 Nov 2017 10:35:40 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 0)
+	id 1D255207153D4; Wed, 29 Nov 2017 11:35:36 +0100 (CET)
+Message-Id: &lt;20171129103512.918991807@infradead.org&gt;
+User-Agent: quilt/0.63-1
+Date: Wed, 29 Nov 2017 11:33:07 +0100
+From: Peter Zijlstra &lt;peterz@infradead.org&gt;
+To: linux-kernel@vger.kernel.org, Thomas Gleixner &lt;tglx@linutronix.de&gt;
+Cc: Dave Hansen &lt;dave.hansen@linux.intel.com&gt;,
+	Andy Lutomirski &lt;luto@kernel.org&gt;,
+	Ingo Molnar &lt;mingo@kernel.org&gt;, Borislav Petkov &lt;bp@alien8.de&gt;,
+	Brian Gerst &lt;brgerst@gmail.com&gt;, Denys Vlasenko &lt;dvlasenk@redhat.com&gt;,
+	&quot;H. Peter Anvin&quot; &lt;hpa@zytor.com&gt;, Josh Poimboeuf &lt;jpoimboe@redhat.com&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Peter Zijlstra &lt;peterz@infradead.org&gt;,
+	Rik van Riel &lt;riel@redhat.com&gt;, daniel.gruss@iaik.tugraz.at,
+	hughd@google.com, keescook@google.com, linux-mm@kvack.org,
+	michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at,
+	richard.fellner@student.tugraz.at
+Subject: [PATCH 6/6] x86/mm/kaiser: Optimize __native_flush_tlb
+References: &lt;20171129103301.131535445@infradead.org&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline; filename=peterz-kaiser-opt-tlb.patch
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Nov. 29, 2017, 10:33 a.m.</div>
+<pre class="content">
+Now that we have lazy user asid flushing, use that even if we have
+INVPCID. Even if INVPCID would not be slower than a flushing CR3 write
+(it is) this allows folding multiple user flushes.
+<span class="signed-off-by">
+Signed-off-by: Peter Zijlstra (Intel) &lt;peterz@infradead.org&gt;</span>
+---
+ arch/x86/include/asm/tlbflush.h |   38 ++++++++++++++------------------------
+ 1 file changed, 14 insertions(+), 24 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- a/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -377,33 +377,23 @@</span> <span class="p_context"> static inline void flush_user_asid(u16 a</span>
+ 
+ static inline void __native_flush_tlb(void)
+ {
+<span class="p_del">-	if (!cpu_feature_enabled(X86_FEATURE_INVPCID)) {</span>
+<span class="p_del">-		flush_user_asid(this_cpu_read(cpu_tlbstate.loaded_mm_asid));</span>
+<span class="p_add">+	flush_user_asid(this_cpu_read(cpu_tlbstate.loaded_mm_asid));</span>
+ 
+<span class="p_del">-		/*</span>
+<span class="p_del">-		 * If current-&gt;mm == NULL then we borrow a mm</span>
+<span class="p_del">-		 * which may change during a task switch and</span>
+<span class="p_del">-		 * therefore we must not be preempted while we</span>
+<span class="p_del">-		 * write CR3 back:</span>
+<span class="p_del">-		 */</span>
+<span class="p_del">-		preempt_disable();</span>
+<span class="p_del">-		native_write_cr3(__native_read_cr3());</span>
+<span class="p_del">-		preempt_enable();</span>
+<span class="p_del">-		/*</span>
+<span class="p_del">-		 * Does not need tlb_flush_shared_nonglobals()</span>
+<span class="p_del">-		 * since the CR3 write without PCIDs flushes all</span>
+<span class="p_del">-		 * non-globals.</span>
+<span class="p_del">-		 */</span>
+<span class="p_del">-		return;</span>
+<span class="p_del">-	}</span>
+ 	/*
+<span class="p_del">-	 * We are no longer using globals with KAISER, so a</span>
+<span class="p_del">-	 * &quot;nonglobals&quot; flush would work too. But, this is more</span>
+<span class="p_del">-	 * conservative.</span>
+<span class="p_del">-	 *</span>
+<span class="p_del">-	 * Note, this works with CR4.PCIDE=0 or 1.</span>
+<span class="p_add">+	 * If current-&gt;mm == NULL then we borrow a mm</span>
+<span class="p_add">+	 * which may change during a task switch and</span>
+<span class="p_add">+	 * therefore we must not be preempted while we</span>
+<span class="p_add">+	 * write CR3 back:</span>
+ 	 */
+<span class="p_del">-	invpcid_flush_all();</span>
+<span class="p_add">+	preempt_disable();</span>
+<span class="p_add">+	native_write_cr3(__native_read_cr3());</span>
+<span class="p_add">+	preempt_enable();</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Does not need tlb_flush_shared_nonglobals()</span>
+<span class="p_add">+	 * since the CR3 write without PCIDs flushes all</span>
+<span class="p_add">+	 * non-globals.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	return;</span>
+ }
+ 
+ static inline void __native_flush_tlb_global_irq_disabled(void)
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,441 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,08/14] sparc64: shared context tsb handling at context switch time - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,08/14] sparc64: shared context tsb handling at context switch time</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Dec. 16, 2016, 6:35 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1481913337-9331-9-git-send-email-mike.kravetz@oracle.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9478213/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9478213/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9478213/">/patch/9478213/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	6D8F3607EE for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri, 16 Dec 2016 18:36:52 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 63B67286EE
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri, 16 Dec 2016 18:36:52 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 5714C28787; Fri, 16 Dec 2016 18:36:52 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	UNPARSEABLE_RELAY autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id A355C286EE
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri, 16 Dec 2016 18:36:51 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1759189AbcLPSge (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Fri, 16 Dec 2016 13:36:34 -0500
+Received: from userp1040.oracle.com ([156.151.31.81]:44601 &quot;EHLO
+	userp1040.oracle.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1758358AbcLPSgJ (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Fri, 16 Dec 2016 13:36:09 -0500
+Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
+	by userp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with
+	ESMTP id uBGIa0p8029841
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256
+	verify=OK); Fri, 16 Dec 2016 18:36:00 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id uBGIa0dF026593
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256
+	verify=OK); Fri, 16 Dec 2016 18:36:00 GMT
+Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id uBGIZxEj020172; 
+	Fri, 16 Dec 2016 18:35:59 GMT
+Received: from monkey.oracle.com (/50.188.161.229)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Fri, 16 Dec 2016 10:35:59 -0800
+From: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+To: sparclinux@vger.kernel.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Cc: &quot;David S . Miller&quot; &lt;davem@davemloft.net&gt;,
+	Bob Picco &lt;bob.picco@oracle.com&gt;, Nitin Gupta &lt;nitin.m.gupta@oracle.com&gt;,
+	Vijay Kumar &lt;vijay.ac.kumar@oracle.com&gt;,
+	Julian Calaby &lt;julian.calaby@gmail.com&gt;,
+	Adam Buchbinder &lt;adam.buchbinder@gmail.com&gt;,
+	&quot;Kirill A . Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;,
+	Michal Hocko &lt;mhocko@suse.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+Subject: [RFC PATCH 08/14] sparc64: shared context tsb handling at context
+	switch time
+Date: Fri, 16 Dec 2016 10:35:31 -0800
+Message-Id: &lt;1481913337-9331-9-git-send-email-mike.kravetz@oracle.com&gt;
+X-Mailer: git-send-email 2.7.4
+In-Reply-To: &lt;1481913337-9331-1-git-send-email-mike.kravetz@oracle.com&gt;
+References: &lt;1481913337-9331-1-git-send-email-mike.kravetz@oracle.com&gt;
+X-Source-IP: userv0022.oracle.com [156.151.31.74]
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Dec. 16, 2016, 6:35 p.m.</div>
+<pre class="content">
+At context switch time, load the shared context TSB into the MMU (if
+applicable) and set up global state to include the TSB.
+
+sun4v loads the address of base and huge page TSBs into scratchpad
+registers.  There is not an extra register for shared context TSB.
+So, use offset 0xd0 in the trap block.  This is TRAP_PER_CPU_TSB_HUGE,
+and is only used on sun4u.  We can then use this area for the shared
+context on sun4v.
+
+With this commit, global state is set up for shared context TSB but
+still not used.
+<span class="signed-off-by">
+Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+---
+ arch/sparc/include/asm/mmu_context_64.h | 27 ++++++++++++++----
+ arch/sparc/include/asm/trap_block.h     |  3 +-
+ arch/sparc/kernel/head_64.S             |  2 +-
+ arch/sparc/kernel/tsb.S                 | 50 +++++++++++++++++++++------------
+ 4 files changed, 57 insertions(+), 25 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/sparc/include/asm/mmu_context_64.h b/arch/sparc/include/asm/mmu_context_64.h</span>
+<span class="p_header">index 84268df..0dc95cb5 100644</span>
+<span class="p_header">--- a/arch/sparc/include/asm/mmu_context_64.h</span>
+<span class="p_header">+++ b/arch/sparc/include/asm/mmu_context_64.h</span>
+<span class="p_chunk">@@ -36,21 +36,38 @@</span> <span class="p_context"> void destroy_context(struct mm_struct *mm);</span>
+ void __tsb_context_switch(unsigned long pgd_pa,
+ 			  struct tsb_config *tsb_base,
+ 			  struct tsb_config *tsb_huge,
+<span class="p_add">+			  struct tsb_config *tsb_huge_shared,</span>
+ 			  unsigned long tsb_descr_pa);
+ 
+<span class="p_add">+#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)</span>
+ static inline void tsb_context_switch(struct mm_struct *mm)
+ {
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * The conditional for tsb_descr_pa handles shared context</span>
+<span class="p_add">+	 * case where tsb_block[0] may not be used.</span>
+<span class="p_add">+	 */</span>
+ 	__tsb_context_switch(__pa(mm-&gt;pgd),
+ 			     &amp;mm-&gt;context.tsb_block[MM_TSB_BASE],
+<span class="p_del">-#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)</span>
+ 			     (mm-&gt;context.tsb_block[MM_TSB_HUGE].tsb ?
+ 			      &amp;mm-&gt;context.tsb_block[MM_TSB_HUGE] :
+<span class="p_del">-			      NULL)</span>
+<span class="p_add">+			      NULL),</span>
+<span class="p_add">+			     (mm-&gt;context.tsb_block[MM_TSB_HUGE_SHARED].tsb ?</span>
+<span class="p_add">+			      &amp;mm-&gt;context.tsb_block[MM_TSB_HUGE_SHARED] :</span>
+<span class="p_add">+			      NULL),</span>
+<span class="p_add">+			     (mm-&gt;context.tsb_block[0].tsb ?</span>
+<span class="p_add">+			      __pa(&amp;mm-&gt;context.tsb_descr[0]) :</span>
+<span class="p_add">+			      __pa(&amp;mm-&gt;context.tsb_descr[1])));</span>
+<span class="p_add">+}</span>
+ #else
+<span class="p_del">-			     NULL</span>
+<span class="p_del">-#endif</span>
+<span class="p_del">-			     , __pa(&amp;mm-&gt;context.tsb_descr[MM_TSB_BASE]));</span>
+<span class="p_add">+static inline void tsb_context_switch(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	__tsb_context_switch(__pa(mm-&gt;pgd),</span>
+<span class="p_add">+			     &amp;mm-&gt;context.tsb_block[MM_TSB_BASE],</span>
+<span class="p_add">+			     NULL,</span>
+<span class="p_add">+			     NULL,</span>
+<span class="p_add">+			     __pa(&amp;mm-&gt;context.tsb_descr[MM_TSB_BASE]);</span>
+ }
+<span class="p_add">+#endif</span>
+ 
+ void tsb_grow(struct mm_struct *mm,
+ 	      unsigned long tsb_index,
+<span class="p_header">diff --git a/arch/sparc/include/asm/trap_block.h b/arch/sparc/include/asm/trap_block.h</span>
+<span class="p_header">index ec9c04d..e971785 100644</span>
+<span class="p_header">--- a/arch/sparc/include/asm/trap_block.h</span>
+<span class="p_header">+++ b/arch/sparc/include/asm/trap_block.h</span>
+<span class="p_chunk">@@ -96,7 +96,8 @@</span> <span class="p_context"> extern struct sun4v_2insn_patch_entry __sun_m7_2insn_patch,</span>
+ #define TRAP_PER_CPU_FAULT_INFO		0x40
+ #define TRAP_PER_CPU_CPU_MONDO_BLOCK_PA	0xc0
+ #define TRAP_PER_CPU_CPU_LIST_PA	0xc8
+<span class="p_del">-#define TRAP_PER_CPU_TSB_HUGE		0xd0</span>
+<span class="p_add">+#define TRAP_PER_CPU_TSB_HUGE		0xd0	/* sun4u only */</span>
+<span class="p_add">+#define TRAP_PER_CPU_TSB_HUGE_SHARED	0xd0	/* sun4v only */</span>
+ #define TRAP_PER_CPU_TSB_HUGE_TEMP	0xd8
+ #define TRAP_PER_CPU_IRQ_WORKLIST_PA	0xe0
+ #define TRAP_PER_CPU_CPU_MONDO_QMASK	0xe8
+<span class="p_header">diff --git a/arch/sparc/kernel/head_64.S b/arch/sparc/kernel/head_64.S</span>
+<span class="p_header">index 6aa3da1..0bf1e1f 100644</span>
+<span class="p_header">--- a/arch/sparc/kernel/head_64.S</span>
+<span class="p_header">+++ b/arch/sparc/kernel/head_64.S</span>
+<span class="p_chunk">@@ -875,7 +875,6 @@</span> <span class="p_context"> sparc64_boot_end:</span>
+ #include &quot;sun4v_tlb_miss.S&quot;
+ #include &quot;sun4v_ivec.S&quot;
+ #include &quot;ktlb.S&quot;
+<span class="p_del">-#include &quot;tsb.S&quot;</span>
+ 
+ /*
+  * The following skip makes sure the trap table in ttable.S is aligned
+<span class="p_chunk">@@ -916,6 +915,7 @@</span> <span class="p_context"> swapper_4m_tsb:</span>
+ 
+ ! 0x0000000000428000
+ 
+<span class="p_add">+#include &quot;tsb.S&quot;</span>
+ #include &quot;systbls_64.S&quot;
+ 
+ 	.data
+<span class="p_header">diff --git a/arch/sparc/kernel/tsb.S b/arch/sparc/kernel/tsb.S</span>
+<span class="p_header">index d568c82..3ed3e7c 100644</span>
+<span class="p_header">--- a/arch/sparc/kernel/tsb.S</span>
+<span class="p_header">+++ b/arch/sparc/kernel/tsb.S</span>
+<span class="p_chunk">@@ -374,7 +374,8 @@</span> <span class="p_context"> tsb_flush:</span>
+ 	 * %o0: page table physical address
+ 	 * %o1:	TSB base config pointer
+ 	 * %o2:	TSB huge config pointer, or NULL if none
+<span class="p_del">-	 * %o3:	Hypervisor TSB descriptor physical address</span>
+<span class="p_add">+	 * %o3: TSB huge shared config pointer, or NULL if none</span>
+<span class="p_add">+	 * %o4: Hypervisor TSB descriptor physical address</span>
+ 	 *
+ 	 * We have to run this whole thing with interrupts
+ 	 * disabled so that the current cpu doesn&#39;t change
+<span class="p_chunk">@@ -387,6 +388,8 @@</span> <span class="p_context"> __tsb_context_switch:</span>
+ 	rdpr	%pstate, %g1
+ 	wrpr	%g1, PSTATE_IE, %pstate
+ 
+<span class="p_add">+	mov	%o4, %g7</span>
+<span class="p_add">+</span>
+ 	TRAP_LOAD_TRAP_BLOCK(%g2, %g3)
+ 
+ 	stx	%o0, [%g2 + TRAP_PER_CPU_PGD_PADDR]
+<span class="p_chunk">@@ -397,13 +400,8 @@</span> <span class="p_context"> __tsb_context_switch:</span>
+ 
+ 	ldx	[%o2 + TSB_CONFIG_REG_VAL], %g3
+ 
+<span class="p_del">-1:	stx	%g3, [%g2 + TRAP_PER_CPU_TSB_HUGE]</span>
+<span class="p_del">-</span>
+<span class="p_del">-	sethi	%hi(tlb_type), %g2</span>
+<span class="p_del">-	lduw	[%g2 + %lo(tlb_type)], %g2</span>
+<span class="p_del">-	cmp	%g2, 3</span>
+<span class="p_del">-	bne,pt	%icc, 50f</span>
+<span class="p_del">-	 nop</span>
+<span class="p_add">+1:	IF_TLB_TYPE_NOT_HYPE(%o5, 50f)</span>
+<span class="p_add">+	/* Only setup HV TSB descriptors on appropriate MMU */</span>
+ 
+ 	/* Hypervisor TSB switch. */
+ 	mov	SCRATCHPAD_UTSBREG1, %o5
+<span class="p_chunk">@@ -411,27 +409,43 @@</span> <span class="p_context"> __tsb_context_switch:</span>
+ 	mov	SCRATCHPAD_UTSBREG2, %o5
+ 	stxa	%g3, [%o5] ASI_SCRATCHPAD
+ 
+<span class="p_del">-	mov	2, %o0</span>
+<span class="p_add">+	/* Start counting HV tsb descriptors. */</span>
+<span class="p_add">+	mov	1, %o0				/* Always MM_TSB_BASE */</span>
+<span class="p_add">+	cmp	%g3, -1				/* MM_TSB_HUGE ? */</span>
+<span class="p_add">+	beq	%xcc, 2f</span>
+<span class="p_add">+	 nop</span>
+<span class="p_add">+	add	%o0, 1, %o0</span>
+<span class="p_add">+2:</span>
+<span class="p_add">+	brz,pt	%o3, 3f				/* MM_TSB_HUGE_SHARED ? */</span>
+<span class="p_add">+	 mov	-1, %g3</span>
+<span class="p_add">+	ldx	[%o3 + TSB_CONFIG_REG_VAL], %g3</span>
+<span class="p_add">+3:</span>
+<span class="p_add">+	/* Put Huge Shared TSB in trap block */</span>
+<span class="p_add">+	stx	%g3, [%g2 + TRAP_PER_CPU_TSB_HUGE_SHARED]</span>
+ 	cmp	%g3, -1
+<span class="p_del">-	move	%xcc, 1, %o0</span>
+<span class="p_del">-</span>
+<span class="p_add">+	beq	%xcc, 4f</span>
+<span class="p_add">+	 nop</span>
+<span class="p_add">+	add	%o0, 1, %o0</span>
+<span class="p_add">+4:</span>
+ 	mov	HV_FAST_MMU_TSB_CTXNON0, %o5
+<span class="p_del">-	mov	%o3, %o1</span>
+<span class="p_add">+	mov	%g7, %o1</span>
+ 	ta	HV_FAST_TRAP
+ 
+ 	/* Finish up.  */
+<span class="p_del">-	ba,pt	%xcc, 9f</span>
+<span class="p_add">+	ba,pt	%xcc, 60f</span>
+ 	 nop
+ 
+ 	/* SUN4U TSB switch.  */
+<span class="p_del">-50:	mov	TSB_REG, %o5</span>
+<span class="p_add">+50:	stx	%g3, [%g2 + TRAP_PER_CPU_TSB_HUGE]</span>
+<span class="p_add">+</span>
+<span class="p_add">+	mov	TSB_REG, %o5</span>
+ 	stxa	%o0, [%o5] ASI_DMMU
+ 	membar	#Sync
+ 	stxa	%o0, [%o5] ASI_IMMU
+ 	membar	#Sync
+ 
+<span class="p_del">-2:	ldx	[%o1 + TSB_CONFIG_MAP_VADDR], %o4</span>
+<span class="p_del">-	brz	%o4, 9f</span>
+<span class="p_add">+	ldx	[%o1 + TSB_CONFIG_MAP_VADDR], %o4</span>
+<span class="p_add">+	brz	%o4, 60f</span>
+ 	 ldx	[%o1 + TSB_CONFIG_MAP_PTE], %o5
+ 
+ 	sethi	%hi(sparc64_highest_unlocked_tlb_ent), %g2
+<span class="p_chunk">@@ -443,7 +457,7 @@</span> <span class="p_context"> __tsb_context_switch:</span>
+ 	stxa	%o5, [%g2] ASI_DTLB_DATA_ACCESS
+ 	membar	#Sync
+ 
+<span class="p_del">-	brz,pt	%o2, 9f</span>
+<span class="p_add">+	brz,pt	%o2, 60f</span>
+ 	 nop
+ 
+ 	ldx	[%o2 + TSB_CONFIG_MAP_VADDR], %o4
+<span class="p_chunk">@@ -455,7 +469,7 @@</span> <span class="p_context"> __tsb_context_switch:</span>
+ 	stxa	%o5, [%g2] ASI_DTLB_DATA_ACCESS
+ 	membar	#Sync
+ 
+<span class="p_del">-9:</span>
+<span class="p_add">+60:</span>
+ 	wrpr	%g1, %pstate
+ 
+ 	retl
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

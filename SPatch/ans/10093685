@@ -1,0 +1,518 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,v3,6/7] hugetlbfs: parallelize hugetlbfs_fallocate with ktask - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,v3,6/7] hugetlbfs: parallelize hugetlbfs_fallocate with ktask</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=175391">daniel.m.jordan@oracle.com</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Dec. 5, 2017, 7:52 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20171205195220.28208-7-daniel.m.jordan@oracle.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10093685/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10093685/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10093685/">/patch/10093685/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	F125160348 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  5 Dec 2017 19:50:44 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id DF2FD28847
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  5 Dec 2017 19:50:44 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id D2BF52992F; Tue,  5 Dec 2017 19:50:44 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-7.0 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID, DKIM_VALID_AU, RCVD_IN_DNSWL_HI,
+	UNPARSEABLE_RELAY autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id DC18529925
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  5 Dec 2017 19:50:43 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752434AbdLETuk (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 5 Dec 2017 14:50:40 -0500
+Received: from aserp2130.oracle.com ([141.146.126.79]:43133 &quot;EHLO
+	aserp2130.oracle.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752412AbdLETuf (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 5 Dec 2017 14:50:35 -0500
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.21/8.16.0.21) with SMTP id
+	vB5Jkki9147653; Tue, 5 Dec 2017 19:49:28 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com;
+	h=from : to : cc :
+	subject : date : message-id : in-reply-to : references;
+	s=corp-2017-10-26; 
+	bh=XkB9w2TGPP/GDX/hiFEuomT4a6kB0Tiq/BxuLkZeaAY=;
+	b=NGfKcFSdRmct3tloNcv7oOowQcRsu+284DpsdQenADxPaoicBxwcc8mE3JxaoBu8824b
+	WiQnyWTBRuk5VBM2bO+nwzupblbluajVYL/VbtoKDKGnhFDR/VOUX+lhx+VIl8e7QBbH
+	dDNsoDUC+30xcfCy9DEDdGQw8NSuSv1jkAF0ZdT7vQnFKvp0O7dy4u2XkFs9Qq2SVmQP
+	AeLd6OsnW+nMDSY9PezUqDG5h8emfa2BVp8wOXKSaoBqMezvZaH7x+rr0YvfWq7PluZM
+	SnVOm248u7cLg4yrpKBDeRIA8gL9NJDveZG7as4LTMVPpLnEm496LbS6JPSzwy6tVmJL
+	rw== 
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by aserp2130.oracle.com with ESMTP id 2en9pgvmen-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256
+	verify=NOT); Tue, 05 Dec 2017 19:49:28 +0000
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id
+	vB5JnS6v017857
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256
+	verify=OK); Tue, 5 Dec 2017 19:49:28 GMT
+Received: from abhmp0013.oracle.com (abhmp0013.oracle.com [141.146.116.19])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id
+	vB5JnR7N028020; Tue, 5 Dec 2017 19:49:27 GMT
+Received: from mathetes.us.oracle.com (/10.152.34.202)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 05 Dec 2017 11:49:27 -0800
+From: Daniel Jordan &lt;daniel.m.jordan@oracle.com&gt;
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: aaron.lu@intel.com, akpm@linux-foundation.org,
+	dave.hansen@linux.intel.com, mgorman@techsingularity.net,
+	mhocko@kernel.org, mike.kravetz@oracle.com,
+	pasha.tatashin@oracle.com, steven.sistare@oracle.com,
+	tim.c.chen@intel.com
+Subject: [RFC PATCH v3 6/7] hugetlbfs: parallelize hugetlbfs_fallocate with
+	ktask
+Date: Tue,  5 Dec 2017 14:52:19 -0500
+Message-Id: &lt;20171205195220.28208-7-daniel.m.jordan@oracle.com&gt;
+X-Mailer: git-send-email 2.15.0
+In-Reply-To: &lt;20171205195220.28208-1-daniel.m.jordan@oracle.com&gt;
+References: &lt;20171205195220.28208-1-daniel.m.jordan@oracle.com&gt;
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=8736
+	signatures=668641
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 spamscore=0
+	suspectscore=0
+	malwarescore=0 phishscore=0 adultscore=0 bulkscore=0 classifier=spam
+	adjust=0 reason=mlx scancount=1 engine=8.0.1-1709140000
+	definitions=main-1712050284
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=175391">daniel.m.jordan@oracle.com</a> - Dec. 5, 2017, 7:52 p.m.</div>
+<pre class="content">
+hugetlbfs_fallocate preallocates huge pages to back a file in a
+hugetlbfs filesystem.  The time to call this function grows linearly
+with size.
+
+ktask performs well with its default thread count of 4; higher thread
+counts are given for context only.
+
+Machine: Intel(R) Xeon(R) CPU E7-8895 v3 @ 2.60GHz, 288 CPUs, 1T memory
+Test:    fallocate(1) a file on a hugetlbfs filesystem
+
+nthread   speedup   size (GiB)   min time (s)   stdev
+      1                    200         127.53    2.19
+      2     3.09x          200          41.30    2.11
+      4     5.72x          200          22.29    0.51
+      8     9.45x          200          13.50    2.58
+     16     9.74x          200          13.09    1.64
+
+      1                    400         193.09    2.47
+      2     2.14x          400          90.31    3.39
+      4     3.84x          400          50.32    0.44
+      8     5.11x          400          37.75    1.23
+     16     6.12x          400          31.54    3.13
+
+Machine: SPARC T7-4, 1024 CPUs, 504G memory
+Test:    fallocate(1) a file on a hugetlbfs filesystem
+
+nthread   speedup   size (GiB)   min time (s)   stdev
+
+      1                    100          15.55    0.05
+      2     1.92x          100           8.08    0.01
+      4     3.55x          100           4.38    0.02
+      8     5.87x          100           2.65    0.06
+     16     6.45x          100           2.41    0.09
+
+      1                    200          31.26    0.02
+      2     1.92x          200          16.26    0.02
+      4     3.58x          200           8.73    0.04
+      8     5.54x          200           5.64    0.16
+     16     6.96x          200           4.49    0.35
+
+      1                    400          62.18    0.09
+      2     1.98x          400          31.36    0.04
+      4     3.55x          400          17.52    0.03
+      8     5.53x          400          11.25    0.04
+     16     6.61x          400           9.40    0.17
+
+The primary bottleneck for better scaling at higher thread counts is
+hugetlb_fault_mutex_table[hash].  perf showed L1-dcache-loads increase
+with 8 threads and again sharply with 16 threads, and a CPU counter
+profile showed that 31% of the L1d misses were on
+hugetlb_fault_mutex_table[hash] in the 16-thread case.
+<span class="signed-off-by">
+Signed-off-by: Daniel Jordan &lt;daniel.m.jordan@oracle.com&gt;</span>
+<span class="reviewed-by">Reviewed-by: Steve Sistare &lt;steven.sistare@oracle.com&gt;</span>
+Cc: Aaron Lu &lt;aaron.lu@intel.com&gt;
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: Dave Hansen &lt;dave.hansen@linux.intel.com&gt;
+Cc: Mel Gorman &lt;mgorman@techsingularity.net&gt;
+Cc: Michal Hocko &lt;mhocko@kernel.org&gt;
+Cc: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+Cc: Pavel Tatashin &lt;pasha.tatashin@oracle.com&gt;
+Cc: Tim Chen &lt;tim.c.chen@intel.com&gt;
+---
+ fs/hugetlbfs/inode.c | 116 +++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 94 insertions(+), 22 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="p_header">index 8a85f3f53446..b027ba917239 100644</span>
+<span class="p_header">--- a/fs/hugetlbfs/inode.c</span>
+<span class="p_header">+++ b/fs/hugetlbfs/inode.c</span>
+<span class="p_chunk">@@ -36,6 +36,7 @@</span> <span class="p_context"></span>
+ #include &lt;linux/magic.h&gt;
+ #include &lt;linux/migrate.h&gt;
+ #include &lt;linux/uio.h&gt;
+<span class="p_add">+#include &lt;linux/ktask.h&gt;</span>
+ 
+ #include &lt;linux/uaccess.h&gt;
+ 
+<span class="p_chunk">@@ -86,11 +87,16 @@</span> <span class="p_context"> static const match_table_t tokens = {</span>
+ };
+ 
+ #ifdef CONFIG_NUMA
+<span class="p_add">+static inline struct shared_policy *hugetlb_get_shared_policy(</span>
+<span class="p_add">+							struct inode *inode)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return &amp;HUGETLBFS_I(inode)-&gt;policy;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ static inline void hugetlb_set_vma_policy(struct vm_area_struct *vma,
+<span class="p_del">-					struct inode *inode, pgoff_t index)</span>
+<span class="p_add">+				struct shared_policy *policy, pgoff_t index)</span>
+ {
+<span class="p_del">-	vma-&gt;vm_policy = mpol_shared_policy_lookup(&amp;HUGETLBFS_I(inode)-&gt;policy,</span>
+<span class="p_del">-							index);</span>
+<span class="p_add">+	vma-&gt;vm_policy = mpol_shared_policy_lookup(policy, index);</span>
+ }
+ 
+ static inline void hugetlb_drop_vma_policy(struct vm_area_struct *vma)
+<span class="p_chunk">@@ -98,8 +104,14 @@</span> <span class="p_context"> static inline void hugetlb_drop_vma_policy(struct vm_area_struct *vma)</span>
+ 	mpol_cond_put(vma-&gt;vm_policy);
+ }
+ #else
+<span class="p_add">+static inline struct shared_policy *hugetlb_get_shared_policy(</span>
+<span class="p_add">+							struct inode *inode)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return NULL;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ static inline void hugetlb_set_vma_policy(struct vm_area_struct *vma,
+<span class="p_del">-					struct inode *inode, pgoff_t index)</span>
+<span class="p_add">+				struct shared_policy *policy, pgoff_t index)</span>
+ {
+ }
+ 
+<span class="p_chunk">@@ -535,19 +547,29 @@</span> <span class="p_context"> static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)</span>
+ 	return 0;
+ }
+ 
+<span class="p_add">+struct hf_args {</span>
+<span class="p_add">+	struct file		*file;</span>
+<span class="p_add">+	struct task_struct	*parent_task;</span>
+<span class="p_add">+	struct mm_struct	*mm;</span>
+<span class="p_add">+	struct shared_policy	*shared_policy;</span>
+<span class="p_add">+	struct hstate		*hstate;</span>
+<span class="p_add">+	struct address_space	*mapping;</span>
+<span class="p_add">+	int			error;</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int hugetlbfs_fallocate_chunk(pgoff_t start, pgoff_t end,</span>
+<span class="p_add">+				     struct hf_args *args);</span>
+<span class="p_add">+</span>
+ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
+ 				loff_t len)
+ {
+ 	struct inode *inode = file_inode(file);
+<span class="p_del">-	struct address_space *mapping = inode-&gt;i_mapping;</span>
+ 	struct hstate *h = hstate_inode(inode);
+<span class="p_del">-	struct vm_area_struct pseudo_vma;</span>
+<span class="p_del">-	struct mm_struct *mm = current-&gt;mm;</span>
+ 	loff_t hpage_size = huge_page_size(h);
+ 	unsigned long hpage_shift = huge_page_shift(h);
+<span class="p_del">-	pgoff_t start, index, end;</span>
+<span class="p_add">+	pgoff_t start, end;</span>
+<span class="p_add">+	struct hf_args hf_args;</span>
+ 	int error;
+<span class="p_del">-	u32 hash;</span>
+ 
+ 	if (mode &amp; ~(FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE))
+ 		return -EOPNOTSUPP;
+<span class="p_chunk">@@ -570,16 +592,66 @@</span> <span class="p_context"> static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,</span>
+ 	if (error)
+ 		goto out;
+ 
+<span class="p_add">+	hf_args.file = file;</span>
+<span class="p_add">+	hf_args.parent_task = current;</span>
+<span class="p_add">+	hf_args.mm = current-&gt;mm;</span>
+<span class="p_add">+	hf_args.shared_policy = hugetlb_get_shared_policy(inode);</span>
+<span class="p_add">+	hf_args.hstate = h;</span>
+<span class="p_add">+	hf_args.mapping = inode-&gt;i_mapping;</span>
+<span class="p_add">+	hf_args.error = 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (unlikely(hstate_is_gigantic(h))) {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Use multiple threads in clear_gigantic_page instead of here,</span>
+<span class="p_add">+		 * so just do a 1-threaded hugetlbfs_fallocate_chunk.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		error = hugetlbfs_fallocate_chunk(start, end, &amp;hf_args);</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		DEFINE_KTASK_CTL(ctl, hugetlbfs_fallocate_chunk,</span>
+<span class="p_add">+				 &amp;hf_args, KTASK_BPGS_MINCHUNK);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		error = ktask_run((void *)start, end - start, &amp;ctl);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (error == KTASK_RETURN_ERROR &amp;&amp; hf_args.error != -EINTR)</span>
+<span class="p_add">+		goto out;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!(mode &amp; FALLOC_FL_KEEP_SIZE) &amp;&amp; offset + len &gt; inode-&gt;i_size)</span>
+<span class="p_add">+		i_size_write(inode, offset + len);</span>
+<span class="p_add">+	inode-&gt;i_ctime = current_time(inode);</span>
+<span class="p_add">+out:</span>
+<span class="p_add">+	inode_unlock(inode);</span>
+<span class="p_add">+	return error;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int hugetlbfs_fallocate_chunk(pgoff_t start, pgoff_t end,</span>
+<span class="p_add">+				     struct hf_args *args)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct file		*file		= args-&gt;file;</span>
+<span class="p_add">+	struct task_struct	*parent_task	= args-&gt;parent_task;</span>
+<span class="p_add">+	struct mm_struct	*mm		= args-&gt;mm;</span>
+<span class="p_add">+	struct shared_policy	*shared_policy	= args-&gt;shared_policy;</span>
+<span class="p_add">+	struct hstate		*h		= args-&gt;hstate;</span>
+<span class="p_add">+	struct address_space	*mapping	= args-&gt;mapping;</span>
+<span class="p_add">+	int			error		= 0;</span>
+<span class="p_add">+	pgoff_t			index;</span>
+<span class="p_add">+	struct vm_area_struct	pseudo_vma;</span>
+<span class="p_add">+	loff_t			hpage_size;</span>
+<span class="p_add">+	u32			hash;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	hpage_size = huge_page_size(h);</span>
+<span class="p_add">+</span>
+ 	/*
+ 	 * Initialize a pseudo vma as this is required by the huge page
+ 	 * allocation routines.  If NUMA is configured, use page index
+<span class="p_del">-	 * as input to create an allocation policy.</span>
+<span class="p_add">+	 * as input to create an allocation policy.  Each thread gets its</span>
+<span class="p_add">+	 * own pseudo vma because mempolicies can differ by page.</span>
+ 	 */
+ 	memset(&amp;pseudo_vma, 0, sizeof(struct vm_area_struct));
+ 	pseudo_vma.vm_flags = (VM_HUGETLB | VM_MAYSHARE | VM_SHARED);
+ 	pseudo_vma.vm_file = file;
+ 
+<span class="p_del">-	for (index = start; index &lt; end; index++) {</span>
+<span class="p_add">+	for (index = start; index &lt; end; ++index) {</span>
+ 		/*
+ 		 * This is supposed to be the vaddr where the page is being
+ 		 * faulted in, but we have no vaddr here.
+<span class="p_chunk">@@ -594,13 +666,13 @@</span> <span class="p_context"> static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,</span>
+ 		 * fallocate(2) manpage permits EINTR; we may have been
+ 		 * interrupted because we are using up too much memory.
+ 		 */
+<span class="p_del">-		if (signal_pending(current)) {</span>
+<span class="p_add">+		if (signal_pending(parent_task) || signal_pending(current)) {</span>
+ 			error = -EINTR;
+<span class="p_del">-			break;</span>
+<span class="p_add">+			goto err;</span>
+ 		}
+ 
+ 		/* Set numa allocation policy based on index */
+<span class="p_del">-		hugetlb_set_vma_policy(&amp;pseudo_vma, inode, index);</span>
+<span class="p_add">+		hugetlb_set_vma_policy(&amp;pseudo_vma, shared_policy, index);</span>
+ 
+ 		/* addr is the offset within the file (zero based) */
+ 		addr = index * hpage_size;
+<span class="p_chunk">@@ -625,7 +697,7 @@</span> <span class="p_context"> static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,</span>
+ 		if (IS_ERR(page)) {
+ 			mutex_unlock(&amp;hugetlb_fault_mutex_table[hash]);
+ 			error = PTR_ERR(page);
+<span class="p_del">-			goto out;</span>
+<span class="p_add">+			goto err;</span>
+ 		}
+ 		clear_huge_page(page, addr, pages_per_huge_page(h));
+ 		__SetPageUptodate(page);
+<span class="p_chunk">@@ -633,7 +705,7 @@</span> <span class="p_context"> static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,</span>
+ 		if (unlikely(error)) {
+ 			put_page(page);
+ 			mutex_unlock(&amp;hugetlb_fault_mutex_table[hash]);
+<span class="p_del">-			goto out;</span>
+<span class="p_add">+			goto err;</span>
+ 		}
+ 
+ 		mutex_unlock(&amp;hugetlb_fault_mutex_table[hash]);
+<span class="p_chunk">@@ -646,12 +718,12 @@</span> <span class="p_context"> static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,</span>
+ 		put_page(page);
+ 	}
+ 
+<span class="p_del">-	if (!(mode &amp; FALLOC_FL_KEEP_SIZE) &amp;&amp; offset + len &gt; inode-&gt;i_size)</span>
+<span class="p_del">-		i_size_write(inode, offset + len);</span>
+<span class="p_del">-	inode-&gt;i_ctime = current_time(inode);</span>
+<span class="p_del">-out:</span>
+<span class="p_del">-	inode_unlock(inode);</span>
+<span class="p_del">-	return error;</span>
+<span class="p_add">+	return KTASK_RETURN_SUCCESS;</span>
+<span class="p_add">+</span>
+<span class="p_add">+err:</span>
+<span class="p_add">+	args-&gt;error = error;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return KTASK_RETURN_ERROR;</span>
+ }
+ 
+ static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

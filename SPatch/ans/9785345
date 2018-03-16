@@ -1,0 +1,436 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v2,04/10] x86/mm: Track the TLB&#39;s tlb_gen and update the flushing algorithm - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v2,04/10] x86/mm: Track the TLB&#39;s tlb_gen and update the flushing algorithm</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>June 14, 2017, 4:56 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;853a4afe3e0c3ffdad47e2717ef87addc76de811.1497415951.git.luto@kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9785345/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9785345/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9785345/">/patch/9785345/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	CCF63602C9 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 14 Jun 2017 04:58:22 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id AAA7D28575
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 14 Jun 2017 04:58:22 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 9F5032858E; Wed, 14 Jun 2017 04:58:22 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 0324A28575
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 14 Jun 2017 04:58:22 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1754493AbdFNE6O (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 14 Jun 2017 00:58:14 -0400
+Received: from mail.kernel.org ([198.145.29.99]:45770 &quot;EHLO mail.kernel.org&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1754240AbdFNE4i (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 14 Jun 2017 00:56:38 -0400
+Received: from localhost (c-71-202-137-17.hsd1.ca.comcast.net
+	[71.202.137.17])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256
+	bits)) (No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 0A20C23A00;
+	Wed, 14 Jun 2017 04:56:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0A20C23A00
+Authentication-Results: mail.kernel.org;
+	dmarc=none (p=none dis=none) header.from=kernel.org
+Authentication-Results: mail.kernel.org;
+	spf=none smtp.mailfrom=luto@kernel.org
+From: Andy Lutomirski &lt;luto@kernel.org&gt;
+To: x86@kernel.org
+Cc: linux-kernel@vger.kernel.org, Borislav Petkov &lt;bp@alien8.de&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;, Mel Gorman &lt;mgorman@suse.de&gt;,
+	&quot;linux-mm@kvack.org&quot; &lt;linux-mm@kvack.org&gt;,
+	Nadav Amit &lt;nadav.amit@gmail.com&gt;, Rik van Riel &lt;riel@redhat.com&gt;,
+	Dave Hansen &lt;dave.hansen@intel.com&gt;,
+	Arjan van de Ven &lt;arjan@linux.intel.com&gt;,
+	Peter Zijlstra &lt;peterz@infradead.org&gt;, Andy Lutomirski &lt;luto@kernel.org&gt;
+Subject: [PATCH v2 04/10] x86/mm: Track the TLB&#39;s tlb_gen and update the
+	flushing algorithm
+Date: Tue, 13 Jun 2017 21:56:22 -0700
+Message-Id: &lt;853a4afe3e0c3ffdad47e2717ef87addc76de811.1497415951.git.luto@kernel.org&gt;
+X-Mailer: git-send-email 2.9.4
+In-Reply-To: &lt;cover.1497415951.git.luto@kernel.org&gt;
+References: &lt;cover.1497415951.git.luto@kernel.org&gt;
+In-Reply-To: &lt;cover.1497415951.git.luto@kernel.org&gt;
+References: &lt;cover.1497415951.git.luto@kernel.org&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - June 14, 2017, 4:56 a.m.</div>
+<pre class="content">
+There are two kernel features that would benefit from tracking
+how up-to-date each CPU&#39;s TLB is in the case where IPIs aren&#39;t keeping
+it up to date in real time:
+
+ - Lazy mm switching currently works by switching to init_mm when
+   it would otherwise flush.  This is wasteful: there isn&#39;t fundamentally
+   any need to update CR3 at all when going lazy or when returning from
+   lazy mode, nor is there any need to receive flush IPIs at all.  Instead,
+   we should just stop trying to keep the TLB coherent when we go lazy and,
+   when unlazying, check whether we missed any flushes.
+
+ - PCID will let us keep recent user contexts alive in the TLB.  If we
+   start doing this, we need a way to decide whether those contexts are
+   up to date.
+
+On some paravirt systems, remote TLBs can be flushed without IPIs.
+This won&#39;t update the target CPUs&#39; tlb_gens, which may cause
+unnecessary local flushes later on.  We can address this if it becomes
+a problem by carefully updating the target CPU&#39;s tlb_gen directly.
+
+By itself, this patch is a very minor optimization that avoids
+unnecessary flushes when multiple TLB flushes targetting the same CPU
+race.
+<span class="signed-off-by">
+Signed-off-by: Andy Lutomirski &lt;luto@kernel.org&gt;</span>
+---
+ arch/x86/include/asm/tlbflush.h | 37 +++++++++++++++++++
+ arch/x86/mm/tlb.c               | 79 +++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 109 insertions(+), 7 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">index 1eb946c0507e..4f6c30d6ec39 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -82,6 +82,11 @@</span> <span class="p_context"> static inline u64 bump_mm_tlb_gen(struct mm_struct *mm)</span>
+ #define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
+ #endif
+ 
+<span class="p_add">+struct tlb_context {</span>
+<span class="p_add">+	u64 ctx_id;</span>
+<span class="p_add">+	u64 tlb_gen;</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+ struct tlb_state {
+ 	/*
+ 	 * cpu_tlbstate.loaded_mm should match CR3 whenever interrupts
+<span class="p_chunk">@@ -97,6 +102,21 @@</span> <span class="p_context"> struct tlb_state {</span>
+ 	 * disabling interrupts when modifying either one.
+ 	 */
+ 	unsigned long cr4;
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * This is a list of all contexts that might exist in the TLB.</span>
+<span class="p_add">+	 * Since we don&#39;t yet use PCID, there is only one context.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * For each context, ctx_id indicates which mm the TLB&#39;s user</span>
+<span class="p_add">+	 * entries came from.  As an invariant, the TLB will never</span>
+<span class="p_add">+	 * contain entries that are out-of-date as when that mm reached</span>
+<span class="p_add">+	 * the tlb_gen in the list.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * To be clear, this means that it&#39;s legal for the TLB code to</span>
+<span class="p_add">+	 * flush the TLB without updating tlb_gen.  This can happen</span>
+<span class="p_add">+	 * (for now, at least) due to paravirt remote flushes.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	struct tlb_context ctxs[1];</span>
+ };
+ DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate);
+ 
+<span class="p_chunk">@@ -248,9 +268,26 @@</span> <span class="p_context"> static inline void __flush_tlb_one(unsigned long addr)</span>
+  * and page-granular flushes are available only on i486 and up.
+  */
+ struct flush_tlb_info {
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * We support several kinds of flushes.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * - Fully flush a single mm.  flush_mm will be set, flush_end will be</span>
+<span class="p_add">+	 *   TLB_FLUSH_ALL, and new_tlb_gen will be the tlb_gen to which the</span>
+<span class="p_add">+	 *   IPI sender is trying to catch us up.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * - Partially flush a single mm.  flush_mm will be set, flush_start</span>
+<span class="p_add">+	 *   and flush_end will indicate the range, and new_tlb_gen will be</span>
+<span class="p_add">+	 *   set such that the changes between generation new_tlb_gen-1 and</span>
+<span class="p_add">+	 *   new_tlb_gen are entirely contained in the indicated range.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * - Fully flush all mms whose tlb_gens have been updated.  flush_mm</span>
+<span class="p_add">+	 *   will be NULL, flush_end will be TLB_FLUSH_ALL, and new_tlb_gen</span>
+<span class="p_add">+	 *   will be zero.</span>
+<span class="p_add">+	 */</span>
+ 	struct mm_struct *mm;
+ 	unsigned long start;
+ 	unsigned long end;
+<span class="p_add">+	u64 new_tlb_gen;</span>
+ };
+ 
+ #define local_flush_tlb() __flush_tlb()
+<span class="p_header">diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c</span>
+<span class="p_header">index 7c99c50e8bc9..3b19ba748e92 100644</span>
+<span class="p_header">--- a/arch/x86/mm/tlb.c</span>
+<span class="p_header">+++ b/arch/x86/mm/tlb.c</span>
+<span class="p_chunk">@@ -105,6 +105,9 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ 	}
+ 
+ 	this_cpu_write(cpu_tlbstate.loaded_mm, next);
+<span class="p_add">+	this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, next-&gt;context.ctx_id);</span>
+<span class="p_add">+	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen,</span>
+<span class="p_add">+		       atomic64_read(&amp;next-&gt;context.tlb_gen));</span>
+ 
+ 	WARN_ON_ONCE(cpumask_test_cpu(cpu, mm_cpumask(next)));
+ 	cpumask_set_cpu(cpu, mm_cpumask(next));
+<span class="p_chunk">@@ -194,17 +197,70 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ static void flush_tlb_func_common(const struct flush_tlb_info *f,
+ 				  bool local, enum tlb_flush_reason reason)
+ {
+<span class="p_add">+	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Our memory ordering requirement is that any TLB fills that</span>
+<span class="p_add">+	 * happen after we flush the TLB are ordered after we read</span>
+<span class="p_add">+	 * active_mm&#39;s tlb_gen.  We don&#39;t need any explicit barrier</span>
+<span class="p_add">+	 * because all x86 flush operations are serializing and the</span>
+<span class="p_add">+	 * atomic64_read operation won&#39;t be reordered by the compiler.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	u64 mm_tlb_gen = atomic64_read(&amp;loaded_mm-&gt;context.tlb_gen);</span>
+<span class="p_add">+	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[0].tlb_gen);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=</span>
+<span class="p_add">+		   loaded_mm-&gt;context.ctx_id);</span>
+<span class="p_add">+</span>
+ 	if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * leave_mm() is adequate to handle any type of flush, and</span>
+<span class="p_add">+		 * we would prefer not to receive further IPIs.</span>
+<span class="p_add">+		 */</span>
+ 		leave_mm(smp_processor_id());
+ 		return;
+ 	}
+ 
+<span class="p_del">-	if (f-&gt;end == TLB_FLUSH_ALL) {</span>
+<span class="p_del">-		local_flush_tlb();</span>
+<span class="p_del">-		if (local)</span>
+<span class="p_del">-			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);</span>
+<span class="p_del">-		trace_tlb_flush(reason, TLB_FLUSH_ALL);</span>
+<span class="p_del">-	} else {</span>
+<span class="p_add">+	if (local_tlb_gen == mm_tlb_gen) {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * There&#39;s nothing to do: we&#39;re already up to date.  This can</span>
+<span class="p_add">+		 * happen if two concurrent flushes happen -- the first IPI to</span>
+<span class="p_add">+		 * be handled can catch us all the way up, leaving no work for</span>
+<span class="p_add">+		 * the second IPI to be handled.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	WARN_ON_ONCE(local_tlb_gen &gt; mm_tlb_gen);</span>
+<span class="p_add">+	WARN_ON_ONCE(f-&gt;new_tlb_gen &gt; mm_tlb_gen);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * If we get to this point, we know that our TLB is out of date.</span>
+<span class="p_add">+	 * This does not strictly imply that we need to flush (it&#39;s</span>
+<span class="p_add">+	 * possible that f-&gt;new_tlb_gen &lt;= local_tlb_gen), but we&#39;re</span>
+<span class="p_add">+	 * going to need to flush in the very near future, so we might</span>
+<span class="p_add">+	 * as well get it over with.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * The only question is whether to do a full or partial flush.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * A partial TLB flush is safe and worthwhile if two conditions are</span>
+<span class="p_add">+	 * met:</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * 1. We wouldn&#39;t be skipping a tlb_gen.  If the requester bumped</span>
+<span class="p_add">+	 *    the mm&#39;s tlb_gen from p to p+1, a partial flush is only correct</span>
+<span class="p_add">+	 *    if we would be bumping the local CPU&#39;s tlb_gen from p to p+1 as</span>
+<span class="p_add">+	 *    well.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * 2. If there are no more flushes on their way.  Partial TLB</span>
+<span class="p_add">+	 *    flushes are not all that much cheaper than full TLB</span>
+<span class="p_add">+	 *    flushes, so it seems unlikely that it would be a</span>
+<span class="p_add">+	 *    performance win to do a partial flush if that won&#39;t bring</span>
+<span class="p_add">+	 *    our TLB fully up to date.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (f-&gt;end != TLB_FLUSH_ALL &amp;&amp;</span>
+<span class="p_add">+	    f-&gt;new_tlb_gen == local_tlb_gen + 1 &amp;&amp;</span>
+<span class="p_add">+	    f-&gt;new_tlb_gen == mm_tlb_gen) {</span>
+<span class="p_add">+		/* Partial flush */</span>
+ 		unsigned long addr;
+ 		unsigned long nr_pages = (f-&gt;end - f-&gt;start) &gt;&gt; PAGE_SHIFT;
+ 		addr = f-&gt;start;
+<span class="p_chunk">@@ -215,7 +271,16 @@</span> <span class="p_context"> static void flush_tlb_func_common(const struct flush_tlb_info *f,</span>
+ 		if (local)
+ 			count_vm_tlb_events(NR_TLB_LOCAL_FLUSH_ONE, nr_pages);
+ 		trace_tlb_flush(reason, nr_pages);
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		/* Full flush. */</span>
+<span class="p_add">+		local_flush_tlb();</span>
+<span class="p_add">+		if (local)</span>
+<span class="p_add">+			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);</span>
+<span class="p_add">+		trace_tlb_flush(reason, TLB_FLUSH_ALL);</span>
+ 	}
+<span class="p_add">+</span>
+<span class="p_add">+	/* Both paths above update our state to mm_tlb_gen. */</span>
+<span class="p_add">+	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, mm_tlb_gen);</span>
+ }
+ 
+ static void flush_tlb_func_local(void *info, enum tlb_flush_reason reason)
+<span class="p_chunk">@@ -286,7 +351,7 @@</span> <span class="p_context"> void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,</span>
+ 	cpu = get_cpu();
+ 
+ 	/* This is also a barrier that synchronizes with switch_mm(). */
+<span class="p_del">-	bump_mm_tlb_gen(mm);</span>
+<span class="p_add">+	info.new_tlb_gen = bump_mm_tlb_gen(mm);</span>
+ 
+ 	/* Should we flush just the requested range? */
+ 	if ((end != TLB_FLUSH_ALL) &amp;&amp;
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

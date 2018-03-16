@@ -1,0 +1,1443 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[5/5] lib/interval_tree: Fast overlap detection - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [5/5] lib/interval_tree: Fast overlap detection</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=106071">Davidlohr Bueso</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>May 30, 2017, 2:09 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170530020940.7918-6-dave@stgolabs.net&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9753757/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9753757/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9753757/">/patch/9753757/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	887F46038E for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 30 May 2017 02:11:19 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id A8B682811E
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 30 May 2017 02:11:19 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 9D71C2849A; Tue, 30 May 2017 02:11:19 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id B4AD32811E
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 30 May 2017 02:11:17 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751150AbdE3CLD (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 29 May 2017 22:11:03 -0400
+Received: from smtp2.provo.novell.com ([137.65.250.81]:53347 &quot;EHLO
+	smtp2.provo.novell.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751105AbdE3CK7 (ORCPT
+	&lt;rfc822;groupwise-linux-kernel@vger.kernel.org:0:0&gt;);
+	Mon, 29 May 2017 22:10:59 -0400
+Received: from linux-80c1.suse (prv-ext-foundry1int.gns.novell.com
+	[137.65.251.240])
+	by smtp2.provo.novell.com with ESMTP (TLS encrypted);
+	Mon, 29 May 2017 20:10:46 -0600
+From: Davidlohr Bueso &lt;dave@stgolabs.net&gt;
+To: mingo@kernel.org, peterz@infradead.org, akpm@linux-foundation.org
+Cc: jack@suse.cz, kirill.shutemov@linux.intel.com,
+	ldufour@linux.vnet.ibm.com, mhocko@suse.com,
+	mgorman@techsingularity.net, dave@stgolabs.net,
+	linux-kernel@vger.kernel.org, Davidlohr Bueso &lt;dbueso@suse.de&gt;
+Subject: [PATCH 5/5] lib/interval_tree: Fast overlap detection
+Date: Mon, 29 May 2017 19:09:40 -0700
+Message-Id: &lt;20170530020940.7918-6-dave@stgolabs.net&gt;
+X-Mailer: git-send-email 2.12.0
+In-Reply-To: &lt;20170530020940.7918-1-dave@stgolabs.net&gt;
+References: &lt;20170530020940.7918-1-dave@stgolabs.net&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=106071">Davidlohr Bueso</a> - May 30, 2017, 2:09 a.m.</div>
+<pre class="content">
+Allow interval trees to quickly check for overlaps to avoid
+unnecesary tree lookups in interval_tree_iter_first(). Currently
+we only do this for searches with ranges completely to the right.
+
+As of this patch, all interval tree flavors will require
+using a &#39;rb_root_cached&#39; such that we can have the leftmost
+node easily available. While most users will make use of this
+feature, those with special functions (in addition to the generic
+insert, delete, search calls) will avoid using the cached
+option as they can do funky things with insertions -- for example,
+vma_interval_tree_insert_after().
+<span class="signed-off-by">
+Signed-off-by: Davidlohr Bueso &lt;dbueso@suse.de&gt;</span>
+---
+ drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c             |  8 ++--
+ drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c             |  7 ++--
+ drivers/gpu/drm/amd/amdgpu/amdgpu_vm.h             |  2 +-
+ drivers/gpu/drm/drm_mm.c                           | 10 ++---
+ drivers/gpu/drm/drm_vma_manager.c                  |  2 +-
+ drivers/gpu/drm/i915/i915_gem_userptr.c            |  6 +--
+ drivers/gpu/drm/radeon/radeon.h                    |  2 +-
+ drivers/gpu/drm/radeon/radeon_mn.c                 |  8 ++--
+ drivers/gpu/drm/radeon/radeon_vm.c                 |  7 ++--
+ drivers/infiniband/core/umem_rbtree.c              |  4 +-
+ drivers/infiniband/core/uverbs_cmd.c               |  2 +-
+ drivers/infiniband/hw/usnic/usnic_uiom.c           |  6 +--
+ drivers/infiniband/hw/usnic/usnic_uiom.h           |  2 +-
+ .../infiniband/hw/usnic/usnic_uiom_interval_tree.c | 15 +++----
+ .../infiniband/hw/usnic/usnic_uiom_interval_tree.h | 12 +++---
+ drivers/vhost/vhost.c                              |  2 +-
+ drivers/vhost/vhost.h                              |  2 +-
+ fs/hugetlbfs/inode.c                               |  6 +--
+ fs/inode.c                                         |  2 +-
+ include/drm/drm_mm.h                               |  2 +-
+ include/linux/fs.h                                 |  4 +-
+ include/linux/interval_tree.h                      |  8 ++--
+ include/linux/interval_tree_generic.h              | 46 +++++++++++++++++-----
+ include/linux/mm.h                                 | 17 ++++----
+ include/linux/rmap.h                               |  4 +-
+ include/rdma/ib_umem_odp.h                         | 11 ++++--
+ include/rdma/ib_verbs.h                            |  2 +-
+ lib/interval_tree_test.c                           |  4 +-
+ mm/interval_tree.c                                 | 10 ++---
+ mm/memory.c                                        |  4 +-
+ mm/mmap.c                                          | 10 ++---
+ mm/rmap.c                                          |  4 +-
+ 32 files changed, 134 insertions(+), 97 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=143191">kbuild test robot</a> - May 30, 2017, 4:54 a.m.</div>
+<pre class="content">
+Hi Davidlohr,
+
+[auto build test ERROR on next-20170529]
+
+url:    https://github.com/0day-ci/linux/commits/Davidlohr-Bueso/rbtree-Cache-leftmost-node-internally/20170530-101713
+config: x86_64-allmodconfig (attached as .config)
+compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+reproduce:
+        # save the attached .config to linux build tree
+        make ARCH=x86_64 
+
+All errors (new ones prefixed by &gt;&gt;):
+
+   include/linux/compiler.h:260:8: sparse: attribute &#39;no_sanitize_address&#39;: unknown attribute
+   drivers/infiniband/hw/hfi1/mmu_rb.c: In function &#39;hfi1_mmu_rb_insert&#39;:
+<span class="quote">&gt;&gt; drivers/infiniband/hw/hfi1/mmu_rb.c:183:29: error: passing argument 2 of &#39;__mmu_int_rb_insert&#39; from incompatible pointer type [-Werror=incompatible-pointer-types]</span>
+     __mmu_int_rb_insert(mnode, &amp;handler-&gt;root);
+                                ^
+   In file included from drivers/infiniband/hw/hfi1/mmu_rb.c:50:0:
+   drivers/infiniband/hw/hfi1/mmu_rb.c:90:47: note: expected &#39;struct rb_root_cached *&#39; but argument is of type &#39;struct rb_root *&#39;
+           mmu_node_start, mmu_node_last, static, __mmu_int_rb);
+                                                  ^
+   include/linux/interval_tree_generic.h:68:15: note: in definition of macro &#39;INTERVAL_TREE_DEFINE&#39;
+    ITSTATIC void ITPREFIX ## _insert(ITSTRUCT *node,         \
+                  ^~~~~~~~
+<span class="quote">&gt;&gt; drivers/infiniband/hw/hfi1/mmu_rb.c:188:30: error: passing argument 2 of &#39;__mmu_int_rb_remove&#39; from incompatible pointer type [-Werror=incompatible-pointer-types]</span>
+      __mmu_int_rb_remove(mnode, &amp;handler-&gt;root);
+                                 ^
+   In file included from drivers/infiniband/hw/hfi1/mmu_rb.c:50:0:
+   drivers/infiniband/hw/hfi1/mmu_rb.c:90:47: note: expected &#39;struct rb_root_cached *&#39; but argument is of type &#39;struct rb_root *&#39;
+           mmu_node_start, mmu_node_last, static, __mmu_int_rb);
+                                                  ^
+   include/linux/interval_tree_generic.h:95:15: note: in definition of macro &#39;INTERVAL_TREE_DEFINE&#39;
+    ITSTATIC void ITPREFIX ## _remove(ITSTRUCT *node,         \
+                  ^~~~~~~~
+   drivers/infiniband/hw/hfi1/mmu_rb.c: In function &#39;__mmu_rb_search&#39;:
+<span class="quote">&gt;&gt; drivers/infiniband/hw/hfi1/mmu_rb.c:205:34: error: passing argument 1 of &#39;__mmu_int_rb_iter_first&#39; from incompatible pointer type [-Werror=incompatible-pointer-types]</span>
+      node = __mmu_int_rb_iter_first(&amp;handler-&gt;root, addr,
+                                     ^
+   In file included from drivers/infiniband/hw/hfi1/mmu_rb.c:50:0:
+   drivers/infiniband/hw/hfi1/mmu_rb.c:90:47: note: expected &#39;struct rb_root_cached *&#39; but argument is of type &#39;struct rb_root *&#39;
+           mmu_node_start, mmu_node_last, static, __mmu_int_rb);
+                                                  ^
+   include/linux/interval_tree_generic.h:149:1: note: in definition of macro &#39;INTERVAL_TREE_DEFINE&#39;
+    ITPREFIX ## _iter_first(struct rb_root_cached *root,         \
+    ^~~~~~~~
+   drivers/infiniband/hw/hfi1/mmu_rb.c:208:39: error: passing argument 1 of &#39;__mmu_int_rb_iter_first&#39; from incompatible pointer type [-Werror=incompatible-pointer-types]
+      for (node = __mmu_int_rb_iter_first(&amp;handler-&gt;root, addr,
+                                          ^
+   In file included from drivers/infiniband/hw/hfi1/mmu_rb.c:50:0:
+   drivers/infiniband/hw/hfi1/mmu_rb.c:90:47: note: expected &#39;struct rb_root_cached *&#39; but argument is of type &#39;struct rb_root *&#39;
+           mmu_node_start, mmu_node_last, static, __mmu_int_rb);
+                                                  ^
+   include/linux/interval_tree_generic.h:149:1: note: in definition of macro &#39;INTERVAL_TREE_DEFINE&#39;
+    ITPREFIX ## _iter_first(struct rb_root_cached *root,         \
+    ^~~~~~~~
+   drivers/infiniband/hw/hfi1/mmu_rb.c: In function &#39;hfi1_mmu_rb_extract&#39;:
+   drivers/infiniband/hw/hfi1/mmu_rb.c:229:29: error: passing argument 2 of &#39;__mmu_int_rb_remove&#39; from incompatible pointer type [-Werror=incompatible-pointer-types]
+      __mmu_int_rb_remove(node, &amp;handler-&gt;root);
+                                ^
+   In file included from drivers/infiniband/hw/hfi1/mmu_rb.c:50:0:
+   drivers/infiniband/hw/hfi1/mmu_rb.c:90:47: note: expected &#39;struct rb_root_cached *&#39; but argument is of type &#39;struct rb_root *&#39;
+           mmu_node_start, mmu_node_last, static, __mmu_int_rb);
+                                                  ^
+   include/linux/interval_tree_generic.h:95:15: note: in definition of macro &#39;INTERVAL_TREE_DEFINE&#39;
+    ITSTATIC void ITPREFIX ## _remove(ITSTRUCT *node,         \
+                  ^~~~~~~~
+   drivers/infiniband/hw/hfi1/mmu_rb.c: In function &#39;hfi1_mmu_rb_evict&#39;:
+   drivers/infiniband/hw/hfi1/mmu_rb.c:251:32: error: passing argument 2 of &#39;__mmu_int_rb_remove&#39; from incompatible pointer type [-Werror=incompatible-pointer-types]
+       __mmu_int_rb_remove(rbnode, &amp;handler-&gt;root);
+                                   ^
+   In file included from drivers/infiniband/hw/hfi1/mmu_rb.c:50:0:
+   drivers/infiniband/hw/hfi1/mmu_rb.c:90:47: note: expected &#39;struct rb_root_cached *&#39; but argument is of type &#39;struct rb_root *&#39;
+           mmu_node_start, mmu_node_last, static, __mmu_int_rb);
+                                                  ^
+   include/linux/interval_tree_generic.h:95:15: note: in definition of macro &#39;INTERVAL_TREE_DEFINE&#39;
+    ITSTATIC void ITPREFIX ## _remove(ITSTRUCT *node,         \
+                  ^~~~~~~~
+   drivers/infiniband/hw/hfi1/mmu_rb.c: In function &#39;hfi1_mmu_rb_remove&#39;:
+   drivers/infiniband/hw/hfi1/mmu_rb.c:281:28: error: passing argument 2 of &#39;__mmu_int_rb_remove&#39; from incompatible pointer type [-Werror=incompatible-pointer-types]
+     __mmu_int_rb_remove(node, &amp;handler-&gt;root);
+                               ^
+   In file included from drivers/infiniband/hw/hfi1/mmu_rb.c:50:0:
+   drivers/infiniband/hw/hfi1/mmu_rb.c:90:47: note: expected &#39;struct rb_root_cached *&#39; but argument is of type &#39;struct rb_root *&#39;
+           mmu_node_start, mmu_node_last, static, __mmu_int_rb);
+                                                  ^
+   include/linux/interval_tree_generic.h:95:15: note: in definition of macro &#39;INTERVAL_TREE_DEFINE&#39;
+    ITSTATIC void ITPREFIX ## _remove(ITSTRUCT *node,         \
+                  ^~~~~~~~
+   drivers/infiniband/hw/hfi1/mmu_rb.c: In function &#39;mmu_notifier_mem_invalidate&#39;:
+   drivers/infiniband/hw/hfi1/mmu_rb.c:314:38: error: passing argument 1 of &#39;__mmu_int_rb_iter_first&#39; from incompatible pointer type [-Werror=incompatible-pointer-types]
+     for (node = __mmu_int_rb_iter_first(root, start, end - 1);
+                                         ^~~~
+   In file included from drivers/infiniband/hw/hfi1/mmu_rb.c:50:0:
+   drivers/infiniband/hw/hfi1/mmu_rb.c:90:47: note: expected &#39;struct rb_root_cached *&#39; but argument is of type &#39;struct rb_root *&#39;
+           mmu_node_start, mmu_node_last, static, __mmu_int_rb);
+                                                  ^
+   include/linux/interval_tree_generic.h:149:1: note: in definition of macro &#39;INTERVAL_TREE_DEFINE&#39;
+    ITPREFIX ## _iter_first(struct rb_root_cached *root,         \
+    ^~~~~~~~
+   drivers/infiniband/hw/hfi1/mmu_rb.c:321:30: error: passing argument 2 of &#39;__mmu_int_rb_remove&#39; from incompatible pointer type [-Werror=incompatible-pointer-types]
+       __mmu_int_rb_remove(node, root);
+                                 ^~~~
+   In file included from drivers/infiniband/hw/hfi1/mmu_rb.c:50:0:
+   drivers/infiniband/hw/hfi1/mmu_rb.c:90:47: note: expected &#39;struct rb_root_cached *&#39; but argument is of type &#39;struct rb_root *&#39;
+           mmu_node_start, mmu_node_last, static, __mmu_int_rb);
+                                                  ^
+   include/linux/interval_tree_generic.h:95:15: note: in definition of macro &#39;INTERVAL_TREE_DEFINE&#39;
+    ITSTATIC void ITPREFIX ## _remove(ITSTRUCT *node,         \
+                  ^~~~~~~~
+   cc1: some warnings being treated as errors
+
+vim +/__mmu_int_rb_insert +183 drivers/infiniband/hw/hfi1/mmu_rb.c
+
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   44   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   45   *
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   46   */
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   47  #include &lt;linux/list.h&gt;
+67caea1fe drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-05-12   48  #include &lt;linux/rculist.h&gt;
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   49  #include &lt;linux/mmu_notifier.h&gt;
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  @50  #include &lt;linux/interval_tree_generic.h&gt;
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   51  
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   52  #include &quot;mmu_rb.h&quot;
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   53  #include &quot;trace.h&quot;
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   54  
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   55  struct mmu_rb_handler {
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   56  	struct mmu_notifier mn;
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28   57  	struct rb_root root;
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28   58  	void *ops_arg;
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   59  	spinlock_t lock;        /* protect the RB tree */
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   60  	struct mmu_rb_ops *ops;
+3faa3d9a3 drivers/infiniband/hw/hfi1/mmu_rb.c Ira Weiny       2016-07-28   61  	struct mm_struct *mm;
+0636e9ab8 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28   62  	struct list_head lru_list;
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28   63  	struct work_struct del_work;
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28   64  	struct list_head del_list;
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28   65  	struct workqueue_struct *wq;
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   66  };
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   67  
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   68  static unsigned long mmu_node_start(struct mmu_rb_node *);
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   69  static unsigned long mmu_node_last(struct mmu_rb_node *);
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   70  static inline void mmu_notifier_page(struct mmu_notifier *, struct mm_struct *,
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   71  				     unsigned long);
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   72  static inline void mmu_notifier_range_start(struct mmu_notifier *,
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   73  					    struct mm_struct *,
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   74  					    unsigned long, unsigned long);
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   75  static void mmu_notifier_mem_invalidate(struct mmu_notifier *,
+f19bd643d drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-04-12   76  					struct mm_struct *,
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   77  					unsigned long, unsigned long);
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   78  static struct mmu_rb_node *__mmu_rb_search(struct mmu_rb_handler *,
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   79  					   unsigned long, unsigned long);
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28   80  static void do_remove(struct mmu_rb_handler *handler,
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28   81  		      struct list_head *del_list);
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28   82  static void handle_remove(struct work_struct *work);
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   83  
+0fc859a65 drivers/infiniband/hw/hfi1/mmu_rb.c Bhumika Goyal   2016-11-19   84  static const struct mmu_notifier_ops mn_opts = {
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   85  	.invalidate_page = mmu_notifier_page,
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   86  	.invalidate_range_start = mmu_notifier_range_start,
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   87  };
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   88  
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   89  INTERVAL_TREE_DEFINE(struct mmu_rb_node, node, unsigned long, __last,
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   90  		     mmu_node_start, mmu_node_last, static, __mmu_int_rb);
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   91  
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   92  static unsigned long mmu_node_start(struct mmu_rb_node *node)
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   93  {
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   94  	return node-&gt;addr &amp; PAGE_MASK;
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   95  }
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   96  
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   97  static unsigned long mmu_node_last(struct mmu_rb_node *node)
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08   98  {
+de79093b2 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-04-12   99  	return PAGE_ALIGN(node-&gt;addr + node-&gt;len) - 1;
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  100  }
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  101  
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  102  int hfi1_mmu_rb_register(void *ops_arg, struct mm_struct *mm,
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  103  			 struct mmu_rb_ops *ops,
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  104  			 struct workqueue_struct *wq,
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  105  			 struct mmu_rb_handler **handler)
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  106  {
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  107  	struct mmu_rb_handler *handlr;
+3faa3d9a3 drivers/infiniband/hw/hfi1/mmu_rb.c Ira Weiny       2016-07-28  108  	int ret;
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  109  
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  110  	handlr = kmalloc(sizeof(*handlr), GFP_KERNEL);
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  111  	if (!handlr)
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  112  		return -ENOMEM;
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  113  
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  114  	handlr-&gt;root = RB_ROOT;
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  115  	handlr-&gt;ops = ops;
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  116  	handlr-&gt;ops_arg = ops_arg;
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  117  	INIT_HLIST_NODE(&amp;handlr-&gt;mn.hlist);
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  118  	spin_lock_init(&amp;handlr-&gt;lock);
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  119  	handlr-&gt;mn.ops = &amp;mn_opts;
+3faa3d9a3 drivers/infiniband/hw/hfi1/mmu_rb.c Ira Weiny       2016-07-28  120  	handlr-&gt;mm = mm;
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  121  	INIT_WORK(&amp;handlr-&gt;del_work, handle_remove);
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  122  	INIT_LIST_HEAD(&amp;handlr-&gt;del_list);
+0636e9ab8 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  123  	INIT_LIST_HEAD(&amp;handlr-&gt;lru_list);
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  124  	handlr-&gt;wq = wq;
+3faa3d9a3 drivers/infiniband/hw/hfi1/mmu_rb.c Ira Weiny       2016-07-28  125  
+3faa3d9a3 drivers/infiniband/hw/hfi1/mmu_rb.c Ira Weiny       2016-07-28  126  	ret = mmu_notifier_register(&amp;handlr-&gt;mn, handlr-&gt;mm);
+3faa3d9a3 drivers/infiniband/hw/hfi1/mmu_rb.c Ira Weiny       2016-07-28  127  	if (ret) {
+3faa3d9a3 drivers/infiniband/hw/hfi1/mmu_rb.c Ira Weiny       2016-07-28  128  		kfree(handlr);
+3faa3d9a3 drivers/infiniband/hw/hfi1/mmu_rb.c Ira Weiny       2016-07-28  129  		return ret;
+3faa3d9a3 drivers/infiniband/hw/hfi1/mmu_rb.c Ira Weiny       2016-07-28  130  	}
+3faa3d9a3 drivers/infiniband/hw/hfi1/mmu_rb.c Ira Weiny       2016-07-28  131  
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  132  	*handler = handlr;
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  133  	return 0;
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  134  }
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  135  
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  136  void hfi1_mmu_rb_unregister(struct mmu_rb_handler *handler)
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  137  {
+20a42d083 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  138  	struct mmu_rb_node *rbnode;
+20a42d083 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  139  	struct rb_node *node;
+c81e1f645 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  140  	unsigned long flags;
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  141  	struct list_head del_list;
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  142  
+782f6697d drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-04-12  143  	/* Unregister first so we don&#39;t get any more notifications. */
+3faa3d9a3 drivers/infiniband/hw/hfi1/mmu_rb.c Ira Weiny       2016-07-28  144  	mmu_notifier_unregister(&amp;handler-&gt;mn, handler-&gt;mm);
+782f6697d drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-04-12  145  
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  146  	/*
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  147  	 * Make sure the wq delete handler is finished running.  It will not
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  148  	 * be triggered once the mmu notifiers are unregistered above.
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  149  	 */
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  150  	flush_work(&amp;handler-&gt;del_work);
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  151  
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  152  	INIT_LIST_HEAD(&amp;del_list);
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  153  
+782f6697d drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-04-12  154  	spin_lock_irqsave(&amp;handler-&gt;lock, flags);
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  155  	while ((node = rb_first(&amp;handler-&gt;root))) {
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  156  		rbnode = rb_entry(node, struct mmu_rb_node, node);
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  157  		rb_erase(node, &amp;handler-&gt;root);
+0636e9ab8 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  158  		/* move from LRU list to delete list */
+0636e9ab8 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  159  		list_move(&amp;rbnode-&gt;list, &amp;del_list);
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  160  	}
+782f6697d drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-04-12  161  	spin_unlock_irqrestore(&amp;handler-&gt;lock, flags);
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  162  
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  163  	do_remove(handler, &amp;del_list);
+b85ced915 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  164  
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  165  	kfree(handler);
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  166  }
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  167  
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  168  int hfi1_mmu_rb_insert(struct mmu_rb_handler *handler,
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  169  		       struct mmu_rb_node *mnode)
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  170  {
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  171  	struct mmu_rb_node *node;
+c81e1f645 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  172  	unsigned long flags;
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  173  	int ret = 0;
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  174  
+c81e1f645 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  175  	spin_lock_irqsave(&amp;handler-&gt;lock, flags);
+353b71c7c drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  176  	hfi1_cdbg(MMU, &quot;Inserting node addr 0x%llx, len %u&quot;, mnode-&gt;addr,
+353b71c7c drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  177  		  mnode-&gt;len);
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  178  	node = __mmu_rb_search(handler, mnode-&gt;addr, mnode-&gt;len);
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  179  	if (node) {
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  180  		ret = -EINVAL;
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  181  		goto unlock;
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  182  	}
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28 @183  	__mmu_int_rb_insert(mnode, &amp;handler-&gt;root);
+0636e9ab8 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  184  	list_add(&amp;mnode-&gt;list, &amp;handler-&gt;lru_list);
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  185  
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  186  	ret = handler-&gt;ops-&gt;insert(handler-&gt;ops_arg, mnode);
+0636e9ab8 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  187  	if (ret) {
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28 @188  		__mmu_int_rb_remove(mnode, &amp;handler-&gt;root);
+0636e9ab8 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  189  		list_del(&amp;mnode-&gt;list); /* remove from LRU list */
+0636e9ab8 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  190  	}
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  191  unlock:
+c81e1f645 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  192  	spin_unlock_irqrestore(&amp;handler-&gt;lock, flags);
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  193  	return ret;
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  194  }
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  195  
+de82bdff6 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-04-12  196  /* Caller must hold handler lock */
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  197  static struct mmu_rb_node *__mmu_rb_search(struct mmu_rb_handler *handler,
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  198  					   unsigned long addr,
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  199  					   unsigned long len)
+06e0ffa69 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  200  {
+0f310a00e drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  201  	struct mmu_rb_node *node = NULL;
+df5a00f81 drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  202  
+353b71c7c drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  203  	hfi1_cdbg(MMU, &quot;Searching for addr 0x%llx, len %u&quot;, addr, len);
+0f310a00e drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  204  	if (!handler-&gt;ops-&gt;filter) {
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28 @205  		node = __mmu_int_rb_iter_first(&amp;handler-&gt;root, addr,
+0f310a00e drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  206  					       (addr + len) - 1);
+0f310a00e drivers/staging/rdma/hfi1/mmu_rb.c  Mitko Haralanov 2016-03-08  207  	} else {
+e0b09ac55 drivers/infiniband/hw/hfi1/mmu_rb.c Dean Luick      2016-07-28  208  		for (node = __mmu_int_rb_iter_first(&amp;handler-&gt;root, addr,
+
+:::::: The code at line 183 was first introduced by commit
+:::::: e0b09ac55d51bb9bf6a4a320bf4029e40bdabd6c IB/hfi1: Make the cache handler own its rb tree root
+
+:::::: TO: Dean Luick &lt;dean.luick@intel.com&gt;
+:::::: CC: Doug Ledford &lt;dledford@redhat.com&gt;
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c</span>
+<span class="p_header">index 38f739fb727b..3f8aef21b9a6 100644</span>
+<span class="p_header">--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c</span>
+<span class="p_header">+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c</span>
+<span class="p_chunk">@@ -51,7 +51,7 @@</span> <span class="p_context"> struct amdgpu_mn {</span>
+ 
+ 	/* objects protected by lock */
+ 	struct mutex		lock;
+<span class="p_del">-	struct rb_root		objects;</span>
+<span class="p_add">+	struct rb_root_cached	objects;</span>
+ };
+ 
+ struct amdgpu_mn_node {
+<span class="p_chunk">@@ -76,8 +76,8 @@</span> <span class="p_context"> static void amdgpu_mn_destroy(struct work_struct *work)</span>
+ 	mutex_lock(&amp;adev-&gt;mn_lock);
+ 	mutex_lock(&amp;rmn-&gt;lock);
+ 	hash_del(&amp;rmn-&gt;node);
+<span class="p_del">-	rbtree_postorder_for_each_entry_safe(node, next_node, &amp;rmn-&gt;objects,</span>
+<span class="p_del">-					     it.rb) {</span>
+<span class="p_add">+	rbtree_postorder_for_each_entry_safe(node, next_node,</span>
+<span class="p_add">+					     &amp;rmn-&gt;objects.rb_root, it.rb) {</span>
+ 		list_for_each_entry_safe(bo, next_bo, &amp;node-&gt;bos, mn_list) {
+ 			bo-&gt;mn = NULL;
+ 			list_del_init(&amp;bo-&gt;mn_list);
+<span class="p_chunk">@@ -252,7 +252,7 @@</span> <span class="p_context"> static struct amdgpu_mn *amdgpu_mn_get(struct amdgpu_device *adev)</span>
+ 	rmn-&gt;mm = mm;
+ 	rmn-&gt;mn.ops = &amp;amdgpu_mn_ops;
+ 	mutex_init(&amp;rmn-&gt;lock);
+<span class="p_del">-	rmn-&gt;objects = RB_ROOT;</span>
+<span class="p_add">+	rmn-&gt;objects = RB_ROOT_CACHED;</span>
+ 
+ 	r = __mmu_notifier_register(&amp;rmn-&gt;mn, mm);
+ 	if (r)
+<span class="p_header">diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c</span>
+<span class="p_header">index 83c172a6e938..ab73ace3d38a 100644</span>
+<span class="p_header">--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c</span>
+<span class="p_header">+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.c</span>
+<span class="p_chunk">@@ -2150,7 +2150,7 @@</span> <span class="p_context"> int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)</span>
+ 	struct amd_sched_rq *rq;
+ 	int r;
+ 
+<span class="p_del">-	vm-&gt;va = RB_ROOT;</span>
+<span class="p_add">+	vm-&gt;va = RB_ROOT_CACHED;</span>
+ 	vm-&gt;client_id = atomic64_inc_return(&amp;adev-&gt;vm_manager.client_counter);
+ 	spin_lock_init(&amp;vm-&gt;status_lock);
+ 	INIT_LIST_HEAD(&amp;vm-&gt;invalidated);
+<span class="p_chunk">@@ -2239,10 +2239,11 @@</span> <span class="p_context"> void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)</span>
+ 
+ 	amd_sched_entity_fini(vm-&gt;entity.sched, &amp;vm-&gt;entity);
+ 
+<span class="p_del">-	if (!RB_EMPTY_ROOT(&amp;vm-&gt;va)) {</span>
+<span class="p_add">+	if (!RB_EMPTY_ROOT(&amp;vm-&gt;va.rb_root)) {</span>
+ 		dev_err(adev-&gt;dev, &quot;still active bo inside vm\n&quot;);
+ 	}
+<span class="p_del">-	rbtree_postorder_for_each_entry_safe(mapping, tmp, &amp;vm-&gt;va, rb) {</span>
+<span class="p_add">+	rbtree_postorder_for_each_entry_safe(mapping, tmp,</span>
+<span class="p_add">+					     &amp;vm-&gt;va.rb_root, rb) {</span>
+ 		list_del(&amp;mapping-&gt;list);
+ 		amdgpu_vm_it_remove(mapping, &amp;vm-&gt;va);
+ 		kfree(mapping);
+<span class="p_header">diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.h b/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.h</span>
+<span class="p_header">index e1d951ece433..6b2e8309ca70 100644</span>
+<span class="p_header">--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.h</span>
+<span class="p_header">+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_vm.h</span>
+<span class="p_chunk">@@ -96,7 +96,7 @@</span> <span class="p_context"> struct amdgpu_vm_pt {</span>
+ 
+ struct amdgpu_vm {
+ 	/* tree of virtual addresses mapped */
+<span class="p_del">-	struct rb_root		va;</span>
+<span class="p_add">+	struct rb_root_cached	va;</span>
+ 
+ 	/* protecting invalidated */
+ 	spinlock_t		status_lock;
+<span class="p_header">diff --git a/drivers/gpu/drm/drm_mm.c b/drivers/gpu/drm/drm_mm.c</span>
+<span class="p_header">index f794089d30ac..21863f0afb87 100644</span>
+<span class="p_header">--- a/drivers/gpu/drm/drm_mm.c</span>
+<span class="p_header">+++ b/drivers/gpu/drm/drm_mm.c</span>
+<span class="p_chunk">@@ -169,7 +169,7 @@</span> <span class="p_context"> INTERVAL_TREE_DEFINE(struct drm_mm_node, rb,</span>
+ struct drm_mm_node *
+ __drm_mm_interval_first(const struct drm_mm *mm, u64 start, u64 last)
+ {
+<span class="p_del">-	return drm_mm_interval_tree_iter_first((struct rb_root *)&amp;mm-&gt;interval_tree,</span>
+<span class="p_add">+	return drm_mm_interval_tree_iter_first((struct rb_root_cached *)&amp;mm-&gt;interval_tree,</span>
+ 					       start, last) ?: (struct drm_mm_node *)&amp;mm-&gt;head_node;
+ }
+ EXPORT_SYMBOL(__drm_mm_interval_first);
+<span class="p_chunk">@@ -198,7 +198,7 @@</span> <span class="p_context"> static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,</span>
+ 		link = &amp;hole_node-&gt;rb.rb_right;
+ 	} else {
+ 		rb = NULL;
+<span class="p_del">-		link = &amp;mm-&gt;interval_tree.rb_node;</span>
+<span class="p_add">+		link = &amp;mm-&gt;interval_tree.rb_root.rb_node;</span>
+ 	}
+ 
+ 	while (*link) {
+<span class="p_chunk">@@ -214,7 +214,7 @@</span> <span class="p_context"> static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,</span>
+ 
+ 	rb_link_node(&amp;node-&gt;rb, rb, link);
+ 	rb_insert_augmented(&amp;node-&gt;rb,
+<span class="p_del">-			    &amp;mm-&gt;interval_tree,</span>
+<span class="p_add">+			    &amp;mm-&gt;interval_tree.rb_root,</span>
+ 			    &amp;drm_mm_interval_tree_augment);
+ }
+ 
+<span class="p_chunk">@@ -577,7 +577,7 @@</span> <span class="p_context"> void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new)</span>
+ 	*new = *old;
+ 
+ 	list_replace(&amp;old-&gt;node_list, &amp;new-&gt;node_list);
+<span class="p_del">-	rb_replace_node(&amp;old-&gt;rb, &amp;new-&gt;rb, &amp;old-&gt;mm-&gt;interval_tree);</span>
+<span class="p_add">+	rb_replace_node(&amp;old-&gt;rb, &amp;new-&gt;rb, &amp;old-&gt;mm-&gt;interval_tree.rb_root);</span>
+ 
+ 	if (drm_mm_hole_follows(old)) {
+ 		list_replace(&amp;old-&gt;hole_stack, &amp;new-&gt;hole_stack);
+<span class="p_chunk">@@ -863,7 +863,7 @@</span> <span class="p_context"> void drm_mm_init(struct drm_mm *mm, u64 start, u64 size)</span>
+ 	mm-&gt;color_adjust = NULL;
+ 
+ 	INIT_LIST_HEAD(&amp;mm-&gt;hole_stack);
+<span class="p_del">-	mm-&gt;interval_tree = RB_ROOT;</span>
+<span class="p_add">+	mm-&gt;interval_tree = RB_ROOT_CACHED;</span>
+ 	mm-&gt;holes_size = RB_ROOT;
+ 	mm-&gt;holes_addr = RB_ROOT;
+ 
+<span class="p_header">diff --git a/drivers/gpu/drm/drm_vma_manager.c b/drivers/gpu/drm/drm_vma_manager.c</span>
+<span class="p_header">index d9100b565198..28f1226576f8 100644</span>
+<span class="p_header">--- a/drivers/gpu/drm/drm_vma_manager.c</span>
+<span class="p_header">+++ b/drivers/gpu/drm/drm_vma_manager.c</span>
+<span class="p_chunk">@@ -147,7 +147,7 @@</span> <span class="p_context"> struct drm_vma_offset_node *drm_vma_offset_lookup_locked(struct drm_vma_offset_m</span>
+ 	struct rb_node *iter;
+ 	unsigned long offset;
+ 
+<span class="p_del">-	iter = mgr-&gt;vm_addr_space_mm.interval_tree.rb_node;</span>
+<span class="p_add">+	iter = mgr-&gt;vm_addr_space_mm.interval_tree.rb_root.rb_node;</span>
+ 	best = NULL;
+ 
+ 	while (likely(iter)) {
+<span class="p_header">diff --git a/drivers/gpu/drm/i915/i915_gem_userptr.c b/drivers/gpu/drm/i915/i915_gem_userptr.c</span>
+<span class="p_header">index 1a0ce1dc68f5..40cd8c32a153 100644</span>
+<span class="p_header">--- a/drivers/gpu/drm/i915/i915_gem_userptr.c</span>
+<span class="p_header">+++ b/drivers/gpu/drm/i915/i915_gem_userptr.c</span>
+<span class="p_chunk">@@ -49,7 +49,7 @@</span> <span class="p_context"> struct i915_mmu_notifier {</span>
+ 	spinlock_t lock;
+ 	struct hlist_node node;
+ 	struct mmu_notifier mn;
+<span class="p_del">-	struct rb_root objects;</span>
+<span class="p_add">+	struct rb_root_cached objects;</span>
+ 	struct workqueue_struct *wq;
+ };
+ 
+<span class="p_chunk">@@ -123,7 +123,7 @@</span> <span class="p_context"> static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,</span>
+ 	struct interval_tree_node *it;
+ 	LIST_HEAD(cancelled);
+ 
+<span class="p_del">-	if (RB_EMPTY_ROOT(&amp;mn-&gt;objects))</span>
+<span class="p_add">+	if (RB_EMPTY_ROOT(&amp;mn-&gt;objects.rb_root))</span>
+ 		return;
+ 
+ 	/* interval ranges are inclusive, but invalidate range is exclusive */
+<span class="p_chunk">@@ -172,7 +172,7 @@</span> <span class="p_context"> i915_mmu_notifier_create(struct mm_struct *mm)</span>
+ 
+ 	spin_lock_init(&amp;mn-&gt;lock);
+ 	mn-&gt;mn.ops = &amp;i915_gem_userptr_notifier;
+<span class="p_del">-	mn-&gt;objects = RB_ROOT;</span>
+<span class="p_add">+	mn-&gt;objects = RB_ROOT_CACHED;</span>
+ 	mn-&gt;wq = alloc_workqueue(&quot;i915-userptr-release&quot;, WQ_UNBOUND, 0);
+ 	if (mn-&gt;wq == NULL) {
+ 		kfree(mn);
+<span class="p_header">diff --git a/drivers/gpu/drm/radeon/radeon.h b/drivers/gpu/drm/radeon/radeon.h</span>
+<span class="p_header">index 342e3b1fb9c7..569915163b57 100644</span>
+<span class="p_header">--- a/drivers/gpu/drm/radeon/radeon.h</span>
+<span class="p_header">+++ b/drivers/gpu/drm/radeon/radeon.h</span>
+<span class="p_chunk">@@ -937,7 +937,7 @@</span> <span class="p_context"> struct radeon_vm_id {</span>
+ struct radeon_vm {
+ 	struct mutex		mutex;
+ 
+<span class="p_del">-	struct rb_root		va;</span>
+<span class="p_add">+	struct rb_root_cached	va;</span>
+ 
+ 	/* protecting invalidated and freed */
+ 	spinlock_t		status_lock;
+<span class="p_header">diff --git a/drivers/gpu/drm/radeon/radeon_mn.c b/drivers/gpu/drm/radeon/radeon_mn.c</span>
+<span class="p_header">index 896f2cf51e4e..1d62288b7ee3 100644</span>
+<span class="p_header">--- a/drivers/gpu/drm/radeon/radeon_mn.c</span>
+<span class="p_header">+++ b/drivers/gpu/drm/radeon/radeon_mn.c</span>
+<span class="p_chunk">@@ -50,7 +50,7 @@</span> <span class="p_context"> struct radeon_mn {</span>
+ 
+ 	/* objects protected by lock */
+ 	struct mutex		lock;
+<span class="p_del">-	struct rb_root		objects;</span>
+<span class="p_add">+	struct rb_root_cached	objects;</span>
+ };
+ 
+ struct radeon_mn_node {
+<span class="p_chunk">@@ -75,8 +75,8 @@</span> <span class="p_context"> static void radeon_mn_destroy(struct work_struct *work)</span>
+ 	mutex_lock(&amp;rdev-&gt;mn_lock);
+ 	mutex_lock(&amp;rmn-&gt;lock);
+ 	hash_del(&amp;rmn-&gt;node);
+<span class="p_del">-	rbtree_postorder_for_each_entry_safe(node, next_node, &amp;rmn-&gt;objects,</span>
+<span class="p_del">-					     it.rb) {</span>
+<span class="p_add">+	rbtree_postorder_for_each_entry_safe(node, next_node,</span>
+<span class="p_add">+					     &amp;rmn-&gt;objects.rb_root, it.rb) {</span>
+ 
+ 		interval_tree_remove(&amp;node-&gt;it, &amp;rmn-&gt;objects);
+ 		list_for_each_entry_safe(bo, next_bo, &amp;node-&gt;bos, mn_list) {
+<span class="p_chunk">@@ -205,7 +205,7 @@</span> <span class="p_context"> static struct radeon_mn *radeon_mn_get(struct radeon_device *rdev)</span>
+ 	rmn-&gt;mm = mm;
+ 	rmn-&gt;mn.ops = &amp;radeon_mn_ops;
+ 	mutex_init(&amp;rmn-&gt;lock);
+<span class="p_del">-	rmn-&gt;objects = RB_ROOT;</span>
+<span class="p_add">+	rmn-&gt;objects = RB_ROOT_CACHED;</span>
+ 	
+ 	r = __mmu_notifier_register(&amp;rmn-&gt;mn, mm);
+ 	if (r)
+<span class="p_header">diff --git a/drivers/gpu/drm/radeon/radeon_vm.c b/drivers/gpu/drm/radeon/radeon_vm.c</span>
+<span class="p_header">index 5f68245579a3..f44777a6c2e8 100644</span>
+<span class="p_header">--- a/drivers/gpu/drm/radeon/radeon_vm.c</span>
+<span class="p_header">+++ b/drivers/gpu/drm/radeon/radeon_vm.c</span>
+<span class="p_chunk">@@ -1185,7 +1185,7 @@</span> <span class="p_context"> int radeon_vm_init(struct radeon_device *rdev, struct radeon_vm *vm)</span>
+ 		vm-&gt;ids[i].last_id_use = NULL;
+ 	}
+ 	mutex_init(&amp;vm-&gt;mutex);
+<span class="p_del">-	vm-&gt;va = RB_ROOT;</span>
+<span class="p_add">+	vm-&gt;va = RB_ROOT_CACHED;</span>
+ 	spin_lock_init(&amp;vm-&gt;status_lock);
+ 	INIT_LIST_HEAD(&amp;vm-&gt;invalidated);
+ 	INIT_LIST_HEAD(&amp;vm-&gt;freed);
+<span class="p_chunk">@@ -1232,10 +1232,11 @@</span> <span class="p_context"> void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)</span>
+ 	struct radeon_bo_va *bo_va, *tmp;
+ 	int i, r;
+ 
+<span class="p_del">-	if (!RB_EMPTY_ROOT(&amp;vm-&gt;va)) {</span>
+<span class="p_add">+	if (!RB_EMPTY_ROOT(&amp;vm-&gt;va.rb_root)) {</span>
+ 		dev_err(rdev-&gt;dev, &quot;still active bo inside vm\n&quot;);
+ 	}
+<span class="p_del">-	rbtree_postorder_for_each_entry_safe(bo_va, tmp, &amp;vm-&gt;va, it.rb) {</span>
+<span class="p_add">+	rbtree_postorder_for_each_entry_safe(bo_va, tmp,</span>
+<span class="p_add">+					     &amp;vm-&gt;va.rb_root, it.rb) {</span>
+ 		interval_tree_remove(&amp;bo_va-&gt;it, &amp;vm-&gt;va);
+ 		r = radeon_bo_reserve(bo_va-&gt;bo, false);
+ 		if (!r) {
+<span class="p_header">diff --git a/drivers/infiniband/core/umem_rbtree.c b/drivers/infiniband/core/umem_rbtree.c</span>
+<span class="p_header">index d176597b4d78..fc801920e341 100644</span>
+<span class="p_header">--- a/drivers/infiniband/core/umem_rbtree.c</span>
+<span class="p_header">+++ b/drivers/infiniband/core/umem_rbtree.c</span>
+<span class="p_chunk">@@ -72,7 +72,7 @@</span> <span class="p_context"> INTERVAL_TREE_DEFINE(struct umem_odp_node, rb, u64, __subtree_last,</span>
+ /* @last is not a part of the interval. See comment for function
+  * node_last.
+  */
+<span class="p_del">-int rbt_ib_umem_for_each_in_range(struct rb_root *root,</span>
+<span class="p_add">+int rbt_ib_umem_for_each_in_range(struct rb_root_cached *root,</span>
+ 				  u64 start, u64 last,
+ 				  umem_call_back cb,
+ 				  void *cookie)
+<span class="p_chunk">@@ -95,7 +95,7 @@</span> <span class="p_context"> int rbt_ib_umem_for_each_in_range(struct rb_root *root,</span>
+ }
+ EXPORT_SYMBOL(rbt_ib_umem_for_each_in_range);
+ 
+<span class="p_del">-struct ib_umem_odp *rbt_ib_umem_lookup(struct rb_root *root,</span>
+<span class="p_add">+struct ib_umem_odp *rbt_ib_umem_lookup(struct rb_root_cached *root,</span>
+ 				       u64 addr, u64 length)
+ {
+ 	struct umem_odp_node *node;
+<span class="p_header">diff --git a/drivers/infiniband/core/uverbs_cmd.c b/drivers/infiniband/core/uverbs_cmd.c</span>
+<span class="p_header">index 0ad3b05405d8..f73d4153dbd0 100644</span>
+<span class="p_header">--- a/drivers/infiniband/core/uverbs_cmd.c</span>
+<span class="p_header">+++ b/drivers/infiniband/core/uverbs_cmd.c</span>
+<span class="p_chunk">@@ -117,7 +117,7 @@</span> <span class="p_context"> ssize_t ib_uverbs_get_context(struct ib_uverbs_file *file,</span>
+ 	ucontext-&gt;closing = 0;
+ 
+ #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+<span class="p_del">-	ucontext-&gt;umem_tree = RB_ROOT;</span>
+<span class="p_add">+	ucontext-&gt;umem_tree = RB_ROOT_CACHED;</span>
+ 	init_rwsem(&amp;ucontext-&gt;umem_rwsem);
+ 	ucontext-&gt;odp_mrs_count = 0;
+ 	INIT_LIST_HEAD(&amp;ucontext-&gt;no_private_counters);
+<span class="p_header">diff --git a/drivers/infiniband/hw/usnic/usnic_uiom.c b/drivers/infiniband/hw/usnic/usnic_uiom.c</span>
+<span class="p_header">index c49db7c33979..4381c0a9a873 100644</span>
+<span class="p_header">--- a/drivers/infiniband/hw/usnic/usnic_uiom.c</span>
+<span class="p_header">+++ b/drivers/infiniband/hw/usnic/usnic_uiom.c</span>
+<span class="p_chunk">@@ -227,7 +227,7 @@</span> <span class="p_context"> static void __usnic_uiom_reg_release(struct usnic_uiom_pd *pd,</span>
+ 	vpn_last = vpn_start + npages - 1;
+ 
+ 	spin_lock(&amp;pd-&gt;lock);
+<span class="p_del">-	usnic_uiom_remove_interval(&amp;pd-&gt;rb_root, vpn_start,</span>
+<span class="p_add">+	usnic_uiom_remove_interval(&amp;pd-&gt;root, vpn_start,</span>
+ 					vpn_last, &amp;rm_intervals);
+ 	usnic_uiom_unmap_sorted_intervals(&amp;rm_intervals, pd);
+ 
+<span class="p_chunk">@@ -379,7 +379,7 @@</span> <span class="p_context"> struct usnic_uiom_reg *usnic_uiom_reg_get(struct usnic_uiom_pd *pd,</span>
+ 	err = usnic_uiom_get_intervals_diff(vpn_start, vpn_last,
+ 						(writable) ? IOMMU_WRITE : 0,
+ 						IOMMU_WRITE,
+<span class="p_del">-						&amp;pd-&gt;rb_root,</span>
+<span class="p_add">+						&amp;pd-&gt;root,</span>
+ 						&amp;sorted_diff_intervals);
+ 	if (err) {
+ 		usnic_err(&quot;Failed disjoint interval vpn [0x%lx,0x%lx] err %d\n&quot;,
+<span class="p_chunk">@@ -395,7 +395,7 @@</span> <span class="p_context"> struct usnic_uiom_reg *usnic_uiom_reg_get(struct usnic_uiom_pd *pd,</span>
+ 
+ 	}
+ 
+<span class="p_del">-	err = usnic_uiom_insert_interval(&amp;pd-&gt;rb_root, vpn_start, vpn_last,</span>
+<span class="p_add">+	err = usnic_uiom_insert_interval(&amp;pd-&gt;root, vpn_start, vpn_last,</span>
+ 					(writable) ? IOMMU_WRITE : 0);
+ 	if (err) {
+ 		usnic_err(&quot;Failed insert interval vpn [0x%lx,0x%lx] err %d\n&quot;,
+<span class="p_header">diff --git a/drivers/infiniband/hw/usnic/usnic_uiom.h b/drivers/infiniband/hw/usnic/usnic_uiom.h</span>
+<span class="p_header">index 45ca7c1613a7..431efe4143f4 100644</span>
+<span class="p_header">--- a/drivers/infiniband/hw/usnic/usnic_uiom.h</span>
+<span class="p_header">+++ b/drivers/infiniband/hw/usnic/usnic_uiom.h</span>
+<span class="p_chunk">@@ -55,7 +55,7 @@</span> <span class="p_context"> struct usnic_uiom_dev {</span>
+ struct usnic_uiom_pd {
+ 	struct iommu_domain		*domain;
+ 	spinlock_t			lock;
+<span class="p_del">-	struct rb_root			rb_root;</span>
+<span class="p_add">+	struct rb_root_cached		root;</span>
+ 	struct list_head		devs;
+ 	int				dev_cnt;
+ };
+<span class="p_header">diff --git a/drivers/infiniband/hw/usnic/usnic_uiom_interval_tree.c b/drivers/infiniband/hw/usnic/usnic_uiom_interval_tree.c</span>
+<span class="p_header">index 42b4b4c4e452..d399523206c7 100644</span>
+<span class="p_header">--- a/drivers/infiniband/hw/usnic/usnic_uiom_interval_tree.c</span>
+<span class="p_header">+++ b/drivers/infiniband/hw/usnic/usnic_uiom_interval_tree.c</span>
+<span class="p_chunk">@@ -100,9 +100,9 @@</span> <span class="p_context"> static int interval_cmp(void *priv, struct list_head *a, struct list_head *b)</span>
+ }
+ 
+ static void
+<span class="p_del">-find_intervals_intersection_sorted(struct rb_root *root, unsigned long start,</span>
+<span class="p_del">-					unsigned long last,</span>
+<span class="p_del">-					struct list_head *list)</span>
+<span class="p_add">+find_intervals_intersection_sorted(struct rb_root_cached *root,</span>
+<span class="p_add">+				   unsigned long start, unsigned long last,</span>
+<span class="p_add">+				   struct list_head *list)</span>
+ {
+ 	struct usnic_uiom_interval_node *node;
+ 
+<span class="p_chunk">@@ -118,7 +118,7 @@</span> <span class="p_context"> find_intervals_intersection_sorted(struct rb_root *root, unsigned long start,</span>
+ 
+ int usnic_uiom_get_intervals_diff(unsigned long start, unsigned long last,
+ 					int flags, int flag_mask,
+<span class="p_del">-					struct rb_root *root,</span>
+<span class="p_add">+					struct rb_root_cached *root,</span>
+ 					struct list_head *diff_set)
+ {
+ 	struct usnic_uiom_interval_node *interval, *tmp;
+<span class="p_chunk">@@ -175,7 +175,7 @@</span> <span class="p_context"> void usnic_uiom_put_interval_set(struct list_head *intervals)</span>
+ 		kfree(interval);
+ }
+ 
+<span class="p_del">-int usnic_uiom_insert_interval(struct rb_root *root, unsigned long start,</span>
+<span class="p_add">+int usnic_uiom_insert_interval(struct rb_root_cached *root, unsigned long start,</span>
+ 				unsigned long last, int flags)
+ {
+ 	struct usnic_uiom_interval_node *interval, *tmp;
+<span class="p_chunk">@@ -246,8 +246,9 @@</span> <span class="p_context"> int usnic_uiom_insert_interval(struct rb_root *root, unsigned long start,</span>
+ 	return err;
+ }
+ 
+<span class="p_del">-void usnic_uiom_remove_interval(struct rb_root *root, unsigned long start,</span>
+<span class="p_del">-				unsigned long last, struct list_head *removed)</span>
+<span class="p_add">+void usnic_uiom_remove_interval(struct rb_root_cached *root,</span>
+<span class="p_add">+				unsigned long start, unsigned long last,</span>
+<span class="p_add">+				struct list_head *removed)</span>
+ {
+ 	struct usnic_uiom_interval_node *interval;
+ 
+<span class="p_header">diff --git a/drivers/infiniband/hw/usnic/usnic_uiom_interval_tree.h b/drivers/infiniband/hw/usnic/usnic_uiom_interval_tree.h</span>
+<span class="p_header">index c0b0b876ab90..1d7fc3226bca 100644</span>
+<span class="p_header">--- a/drivers/infiniband/hw/usnic/usnic_uiom_interval_tree.h</span>
+<span class="p_header">+++ b/drivers/infiniband/hw/usnic/usnic_uiom_interval_tree.h</span>
+<span class="p_chunk">@@ -48,12 +48,12 @@</span> <span class="p_context"> struct usnic_uiom_interval_node {</span>
+ 
+ extern void
+ usnic_uiom_interval_tree_insert(struct usnic_uiom_interval_node *node,
+<span class="p_del">-					struct rb_root *root);</span>
+<span class="p_add">+					struct rb_root_cached *root);</span>
+ extern void
+ usnic_uiom_interval_tree_remove(struct usnic_uiom_interval_node *node,
+<span class="p_del">-					struct rb_root *root);</span>
+<span class="p_add">+					struct rb_root_cached *root);</span>
+ extern struct usnic_uiom_interval_node *
+<span class="p_del">-usnic_uiom_interval_tree_iter_first(struct rb_root *root,</span>
+<span class="p_add">+usnic_uiom_interval_tree_iter_first(struct rb_root_cached *root,</span>
+ 					unsigned long start,
+ 					unsigned long last);
+ extern struct usnic_uiom_interval_node *
+<span class="p_chunk">@@ -63,7 +63,7 @@</span> <span class="p_context"> usnic_uiom_interval_tree_iter_next(struct usnic_uiom_interval_node *node,</span>
+  * Inserts {start...last} into {root}.  If there are overlaps,
+  * nodes will be broken up and merged
+  */
+<span class="p_del">-int usnic_uiom_insert_interval(struct rb_root *root,</span>
+<span class="p_add">+int usnic_uiom_insert_interval(struct rb_root_cached *root,</span>
+ 				unsigned long start, unsigned long last,
+ 				int flags);
+ /*
+<span class="p_chunk">@@ -71,7 +71,7 @@</span> <span class="p_context"> int usnic_uiom_insert_interval(struct rb_root *root,</span>
+  * &#39;removed.&#39; The caller is responsibile for freeing memory of nodes in
+  * &#39;removed.&#39;
+  */
+<span class="p_del">-void usnic_uiom_remove_interval(struct rb_root *root,</span>
+<span class="p_add">+void usnic_uiom_remove_interval(struct rb_root_cached *root,</span>
+ 				unsigned long start, unsigned long last,
+ 				struct list_head *removed);
+ /*
+<span class="p_chunk">@@ -81,7 +81,7 @@</span> <span class="p_context"> void usnic_uiom_remove_interval(struct rb_root *root,</span>
+ int usnic_uiom_get_intervals_diff(unsigned long start,
+ 					unsigned long last, int flags,
+ 					int flag_mask,
+<span class="p_del">-					struct rb_root *root,</span>
+<span class="p_add">+					struct rb_root_cached *root,</span>
+ 					struct list_head *diff_set);
+ /* Call this to free diff_set returned by usnic_uiom_get_intervals_diff */
+ void usnic_uiom_put_interval_set(struct list_head *intervals);
+<span class="p_header">diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c</span>
+<span class="p_header">index 042030e5a035..80ea4b23e097 100644</span>
+<span class="p_header">--- a/drivers/vhost/vhost.c</span>
+<span class="p_header">+++ b/drivers/vhost/vhost.c</span>
+<span class="p_chunk">@@ -1272,7 +1272,7 @@</span> <span class="p_context"> static struct vhost_umem *vhost_umem_alloc(void)</span>
+ 	if (!umem)
+ 		return NULL;
+ 
+<span class="p_del">-	umem-&gt;umem_tree = RB_ROOT;</span>
+<span class="p_add">+	umem-&gt;umem_tree = RB_ROOT_CACHED;</span>
+ 	umem-&gt;numem = 0;
+ 	INIT_LIST_HEAD(&amp;umem-&gt;umem_list);
+ 
+<span class="p_header">diff --git a/drivers/vhost/vhost.h b/drivers/vhost/vhost.h</span>
+<span class="p_header">index f55671d53f28..4e2e54cc4102 100644</span>
+<span class="p_header">--- a/drivers/vhost/vhost.h</span>
+<span class="p_header">+++ b/drivers/vhost/vhost.h</span>
+<span class="p_chunk">@@ -71,7 +71,7 @@</span> <span class="p_context"> struct vhost_umem_node {</span>
+ };
+ 
+ struct vhost_umem {
+<span class="p_del">-	struct rb_root umem_tree;</span>
+<span class="p_add">+	struct rb_root_cached umem_tree;</span>
+ 	struct list_head umem_list;
+ 	int numem;
+ };
+<span class="p_header">diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="p_header">index dde861387a40..a1ba7835bd60 100644</span>
+<span class="p_header">--- a/fs/hugetlbfs/inode.c</span>
+<span class="p_header">+++ b/fs/hugetlbfs/inode.c</span>
+<span class="p_chunk">@@ -334,7 +334,7 @@</span> <span class="p_context"> static void remove_huge_page(struct page *page)</span>
+ }
+ 
+ static void
+<span class="p_del">-hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)</span>
+<span class="p_add">+hugetlb_vmdelete_list(struct rb_root_cached *root, pgoff_t start, pgoff_t end)</span>
+ {
+ 	struct vm_area_struct *vma;
+ 
+<span class="p_chunk">@@ -514,7 +514,7 @@</span> <span class="p_context"> static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)</span>
+ 
+ 	i_size_write(inode, offset);
+ 	i_mmap_lock_write(mapping);
+<span class="p_del">-	if (!RB_EMPTY_ROOT(&amp;mapping-&gt;i_mmap))</span>
+<span class="p_add">+	if (!RB_EMPTY_ROOT(&amp;mapping-&gt;i_mmap.rb_root))</span>
+ 		hugetlb_vmdelete_list(&amp;mapping-&gt;i_mmap, pgoff, 0);
+ 	i_mmap_unlock_write(mapping);
+ 	remove_inode_hugepages(inode, offset, LLONG_MAX);
+<span class="p_chunk">@@ -539,7 +539,7 @@</span> <span class="p_context"> static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)</span>
+ 
+ 		inode_lock(inode);
+ 		i_mmap_lock_write(mapping);
+<span class="p_del">-		if (!RB_EMPTY_ROOT(&amp;mapping-&gt;i_mmap))</span>
+<span class="p_add">+		if (!RB_EMPTY_ROOT(&amp;mapping-&gt;i_mmap.rb_root))</span>
+ 			hugetlb_vmdelete_list(&amp;mapping-&gt;i_mmap,
+ 						hole_start &gt;&gt; PAGE_SHIFT,
+ 						hole_end  &gt;&gt; PAGE_SHIFT);
+<span class="p_header">diff --git a/fs/inode.c b/fs/inode.c</span>
+<span class="p_header">index a25b9d5fb52e..afeedfc096bb 100644</span>
+<span class="p_header">--- a/fs/inode.c</span>
+<span class="p_header">+++ b/fs/inode.c</span>
+<span class="p_chunk">@@ -352,7 +352,7 @@</span> <span class="p_context"> void address_space_init_once(struct address_space *mapping)</span>
+ 	init_rwsem(&amp;mapping-&gt;i_mmap_rwsem);
+ 	INIT_LIST_HEAD(&amp;mapping-&gt;private_list);
+ 	spin_lock_init(&amp;mapping-&gt;private_lock);
+<span class="p_del">-	mapping-&gt;i_mmap = RB_ROOT;</span>
+<span class="p_add">+	mapping-&gt;i_mmap = RB_ROOT_CACHED;</span>
+ }
+ EXPORT_SYMBOL(address_space_init_once);
+ 
+<span class="p_header">diff --git a/include/drm/drm_mm.h b/include/drm/drm_mm.h</span>
+<span class="p_header">index 49b292e98fec..8d10fc97801c 100644</span>
+<span class="p_header">--- a/include/drm/drm_mm.h</span>
+<span class="p_header">+++ b/include/drm/drm_mm.h</span>
+<span class="p_chunk">@@ -172,7 +172,7 @@</span> <span class="p_context"> struct drm_mm {</span>
+ 	 * according to the (increasing) start address of the memory node. */
+ 	struct drm_mm_node head_node;
+ 	/* Keep an interval_tree for fast lookup of drm_mm_nodes by address. */
+<span class="p_del">-	struct rb_root interval_tree;</span>
+<span class="p_add">+	struct rb_root_cached interval_tree;</span>
+ 	struct rb_root holes_size;
+ 	struct rb_root holes_addr;
+ 
+<span class="p_header">diff --git a/include/linux/fs.h b/include/linux/fs.h</span>
+<span class="p_header">index aa4affb38c39..0aaaa9bc3d4b 100644</span>
+<span class="p_header">--- a/include/linux/fs.h</span>
+<span class="p_header">+++ b/include/linux/fs.h</span>
+<span class="p_chunk">@@ -379,7 +379,7 @@</span> <span class="p_context"> struct address_space {</span>
+ 	struct radix_tree_root	page_tree;	/* radix tree of all pages */
+ 	spinlock_t		tree_lock;	/* and lock protecting it */
+ 	atomic_t		i_mmap_writable;/* count VM_SHARED mappings */
+<span class="p_del">-	struct rb_root		i_mmap;		/* tree of private and shared mappings */</span>
+<span class="p_add">+	struct rb_root_cached	i_mmap;		/* tree of private and shared mappings */</span>
+ 	struct rw_semaphore	i_mmap_rwsem;	/* protect tree, count, list */
+ 	/* Protected by tree_lock together with the radix tree */
+ 	unsigned long		nrpages;	/* number of total pages */
+<span class="p_chunk">@@ -472,7 +472,7 @@</span> <span class="p_context"> static inline void i_mmap_unlock_read(struct address_space *mapping)</span>
+  */
+ static inline int mapping_mapped(struct address_space *mapping)
+ {
+<span class="p_del">-	return	!RB_EMPTY_ROOT(&amp;mapping-&gt;i_mmap);</span>
+<span class="p_add">+	return	!RB_EMPTY_ROOT(&amp;mapping-&gt;i_mmap.rb_root);</span>
+ }
+ 
+ /*
+<span class="p_header">diff --git a/include/linux/interval_tree.h b/include/linux/interval_tree.h</span>
+<span class="p_header">index 724556aa3c95..202ee1283f4b 100644</span>
+<span class="p_header">--- a/include/linux/interval_tree.h</span>
+<span class="p_header">+++ b/include/linux/interval_tree.h</span>
+<span class="p_chunk">@@ -11,13 +11,15 @@</span> <span class="p_context"> struct interval_tree_node {</span>
+ };
+ 
+ extern void
+<span class="p_del">-interval_tree_insert(struct interval_tree_node *node, struct rb_root *root);</span>
+<span class="p_add">+interval_tree_insert(struct interval_tree_node *node,</span>
+<span class="p_add">+		     struct rb_root_cached *root);</span>
+ 
+ extern void
+<span class="p_del">-interval_tree_remove(struct interval_tree_node *node, struct rb_root *root);</span>
+<span class="p_add">+interval_tree_remove(struct interval_tree_node *node,</span>
+<span class="p_add">+		     struct rb_root_cached *root);</span>
+ 
+ extern struct interval_tree_node *
+<span class="p_del">-interval_tree_iter_first(struct rb_root *root,</span>
+<span class="p_add">+interval_tree_iter_first(struct rb_root_cached *root,</span>
+ 			 unsigned long start, unsigned long last);
+ 
+ extern struct interval_tree_node *
+<span class="p_header">diff --git a/include/linux/interval_tree_generic.h b/include/linux/interval_tree_generic.h</span>
+<span class="p_header">index 58370e1862ad..f096423c8cbd 100644</span>
+<span class="p_header">--- a/include/linux/interval_tree_generic.h</span>
+<span class="p_header">+++ b/include/linux/interval_tree_generic.h</span>
+<span class="p_chunk">@@ -65,11 +65,13 @@</span> <span class="p_context"> RB_DECLARE_CALLBACKS(static, ITPREFIX ## _augment, ITSTRUCT, ITRB,	      \</span>
+ 									      \
+ /* Insert / remove interval nodes from the tree */			      \
+ 									      \
+<span class="p_del">-ITSTATIC void ITPREFIX ## _insert(ITSTRUCT *node, struct rb_root *root)	      \</span>
+<span class="p_add">+ITSTATIC void ITPREFIX ## _insert(ITSTRUCT *node,			      \</span>
+<span class="p_add">+				  struct rb_root_cached *root)	 	      \</span>
+ {									      \
+<span class="p_del">-	struct rb_node **link = &amp;root-&gt;rb_node, *rb_parent = NULL;	      \</span>
+<span class="p_add">+	struct rb_node **link = &amp;root-&gt;rb_root.rb_node, *rb_parent = NULL;    \</span>
+ 	ITTYPE start = ITSTART(node), last = ITLAST(node);		      \
+ 	ITSTRUCT *parent;						      \
+<span class="p_add">+	bool leftmost = true;						      \</span>
+ 									      \
+ 	while (*link) {							      \
+ 		rb_parent = *link;					      \
+<span class="p_chunk">@@ -78,18 +80,22 @@</span> <span class="p_context"> ITSTATIC void ITPREFIX ## _insert(ITSTRUCT *node, struct rb_root *root)	      \</span>
+ 			parent-&gt;ITSUBTREE = last;			      \
+ 		if (start &lt; ITSTART(parent))				      \
+ 			link = &amp;parent-&gt;ITRB.rb_left;			      \
+<span class="p_del">-		else							      \</span>
+<span class="p_add">+		else {							      \</span>
+ 			link = &amp;parent-&gt;ITRB.rb_right;			      \
+<span class="p_add">+			leftmost = false;				      \</span>
+<span class="p_add">+		}							      \</span>
+ 	}								      \
+ 									      \
+ 	node-&gt;ITSUBTREE = last;						      \
+ 	rb_link_node(&amp;node-&gt;ITRB, rb_parent, link);			      \
+<span class="p_del">-	rb_insert_augmented(&amp;node-&gt;ITRB, root, &amp;ITPREFIX ## _augment);	      \</span>
+<span class="p_add">+	rb_insert_augmented_cached(&amp;node-&gt;ITRB, root,			      \</span>
+<span class="p_add">+				   leftmost, &amp;ITPREFIX ## _augment);	      \</span>
+ }									      \
+ 									      \
+<span class="p_del">-ITSTATIC void ITPREFIX ## _remove(ITSTRUCT *node, struct rb_root *root)	      \</span>
+<span class="p_add">+ITSTATIC void ITPREFIX ## _remove(ITSTRUCT *node,			      \</span>
+<span class="p_add">+				  struct rb_root_cached *root)		      \</span>
+ {									      \
+<span class="p_del">-	rb_erase_augmented(&amp;node-&gt;ITRB, root, &amp;ITPREFIX ## _augment);	      \</span>
+<span class="p_add">+	rb_erase_augmented_cached(&amp;node-&gt;ITRB, root, &amp;ITPREFIX ## _augment);  \</span>
+ }									      \
+ 									      \
+ /*									      \
+<span class="p_chunk">@@ -140,15 +146,35 @@</span> <span class="p_context"> ITPREFIX ## _subtree_search(ITSTRUCT *node, ITTYPE start, ITTYPE last)	      \</span>
+ }									      \
+ 									      \
+ ITSTATIC ITSTRUCT *							      \
+<span class="p_del">-ITPREFIX ## _iter_first(struct rb_root *root, ITTYPE start, ITTYPE last)      \</span>
+<span class="p_add">+ITPREFIX ## _iter_first(struct rb_root_cached *root,			      \</span>
+<span class="p_add">+			ITTYPE start, ITTYPE last)			      \</span>
+ {									      \
+<span class="p_del">-	ITSTRUCT *node;							      \</span>
+<span class="p_add">+	ITSTRUCT *node, *leftmost;					      \</span>
+ 									      \
+<span class="p_del">-	if (!root-&gt;rb_node)						      \</span>
+<span class="p_add">+	if (!root-&gt;rb_root.rb_node)					      \</span>
+ 		return NULL;						      \
+<span class="p_del">-	node = rb_entry(root-&gt;rb_node, ITSTRUCT, ITRB);			      \</span>
+<span class="p_add">+									      \</span>
+<span class="p_add">+	/*								      \</span>
+<span class="p_add">+	 * Fastpath range intersection/overlap between A: [a0, a1] and	      \</span>
+<span class="p_add">+	 * B: [b0, b1] is given by:					      \</span>
+<span class="p_add">+	 *								      \</span>
+<span class="p_add">+	 *         a0 &lt;= b1 &amp;&amp; b0 &lt;= a1					      \</span>
+<span class="p_add">+	 *								      \</span>
+<span class="p_add">+	 *  ... where A holds the lock range and B holds the smallest	      \</span>
+<span class="p_add">+	 * &#39;start&#39; and largest &#39;last&#39; in the tree. For the later, we	      \</span>
+<span class="p_add">+	 * rely on the root node, which by augmented interval tree	      \</span>
+<span class="p_add">+	 * property, holds the largest value in its last-in-subtree.	      \</span>
+<span class="p_add">+	 * This allows mitigating some of the tree walk overhead for	      \</span>
+<span class="p_add">+	 * for non-intersecting ranges, maintained and consulted in O(1).     \</span>
+<span class="p_add">+	 */								      \</span>
+<span class="p_add">+	node = rb_entry(root-&gt;rb_root.rb_node, ITSTRUCT, ITRB);		      \</span>
+ 	if (node-&gt;ITSUBTREE &lt; start)					      \
+ 		return NULL;						      \
+<span class="p_add">+									      \</span>
+<span class="p_add">+	leftmost = rb_entry(root-&gt;rb_leftmost, ITSTRUCT, ITRB);		      \</span>
+<span class="p_add">+	if (ITSTART(leftmost) &gt; last)					      \</span>
+<span class="p_add">+		return NULL;						      \</span>
+<span class="p_add">+									      \</span>
+ 	return ITPREFIX ## _subtree_search(node, start, last);		      \
+ }									      \
+ 									      \
+<span class="p_header">diff --git a/include/linux/mm.h b/include/linux/mm.h</span>
+<span class="p_header">index c0b1759304ec..feb47006e2f5 100644</span>
+<span class="p_header">--- a/include/linux/mm.h</span>
+<span class="p_header">+++ b/include/linux/mm.h</span>
+<span class="p_chunk">@@ -2020,13 +2020,13 @@</span> <span class="p_context"> extern int nommu_shrink_inode_mappings(struct inode *, size_t, size_t);</span>
+ 
+ /* interval_tree.c */
+ void vma_interval_tree_insert(struct vm_area_struct *node,
+<span class="p_del">-			      struct rb_root *root);</span>
+<span class="p_add">+			      struct rb_root_cached *root);</span>
+ void vma_interval_tree_insert_after(struct vm_area_struct *node,
+ 				    struct vm_area_struct *prev,
+<span class="p_del">-				    struct rb_root *root);</span>
+<span class="p_add">+				    struct rb_root_cached *root);</span>
+ void vma_interval_tree_remove(struct vm_area_struct *node,
+<span class="p_del">-			      struct rb_root *root);</span>
+<span class="p_del">-struct vm_area_struct *vma_interval_tree_iter_first(struct rb_root *root,</span>
+<span class="p_add">+			      struct rb_root_cached *root);</span>
+<span class="p_add">+struct vm_area_struct *vma_interval_tree_iter_first(struct rb_root_cached *root,</span>
+ 				unsigned long start, unsigned long last);
+ struct vm_area_struct *vma_interval_tree_iter_next(struct vm_area_struct *node,
+ 				unsigned long start, unsigned long last);
+<span class="p_chunk">@@ -2036,11 +2036,12 @@</span> <span class="p_context"> struct vm_area_struct *vma_interval_tree_iter_next(struct vm_area_struct *node,</span>
+ 	     vma; vma = vma_interval_tree_iter_next(vma, start, last))
+ 
+ void anon_vma_interval_tree_insert(struct anon_vma_chain *node,
+<span class="p_del">-				   struct rb_root *root);</span>
+<span class="p_add">+				   struct rb_root_cached *root);</span>
+ void anon_vma_interval_tree_remove(struct anon_vma_chain *node,
+<span class="p_del">-				   struct rb_root *root);</span>
+<span class="p_del">-struct anon_vma_chain *anon_vma_interval_tree_iter_first(</span>
+<span class="p_del">-	struct rb_root *root, unsigned long start, unsigned long last);</span>
+<span class="p_add">+				   struct rb_root_cached *root);</span>
+<span class="p_add">+struct anon_vma_chain *</span>
+<span class="p_add">+anon_vma_interval_tree_iter_first(struct rb_root_cached *root,</span>
+<span class="p_add">+				  unsigned long start, unsigned long last);</span>
+ struct anon_vma_chain *anon_vma_interval_tree_iter_next(
+ 	struct anon_vma_chain *node, unsigned long start, unsigned long last);
+ #ifdef CONFIG_DEBUG_VM_RB
+<span class="p_header">diff --git a/include/linux/rmap.h b/include/linux/rmap.h</span>
+<span class="p_header">index 43ef2c30cb0f..22c298c6cc26 100644</span>
+<span class="p_header">--- a/include/linux/rmap.h</span>
+<span class="p_header">+++ b/include/linux/rmap.h</span>
+<span class="p_chunk">@@ -55,7 +55,9 @@</span> <span class="p_context"> struct anon_vma {</span>
+ 	 * is serialized by a system wide lock only visible to
+ 	 * mm_take_all_locks() (mm_all_locks_mutex).
+ 	 */
+<span class="p_del">-	struct rb_root rb_root;	/* Interval tree of private &quot;related&quot; vmas */</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Interval tree of private &quot;related&quot; vmas */</span>
+<span class="p_add">+	struct rb_root_cached rb_root;</span>
+ };
+ 
+ /*
+<span class="p_header">diff --git a/include/rdma/ib_umem_odp.h b/include/rdma/ib_umem_odp.h</span>
+<span class="p_header">index fb67554aabd6..5eb7f5bc8248 100644</span>
+<span class="p_header">--- a/include/rdma/ib_umem_odp.h</span>
+<span class="p_header">+++ b/include/rdma/ib_umem_odp.h</span>
+<span class="p_chunk">@@ -111,22 +111,25 @@</span> <span class="p_context"> int ib_umem_odp_map_dma_pages(struct ib_umem *umem, u64 start_offset, u64 bcnt,</span>
+ void ib_umem_odp_unmap_dma_pages(struct ib_umem *umem, u64 start_offset,
+ 				 u64 bound);
+ 
+<span class="p_del">-void rbt_ib_umem_insert(struct umem_odp_node *node, struct rb_root *root);</span>
+<span class="p_del">-void rbt_ib_umem_remove(struct umem_odp_node *node, struct rb_root *root);</span>
+<span class="p_add">+void rbt_ib_umem_insert(struct umem_odp_node *node,</span>
+<span class="p_add">+			struct rb_root_cached *root);</span>
+<span class="p_add">+void rbt_ib_umem_remove(struct umem_odp_node *node,</span>
+<span class="p_add">+			struct rb_root_cached *root);</span>
+ typedef int (*umem_call_back)(struct ib_umem *item, u64 start, u64 end,
+ 			      void *cookie);
+ /*
+  * Call the callback on each ib_umem in the range. Returns the logical or of
+  * the return values of the functions called.
+  */
+<span class="p_del">-int rbt_ib_umem_for_each_in_range(struct rb_root *root, u64 start, u64 end,</span>
+<span class="p_add">+int rbt_ib_umem_for_each_in_range(struct rb_root_cached *root,</span>
+<span class="p_add">+				  u64 start, u64 end,</span>
+ 				  umem_call_back cb, void *cookie);
+ 
+ /*
+  * Find first region intersecting with address range.
+  * Return NULL if not found
+  */
+<span class="p_del">-struct ib_umem_odp *rbt_ib_umem_lookup(struct rb_root *root,</span>
+<span class="p_add">+struct ib_umem_odp *rbt_ib_umem_lookup(struct rb_root_cached *root,</span>
+ 				       u64 addr, u64 length);
+ 
+ static inline int ib_umem_mmu_notifier_retry(struct ib_umem *item,
+<span class="p_header">diff --git a/include/rdma/ib_verbs.h b/include/rdma/ib_verbs.h</span>
+<span class="p_header">index 0e480a5630d4..3b54b19a8eac 100644</span>
+<span class="p_header">--- a/include/rdma/ib_verbs.h</span>
+<span class="p_header">+++ b/include/rdma/ib_verbs.h</span>
+<span class="p_chunk">@@ -1417,7 +1417,7 @@</span> <span class="p_context"> struct ib_ucontext {</span>
+ 
+ 	struct pid             *tgid;
+ #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+<span class="p_del">-	struct rb_root      umem_tree;</span>
+<span class="p_add">+	struct rb_root_cached   umem_tree;</span>
+ 	/*
+ 	 * Protects .umem_rbroot and tree, as well as odp_mrs_count and
+ 	 * mmu notifiers registration.
+<span class="p_header">diff --git a/lib/interval_tree_test.c b/lib/interval_tree_test.c</span>
+<span class="p_header">index df495fe81421..0e343fd29570 100644</span>
+<span class="p_header">--- a/lib/interval_tree_test.c</span>
+<span class="p_header">+++ b/lib/interval_tree_test.c</span>
+<span class="p_chunk">@@ -19,14 +19,14 @@</span> <span class="p_context"> __param(bool, search_all, false, &quot;Searches will iterate all nodes in the tree&quot;);</span>
+ 
+ __param(uint, max_endpoint, ~0, &quot;Largest value for the interval&#39;s endpoint&quot;);
+ 
+<span class="p_del">-static struct rb_root root = RB_ROOT;</span>
+<span class="p_add">+static struct rb_root_cached root = RB_ROOT_CACHED;</span>
+ static struct interval_tree_node *nodes = NULL;
+ static u32 *queries = NULL;
+ 
+ static struct rnd_state rnd;
+ 
+ static inline unsigned long
+<span class="p_del">-search(struct rb_root *root, unsigned long start, unsigned long last)</span>
+<span class="p_add">+search(struct rb_root_cached *root, unsigned long start, unsigned long last)</span>
+ {
+ 	struct interval_tree_node *node;
+ 	unsigned long results = 0;
+<span class="p_header">diff --git a/mm/interval_tree.c b/mm/interval_tree.c</span>
+<span class="p_header">index f2c2492681bf..b47664358796 100644</span>
+<span class="p_header">--- a/mm/interval_tree.c</span>
+<span class="p_header">+++ b/mm/interval_tree.c</span>
+<span class="p_chunk">@@ -28,7 +28,7 @@</span> <span class="p_context"> INTERVAL_TREE_DEFINE(struct vm_area_struct, shared.rb,</span>
+ /* Insert node immediately after prev in the interval tree */
+ void vma_interval_tree_insert_after(struct vm_area_struct *node,
+ 				    struct vm_area_struct *prev,
+<span class="p_del">-				    struct rb_root *root)</span>
+<span class="p_add">+				    struct rb_root_cached *root)</span>
+ {
+ 	struct rb_node **link;
+ 	struct vm_area_struct *parent;
+<span class="p_chunk">@@ -55,7 +55,7 @@</span> <span class="p_context"> void vma_interval_tree_insert_after(struct vm_area_struct *node,</span>
+ 
+ 	node-&gt;shared.rb_subtree_last = last;
+ 	rb_link_node(&amp;node-&gt;shared.rb, &amp;parent-&gt;shared.rb, link);
+<span class="p_del">-	rb_insert_augmented(&amp;node-&gt;shared.rb, root,</span>
+<span class="p_add">+	rb_insert_augmented(&amp;node-&gt;shared.rb, &amp;root-&gt;rb_root,</span>
+ 			    &amp;vma_interval_tree_augment);
+ }
+ 
+<span class="p_chunk">@@ -74,7 +74,7 @@</span> <span class="p_context"> INTERVAL_TREE_DEFINE(struct anon_vma_chain, rb, unsigned long, rb_subtree_last,</span>
+ 		     static inline, __anon_vma_interval_tree)
+ 
+ void anon_vma_interval_tree_insert(struct anon_vma_chain *node,
+<span class="p_del">-				   struct rb_root *root)</span>
+<span class="p_add">+				   struct rb_root_cached *root)</span>
+ {
+ #ifdef CONFIG_DEBUG_VM_RB
+ 	node-&gt;cached_vma_start = avc_start_pgoff(node);
+<span class="p_chunk">@@ -84,13 +84,13 @@</span> <span class="p_context"> void anon_vma_interval_tree_insert(struct anon_vma_chain *node,</span>
+ }
+ 
+ void anon_vma_interval_tree_remove(struct anon_vma_chain *node,
+<span class="p_del">-				   struct rb_root *root)</span>
+<span class="p_add">+				   struct rb_root_cached *root)</span>
+ {
+ 	__anon_vma_interval_tree_remove(node, root);
+ }
+ 
+ struct anon_vma_chain *
+<span class="p_del">-anon_vma_interval_tree_iter_first(struct rb_root *root,</span>
+<span class="p_add">+anon_vma_interval_tree_iter_first(struct rb_root_cached *root,</span>
+ 				  unsigned long first, unsigned long last)
+ {
+ 	return __anon_vma_interval_tree_iter_first(root, first, last);
+<span class="p_header">diff --git a/mm/memory.c b/mm/memory.c</span>
+<span class="p_header">index 206902395512..44200e6671e1 100644</span>
+<span class="p_header">--- a/mm/memory.c</span>
+<span class="p_header">+++ b/mm/memory.c</span>
+<span class="p_chunk">@@ -2593,7 +2593,7 @@</span> <span class="p_context"> static void unmap_mapping_range_vma(struct vm_area_struct *vma,</span>
+ 	zap_page_range_single(vma, start_addr, end_addr - start_addr, details);
+ }
+ 
+<span class="p_del">-static inline void unmap_mapping_range_tree(struct rb_root *root,</span>
+<span class="p_add">+static inline void unmap_mapping_range_tree(struct rb_root_cached *root,</span>
+ 					    struct zap_details *details)
+ {
+ 	struct vm_area_struct *vma;
+<span class="p_chunk">@@ -2657,7 +2657,7 @@</span> <span class="p_context"> void unmap_mapping_range(struct address_space *mapping,</span>
+ 		details.last_index = ULONG_MAX;
+ 
+ 	i_mmap_lock_write(mapping);
+<span class="p_del">-	if (unlikely(!RB_EMPTY_ROOT(&amp;mapping-&gt;i_mmap)))</span>
+<span class="p_add">+	if (unlikely(!RB_EMPTY_ROOT(&amp;mapping-&gt;i_mmap.rb_root)))</span>
+ 		unmap_mapping_range_tree(&amp;mapping-&gt;i_mmap, &amp;details);
+ 	i_mmap_unlock_write(mapping);
+ }
+<span class="p_header">diff --git a/mm/mmap.c b/mm/mmap.c</span>
+<span class="p_header">index 3bd5ecd20d4d..31482e1f008a 100644</span>
+<span class="p_header">--- a/mm/mmap.c</span>
+<span class="p_header">+++ b/mm/mmap.c</span>
+<span class="p_chunk">@@ -670,7 +670,7 @@</span> <span class="p_context"> int __vma_adjust(struct vm_area_struct *vma, unsigned long start,</span>
+ 	struct mm_struct *mm = vma-&gt;vm_mm;
+ 	struct vm_area_struct *next = vma-&gt;vm_next, *orig_vma = vma;
+ 	struct address_space *mapping = NULL;
+<span class="p_del">-	struct rb_root *root = NULL;</span>
+<span class="p_add">+	struct rb_root_cached *root = NULL;</span>
+ 	struct anon_vma *anon_vma = NULL;
+ 	struct file *file = vma-&gt;vm_file;
+ 	bool start_changed = false, end_changed = false;
+<span class="p_chunk">@@ -3279,7 +3279,7 @@</span> <span class="p_context"> static DEFINE_MUTEX(mm_all_locks_mutex);</span>
+ 
+ static void vm_lock_anon_vma(struct mm_struct *mm, struct anon_vma *anon_vma)
+ {
+<span class="p_del">-	if (!test_bit(0, (unsigned long *) &amp;anon_vma-&gt;root-&gt;rb_root.rb_node)) {</span>
+<span class="p_add">+	if (!test_bit(0, (unsigned long *) &amp;anon_vma-&gt;rb_root.rb_root.rb_node)) {</span>
+ 		/*
+ 		 * The LSB of head.next can&#39;t change from under us
+ 		 * because we hold the mm_all_locks_mutex.
+<span class="p_chunk">@@ -3295,7 +3295,7 @@</span> <span class="p_context"> static void vm_lock_anon_vma(struct mm_struct *mm, struct anon_vma *anon_vma)</span>
+ 		 * anon_vma-&gt;root-&gt;rwsem.
+ 		 */
+ 		if (__test_and_set_bit(0, (unsigned long *)
+<span class="p_del">-				       &amp;anon_vma-&gt;root-&gt;rb_root.rb_node))</span>
+<span class="p_add">+				       &amp;anon_vma-&gt;root-&gt;rb_root.rb_root.rb_node))</span>
+ 			BUG();
+ 	}
+ }
+<span class="p_chunk">@@ -3397,7 +3397,7 @@</span> <span class="p_context"> int mm_take_all_locks(struct mm_struct *mm)</span>
+ 
+ static void vm_unlock_anon_vma(struct anon_vma *anon_vma)
+ {
+<span class="p_del">-	if (test_bit(0, (unsigned long *) &amp;anon_vma-&gt;root-&gt;rb_root.rb_node)) {</span>
+<span class="p_add">+	if (test_bit(0, (unsigned long *) &amp;anon_vma-&gt;root-&gt;rb_root.rb_root.rb_node)) {</span>
+ 		/*
+ 		 * The LSB of head.next can&#39;t change to 0 from under
+ 		 * us because we hold the mm_all_locks_mutex.
+<span class="p_chunk">@@ -3411,7 +3411,7 @@</span> <span class="p_context"> static void vm_unlock_anon_vma(struct anon_vma *anon_vma)</span>
+ 		 * anon_vma-&gt;root-&gt;rwsem.
+ 		 */
+ 		if (!__test_and_clear_bit(0, (unsigned long *)
+<span class="p_del">-					  &amp;anon_vma-&gt;root-&gt;rb_root.rb_node))</span>
+<span class="p_add">+					  &amp;anon_vma-&gt;root-&gt;rb_root.rb_root.rb_node))</span>
+ 			BUG();
+ 		anon_vma_unlock_write(anon_vma);
+ 	}
+<span class="p_header">diff --git a/mm/rmap.c b/mm/rmap.c</span>
+<span class="p_header">index b255743351e5..0107503b2adb 100644</span>
+<span class="p_header">--- a/mm/rmap.c</span>
+<span class="p_header">+++ b/mm/rmap.c</span>
+<span class="p_chunk">@@ -390,7 +390,7 @@</span> <span class="p_context"> void unlink_anon_vmas(struct vm_area_struct *vma)</span>
+ 		 * Leave empty anon_vmas on the list - we&#39;ll need
+ 		 * to free them outside the lock.
+ 		 */
+<span class="p_del">-		if (RB_EMPTY_ROOT(&amp;anon_vma-&gt;rb_root)) {</span>
+<span class="p_add">+		if (RB_EMPTY_ROOT(&amp;anon_vma-&gt;rb_root.rb_root)) {</span>
+ 			anon_vma-&gt;parent-&gt;degree--;
+ 			continue;
+ 		}
+<span class="p_chunk">@@ -424,7 +424,7 @@</span> <span class="p_context"> static void anon_vma_ctor(void *data)</span>
+ 
+ 	init_rwsem(&amp;anon_vma-&gt;rwsem);
+ 	atomic_set(&amp;anon_vma-&gt;refcount, 0);
+<span class="p_del">-	anon_vma-&gt;rb_root = RB_ROOT;</span>
+<span class="p_add">+	anon_vma-&gt;rb_root = RB_ROOT_CACHED;</span>
+ }
+ 
+ void __init anon_vma_init(void)
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

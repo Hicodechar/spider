@@ -1,0 +1,650 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v3,11/11] x86/mm: Try to preserve old TLB entries using PCID - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v3,11/11] x86/mm: Try to preserve old TLB entries using PCID</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=107">Thomas Gleixner</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>June 22, 2017, 12:21 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;alpine.DEB.2.20.1706221037320.1885@nanos&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9804175/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9804175/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9804175/">/patch/9804175/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	3BB5860386 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 22 Jun 2017 12:22:06 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 29E76285E3
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 22 Jun 2017 12:22:06 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 13B9A285FB; Thu, 22 Jun 2017 12:22:06 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id E0CF9285E3
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 22 Jun 2017 12:22:04 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751979AbdFVMWC (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 22 Jun 2017 08:22:02 -0400
+Received: from Galois.linutronix.de ([146.0.238.70]:55175 &quot;EHLO
+	Galois.linutronix.de&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1750852AbdFVMWB (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 22 Jun 2017 08:22:01 -0400
+Received: from localhost ([127.0.0.1]) by Galois.linutronix.de with esmtps
+	(TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256) (Exim 4.80)
+	(envelope-from &lt;tglx@linutronix.de&gt;)
+	id 1dO16X-0004Ua-El; Thu, 22 Jun 2017 14:20:57 +0200
+Date: Thu, 22 Jun 2017 14:21:49 +0200 (CEST)
+From: Thomas Gleixner &lt;tglx@linutronix.de&gt;
+To: Andy Lutomirski &lt;luto@kernel.org&gt;
+cc: X86 ML &lt;x86@kernel.org&gt;,
+	&quot;linux-kernel@vger.kernel.org&quot; &lt;linux-kernel@vger.kernel.org&gt;,
+	Borislav Petkov &lt;bp@alien8.de&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;, Mel Gorman &lt;mgorman@suse.de&gt;,
+	&quot;linux-mm@kvack.org&quot; &lt;linux-mm@kvack.org&gt;,
+	Nadav Amit &lt;nadav.amit@gmail.com&gt;, Rik van Riel &lt;riel@redhat.com&gt;,
+	Dave Hansen &lt;dave.hansen@intel.com&gt;,
+	Arjan van de Ven &lt;arjan@linux.intel.com&gt;,
+	Peter Zijlstra &lt;peterz@infradead.org&gt;
+Subject: Re: [PATCH v3 11/11] x86/mm: Try to preserve old TLB entries using
+	PCID
+In-Reply-To: &lt;CALCETrUrwyMt+k4a-Tyh85Xiidr3zgEW7LKLnGDz90Z6jL9XtA@mail.gmail.com&gt;
+Message-ID: &lt;alpine.DEB.2.20.1706221037320.1885@nanos&gt;
+References: &lt;cover.1498022414.git.luto@kernel.org&gt;
+	&lt;a8cdfbbb17785aed10980d24692745f68615a584.1498022414.git.luto@kernel.org&gt;
+	&lt;alpine.DEB.2.20.1706211159430.2328@nanos&gt;
+	&lt;CALCETrUrwyMt+k4a-Tyh85Xiidr3zgEW7LKLnGDz90Z6jL9XtA@mail.gmail.com&gt;
+User-Agent: Alpine 2.20 (DEB 67 2015-01-07)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=107">Thomas Gleixner</a> - June 22, 2017, 12:21 p.m.</div>
+<pre class="content">
+On Wed, 21 Jun 2017, Andy Lutomirski wrote:
+<span class="quote">&gt; On Wed, Jun 21, 2017 at 6:38 AM, Thomas Gleixner &lt;tglx@linutronix.de&gt; wrote:</span>
+<span class="quote">&gt; &gt; That requires a conditional branch</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt;         if (asid &gt;= NR_DYNAMIC_ASIDS) {</span>
+<span class="quote">&gt; &gt;                 asid = 0;</span>
+<span class="quote">&gt; &gt;                 ....</span>
+<span class="quote">&gt; &gt;         }</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; The question is whether 4 IDs would be sufficient which trades the branch</span>
+<span class="quote">&gt; &gt; for a mask operation. Or you go for 8 and spend another cache line.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Interesting.  I&#39;m inclined to either leave it at 6 or reduce it to 4</span>
+<span class="quote">&gt; for now and to optimize later.</span>
+
+:)
+<span class="quote">
+&gt; &gt; Hmm. So this loop needs to be taken unconditionally even if the task stays</span>
+<span class="quote">&gt; &gt; on the same CPU. And of course the number of dynamic IDs has to be short in</span>
+<span class="quote">&gt; &gt; order to makes this loop suck performance wise.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Something like the completely disfunctional below might be worthwhile to</span>
+<span class="quote">&gt; &gt; explore. At least arch/x86/mm/ compiles :)</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; It gets rid of the loop search and lifts the limit of dynamic ids by</span>
+<span class="quote">&gt; &gt; trading it with a percpu variable in mm_context_t.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; That would work, but it would take a lot more memory on large systems</span>
+<span class="quote">&gt; with lots of processes, and I&#39;d also be concerned that we might run</span>
+<span class="quote">&gt; out of dynamic percpu space.</span>
+
+Yeah, did not think about the dynamic percpu space.
+<span class="quote"> 
+&gt; How about a different idea: make the percpu data structure look like a</span>
+<span class="quote">&gt; 4-way set associative cache.  The ctxs array could be, say, 1024</span>
+<span class="quote">&gt; entries long without using crazy amounts of memory.  We&#39;d divide it</span>
+<span class="quote">&gt; into 256 buckets, so you&#39;d index it like ctxs[4*bucket + slot].  For</span>
+<span class="quote">&gt; each mm, we choose a random bucket (from 0 through 256), and then we&#39;d</span>
+<span class="quote">&gt; just loop over the four slots in the bucket in choose_asid().  This</span>
+<span class="quote">&gt; would require very slightly more arithmetic (I&#39;d guess only one or two</span>
+<span class="quote">&gt; cycles, though) but, critically, wouldn&#39;t touch any more cachelines.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The downside of both of these approaches over the one in this patch is</span>
+<span class="quote">&gt; that the change that the percpu cacheline we need is not in the cache</span>
+<span class="quote">&gt; is quite a bit higher since it&#39;s potentially a different cacheline for</span>
+<span class="quote">&gt; each mm.  It would probably still be a win because avoiding the flush</span>
+<span class="quote">&gt; is really quite valuable.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; What do you think?  The added code would be tiny.</span>
+
+That might be worth a try.
+
+Now one other optimization which should be trivial to add is to keep the 4
+asid context entries in cpu_tlbstate and cache the last asid in thread
+info. If that&#39;s still valid then use it otherwise unconditionally get a new
+one. That avoids the whole loop machinery and thread info is cache hot in
+the context switch anyway. Delta patch on top of your version below.
+<span class="quote">
+&gt; (P.S. Why doesn&#39;t random_p32() try arch_random_int()?)</span>
+
+Could you please ask questions which do not require crystalballs for
+answering?
+
+Thanks,
+
+	tglx
+
+8&lt;-------------------
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - June 22, 2017, 6:12 p.m.</div>
+<pre class="content">
+On Thu, Jun 22, 2017 at 5:21 AM, Thomas Gleixner &lt;tglx@linutronix.de&gt; wrote:
+<span class="quote">&gt; On Wed, 21 Jun 2017, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; On Wed, Jun 21, 2017 at 6:38 AM, Thomas Gleixner &lt;tglx@linutronix.de&gt; wrote:</span>
+<span class="quote">&gt;&gt; &gt; That requires a conditional branch</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;         if (asid &gt;= NR_DYNAMIC_ASIDS) {</span>
+<span class="quote">&gt;&gt; &gt;                 asid = 0;</span>
+<span class="quote">&gt;&gt; &gt;                 ....</span>
+<span class="quote">&gt;&gt; &gt;         }</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; The question is whether 4 IDs would be sufficient which trades the branch</span>
+<span class="quote">&gt;&gt; &gt; for a mask operation. Or you go for 8 and spend another cache line.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Interesting.  I&#39;m inclined to either leave it at 6 or reduce it to 4</span>
+<span class="quote">&gt;&gt; for now and to optimize later.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; :)</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; &gt; Hmm. So this loop needs to be taken unconditionally even if the task stays</span>
+<span class="quote">&gt;&gt; &gt; on the same CPU. And of course the number of dynamic IDs has to be short in</span>
+<span class="quote">&gt;&gt; &gt; order to makes this loop suck performance wise.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; Something like the completely disfunctional below might be worthwhile to</span>
+<span class="quote">&gt;&gt; &gt; explore. At least arch/x86/mm/ compiles :)</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; It gets rid of the loop search and lifts the limit of dynamic ids by</span>
+<span class="quote">&gt;&gt; &gt; trading it with a percpu variable in mm_context_t.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; That would work, but it would take a lot more memory on large systems</span>
+<span class="quote">&gt;&gt; with lots of processes, and I&#39;d also be concerned that we might run</span>
+<span class="quote">&gt;&gt; out of dynamic percpu space.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Yeah, did not think about the dynamic percpu space.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; How about a different idea: make the percpu data structure look like a</span>
+<span class="quote">&gt;&gt; 4-way set associative cache.  The ctxs array could be, say, 1024</span>
+<span class="quote">&gt;&gt; entries long without using crazy amounts of memory.  We&#39;d divide it</span>
+<span class="quote">&gt;&gt; into 256 buckets, so you&#39;d index it like ctxs[4*bucket + slot].  For</span>
+<span class="quote">&gt;&gt; each mm, we choose a random bucket (from 0 through 256), and then we&#39;d</span>
+<span class="quote">&gt;&gt; just loop over the four slots in the bucket in choose_asid().  This</span>
+<span class="quote">&gt;&gt; would require very slightly more arithmetic (I&#39;d guess only one or two</span>
+<span class="quote">&gt;&gt; cycles, though) but, critically, wouldn&#39;t touch any more cachelines.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; The downside of both of these approaches over the one in this patch is</span>
+<span class="quote">&gt;&gt; that the change that the percpu cacheline we need is not in the cache</span>
+<span class="quote">&gt;&gt; is quite a bit higher since it&#39;s potentially a different cacheline for</span>
+<span class="quote">&gt;&gt; each mm.  It would probably still be a win because avoiding the flush</span>
+<span class="quote">&gt;&gt; is really quite valuable.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; What do you think?  The added code would be tiny.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; That might be worth a try.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Now one other optimization which should be trivial to add is to keep the 4</span>
+<span class="quote">&gt; asid context entries in cpu_tlbstate and cache the last asid in thread</span>
+<span class="quote">&gt; info. If that&#39;s still valid then use it otherwise unconditionally get a new</span>
+<span class="quote">&gt; one. That avoids the whole loop machinery and thread info is cache hot in</span>
+<span class="quote">&gt; the context switch anyway. Delta patch on top of your version below.</span>
+
+I&#39;m not sure I understand.  If an mm has ASID 0 on CPU 0 and ASID 1 on
+CPU 1 and a thread in that mm bounces back and forth between those
+CPUs, won&#39;t your patch cause it to flush every time?
+
+--Andy
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=107">Thomas Gleixner</a> - June 22, 2017, 9:22 p.m.</div>
+<pre class="content">
+On Thu, 22 Jun 2017, Andy Lutomirski wrote:
+<span class="quote">&gt; On Thu, Jun 22, 2017 at 5:21 AM, Thomas Gleixner &lt;tglx@linutronix.de&gt; wrote:</span>
+<span class="quote">&gt; &gt; Now one other optimization which should be trivial to add is to keep the 4</span>
+<span class="quote">&gt; &gt; asid context entries in cpu_tlbstate and cache the last asid in thread</span>
+<span class="quote">&gt; &gt; info. If that&#39;s still valid then use it otherwise unconditionally get a new</span>
+<span class="quote">&gt; &gt; one. That avoids the whole loop machinery and thread info is cache hot in</span>
+<span class="quote">&gt; &gt; the context switch anyway. Delta patch on top of your version below.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I&#39;m not sure I understand.  If an mm has ASID 0 on CPU 0 and ASID 1 on</span>
+<span class="quote">&gt; CPU 1 and a thread in that mm bounces back and forth between those</span>
+<span class="quote">&gt; CPUs, won&#39;t your patch cause it to flush every time?</span>
+
+Yeah, I was too focussed on the non migratory case, where two tasks from
+different processes play rapid ping pong. That&#39;s what I was looking at for
+various reasons.
+
+There the cached asid really helps by avoiding the loop completely, but
+yes, the search needs to be done for the bouncing between CPUs case.
+
+So maybe a combo of those might be interesting.
+
+Thanks,
+
+	tglx
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - June 23, 2017, 3:09 a.m.</div>
+<pre class="content">
+On Thu, Jun 22, 2017 at 2:22 PM, Thomas Gleixner &lt;tglx@linutronix.de&gt; wrote:
+<span class="quote">&gt; On Thu, 22 Jun 2017, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; On Thu, Jun 22, 2017 at 5:21 AM, Thomas Gleixner &lt;tglx@linutronix.de&gt; wrote:</span>
+<span class="quote">&gt;&gt; &gt; Now one other optimization which should be trivial to add is to keep the 4</span>
+<span class="quote">&gt;&gt; &gt; asid context entries in cpu_tlbstate and cache the last asid in thread</span>
+<span class="quote">&gt;&gt; &gt; info. If that&#39;s still valid then use it otherwise unconditionally get a new</span>
+<span class="quote">&gt;&gt; &gt; one. That avoids the whole loop machinery and thread info is cache hot in</span>
+<span class="quote">&gt;&gt; &gt; the context switch anyway. Delta patch on top of your version below.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; I&#39;m not sure I understand.  If an mm has ASID 0 on CPU 0 and ASID 1 on</span>
+<span class="quote">&gt;&gt; CPU 1 and a thread in that mm bounces back and forth between those</span>
+<span class="quote">&gt;&gt; CPUs, won&#39;t your patch cause it to flush every time?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Yeah, I was too focussed on the non migratory case, where two tasks from</span>
+<span class="quote">&gt; different processes play rapid ping pong. That&#39;s what I was looking at for</span>
+<span class="quote">&gt; various reasons.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; There the cached asid really helps by avoiding the loop completely, but</span>
+<span class="quote">&gt; yes, the search needs to be done for the bouncing between CPUs case.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; So maybe a combo of those might be interesting.</span>
+<span class="quote">&gt;</span>
+
+I&#39;m not too worried about optimizing away the loop.  It&#39;s a loop over
+four or six things that are all in cachelines that we need anyway.  I
+suspect that we&#39;ll never be able to see it in any microbenchmark, let
+alone real application.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=107">Thomas Gleixner</a> - June 23, 2017, 7:29 a.m.</div>
+<pre class="content">
+On Thu, 22 Jun 2017, Andy Lutomirski wrote:
+<span class="quote">&gt; On Thu, Jun 22, 2017 at 2:22 PM, Thomas Gleixner &lt;tglx@linutronix.de&gt; wrote:</span>
+<span class="quote">&gt; &gt; On Thu, 22 Jun 2017, Andy Lutomirski wrote:</span>
+<span class="quote">&gt; &gt;&gt; On Thu, Jun 22, 2017 at 5:21 AM, Thomas Gleixner &lt;tglx@linutronix.de&gt; wrote:</span>
+<span class="quote">&gt; &gt;&gt; &gt; Now one other optimization which should be trivial to add is to keep the 4</span>
+<span class="quote">&gt; &gt;&gt; &gt; asid context entries in cpu_tlbstate and cache the last asid in thread</span>
+<span class="quote">&gt; &gt;&gt; &gt; info. If that&#39;s still valid then use it otherwise unconditionally get a new</span>
+<span class="quote">&gt; &gt;&gt; &gt; one. That avoids the whole loop machinery and thread info is cache hot in</span>
+<span class="quote">&gt; &gt;&gt; &gt; the context switch anyway. Delta patch on top of your version below.</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; I&#39;m not sure I understand.  If an mm has ASID 0 on CPU 0 and ASID 1 on</span>
+<span class="quote">&gt; &gt;&gt; CPU 1 and a thread in that mm bounces back and forth between those</span>
+<span class="quote">&gt; &gt;&gt; CPUs, won&#39;t your patch cause it to flush every time?</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Yeah, I was too focussed on the non migratory case, where two tasks from</span>
+<span class="quote">&gt; &gt; different processes play rapid ping pong. That&#39;s what I was looking at for</span>
+<span class="quote">&gt; &gt; various reasons.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; There the cached asid really helps by avoiding the loop completely, but</span>
+<span class="quote">&gt; &gt; yes, the search needs to be done for the bouncing between CPUs case.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; So maybe a combo of those might be interesting.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I&#39;m not too worried about optimizing away the loop.  It&#39;s a loop over</span>
+<span class="quote">&gt; four or six things that are all in cachelines that we need anyway.  I</span>
+<span class="quote">&gt; suspect that we&#39;ll never be able to see it in any microbenchmark, let</span>
+<span class="quote">&gt; alone real application.</span>
+
+Fair enough.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- a/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_chunk">@@ -159,8 +159,16 @@</span> <span class="p_context"> static inline void destroy_context(struc</span>
+ extern void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ 		      struct task_struct *tsk);
+ 
+<span class="p_del">-extern void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+<span class="p_del">-			       struct task_struct *tsk);</span>
+<span class="p_add">+extern void __switch_mm_irqs_off(struct mm_struct *prev,</span>
+<span class="p_add">+				 struct mm_struct *next, u32 *last_asid);</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void switch_mm_irqs_off(struct mm_struct *prev,</span>
+<span class="p_add">+				      struct mm_struct *next,</span>
+<span class="p_add">+				      struct task_struct *tsk)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	__switch_mm_irqs_off(prev, next, &amp;tsk-&gt;thread_info.asid);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ #define switch_mm_irqs_off switch_mm_irqs_off
+ 
+ #define activate_mm(prev, next)			\
+<span class="p_header">--- a/arch/x86/include/asm/thread_info.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/thread_info.h</span>
+<span class="p_chunk">@@ -54,6 +54,7 @@</span> <span class="p_context"> struct task_struct;</span>
+ 
+ struct thread_info {
+ 	unsigned long		flags;		/* low level flags */
+<span class="p_add">+	u32			asid;</span>
+ };
+ 
+ #define INIT_THREAD_INFO(tsk)			\
+<span class="p_header">--- a/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -83,10 +83,13 @@</span> <span class="p_context"> static inline u64 bump_mm_tlb_gen(struct</span>
+ #endif
+ 
+ /*
+<span class="p_del">- * 6 because 6 should be plenty and struct tlb_state will fit in</span>
+<span class="p_del">- * two cache lines.</span>
+<span class="p_add">+ * NR_DYNAMIC_ASIDS must be a power of 2. 4 makes tlb_state fit into two</span>
+<span class="p_add">+ * cache lines.</span>
+  */
+<span class="p_del">-#define NR_DYNAMIC_ASIDS 6</span>
+<span class="p_add">+#define NR_DYNAMIC_ASIDS_BITS	2</span>
+<span class="p_add">+#define NR_DYNAMIC_ASIDS	(1U &lt;&lt; NR_DYNAMIC_ASIDS_BITS)</span>
+<span class="p_add">+#define DYNAMIC_ASIDS_MASK	(NR_DYNAMIC_ASIDS - 1)</span>
+<span class="p_add">+#define ASID_NEEDS_FLUSH	(1U &lt;&lt; 16)</span>
+ 
+ struct tlb_context {
+ 	u64 ctx_id;
+<span class="p_chunk">@@ -102,7 +105,8 @@</span> <span class="p_context"> struct tlb_state {</span>
+ 	 */
+ 	struct mm_struct *loaded_mm;
+ 	u16 loaded_mm_asid;
+<span class="p_del">-	u16 next_asid;</span>
+<span class="p_add">+	u16 curr_asid;</span>
+<span class="p_add">+	u32 notask_asid;</span>
+ 
+ 	/*
+ 	 * Access to this CR4 shadow and to H/W CR4 is protected by
+<span class="p_header">--- a/arch/x86/mm/init.c</span>
+<span class="p_header">+++ b/arch/x86/mm/init.c</span>
+<span class="p_chunk">@@ -812,7 +812,7 @@</span> <span class="p_context"> void __init zone_sizes_init(void)</span>
+ 
+ DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate) = {
+ 	.loaded_mm = &amp;init_mm,
+<span class="p_del">-	.next_asid = 1,</span>
+<span class="p_add">+	.curr_asid = 0,</span>
+ 	.cr4 = ~0UL,	/* fail hard if we screw up cr4 shadow initialization */
+ };
+ EXPORT_SYMBOL_GPL(cpu_tlbstate);
+<span class="p_header">--- a/arch/x86/mm/tlb.c</span>
+<span class="p_header">+++ b/arch/x86/mm/tlb.c</span>
+<span class="p_chunk">@@ -30,43 +30,32 @@</span> <span class="p_context"></span>
+ 
+ atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
+ 
+<span class="p_del">-static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,</span>
+<span class="p_del">-			    u16 *new_asid, bool *need_flush)</span>
+<span class="p_add">+static u32 choose_new_asid(mm_context_t *nctx, u32 *last_asid, u64 next_tlb_gen)</span>
+ {
+<span class="p_del">-	u16 asid;</span>
+<span class="p_add">+	struct tlb_context *tctx;</span>
+<span class="p_add">+	u32 asid;</span>
+ 
+<span class="p_del">-	if (!static_cpu_has(X86_FEATURE_PCID)) {</span>
+<span class="p_del">-		*new_asid = 0;</span>
+<span class="p_del">-		*need_flush = true;</span>
+<span class="p_del">-		return;</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+	if (!static_cpu_has(X86_FEATURE_PCID))</span>
+<span class="p_add">+		return ASID_NEEDS_FLUSH;</span>
+ 
+<span class="p_del">-	for (asid = 0; asid &lt; NR_DYNAMIC_ASIDS; asid++) {</span>
+<span class="p_del">-		if (this_cpu_read(cpu_tlbstate.ctxs[asid].ctx_id) !=</span>
+<span class="p_del">-		    next-&gt;context.ctx_id)</span>
+<span class="p_del">-			continue;</span>
+<span class="p_del">-</span>
+<span class="p_del">-		*new_asid = asid;</span>
+<span class="p_del">-		*need_flush = (this_cpu_read(cpu_tlbstate.ctxs[asid].tlb_gen) &lt;</span>
+<span class="p_del">-			       next_tlb_gen);</span>
+<span class="p_del">-		return;</span>
+<span class="p_add">+	asid = *last_asid;</span>
+<span class="p_add">+	tctx = this_cpu_ptr(cpu_tlbstate.ctxs + asid);</span>
+<span class="p_add">+	if (likely(tctx-&gt;ctx_id == nctx-&gt;ctx_id)) {</span>
+<span class="p_add">+		if (tctx-&gt;tlb_gen != next_tlb_gen)</span>
+<span class="p_add">+			asid |= ASID_NEEDS_FLUSH;</span>
+<span class="p_add">+		return asid;</span>
+ 	}
+ 
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * We don&#39;t currently own an ASID slot on this CPU.</span>
+<span class="p_del">-	 * Allocate a slot.</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	*new_asid = this_cpu_add_return(cpu_tlbstate.next_asid, 1) - 1;</span>
+<span class="p_del">-	if (*new_asid &gt;= NR_DYNAMIC_ASIDS) {</span>
+<span class="p_del">-		*new_asid = 0;</span>
+<span class="p_del">-		this_cpu_write(cpu_tlbstate.next_asid, 1);</span>
+<span class="p_del">-	}</span>
+<span class="p_del">-	*need_flush = true;</span>
+<span class="p_add">+	asid = this_cpu_inc_return(cpu_tlbstate.curr_asid);</span>
+<span class="p_add">+	asid &amp;= DYNAMIC_ASIDS_MASK;</span>
+<span class="p_add">+	*last_asid = asid;</span>
+<span class="p_add">+	return asid | ASID_NEEDS_FLUSH;</span>
+ }
+ 
+ void leave_mm(int cpu)
+ {
+ 	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
+<span class="p_add">+	unsigned long flags;</span>
+ 
+ 	/*
+ 	 * It&#39;s plausible that we&#39;re in lazy TLB mode while our mm is init_mm.
+<span class="p_chunk">@@ -82,21 +71,27 @@</span> <span class="p_context"> void leave_mm(int cpu)</span>
+ 	/* Warn if we&#39;re not lazy. */
+ 	WARN_ON(cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm)));
+ 
+<span class="p_del">-	switch_mm(NULL, &amp;init_mm, NULL);</span>
+<span class="p_add">+	local_irq_save(flags);</span>
+<span class="p_add">+	switch_mm_irqs_off(NULL, &amp;init_mm, NULL);</span>
+<span class="p_add">+	local_irq_restore(flags);</span>
+ }
+ 
+ void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ 	       struct task_struct *tsk)
+ {
+ 	unsigned long flags;
+<span class="p_add">+	u32 *last_asid;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	last_asid = tsk ? &amp;tsk-&gt;thread_info.asid :</span>
+<span class="p_add">+			this_cpu_ptr(&amp;cpu_tlbstate.notask_asid);</span>
+ 
+ 	local_irq_save(flags);
+<span class="p_del">-	switch_mm_irqs_off(prev, next, tsk);</span>
+<span class="p_add">+	__switch_mm_irqs_off(prev, next, last_asid);</span>
+ 	local_irq_restore(flags);
+ }
+ 
+<span class="p_del">-void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+<span class="p_del">-			struct task_struct *tsk)</span>
+<span class="p_add">+void __switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+<span class="p_add">+			u32 *last_asid)</span>
+ {
+ 	unsigned cpu = smp_processor_id();
+ 	struct mm_struct *real_prev = this_cpu_read(cpu_tlbstate.loaded_mm);
+<span class="p_chunk">@@ -157,8 +152,7 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct</span>
+ 		 * are not reflected in tlb_gen.)
+ 		 */
+ 	} else {
+<span class="p_del">-		u16 new_asid;</span>
+<span class="p_del">-		bool need_flush;</span>
+<span class="p_add">+		u32 new_asid;</span>
+ 
+ 		if (IS_ENABLED(CONFIG_VMAP_STACK)) {
+ 			/*
+<span class="p_chunk">@@ -187,9 +181,11 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct</span>
+ 		cpumask_set_cpu(cpu, mm_cpumask(next));
+ 		next_tlb_gen = atomic64_read(&amp;next-&gt;context.tlb_gen);
+ 
+<span class="p_del">-		choose_new_asid(next, next_tlb_gen, &amp;new_asid, &amp;need_flush);</span>
+<span class="p_add">+		new_asid = choose_new_asid(&amp;next-&gt;context, last_asid,</span>
+<span class="p_add">+					   next_tlb_gen);</span>
+ 
+<span class="p_del">-		if (need_flush) {</span>
+<span class="p_add">+		if (new_asid &amp; ASID_NEEDS_FLUSH) {</span>
+<span class="p_add">+			new_asid &amp;= DYNAMIC_ASIDS_MASK;</span>
+ 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].ctx_id,
+ 				       next-&gt;context.ctx_id);
+ 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].tlb_gen,
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

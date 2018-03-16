@@ -1,0 +1,743 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v9,05/10] mm: thp: enable thp migration in generic path - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v9,05/10] mm: thp: enable thp migration in generic path</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=168825">Zi Yan</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>July 17, 2017, 7:39 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170717193955.20207-6-zi.yan@sent.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9846007/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9846007/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9846007/">/patch/9846007/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	73CEA60386 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 17 Jul 2017 19:43:00 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 6390E28417
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 17 Jul 2017 19:43:00 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 5770528462; Mon, 17 Jul 2017 19:43:00 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-7.0 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID, DKIM_VALID_AU, FREEMAIL_FROM,
+	RCVD_IN_DNSWL_HI autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 2B7D727F7F
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 17 Jul 2017 19:42:59 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751510AbdGQTmQ (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 17 Jul 2017 15:42:16 -0400
+Received: from out1-smtp.messagingengine.com ([66.111.4.25]:40413 &quot;EHLO
+	out1-smtp.messagingengine.com&quot; rhost-flags-OK-OK-OK-OK)
+	by vger.kernel.org with ESMTP id S1751342AbdGQTk3 (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 17 Jul 2017 15:40:29 -0400
+Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
+	by mailout.nyi.internal (Postfix) with ESMTP id 62BF3209F3;
+	Mon, 17 Jul 2017 15:40:29 -0400 (EDT)
+Received: from frontend1 ([10.202.2.160])
+	by compute3.internal (MEProxy); Mon, 17 Jul 2017 15:40:29 -0400
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=sent.com; h=cc
+	:date:from:in-reply-to:message-id:references:subject:to
+	:x-me-sender:x-me-sender:x-sasl-enc:x-sasl-enc; s=fm1; bh=IL2tzD
+	Kk5kAXpk+wvVyWo9eGtpGf4ko/tPB2Afqt3mQ=; b=I/IvH5FPI6Iobv8xcw+j4l
+	4toMT1PoJZecFSbp/rZlQu2LroB6GuJf5XoDPKwN8JNjBKhLsWc3FhF/BVWP/mXa
+	TgheFJznv3+CRoZwyKZY+r2ugXJJpmVk4X+MEgTO12KL9aWCckjhME5MjmA3Qgs0
+	sc03/PwVzbT5NiLgaGDgFi2Tw+5Q8+0jpj4hz4RkO6mRIM7IRtJeoU7jo7Em/UV/
+	S/Uxc0uscYi8kwQqh6XCnqBE5JqVhWz8HxqfZjfLxgvYxd0ilOBZq6t2dnPre+3o
+	LM38R2CAxQItX3ioot1ygYrumYISMsUSDJ5yYABcWMt3E1vr59T1kv9US8MjJjeA
+	==
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:date:from:in-reply-to:message-id
+	:references:subject:to:x-me-sender:x-me-sender:x-sasl-enc
+	:x-sasl-enc; s=fm1; bh=IL2tzDKk5kAXpk+wvVyWo9eGtpGf4ko/tPB2Afqt3
+	mQ=; b=Oe372VWFhdpBRyZHGZbPHjgDm47T+CXRWBn9hUD6BZqhCSs7PwE5MpF+Y
+	A+hMgU9DR3ckfCCmojYpC1iKNMgtsEWgRLdRCEtXDlIUQOld92XdGnu3E4CG6DO2
+	sacbxku3NuPgOC82dDrClc2gr2SaMs2UjeJqLar+tn2ONMHk6OEFEDoVRrqDqyji
+	7MYHkZiD53xRergOycmpG27uxqVewzuoKKEnuh29RfdsOWFgYV7gdbE0tAlJffJi
+	4TdFJjuEUkYRWCUAy3UvwsMit5x0NNeH2UpeRGDbYTLFUli00EqWDkVh44skLKtd
+	z8z91h6v6mfhyzse0bwW7H3BNG26w==
+X-ME-Sender: &lt;xms:rRJtWUp2TszeD33eteH2Z1A3Ku6Zk6l3Mas4QQNsq5VwrnkGk5H01A&gt;
+X-Sasl-enc: tfxaaQ67xaZu4VzzuW9Ukhvn9V4zNoy2A7BOyBEfvdE8 1500320429
+Received: from tenansix.rutgers.edu (pool-165-230-225-59.nat.rutgers.edu
+	[165.230.225.59])
+	by mail.messagingengine.com (Postfix) with ESMTPA id E80B57E88C;
+	Mon, 17 Jul 2017 15:40:28 -0400 (EDT)
+From: Zi Yan &lt;zi.yan@sent.com&gt;
+To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org
+Cc: kirill.shutemov@linux.intel.com, minchan@kernel.org,
+	vbabka@suse.cz, mgorman@techsingularity.net, mhocko@kernel.org,
+	khandual@linux.vnet.ibm.com, zi.yan@cs.rutgers.edu,
+	dnellans@nvidia.com, dave.hansen@intel.com, n-horiguchi@ah.jp.nec.com
+Subject: [PATCH v9 05/10] mm: thp: enable thp migration in generic path
+Date: Mon, 17 Jul 2017 15:39:50 -0400
+Message-Id: &lt;20170717193955.20207-6-zi.yan@sent.com&gt;
+X-Mailer: git-send-email 2.11.0
+In-Reply-To: &lt;20170717193955.20207-1-zi.yan@sent.com&gt;
+References: &lt;20170717193955.20207-1-zi.yan@sent.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=168825">Zi Yan</a> - July 17, 2017, 7:39 p.m.</div>
+<pre class="content">
+<span class="from">From: Zi Yan &lt;zi.yan@cs.rutgers.edu&gt;</span>
+
+This patch adds thp migration&#39;s core code, including conversions
+between a PMD entry and a swap entry, setting PMD migration entry,
+removing PMD migration entry, and waiting on PMD migration entries.
+
+This patch makes it possible to support thp migration.
+If you fail to allocate a destination page as a thp, you just split
+the source thp as we do now, and then enter the normal page migration.
+If you succeed to allocate destination thp, you enter thp migration.
+Subsequent patches actually enable thp migration for each caller of
+page migration by allowing its get_new_page() callback to
+allocate thps.
+
+ChangeLog v1 -&gt; v2:
+- support pte-mapped thp, doubly-mapped thp
+<span class="signed-off-by">
+Signed-off-by: Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;</span>
+
+ChangeLog v2 -&gt; v3:
+- use page_vma_mapped_walk()
+- use pmdp_huge_clear_flush() instead of pmdp_huge_get_and_clear() in
+  set_pmd_migration_entry()
+
+ChangeLog v3 -&gt; v4:
+- factor out the code of removing pte pgtable page in zap_huge_pmd()
+
+ChangeLog v4 -&gt; v5:
+- remove unnecessary PTE-mapped THP code in remove_migration_pmd()
+  and set_pmd_migration_entry()
+- restructure the code in zap_huge_pmd() to avoid factoring out
+  the pte pgtable page code
+- in zap_huge_pmd(), check that PMD swap entries are migration entries
+- change author information
+
+ChangeLog v5 -&gt; v7
+- use macro to disable the code when thp migration is not enabled
+
+ChangeLog v7 -&gt; v8
+- use IS_ENABLED instead of macro to make code look clean in
+  zap_huge_pmd() and page_vma_mapped_walk()
+- remove BUILD_BUG() in pmd_to_swp_entry() and swp_entry_to_pmd() to
+  avoid compilation error
+- rename variable &#39;migration&#39; to &#39;flush_needed&#39; and invert the logic in
+  zap_huge_pmd() to make code more descriptive
+- use pmdp_invalidate() in set_pmd_migration_entry() to avoid race
+  with MADV_DONTNEED
+- remove unnecessary tlb flush in remove_migration_pmd()
+- add the missing migration flag check in page_vma_mapped_walk()
+
+ChangeLog v8 -&gt; v9
+- avoid migrating shmem THPs. It is not supported yet.
+- simplify PMD-mapped THP checks in try_to_unmap_one() and
+  remove_migration_pte().
+<span class="signed-off-by">
+Signed-off-by: Zi Yan &lt;zi.yan@cs.rutgers.edu&gt;</span>
+<span class="acked-by">Acked-by: Kirill A. Shutemov &lt;kirill.shutemov@linux.intel.com&gt;</span>
+---
+ arch/x86/include/asm/pgtable_64.h |  2 +
+ include/linux/swapops.h           | 67 ++++++++++++++++++++++++++++++-
+ mm/huge_memory.c                  | 84 ++++++++++++++++++++++++++++++++++++---
+ mm/migrate.c                      | 32 ++++++++++++++-
+ mm/page_vma_mapped.c              | 18 +++++++--
+ mm/pgtable-generic.c              |  3 +-
+ mm/rmap.c                         | 13 ++++++
+ 7 files changed, 207 insertions(+), 12 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=143191">kbuild test robot</a> - July 19, 2017, 8:04 a.m.</div>
+<pre class="content">
+Hi Zi,
+
+[auto build test WARNING on mmotm/master]
+[also build test WARNING on v4.13-rc1 next-20170718]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+
+url:    https://github.com/0day-ci/linux/commits/Zi-Yan/mm-page-migration-enhancement-for-thp/20170718-095519
+base:   git://git.cmpxchg.org/linux-mmotm.git master
+config: xtensa-common_defconfig (attached as .config)
+compiler: xtensa-linux-gcc (GCC) 4.9.0
+reproduce:
+        wget https://raw.githubusercontent.com/01org/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+        chmod +x ~/bin/make.cross
+        # save the attached .config to linux build tree
+        make.cross ARCH=xtensa 
+
+All warnings (new ones prefixed by &gt;&gt;):
+
+   In file included from mm/vmscan.c:55:0:
+   include/linux/swapops.h: In function &#39;swp_entry_to_pmd&#39;:
+<span class="quote">&gt;&gt; include/linux/swapops.h:220:2: warning: missing braces around initializer [-Wmissing-braces]</span>
+     return (pmd_t){ 0 };
+     ^
+   include/linux/swapops.h:220:2: warning: (near initialization for &#39;(anonymous).pud&#39;) [-Wmissing-braces]
+
+vim +220 include/linux/swapops.h
+
+   217	
+   218	static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)
+   219	{
+<span class="quote"> &gt; 220		return (pmd_t){ 0 };</span>
+   221	}
+   222	
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=123671">Zi Yan</a> - July 19, 2017, 6:39 p.m.</div>
+<pre class="content">
+On 19 Jul 2017, at 4:04, kbuild test robot wrote:
+<span class="quote">
+&gt; Hi Zi,</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; [auto build test WARNING on mmotm/master]</span>
+<span class="quote">&gt; [also build test WARNING on v4.13-rc1 next-20170718]</span>
+<span class="quote">&gt; [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; url:    https://na01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fgithub.com%2F0day-ci%2Flinux%2Fcommits%2FZi-Yan%2Fmm-page-migration-enhancement-for-thp%2F20170718-095519&amp;data=02%7C01%7Czi.yan%40cs.rutgers.edu%7Ca711ac47d4c0436ef66f08d4ce7cf30c%7Cb92d2b234d35447093ff69aca6632ffe%7C1%7C0%7C636360483431631457&amp;sdata=NpxRpWbxe6o56xDJYpw1K6wgQo11IPCAbG2tE8l%2BU6E%3D&amp;reserved=0</span>
+<span class="quote">&gt; base:   git://git.cmpxchg.org/linux-mmotm.git master</span>
+<span class="quote">&gt; config: xtensa-common_defconfig (attached as .config)</span>
+<span class="quote">&gt; compiler: xtensa-linux-gcc (GCC) 4.9.0</span>
+<span class="quote">&gt; reproduce:</span>
+<span class="quote">&gt;         wget https://na01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fraw.githubusercontent.com%2F01org%2Flkp-tests%2Fmaster%2Fsbin%2Fmake.cross&amp;data=02%7C01%7Czi.yan%40cs.rutgers.edu%7Ca711ac47d4c0436ef66f08d4ce7cf30c%7Cb92d2b234d35447093ff69aca6632ffe%7C1%7C0%7C636360483431631457&amp;sdata=rBCfu0xUg3v%2B8r%2Be2tsiqRcqw%2FEZSTa4OtF0hU%2FqMbc%3D&amp;reserved=0 -O ~/bin/make.cross</span>
+<span class="quote">&gt;         chmod +x ~/bin/make.cross</span>
+<span class="quote">&gt;         # save the attached .config to linux build tree</span>
+<span class="quote">&gt;         make.cross ARCH=xtensa</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; All warnings (new ones prefixed by &gt;&gt;):</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;    In file included from mm/vmscan.c:55:0:</span>
+<span class="quote">&gt;    include/linux/swapops.h: In function &#39;swp_entry_to_pmd&#39;:</span>
+<span class="quote">&gt;&gt;&gt; include/linux/swapops.h:220:2: warning: missing braces around initializer [-Wmissing-braces]</span>
+<span class="quote">&gt;      return (pmd_t){ 0 };</span>
+<span class="quote">&gt;      ^</span>
+<span class="quote">&gt;    include/linux/swapops.h:220:2: warning: (near initialization for &#39;(anonymous).pud&#39;) [-Wmissing-braces]</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; vim +220 include/linux/swapops.h</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;    217	</span>
+<span class="quote">&gt;    218	static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)</span>
+<span class="quote">&gt;    219	{</span>
+<span class="quote">&gt;&gt; 220		return (pmd_t){ 0 };</span>
+<span class="quote">&gt;    221	}</span>
+<span class="quote">&gt;    222	</span>
+
+It is a GCC 4.9.0 bug: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53119
+
+Upgrading GCC can get rid of this warning.
+
+--
+Best Regards
+Yan Zi
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h</span>
+<span class="p_header">index 46bf71c77a25..972a4698c530 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/pgtable_64.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/pgtable_64.h</span>
+<span class="p_chunk">@@ -210,7 +210,9 @@</span> <span class="p_context"> static inline int pgd_large(pgd_t pgd) { return 0; }</span>
+ 					 ((type) &lt;&lt; (SWP_TYPE_FIRST_BIT)) \
+ 					 | ((offset) &lt;&lt; SWP_OFFSET_FIRST_BIT) })
+ #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val((pte)) })
+<span class="p_add">+#define __pmd_to_swp_entry(pmd)		((swp_entry_t) { pmd_val((pmd)) })</span>
+ #define __swp_entry_to_pte(x)		((pte_t) { .pte = (x).val })
+<span class="p_add">+#define __swp_entry_to_pmd(x)		((pmd_t) { .pmd = (x).val })</span>
+ 
+ extern int kern_addr_valid(unsigned long addr);
+ extern void cleanup_highmap(void);
+<span class="p_header">diff --git a/include/linux/swapops.h b/include/linux/swapops.h</span>
+<span class="p_header">index c5ff7b217ee6..c8c6511750f1 100644</span>
+<span class="p_header">--- a/include/linux/swapops.h</span>
+<span class="p_header">+++ b/include/linux/swapops.h</span>
+<span class="p_chunk">@@ -103,7 +103,8 @@</span> <span class="p_context"> static inline void *swp_to_radix_entry(swp_entry_t entry)</span>
+ #ifdef CONFIG_MIGRATION
+ static inline swp_entry_t make_migration_entry(struct page *page, int write)
+ {
+<span class="p_del">-	BUG_ON(!PageLocked(page));</span>
+<span class="p_add">+	BUG_ON(!PageLocked(compound_head(page)));</span>
+<span class="p_add">+</span>
+ 	return swp_entry(write ? SWP_MIGRATION_WRITE : SWP_MIGRATION_READ,
+ 			page_to_pfn(page));
+ }
+<span class="p_chunk">@@ -126,7 +127,7 @@</span> <span class="p_context"> static inline struct page *migration_entry_to_page(swp_entry_t entry)</span>
+ 	 * Any use of migration entries may only occur while the
+ 	 * corresponding page is locked
+ 	 */
+<span class="p_del">-	BUG_ON(!PageLocked(p));</span>
+<span class="p_add">+	BUG_ON(!PageLocked(compound_head(p)));</span>
+ 	return p;
+ }
+ 
+<span class="p_chunk">@@ -163,6 +164,68 @@</span> <span class="p_context"> static inline int is_write_migration_entry(swp_entry_t entry)</span>
+ 
+ #endif
+ 
+<span class="p_add">+struct page_vma_mapped_walk;</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION</span>
+<span class="p_add">+extern void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,</span>
+<span class="p_add">+		struct page *page);</span>
+<span class="p_add">+</span>
+<span class="p_add">+extern void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,</span>
+<span class="p_add">+		struct page *new);</span>
+<span class="p_add">+</span>
+<span class="p_add">+extern void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd);</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	swp_entry_t arch_entry;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	arch_entry = __pmd_to_swp_entry(pmd);</span>
+<span class="p_add">+	return swp_entry(__swp_type(arch_entry), __swp_offset(arch_entry));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	swp_entry_t arch_entry;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	arch_entry = __swp_entry(swp_type(entry), swp_offset(entry));</span>
+<span class="p_add">+	return __swp_entry_to_pmd(arch_entry);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline int is_pmd_migration_entry(pmd_t pmd)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return !pmd_present(pmd) &amp;&amp; is_migration_entry(pmd_to_swp_entry(pmd));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+#else</span>
+<span class="p_add">+static inline void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,</span>
+<span class="p_add">+		struct page *page)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	BUILD_BUG();</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void remove_migration_pmd(struct page_vma_mapped_walk *pvmw,</span>
+<span class="p_add">+		struct page *new)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	BUILD_BUG();</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void pmd_migration_entry_wait(struct mm_struct *m, pmd_t *p) { }</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline swp_entry_t pmd_to_swp_entry(pmd_t pmd)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return swp_entry(0, 0);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline pmd_t swp_entry_to_pmd(swp_entry_t entry)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return (pmd_t){ 0 };</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline int is_pmd_migration_entry(pmd_t pmd)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ #ifdef CONFIG_MEMORY_FAILURE
+ 
+ extern atomic_long_t num_poisoned_pages __read_mostly;
+<span class="p_header">diff --git a/mm/huge_memory.c b/mm/huge_memory.c</span>
+<span class="p_header">index 35711b35b067..9668f8cb8317 100644</span>
+<span class="p_header">--- a/mm/huge_memory.c</span>
+<span class="p_header">+++ b/mm/huge_memory.c</span>
+<span class="p_chunk">@@ -1641,10 +1641,24 @@</span> <span class="p_context"> int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,</span>
+ 		spin_unlock(ptl);
+ 		tlb_remove_page_size(tlb, pmd_page(orig_pmd), HPAGE_PMD_SIZE);
+ 	} else {
+<span class="p_del">-		struct page *page = pmd_page(orig_pmd);</span>
+<span class="p_del">-		page_remove_rmap(page, true);</span>
+<span class="p_del">-		VM_BUG_ON_PAGE(page_mapcount(page) &lt; 0, page);</span>
+<span class="p_del">-		VM_BUG_ON_PAGE(!PageHead(page), page);</span>
+<span class="p_add">+		struct page *page = NULL;</span>
+<span class="p_add">+		int flush_needed = 1;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (pmd_present(orig_pmd)) {</span>
+<span class="p_add">+			page = pmd_page(orig_pmd);</span>
+<span class="p_add">+			page_remove_rmap(page, true);</span>
+<span class="p_add">+			VM_BUG_ON_PAGE(page_mapcount(page) &lt; 0, page);</span>
+<span class="p_add">+			VM_BUG_ON_PAGE(!PageHead(page), page);</span>
+<span class="p_add">+		} else if (thp_migration_supported()) {</span>
+<span class="p_add">+			swp_entry_t entry;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			VM_BUG_ON(!is_pmd_migration_entry(orig_pmd));</span>
+<span class="p_add">+			entry = pmd_to_swp_entry(orig_pmd);</span>
+<span class="p_add">+			page = pfn_to_page(swp_offset(entry));</span>
+<span class="p_add">+			flush_needed = 0;</span>
+<span class="p_add">+		} else</span>
+<span class="p_add">+			WARN_ONCE(1, &quot;Non present huge pmd without pmd migration enabled!&quot;);</span>
+<span class="p_add">+</span>
+ 		if (PageAnon(page)) {
+ 			zap_deposited_table(tlb-&gt;mm, pmd);
+ 			add_mm_counter(tlb-&gt;mm, MM_ANONPAGES, -HPAGE_PMD_NR);
+<span class="p_chunk">@@ -1653,8 +1667,10 @@</span> <span class="p_context"> int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,</span>
+ 				zap_deposited_table(tlb-&gt;mm, pmd);
+ 			add_mm_counter(tlb-&gt;mm, MM_FILEPAGES, -HPAGE_PMD_NR);
+ 		}
+<span class="p_add">+</span>
+ 		spin_unlock(ptl);
+<span class="p_del">-		tlb_remove_page_size(tlb, page, HPAGE_PMD_SIZE);</span>
+<span class="p_add">+		if (flush_needed)</span>
+<span class="p_add">+			tlb_remove_page_size(tlb, page, HPAGE_PMD_SIZE);</span>
+ 	}
+ 	return 1;
+ }
+<span class="p_chunk">@@ -2694,3 +2710,61 @@</span> <span class="p_context"> static int __init split_huge_pages_debugfs(void)</span>
+ }
+ late_initcall(split_huge_pages_debugfs);
+ #endif
+<span class="p_add">+</span>
+<span class="p_add">+#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION</span>
+<span class="p_add">+void set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,</span>
+<span class="p_add">+		struct page *page)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct vm_area_struct *vma = pvmw-&gt;vma;</span>
+<span class="p_add">+	struct mm_struct *mm = vma-&gt;vm_mm;</span>
+<span class="p_add">+	unsigned long address = pvmw-&gt;address;</span>
+<span class="p_add">+	pmd_t pmdval;</span>
+<span class="p_add">+	swp_entry_t entry;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!(pvmw-&gt;pmd &amp;&amp; !pvmw-&gt;pte))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_start(mm, address,</span>
+<span class="p_add">+			address + HPAGE_PMD_SIZE);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	flush_cache_range(vma, address, address + HPAGE_PMD_SIZE);</span>
+<span class="p_add">+	pmdval = *pvmw-&gt;pmd;</span>
+<span class="p_add">+	pmdp_invalidate(vma, address, pvmw-&gt;pmd);</span>
+<span class="p_add">+	if (pmd_dirty(pmdval))</span>
+<span class="p_add">+		set_page_dirty(page);</span>
+<span class="p_add">+	entry = make_migration_entry(page, pmd_write(pmdval));</span>
+<span class="p_add">+	pmdval = swp_entry_to_pmd(entry);</span>
+<span class="p_add">+	set_pmd_at(mm, address, pvmw-&gt;pmd, pmdval);</span>
+<span class="p_add">+	page_remove_rmap(page, true);</span>
+<span class="p_add">+	put_page(page);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(mm, address,</span>
+<span class="p_add">+			address + HPAGE_PMD_SIZE);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+void remove_migration_pmd(struct page_vma_mapped_walk *pvmw, struct page *new)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct vm_area_struct *vma = pvmw-&gt;vma;</span>
+<span class="p_add">+	struct mm_struct *mm = vma-&gt;vm_mm;</span>
+<span class="p_add">+	unsigned long address = pvmw-&gt;address;</span>
+<span class="p_add">+	unsigned long mmun_start = address &amp; HPAGE_PMD_MASK;</span>
+<span class="p_add">+	pmd_t pmde;</span>
+<span class="p_add">+	swp_entry_t entry;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!(pvmw-&gt;pmd &amp;&amp; !pvmw-&gt;pte))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	entry = pmd_to_swp_entry(*pvmw-&gt;pmd);</span>
+<span class="p_add">+	get_page(new);</span>
+<span class="p_add">+	pmde = pmd_mkold(mk_huge_pmd(new, vma-&gt;vm_page_prot));</span>
+<span class="p_add">+	if (is_write_migration_entry(entry))</span>
+<span class="p_add">+		pmde = maybe_pmd_mkwrite(pmde, vma);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	flush_cache_range(vma, mmun_start, mmun_start + HPAGE_PMD_SIZE);</span>
+<span class="p_add">+	page_add_anon_rmap(new, vma, mmun_start, true);</span>
+<span class="p_add">+	set_pmd_at(mm, mmun_start, pvmw-&gt;pmd, pmde);</span>
+<span class="p_add">+	if (vma-&gt;vm_flags &amp; VM_LOCKED)</span>
+<span class="p_add">+		mlock_vma_page(new);</span>
+<span class="p_add">+	update_mmu_cache_pmd(vma, address, pvmw-&gt;pmd);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+#endif</span>
+<span class="p_header">diff --git a/mm/migrate.c b/mm/migrate.c</span>
+<span class="p_header">index 627671551873..0e2916f0c201 100644</span>
+<span class="p_header">--- a/mm/migrate.c</span>
+<span class="p_header">+++ b/mm/migrate.c</span>
+<span class="p_chunk">@@ -215,6 +215,15 @@</span> <span class="p_context"> static bool remove_migration_pte(struct page *page, struct vm_area_struct *vma,</span>
+ 			new = page - pvmw.page-&gt;index +
+ 				linear_page_index(vma, pvmw.address);
+ 
+<span class="p_add">+#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION</span>
+<span class="p_add">+		/* PMD-mapped THP migration entry */</span>
+<span class="p_add">+		if (!pvmw.pte) {</span>
+<span class="p_add">+			VM_BUG_ON_PAGE(PageHuge(page) || !PageTransCompound(page), page);</span>
+<span class="p_add">+			remove_migration_pmd(&amp;pvmw, new);</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ 		get_page(new);
+ 		pte = pte_mkold(mk_pte(new, READ_ONCE(vma-&gt;vm_page_prot)));
+ 		if (pte_swp_soft_dirty(*pvmw.pte))
+<span class="p_chunk">@@ -329,6 +338,27 @@</span> <span class="p_context"> void migration_entry_wait_huge(struct vm_area_struct *vma,</span>
+ 	__migration_entry_wait(mm, pte, ptl);
+ }
+ 
+<span class="p_add">+#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION</span>
+<span class="p_add">+void pmd_migration_entry_wait(struct mm_struct *mm, pmd_t *pmd)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	spinlock_t *ptl;</span>
+<span class="p_add">+	struct page *page;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ptl = pmd_lock(mm, pmd);</span>
+<span class="p_add">+	if (!is_pmd_migration_entry(*pmd))</span>
+<span class="p_add">+		goto unlock;</span>
+<span class="p_add">+	page = migration_entry_to_page(pmd_to_swp_entry(*pmd));</span>
+<span class="p_add">+	if (!get_page_unless_zero(page))</span>
+<span class="p_add">+		goto unlock;</span>
+<span class="p_add">+	spin_unlock(ptl);</span>
+<span class="p_add">+	wait_on_page_locked(page);</span>
+<span class="p_add">+	put_page(page);</span>
+<span class="p_add">+	return;</span>
+<span class="p_add">+unlock:</span>
+<span class="p_add">+	spin_unlock(ptl);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ #ifdef CONFIG_BLOCK
+ /* Returns true if all buffers are successfully locked */
+ static bool buffer_migrate_lock_buffers(struct buffer_head *head,
+<span class="p_chunk">@@ -1087,7 +1117,7 @@</span> <span class="p_context"> static ICE_noinline int unmap_and_move(new_page_t get_new_page,</span>
+ 		goto out;
+ 	}
+ 
+<span class="p_del">-	if (unlikely(PageTransHuge(page))) {</span>
+<span class="p_add">+	if (unlikely(PageTransHuge(page) &amp;&amp; !PageTransHuge(newpage))) {</span>
+ 		lock_page(page);
+ 		rc = split_huge_page(page);
+ 		unlock_page(page);
+<span class="p_header">diff --git a/mm/page_vma_mapped.c b/mm/page_vma_mapped.c</span>
+<span class="p_header">index 8ec6ba230bb9..3bd3008db4cb 100644</span>
+<span class="p_header">--- a/mm/page_vma_mapped.c</span>
+<span class="p_header">+++ b/mm/page_vma_mapped.c</span>
+<span class="p_chunk">@@ -138,16 +138,28 @@</span> <span class="p_context"> bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)</span>
+ 	if (!pud_present(*pud))
+ 		return false;
+ 	pvmw-&gt;pmd = pmd_offset(pud, pvmw-&gt;address);
+<span class="p_del">-	if (pmd_trans_huge(*pvmw-&gt;pmd)) {</span>
+<span class="p_add">+	if (pmd_trans_huge(*pvmw-&gt;pmd) || is_pmd_migration_entry(*pvmw-&gt;pmd)) {</span>
+ 		pvmw-&gt;ptl = pmd_lock(mm, pvmw-&gt;pmd);
+<span class="p_del">-		if (!pmd_present(*pvmw-&gt;pmd))</span>
+<span class="p_del">-			return not_found(pvmw);</span>
+ 		if (likely(pmd_trans_huge(*pvmw-&gt;pmd))) {
+ 			if (pvmw-&gt;flags &amp; PVMW_MIGRATION)
+ 				return not_found(pvmw);
+ 			if (pmd_page(*pvmw-&gt;pmd) != page)
+ 				return not_found(pvmw);
+ 			return true;
+<span class="p_add">+		} else if (!pmd_present(*pvmw-&gt;pmd)) {</span>
+<span class="p_add">+			if (thp_migration_supported()) {</span>
+<span class="p_add">+				if (!(pvmw-&gt;flags &amp; PVMW_MIGRATION))</span>
+<span class="p_add">+					return not_found(pvmw);</span>
+<span class="p_add">+				if (is_migration_entry(pmd_to_swp_entry(*pvmw-&gt;pmd))) {</span>
+<span class="p_add">+					swp_entry_t entry = pmd_to_swp_entry(*pvmw-&gt;pmd);</span>
+<span class="p_add">+</span>
+<span class="p_add">+					if (migration_entry_to_page(entry) != page)</span>
+<span class="p_add">+						return not_found(pvmw);</span>
+<span class="p_add">+					return true;</span>
+<span class="p_add">+				}</span>
+<span class="p_add">+			} else</span>
+<span class="p_add">+				WARN_ONCE(1, &quot;Non present huge pmd without pmd migration enabled!&quot;);</span>
+<span class="p_add">+			return not_found(pvmw);</span>
+ 		} else {
+ 			/* THP pmd was split under us: handle on pte level */
+ 			spin_unlock(pvmw-&gt;ptl);
+<span class="p_header">diff --git a/mm/pgtable-generic.c b/mm/pgtable-generic.c</span>
+<span class="p_header">index c99d9512a45b..1175f6a24fdb 100644</span>
+<span class="p_header">--- a/mm/pgtable-generic.c</span>
+<span class="p_header">+++ b/mm/pgtable-generic.c</span>
+<span class="p_chunk">@@ -124,7 +124,8 @@</span> <span class="p_context"> pmd_t pmdp_huge_clear_flush(struct vm_area_struct *vma, unsigned long address,</span>
+ {
+ 	pmd_t pmd;
+ 	VM_BUG_ON(address &amp; ~HPAGE_PMD_MASK);
+<span class="p_del">-	VM_BUG_ON(!pmd_trans_huge(*pmdp) &amp;&amp; !pmd_devmap(*pmdp));</span>
+<span class="p_add">+	VM_BUG_ON((pmd_present(*pmdp) &amp;&amp; !pmd_trans_huge(*pmdp) &amp;&amp;</span>
+<span class="p_add">+			   !pmd_devmap(*pmdp)) || !pmd_present(*pmdp));</span>
+ 	pmd = pmdp_huge_get_and_clear(vma-&gt;vm_mm, address, pmdp);
+ 	flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+ 	return pmd;
+<span class="p_header">diff --git a/mm/rmap.c b/mm/rmap.c</span>
+<span class="p_header">index 353cb61bb013..f310a45b571c 100644</span>
+<span class="p_header">--- a/mm/rmap.c</span>
+<span class="p_header">+++ b/mm/rmap.c</span>
+<span class="p_chunk">@@ -1300,6 +1300,19 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 	}
+ 
+ 	while (page_vma_mapped_walk(&amp;pvmw)) {
+<span class="p_add">+#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION</span>
+<span class="p_add">+		/* PMD-mapped THP migration entry */</span>
+<span class="p_add">+		if (!pvmw.pte &amp;&amp; (flags &amp; TTU_MIGRATION)) {</span>
+<span class="p_add">+			VM_BUG_ON_PAGE(PageHuge(page) || !PageTransCompound(page), page);</span>
+<span class="p_add">+</span>
+<span class="p_add">+			if (!PageAnon(page))</span>
+<span class="p_add">+				continue;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			set_pmd_migration_entry(&amp;pvmw, page);</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ 		/*
+ 		 * If the page is mlock()d, we cannot swap it out.
+ 		 * If it&#39;s recently referenced (perhaps page_referenced
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

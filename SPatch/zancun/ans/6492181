@@ -1,0 +1,584 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v3,3/3] mm/hugetlb: handle races in alloc_huge_page and hugetlb_reserve_pages - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v3,3/3] mm/hugetlb: handle races in alloc_huge_page and hugetlb_reserve_pages</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>May 27, 2015, 5:56 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1432749371-32220-4-git-send-email-mike.kravetz@oracle.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/6492181/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/6492181/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/6492181/">/patch/6492181/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id 25489C0020
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 27 May 2015 17:57:38 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 6DBBA206A0
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 27 May 2015 17:57:36 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 7B8CC20640
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 27 May 2015 17:57:35 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753300AbbE0R52 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 27 May 2015 13:57:28 -0400
+Received: from userp1040.oracle.com ([156.151.31.81]:18694 &quot;EHLO
+	userp1040.oracle.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752075AbbE0R5D (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 27 May 2015 13:57:03 -0400
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by userp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with
+	ESMTP id t4RHupdE022596
+	(version=TLSv1 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK);
+	Wed, 27 May 2015 17:56:51 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by userv0021.oracle.com (8.13.8/8.13.8) with ESMTP id
+	t4RHuoIb003801
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=FAIL); 
+	Wed, 27 May 2015 17:56:50 GMT
+Received: from abhmp0008.oracle.com (abhmp0008.oracle.com [141.146.116.14])
+	by aserv0121.oracle.com (8.13.8/8.13.8) with ESMTP id
+	t4RHuon7026049; Wed, 27 May 2015 17:56:50 GMT
+Received: from monkey.oracle.com (/50.53.81.168)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 27 May 2015 10:56:50 -0700
+From: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;,
+	Davidlohr Bueso &lt;dave@stgolabs.net&gt;,
+	David Rientjes &lt;rientjes@google.com&gt;,
+	Luiz Capitulino &lt;lcapitulino@redhat.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+Subject: [PATCH v3 3/3] mm/hugetlb: handle races in alloc_huge_page and
+	hugetlb_reserve_pages
+Date: Wed, 27 May 2015 10:56:11 -0700
+Message-Id: &lt;1432749371-32220-4-git-send-email-mike.kravetz@oracle.com&gt;
+X-Mailer: git-send-email 2.1.0
+In-Reply-To: &lt;1432749371-32220-1-git-send-email-mike.kravetz@oracle.com&gt;
+References: &lt;1432749371-32220-1-git-send-email-mike.kravetz@oracle.com&gt;
+X-Source-IP: userv0021.oracle.com [156.151.31.71]
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	T_RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - May 27, 2015, 5:56 p.m.</div>
+<pre class="content">
+alloc_huge_page and hugetlb_reserve_pages use region_chg to
+calculate the number of pages which will be added to the reserve
+map.  Subpool and global reserve counts are adjusted based on
+the output of region_chg.  Before the pages are actually added
+to the reserve map, these routines could race and add fewer
+pages than expected.  If this happens, the subpool and global
+reserve counts are not correct.
+
+Compare the number of pages actually added (region_add) to those
+expected to added (region_chg).  If fewer pages are actually added,
+this indicates a race and adjust counters accordingly.
+<span class="signed-off-by">
+Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+---
+ mm/hugetlb.c | 34 ++++++++++++++++++++++++++++++----
+ 1 file changed, 30 insertions(+), 4 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=106071">Davidlohr Bueso</a> - May 28, 2015, 2:01 p.m.</div>
+<pre class="content">
+On Wed, 2015-05-27 at 10:56 -0700, Mike Kravetz wrote:
+<span class="quote">&gt; alloc_huge_page and hugetlb_reserve_pages use region_chg to</span>
+<span class="quote">&gt; calculate the number of pages which will be added to the reserve</span>
+<span class="quote">&gt; map.  Subpool and global reserve counts are adjusted based on</span>
+<span class="quote">&gt; the output of region_chg.  Before the pages are actually added</span>
+<span class="quote">&gt; to the reserve map, these routines could race and add fewer</span>
+<span class="quote">&gt; pages than expected.  If this happens, the subpool and global</span>
+<span class="quote">&gt; reserve counts are not correct.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Compare the number of pages actually added (region_add) to those</span>
+<span class="quote">&gt; expected to added (region_chg).  If fewer pages are actually added,</span>
+<span class="quote">&gt; this indicates a race and adjust counters accordingly.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="reviewed-by">
+Reviewed-by: Davidlohr Bueso &lt;dave@stgolabs.net&gt;</span>
+
+With one nit below.
+<span class="quote">
+&gt; ---</span>
+<span class="quote">&gt;  mm/hugetlb.c | 34 ++++++++++++++++++++++++++++++----</span>
+<span class="quote">&gt;  1 file changed, 30 insertions(+), 4 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="quote">&gt; index b3d3d59..038c84e 100644</span>
+<span class="quote">&gt; --- a/mm/hugetlb.c</span>
+<span class="quote">&gt; +++ b/mm/hugetlb.c</span>
+<span class="quote">&gt; @@ -1544,7 +1544,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,</span>
+<span class="quote">&gt;  	struct hugepage_subpool *spool = subpool_vma(vma);</span>
+<span class="quote">&gt;  	struct hstate *h = hstate_vma(vma);</span>
+<span class="quote">&gt;  	struct page *page;</span>
+<span class="quote">&gt; -	long chg;</span>
+<span class="quote">&gt; +	long chg, commit;</span>
+<span class="quote">&gt;  	int ret, idx;</span>
+<span class="quote">&gt;  	struct hugetlb_cgroup *h_cg;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; @@ -1585,7 +1585,20 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	set_page_private(page, (unsigned long)spool);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	vma_commit_reservation(h, vma, addr);</span>
+<span class="quote">&gt; +	commit = vma_commit_reservation(h, vma, addr);</span>
+<span class="quote">&gt; +	if (unlikely(chg &gt; commit)) {</span>
+<span class="quote">&gt; +		/*</span>
+<span class="quote">&gt; +		 * The page was added to the reservation map between</span>
+<span class="quote">&gt; +		 * vma_needs_reservation and vma_commit_reservation.</span>
+<span class="quote">&gt; +		 * This indicates a race with hugetlb_reserve_pages.</span>
+<span class="quote">&gt; +		 * Adjust for the subpool count incremented above AND</span>
+<span class="quote">&gt; +		 * in hugetlb_reserve_pages for the same page.  Also,</span>
+<span class="quote">&gt; +		 * the reservation count added in hugetlb_reserve_pages</span>
+<span class="quote">&gt; +		 * no longer applies.</span>
+<span class="quote">&gt; +		 */</span>
+<span class="quote">&gt; +		hugepage_subpool_put_pages(spool, 1);</span>
+<span class="quote">&gt; +		hugetlb_acct_memory(h, -1);</span>
+
+Should these fixups be encapsulated in a helper? The comment is the same
+for both alloc_huge_page and hugetlb_reserve_pages.
+
+Thanks,
+Davidlohr
+<span class="quote">
+&gt; +	}</span>
+<span class="quote">&gt;  	return page;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  out_uncharge_cgroup:</span>
+<span class="quote">&gt; @@ -3699,8 +3712,21 @@ int hugetlb_reserve_pages(struct inode *inode,</span>
+<span class="quote">&gt;  	 * consumed reservations are stored in the map. Hence, nothing</span>
+<span class="quote">&gt;  	 * else has to be done for private mappings here</span>
+<span class="quote">&gt;  	 */</span>
+<span class="quote">&gt; -	if (!vma || vma-&gt;vm_flags &amp; VM_MAYSHARE)</span>
+<span class="quote">&gt; -		region_add(resv_map, from, to);</span>
+<span class="quote">&gt; +	if (!vma || vma-&gt;vm_flags &amp; VM_MAYSHARE) {</span>
+<span class="quote">&gt; +		long add = region_add(resv_map, from, to);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +		if (unlikely(chg &gt; add)) {</span>
+<span class="quote">&gt; +			/*</span>
+<span class="quote">&gt; +			 * pages in this range were added to the reserve</span>
+<span class="quote">&gt; +			 * map between region_chg and region_add.  This</span>
+<span class="quote">&gt; +			 * indicates a race with alloc_huge_page.  Adjust</span>
+<span class="quote">&gt; +			 * the subpool and reserve counts modified above</span>
+<span class="quote">&gt; +			 * based on the difference.</span>
+<span class="quote">&gt; +			 */</span>
+<span class="quote">&gt; +			hugepage_subpool_put_pages(spool, chg - add);</span>
+<span class="quote">&gt; +			hugetlb_acct_memory(h, -(chg - ret));</span>
+<span class="quote">&gt; +		}</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt;  	return 0;</span>
+<span class="quote">&gt;  out_err:</span>
+<span class="quote">&gt;  	if (vma &amp;&amp; is_vma_resv_set(vma, HPAGE_RESV_OWNER))</span>
+
+
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - May 28, 2015, 9 p.m.</div>
+<pre class="content">
+On 05/28/2015 07:01 AM, Davidlohr Bueso wrote:
+<span class="quote">&gt; On Wed, 2015-05-27 at 10:56 -0700, Mike Kravetz wrote:</span>
+<span class="quote">&gt;&gt; alloc_huge_page and hugetlb_reserve_pages use region_chg to</span>
+<span class="quote">&gt;&gt; calculate the number of pages which will be added to the reserve</span>
+<span class="quote">&gt;&gt; map.  Subpool and global reserve counts are adjusted based on</span>
+<span class="quote">&gt;&gt; the output of region_chg.  Before the pages are actually added</span>
+<span class="quote">&gt;&gt; to the reserve map, these routines could race and add fewer</span>
+<span class="quote">&gt;&gt; pages than expected.  If this happens, the subpool and global</span>
+<span class="quote">&gt;&gt; reserve counts are not correct.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Compare the number of pages actually added (region_add) to those</span>
+<span class="quote">&gt;&gt; expected to added (region_chg).  If fewer pages are actually added,</span>
+<span class="quote">&gt;&gt; this indicates a race and adjust counters accordingly.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Reviewed-by: Davidlohr Bueso &lt;dave@stgolabs.net&gt;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; With one nit below.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; ---</span>
+<span class="quote">&gt;&gt;   mm/hugetlb.c | 34 ++++++++++++++++++++++++++++++----</span>
+<span class="quote">&gt;&gt;   1 file changed, 30 insertions(+), 4 deletions(-)</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="quote">&gt;&gt; index b3d3d59..038c84e 100644</span>
+<span class="quote">&gt;&gt; --- a/mm/hugetlb.c</span>
+<span class="quote">&gt;&gt; +++ b/mm/hugetlb.c</span>
+<span class="quote">&gt;&gt; @@ -1544,7 +1544,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,</span>
+<span class="quote">&gt;&gt;   	struct hugepage_subpool *spool = subpool_vma(vma);</span>
+<span class="quote">&gt;&gt;   	struct hstate *h = hstate_vma(vma);</span>
+<span class="quote">&gt;&gt;   	struct page *page;</span>
+<span class="quote">&gt;&gt; -	long chg;</span>
+<span class="quote">&gt;&gt; +	long chg, commit;</span>
+<span class="quote">&gt;&gt;   	int ret, idx;</span>
+<span class="quote">&gt;&gt;   	struct hugetlb_cgroup *h_cg;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; @@ -1585,7 +1585,20 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;   	set_page_private(page, (unsigned long)spool);</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; -	vma_commit_reservation(h, vma, addr);</span>
+<span class="quote">&gt;&gt; +	commit = vma_commit_reservation(h, vma, addr);</span>
+<span class="quote">&gt;&gt; +	if (unlikely(chg &gt; commit)) {</span>
+<span class="quote">&gt;&gt; +		/*</span>
+<span class="quote">&gt;&gt; +		 * The page was added to the reservation map between</span>
+<span class="quote">&gt;&gt; +		 * vma_needs_reservation and vma_commit_reservation.</span>
+<span class="quote">&gt;&gt; +		 * This indicates a race with hugetlb_reserve_pages.</span>
+<span class="quote">&gt;&gt; +		 * Adjust for the subpool count incremented above AND</span>
+<span class="quote">&gt;&gt; +		 * in hugetlb_reserve_pages for the same page.  Also,</span>
+<span class="quote">&gt;&gt; +		 * the reservation count added in hugetlb_reserve_pages</span>
+<span class="quote">&gt;&gt; +		 * no longer applies.</span>
+<span class="quote">&gt;&gt; +		 */</span>
+<span class="quote">&gt;&gt; +		hugepage_subpool_put_pages(spool, 1);</span>
+<span class="quote">&gt;&gt; +		hugetlb_acct_memory(h, -1);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Should these fixups be encapsulated in a helper? The comment is the same</span>
+<span class="quote">&gt; for both alloc_huge_page and hugetlb_reserve_pages.</span>
+
+I would like to leave things as they are right now.  It makes it
+pretty explicit what fixup is needed and performed.
+
+As you know, discovery of this bug came out of my hugetlbfs fallocate
+work.  In that patchset, I created a race fixup routine.  If fallocate
+moves forward, I&#39;ll reexamine the above fixups and look into helpers.
+
+Thanks for the review,
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=4407">Naoya Horiguchi</a> - May 29, 2015, 1:49 a.m.</div>
+<pre class="content">
+On Wed, May 27, 2015 at 10:56:11AM -0700, Mike Kravetz wrote:
+<span class="quote">&gt; alloc_huge_page and hugetlb_reserve_pages use region_chg to</span>
+<span class="quote">&gt; calculate the number of pages which will be added to the reserve</span>
+<span class="quote">&gt; map.  Subpool and global reserve counts are adjusted based on</span>
+<span class="quote">&gt; the output of region_chg.  Before the pages are actually added</span>
+<span class="quote">&gt; to the reserve map, these routines could race and add fewer</span>
+<span class="quote">&gt; pages than expected.  If this happens, the subpool and global</span>
+<span class="quote">&gt; reserve counts are not correct.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Compare the number of pages actually added (region_add) to those</span>
+<span class="quote">&gt; expected to added (region_chg).  If fewer pages are actually added,</span>
+<span class="quote">&gt; this indicates a race and adjust counters accordingly.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="reviewed-by">
+Reviewed-by: Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;--</span>
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - June 1, 2015, 4:53 p.m.</div>
+<pre class="content">
+On 05/27/2015 10:56 AM, Mike Kravetz wrote:
+<span class="quote">&gt; alloc_huge_page and hugetlb_reserve_pages use region_chg to</span>
+<span class="quote">&gt; calculate the number of pages which will be added to the reserve</span>
+<span class="quote">&gt; map.  Subpool and global reserve counts are adjusted based on</span>
+<span class="quote">&gt; the output of region_chg.  Before the pages are actually added</span>
+<span class="quote">&gt; to the reserve map, these routines could race and add fewer</span>
+<span class="quote">&gt; pages than expected.  If this happens, the subpool and global</span>
+<span class="quote">&gt; reserve counts are not correct.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Compare the number of pages actually added (region_add) to those</span>
+<span class="quote">&gt; expected to added (region_chg).  If fewer pages are actually added,</span>
+<span class="quote">&gt; this indicates a race and adjust counters accordingly.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;   mm/hugetlb.c | 34 ++++++++++++++++++++++++++++++----</span>
+<span class="quote">&gt;   1 file changed, 30 insertions(+), 4 deletions(-)</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="quote">&gt; index b3d3d59..038c84e 100644</span>
+<span class="quote">&gt; --- a/mm/hugetlb.c</span>
+<span class="quote">&gt; +++ b/mm/hugetlb.c</span>
+<span class="quote">&gt; @@ -1544,7 +1544,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,</span>
+<span class="quote">&gt;   	struct hugepage_subpool *spool = subpool_vma(vma);</span>
+<span class="quote">&gt;   	struct hstate *h = hstate_vma(vma);</span>
+<span class="quote">&gt;   	struct page *page;</span>
+<span class="quote">&gt; -	long chg;</span>
+<span class="quote">&gt; +	long chg, commit;</span>
+<span class="quote">&gt;   	int ret, idx;</span>
+<span class="quote">&gt;   	struct hugetlb_cgroup *h_cg;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; @@ -1585,7 +1585,20 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;   	set_page_private(page, (unsigned long)spool);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; -	vma_commit_reservation(h, vma, addr);</span>
+<span class="quote">&gt; +	commit = vma_commit_reservation(h, vma, addr);</span>
+<span class="quote">&gt; +	if (unlikely(chg &gt; commit)) {</span>
+<span class="quote">&gt; +		/*</span>
+<span class="quote">&gt; +		 * The page was added to the reservation map between</span>
+<span class="quote">&gt; +		 * vma_needs_reservation and vma_commit_reservation.</span>
+<span class="quote">&gt; +		 * This indicates a race with hugetlb_reserve_pages.</span>
+<span class="quote">&gt; +		 * Adjust for the subpool count incremented above AND</span>
+<span class="quote">&gt; +		 * in hugetlb_reserve_pages for the same page.  Also,</span>
+<span class="quote">&gt; +		 * the reservation count added in hugetlb_reserve_pages</span>
+<span class="quote">&gt; +		 * no longer applies.</span>
+<span class="quote">&gt; +		 */</span>
+<span class="quote">&gt; +		hugepage_subpool_put_pages(spool, 1);</span>
+<span class="quote">&gt; +		hugetlb_acct_memory(h, -1);</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt;   	return page;</span>
+
+Well, this is embarrassing.  The code to fix up counts is incomplete
+and incorrect.  It does not take into account the hugetlbfs min_size
+option to reserve a set of pages for a filesystem.  The code should
+look like:
+
+		long rsv_adjust;
+
+		rsv_adjust = hugepage_subpool_put_pages(spool, 1);
+		hugetlb_acct_memory(h, -rsv_adjust);
+
+A similar change is required in hugetlb_reserve_pages().
+
+I have verified that the global reserve count is not properly
+adjusted with the original patch, and verified that it is properly
+adjusted with the above change.
+
+Should I create a new patch set, or create a patch on top of the
+existing set?
+
+I think this oversight points out the need to encapsulate the
+subpool and global reserve count adjustments.  There are too
+many counters/adjustments in the code and it is pretty easy not
+to take them all into account.  I&#39;ll start work on some
+encapsulation routines.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="p_header">index b3d3d59..038c84e 100644</span>
+<span class="p_header">--- a/mm/hugetlb.c</span>
+<span class="p_header">+++ b/mm/hugetlb.c</span>
+<span class="p_chunk">@@ -1544,7 +1544,7 @@</span> <span class="p_context"> static struct page *alloc_huge_page(struct vm_area_struct *vma,</span>
+ 	struct hugepage_subpool *spool = subpool_vma(vma);
+ 	struct hstate *h = hstate_vma(vma);
+ 	struct page *page;
+<span class="p_del">-	long chg;</span>
+<span class="p_add">+	long chg, commit;</span>
+ 	int ret, idx;
+ 	struct hugetlb_cgroup *h_cg;
+ 
+<span class="p_chunk">@@ -1585,7 +1585,20 @@</span> <span class="p_context"> static struct page *alloc_huge_page(struct vm_area_struct *vma,</span>
+ 
+ 	set_page_private(page, (unsigned long)spool);
+ 
+<span class="p_del">-	vma_commit_reservation(h, vma, addr);</span>
+<span class="p_add">+	commit = vma_commit_reservation(h, vma, addr);</span>
+<span class="p_add">+	if (unlikely(chg &gt; commit)) {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * The page was added to the reservation map between</span>
+<span class="p_add">+		 * vma_needs_reservation and vma_commit_reservation.</span>
+<span class="p_add">+		 * This indicates a race with hugetlb_reserve_pages.</span>
+<span class="p_add">+		 * Adjust for the subpool count incremented above AND</span>
+<span class="p_add">+		 * in hugetlb_reserve_pages for the same page.  Also,</span>
+<span class="p_add">+		 * the reservation count added in hugetlb_reserve_pages</span>
+<span class="p_add">+		 * no longer applies.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		hugepage_subpool_put_pages(spool, 1);</span>
+<span class="p_add">+		hugetlb_acct_memory(h, -1);</span>
+<span class="p_add">+	}</span>
+ 	return page;
+ 
+ out_uncharge_cgroup:
+<span class="p_chunk">@@ -3699,8 +3712,21 @@</span> <span class="p_context"> int hugetlb_reserve_pages(struct inode *inode,</span>
+ 	 * consumed reservations are stored in the map. Hence, nothing
+ 	 * else has to be done for private mappings here
+ 	 */
+<span class="p_del">-	if (!vma || vma-&gt;vm_flags &amp; VM_MAYSHARE)</span>
+<span class="p_del">-		region_add(resv_map, from, to);</span>
+<span class="p_add">+	if (!vma || vma-&gt;vm_flags &amp; VM_MAYSHARE) {</span>
+<span class="p_add">+		long add = region_add(resv_map, from, to);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (unlikely(chg &gt; add)) {</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * pages in this range were added to the reserve</span>
+<span class="p_add">+			 * map between region_chg and region_add.  This</span>
+<span class="p_add">+			 * indicates a race with alloc_huge_page.  Adjust</span>
+<span class="p_add">+			 * the subpool and reserve counts modified above</span>
+<span class="p_add">+			 * based on the difference.</span>
+<span class="p_add">+			 */</span>
+<span class="p_add">+			hugepage_subpool_put_pages(spool, chg - add);</span>
+<span class="p_add">+			hugetlb_acct_memory(h, -(chg - ret));</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	}</span>
+ 	return 0;
+ out_err:
+ 	if (vma &amp;&amp; is_vma_resv_set(vma, HPAGE_RESV_OWNER))
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

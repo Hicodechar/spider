@@ -1,0 +1,408 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,1/3] mm/hugetlb: split alloc_fresh_huge_page_node into fast and slow path - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,1/3] mm/hugetlb: split alloc_fresh_huge_page_node into fast and slow path</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=111121">Jia He</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Jan. 24, 2017, 7:49 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1485244144-13487-2-git-send-email-hejianet@gmail.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9534147/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9534147/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9534147/">/patch/9534147/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	9A56D604A7 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 24 Jan 2017 07:49:32 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 8BF2623E64
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 24 Jan 2017 07:49:32 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 8014F26530; Tue, 24 Jan 2017 07:49:32 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.5 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID, DKIM_VALID_AU, FREEMAIL_FROM, RCVD_IN_DNSWL_HI,
+	RCVD_IN_SORBS_SPAM autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 305A62624B
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 24 Jan 2017 07:49:32 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1750828AbdAXHta (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 24 Jan 2017 02:49:30 -0500
+Received: from mail-qt0-f193.google.com ([209.85.216.193]:36617 &quot;EHLO
+	mail-qt0-f193.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1750704AbdAXHt2 (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 24 Jan 2017 02:49:28 -0500
+Received: by mail-qt0-f193.google.com with SMTP id l7so23234059qtd.3
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Mon, 23 Jan 2017 23:49:23 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=gmail.com; s=20161025;
+	h=from:to:cc:subject:date:message-id:in-reply-to:references;
+	bh=JM9X4ETHVq3+F4sxzBhbsJp1aKQpTD+uHEQbt2+hrFI=;
+	b=Vnnc8NoZGFRkk0ei9Ma2KyAY7AbUx58iG8nAuez3OYoOEzWhFTsOlKL67Piilr0edL
+	5KFbTt8AW13w08voi+DTIxGi3qd5u/pdlAS+yxKHh4YzJ6XlckGOuh+gt0C9Z4G6OZXJ
+	bXKjQXSpXN+QHGPK0cZdRbU/yPWHV+6u34vXFn1Za8ncu7wfSI7F1yNQnLIgoM6MLQuX
+	mLMYV8ny+EuyN4svQKjyr3CXTyuqYbKKM7OA/+ZAXlXOOmx7D3lfq1W9+rv3g8g1IsG6
+	TLs6xAUWnu9iOOj3RXc8gm3PGiVSCNO9GSYHmeRW/RLlbFAjGSZnppRUR5daQ6f+TcE7
+	Yrmg==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+	:references;
+	bh=JM9X4ETHVq3+F4sxzBhbsJp1aKQpTD+uHEQbt2+hrFI=;
+	b=NJxzkj/1GZfSovaRaCS56ssZK42JkdphEkCDMqOHNuzhrGNOtTXs1bUcFeuAqY/IQ/
+	cPXMbn5OscjL9oj/uRSvrnIvOUHchMwXlcGCmwClixjAQqWl2rVzZg4kvNY3f8kNGh/e
+	ml9GMr4IzNaG3vR5MY/6q3/rbl10I83ZaRUKFLX9K8kfQ+A276gJBcTBdPMZZ94m6X7r
+	xPFZ8iw3GvuXPDRmpwTLNK0SfNPmTzoBuB2xIziHFCKQOIUAm49EfD4PteMIYCowfQmt
+	gpeU+SMH68XSkY2ugGCzlAgi4uxibLqQ5Z7GobcvNZI+O2mp3s+ImeRvbZ6utzKKKc0g
+	kXOw==
+X-Gm-Message-State: AIkVDXLqXInCxlVAZMJSFBehU+lLTwBl8YQ5N6E+tOw5jchqLsrOMNJP9DEprrZnZWnxHg==
+X-Received: by 10.55.25.19 with SMTP id k19mr30387402qkh.105.1485244157474; 
+	Mon, 23 Jan 2017 23:49:17 -0800 (PST)
+Received: from localhost.localdomain.localdomain (bi-03pt1.bluebird.ibm.com.
+	[129.42.208.172]) by smtp.gmail.com with ESMTPSA id
+	t2sm15427244qte.14.2017.01.23.23.49.16
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Mon, 23 Jan 2017 23:49:16 -0800 (PST)
+From: Jia He &lt;hejianet@gmail.com&gt;
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;,
+	Michal Hocko &lt;mhocko@suse.com&gt;, Mike Kravetz &lt;mike.kravetz@oracle.com&gt;,
+	&quot;Aneesh Kumar K.V&quot; &lt;aneesh.kumar@linux.vnet.ibm.com&gt;,
+	Gerald Schaefer &lt;gerald.schaefer@de.ibm.com&gt;,
+	zhong jiang &lt;zhongjiang@huawei.com&gt;,
+	&quot;Kirill A. Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;,
+	Vaishali Thakkar &lt;vaishali.thakkar@oracle.com&gt;,
+	Johannes Weiner &lt;hannes@cmpxchg.org&gt;,
+	Mel Gorman &lt;mgorman@techsingularity.net&gt;,
+	Vlastimil Babka &lt;vbabka@suse.cz&gt;, Minchan Kim &lt;minchan@kernel.org&gt;,
+	Rik van Riel &lt;riel@redhat.com&gt;, Jia He &lt;hejianet@gmail.com&gt;
+Subject: [PATCH RFC 1/3] mm/hugetlb: split alloc_fresh_huge_page_node into
+	fast and slow path
+Date: Tue, 24 Jan 2017 15:49:02 +0800
+Message-Id: &lt;1485244144-13487-2-git-send-email-hejianet@gmail.com&gt;
+X-Mailer: git-send-email 2.5.5
+In-Reply-To: &lt;1485244144-13487-1-git-send-email-hejianet@gmail.com&gt;
+References: &lt;1485244144-13487-1-git-send-email-hejianet@gmail.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=111121">Jia He</a> - Jan. 24, 2017, 7:49 a.m.</div>
+<pre class="content">
+This patch split alloc_fresh_huge_page_node into 2 parts:
+- fast path without __GFP_REPEAT flag
+- slow path with __GFP_REPEAT flag
+
+Thus, if there is a server with uneven numa memory layout:
+available: 7 nodes (0-6)
+node 0 cpus: 0 1 2 3 4 5 6 7
+node 0 size: 6603 MB
+node 0 free: 91 MB
+node 1 cpus:
+node 1 size: 12527 MB
+node 1 free: 157 MB
+node 2 cpus:
+node 2 size: 15087 MB
+node 2 free: 189 MB
+node 3 cpus:
+node 3 size: 16111 MB
+node 3 free: 205 MB
+node 4 cpus: 8 9 10 11 12 13 14 15
+node 4 size: 24815 MB
+node 4 free: 310 MB
+node 5 cpus:
+node 5 size: 4095 MB
+node 5 free: 61 MB
+node 6 cpus:
+node 6 size: 22750 MB
+node 6 free: 283 MB
+node distances:
+node   0   1   2   3   4   5   6
+  0:  10  20  40  40  40  40  40
+  1:  20  10  40  40  40  40  40
+  2:  40  40  10  20  40  40  40
+  3:  40  40  20  10  40  40  40
+  4:  40  40  40  40  10  20  40
+  5:  40  40  40  40  20  10  40
+  6:  40  40  40  40  40  40  10
+
+In this case node 5 has less memory and we will alloc the hugepages
+from these nodes one by one.
+After this patch, we will not trigger too early direct memory/kswap
+reclaim for node 5 if there are enough memory in other nodes.
+<span class="signed-off-by">
+Signed-off-by: Jia He &lt;hejianet@gmail.com&gt;</span>
+---
+ mm/hugetlb.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Jan. 24, 2017, 4:52 p.m.</div>
+<pre class="content">
+On Tue 24-01-17 15:49:02, Jia He wrote:
+<span class="quote">&gt; This patch split alloc_fresh_huge_page_node into 2 parts:</span>
+<span class="quote">&gt; - fast path without __GFP_REPEAT flag</span>
+<span class="quote">&gt; - slow path with __GFP_REPEAT flag</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Thus, if there is a server with uneven numa memory layout:</span>
+<span class="quote">&gt; available: 7 nodes (0-6)</span>
+<span class="quote">&gt; node 0 cpus: 0 1 2 3 4 5 6 7</span>
+<span class="quote">&gt; node 0 size: 6603 MB</span>
+<span class="quote">&gt; node 0 free: 91 MB</span>
+<span class="quote">&gt; node 1 cpus:</span>
+<span class="quote">&gt; node 1 size: 12527 MB</span>
+<span class="quote">&gt; node 1 free: 157 MB</span>
+<span class="quote">&gt; node 2 cpus:</span>
+<span class="quote">&gt; node 2 size: 15087 MB</span>
+<span class="quote">&gt; node 2 free: 189 MB</span>
+<span class="quote">&gt; node 3 cpus:</span>
+<span class="quote">&gt; node 3 size: 16111 MB</span>
+<span class="quote">&gt; node 3 free: 205 MB</span>
+<span class="quote">&gt; node 4 cpus: 8 9 10 11 12 13 14 15</span>
+<span class="quote">&gt; node 4 size: 24815 MB</span>
+<span class="quote">&gt; node 4 free: 310 MB</span>
+<span class="quote">&gt; node 5 cpus:</span>
+<span class="quote">&gt; node 5 size: 4095 MB</span>
+<span class="quote">&gt; node 5 free: 61 MB</span>
+<span class="quote">&gt; node 6 cpus:</span>
+<span class="quote">&gt; node 6 size: 22750 MB</span>
+<span class="quote">&gt; node 6 free: 283 MB</span>
+<span class="quote">&gt; node distances:</span>
+<span class="quote">&gt; node   0   1   2   3   4   5   6</span>
+<span class="quote">&gt;   0:  10  20  40  40  40  40  40</span>
+<span class="quote">&gt;   1:  20  10  40  40  40  40  40</span>
+<span class="quote">&gt;   2:  40  40  10  20  40  40  40</span>
+<span class="quote">&gt;   3:  40  40  20  10  40  40  40</span>
+<span class="quote">&gt;   4:  40  40  40  40  10  20  40</span>
+<span class="quote">&gt;   5:  40  40  40  40  20  10  40</span>
+<span class="quote">&gt;   6:  40  40  40  40  40  40  10</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; In this case node 5 has less memory and we will alloc the hugepages</span>
+<span class="quote">&gt; from these nodes one by one.</span>
+<span class="quote">&gt; After this patch, we will not trigger too early direct memory/kswap</span>
+<span class="quote">&gt; reclaim for node 5 if there are enough memory in other nodes.</span>
+
+This description is doesn&#39;t explain what is the problem, why it matters
+and how the fix actually works. Moreover it does opposite what is
+claims. Which brings me to another question. How has this been tested? 
+<span class="quote">
+&gt; Signed-off-by: Jia He &lt;hejianet@gmail.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  mm/hugetlb.c | 9 +++++++++</span>
+<span class="quote">&gt;  1 file changed, 9 insertions(+)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="quote">&gt; index c7025c1..f2415ce 100644</span>
+<span class="quote">&gt; --- a/mm/hugetlb.c</span>
+<span class="quote">&gt; +++ b/mm/hugetlb.c</span>
+<span class="quote">&gt; @@ -1364,10 +1364,19 @@ static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	struct page *page;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +	/* fast path without __GFP_REPEAT */</span>
+<span class="quote">&gt;  	page = __alloc_pages_node(nid,</span>
+<span class="quote">&gt;  		htlb_alloc_mask(h)|__GFP_COMP|__GFP_THISNODE|</span>
+<span class="quote">&gt;  						__GFP_REPEAT|__GFP_NOWARN,</span>
+<span class="quote">&gt;  		huge_page_order(h));</span>
+
+this does opposite what the comment says.
+<span class="quote">
+&gt; +</span>
+<span class="quote">&gt; +	/* slow path with __GFP_REPEAT*/</span>
+<span class="quote">&gt; +	if (!page)</span>
+<span class="quote">&gt; +		page = __alloc_pages_node(nid,</span>
+<span class="quote">&gt; +			htlb_alloc_mask(h)|__GFP_COMP|__GFP_THISNODE|</span>
+<span class="quote">&gt; +					__GFP_NOWARN,</span>
+<span class="quote">&gt; +			huge_page_order(h));</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  	if (page) {</span>
+<span class="quote">&gt;  		prep_new_huge_page(h, page, nid);</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt; -- </span>
+<span class="quote">&gt; 2.5.5</span>
+<span class="quote">&gt;</span>
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="p_header">index c7025c1..f2415ce 100644</span>
+<span class="p_header">--- a/mm/hugetlb.c</span>
+<span class="p_header">+++ b/mm/hugetlb.c</span>
+<span class="p_chunk">@@ -1364,10 +1364,19 @@</span> <span class="p_context"> static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)</span>
+ {
+ 	struct page *page;
+ 
+<span class="p_add">+	/* fast path without __GFP_REPEAT */</span>
+ 	page = __alloc_pages_node(nid,
+ 		htlb_alloc_mask(h)|__GFP_COMP|__GFP_THISNODE|
+ 						__GFP_REPEAT|__GFP_NOWARN,
+ 		huge_page_order(h));
+<span class="p_add">+</span>
+<span class="p_add">+	/* slow path with __GFP_REPEAT*/</span>
+<span class="p_add">+	if (!page)</span>
+<span class="p_add">+		page = __alloc_pages_node(nid,</span>
+<span class="p_add">+			htlb_alloc_mask(h)|__GFP_COMP|__GFP_THISNODE|</span>
+<span class="p_add">+					__GFP_NOWARN,</span>
+<span class="p_add">+			huge_page_order(h));</span>
+<span class="p_add">+</span>
+ 	if (page) {
+ 		prep_new_huge_page(h, page, nid);
+ 	}
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

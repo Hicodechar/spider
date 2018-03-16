@@ -1,0 +1,1539 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v4,2/4] mm, proc: account for shmem swap in /proc/pid/smaps - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v4,2/4] mm, proc: account for shmem swap in /proc/pid/smaps</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=72672">Vlastimil Babka</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Oct. 2, 2015, 1:35 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1443792951-13944-3-git-send-email-vbabka@suse.cz&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7315851/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7315851/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7315851/">/patch/7315851/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork1.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork1.web.kernel.org (Postfix) with ESMTP id A22159F1B9
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  2 Oct 2015 13:37:56 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 474BC208C5
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  2 Oct 2015 13:37:53 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 1CD9C208CA
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  2 Oct 2015 13:37:52 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753380AbbJBNhs (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Fri, 2 Oct 2015 09:37:48 -0400
+Received: from mx2.suse.de ([195.135.220.15]:40616 &quot;EHLO mx2.suse.de&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1753163AbbJBNgG (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Fri, 2 Oct 2015 09:36:06 -0400
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (charybdis-ext.suse.de [195.135.220.254])
+	by mx2.suse.de (Postfix) with ESMTP id 2B158ACCB;
+	Fri,  2 Oct 2015 13:36:03 +0000 (UTC)
+From: Vlastimil Babka &lt;vbabka@suse.cz&gt;
+To: linux-mm@kvack.org, Jerome Marchand &lt;jmarchan@redhat.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Hugh Dickins &lt;hughd@google.com&gt;
+Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org,
+	Michal Hocko &lt;mhocko@suse.cz&gt;,
+	&quot;Kirill A. Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;,
+	Cyrill Gorcunov &lt;gorcunov@openvz.org&gt;,
+	Randy Dunlap &lt;rdunlap@infradead.org&gt;, linux-s390@vger.kernel.org,
+	Martin Schwidefsky &lt;schwidefsky@de.ibm.com&gt;,
+	Heiko Carstens &lt;heiko.carstens@de.ibm.com&gt;,
+	Peter Zijlstra &lt;peterz@infradead.org&gt;, Paul Mackerras &lt;paulus@samba.org&gt;,
+	Arnaldo Carvalho de Melo &lt;acme@kernel.org&gt;,
+	Oleg Nesterov &lt;oleg@redhat.com&gt;, Linux API &lt;linux-api@vger.kernel.org&gt;,
+	Konstantin Khlebnikov &lt;khlebnikov@yandex-team.ru&gt;,
+	Vlastimil Babka &lt;vbabka@suse.cz&gt;
+Subject: [PATCH v4 2/4] mm, proc: account for shmem swap in /proc/pid/smaps
+Date: Fri,  2 Oct 2015 15:35:49 +0200
+Message-Id: &lt;1443792951-13944-3-git-send-email-vbabka@suse.cz&gt;
+X-Mailer: git-send-email 2.5.2
+In-Reply-To: &lt;1443792951-13944-1-git-send-email-vbabka@suse.cz&gt;
+References: &lt;1443792951-13944-1-git-send-email-vbabka@suse.cz&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	T_RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=72672">Vlastimil Babka</a> - Oct. 2, 2015, 1:35 p.m.</div>
+<pre class="content">
+Currently, /proc/pid/smaps will always show &quot;Swap: 0 kB&quot; for shmem-backed
+mappings, even if the mapped portion does contain pages that were swapped out.
+This is because unlike private anonymous mappings, shmem does not change pte
+to swap entry, but pte_none when swapping the page out. In the smaps page
+walk, such page thus looks like it was never faulted in.
+
+This patch changes smaps_pte_entry() to determine the swap status for such
+pte_none entries for shmem mappings, similarly to how mincore_page() does it.
+Swapped out pages are thus accounted for.
+
+The accounting is arguably still not as precise as for private anonymous
+mappings, since now we will count also pages that the process in question never
+accessed, but only another process populated them and then let them become
+swapped out. I believe it is still less confusing and subtle than not showing
+any swap usage by shmem mappings at all. Also, swapped out pages only becomee a
+performance issue for future accesses, and we cannot predict those for neither
+kind of mapping.
+<span class="signed-off-by">
+Signed-off-by: Vlastimil Babka &lt;vbabka@suse.cz&gt;</span>
+<span class="acked-by">Acked-by: Konstantin Khlebnikov &lt;khlebnikov@yandex-team.ru&gt;</span>
+---
+ Documentation/filesystems/proc.txt |  6 ++--
+ fs/proc/task_mmu.c                 | 48 ++++++++++++++++++++++++++++++
+ include/linux/shmem_fs.h           |  6 ++++
+ mm/shmem.c                         | 61 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 119 insertions(+), 2 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=1608">Jerome Marchand</a> - Oct. 2, 2015, 3 p.m.</div>
+<pre class="content">
+On 10/02/2015 03:35 PM, Vlastimil Babka wrote:
+<span class="quote">&gt; Currently, /proc/pid/smaps will always show &quot;Swap: 0 kB&quot; for shmem-backed</span>
+<span class="quote">&gt; mappings, even if the mapped portion does contain pages that were swapped out.</span>
+<span class="quote">&gt; This is because unlike private anonymous mappings, shmem does not change pte</span>
+<span class="quote">&gt; to swap entry, but pte_none when swapping the page out. In the smaps page</span>
+<span class="quote">&gt; walk, such page thus looks like it was never faulted in.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This patch changes smaps_pte_entry() to determine the swap status for such</span>
+<span class="quote">&gt; pte_none entries for shmem mappings, similarly to how mincore_page() does it.</span>
+<span class="quote">&gt; Swapped out pages are thus accounted for.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The accounting is arguably still not as precise as for private anonymous</span>
+<span class="quote">&gt; mappings, since now we will count also pages that the process in question never</span>
+<span class="quote">&gt; accessed, but only another process populated them and then let them become</span>
+<span class="quote">&gt; swapped out. I believe it is still less confusing and subtle than not showing</span>
+<span class="quote">&gt; any swap usage by shmem mappings at all. Also, swapped out pages only becomee a</span>
+<span class="quote">&gt; performance issue for future accesses, and we cannot predict those for neither</span>
+<span class="quote">&gt; kind of mapping.</span>
+
+Agreed, this is much better than the current situation. I don&#39;t think
+there is such a thing as a perfect accounting of shared pages anyway.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; Signed-off-by: Vlastimil Babka &lt;vbabka@suse.cz&gt;</span>
+<span class="quote">&gt; Acked-by: Konstantin Khlebnikov &lt;khlebnikov@yandex-team.ru&gt;</span>
+<span class="acked-by">
+Acked-by: Jerome Marchand &lt;jmarchan@redhat.com&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Oct. 2, 2015, 3:20 p.m.</div>
+<pre class="content">
+On Fri 02-10-15 15:35:49, Vlastimil Babka wrote:
+<span class="quote">&gt; Currently, /proc/pid/smaps will always show &quot;Swap: 0 kB&quot; for shmem-backed</span>
+<span class="quote">&gt; mappings, even if the mapped portion does contain pages that were swapped out.</span>
+<span class="quote">&gt; This is because unlike private anonymous mappings, shmem does not change pte</span>
+<span class="quote">&gt; to swap entry, but pte_none when swapping the page out. In the smaps page</span>
+<span class="quote">&gt; walk, such page thus looks like it was never faulted in.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This patch changes smaps_pte_entry() to determine the swap status for such</span>
+<span class="quote">&gt; pte_none entries for shmem mappings, similarly to how mincore_page() does it.</span>
+<span class="quote">&gt; Swapped out pages are thus accounted for.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The accounting is arguably still not as precise as for private anonymous</span>
+<span class="quote">&gt; mappings, since now we will count also pages that the process in question never</span>
+<span class="quote">&gt; accessed, but only another process populated them and then let them become</span>
+<span class="quote">&gt; swapped out. I believe it is still less confusing and subtle than not showing</span>
+<span class="quote">&gt; any swap usage by shmem mappings at all. Also, swapped out pages only becomee a</span>
+<span class="quote">&gt; performance issue for future accesses, and we cannot predict those for neither</span>
+<span class="quote">&gt; kind of mapping.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Vlastimil Babka &lt;vbabka@suse.cz&gt;</span>
+<span class="quote">&gt; Acked-by: Konstantin Khlebnikov &lt;khlebnikov@yandex-team.ru&gt;</span>
+<span class="acked-by">
+Acked-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+
+But I think comments explaining why i_mutex is not needed are
+confusing and incomplete.
+[...]
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Here we have to inspect individual pages in our mapped range to</span>
+<span class="quote">&gt; +	 * determine how much of them are swapped out. Thanks to RCU, we don&#39;t</span>
+<span class="quote">&gt; +	 * need i_mutex to protect against truncating or hole punching.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	start = linear_page_index(vma, vma-&gt;vm_start);</span>
+<span class="quote">&gt; +	end = linear_page_index(vma, vma-&gt;vm_end);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	return shmem_partial_swap_usage(inode-&gt;i_mapping, start, end);</span>
+[...]
+<span class="quote">&gt; +/*</span>
+<span class="quote">&gt; + * Determine (in bytes) how many pages within the given range are swapped out.</span>
+<span class="quote">&gt; + *</span>
+<span class="quote">&gt; + * Can be called without i_mutex or mapping-&gt;tree_lock thanks to RCU.</span>
+<span class="quote">&gt; + */</span>
+<span class="quote">&gt; +unsigned long shmem_partial_swap_usage(struct address_space *mapping,</span>
+<span class="quote">&gt; +						pgoff_t start, pgoff_t end)</span>
+
+AFAIU RCU only helps to prevent from accessing nodes which were freed
+from the radix tree. The reason why we do not need to hold i_mutex is
+that the radix tree iterator would break out of the loop if we entered
+node which backed truncated range. At least this is my understanding, I
+might be wrong here of course.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7851">Hugh Dickins</a> - Oct. 5, 2015, 3:01 a.m.</div>
+<pre class="content">
+On Fri, 2 Oct 2015, Vlastimil Babka wrote:
+<span class="quote">
+&gt; Currently, /proc/pid/smaps will always show &quot;Swap: 0 kB&quot; for shmem-backed</span>
+<span class="quote">&gt; mappings, even if the mapped portion does contain pages that were swapped out.</span>
+<span class="quote">&gt; This is because unlike private anonymous mappings, shmem does not change pte</span>
+<span class="quote">&gt; to swap entry, but pte_none when swapping the page out. In the smaps page</span>
+<span class="quote">&gt; walk, such page thus looks like it was never faulted in.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This patch changes smaps_pte_entry() to determine the swap status for such</span>
+<span class="quote">&gt; pte_none entries for shmem mappings, similarly to how mincore_page() does it.</span>
+<span class="quote">&gt; Swapped out pages are thus accounted for.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The accounting is arguably still not as precise as for private anonymous</span>
+<span class="quote">&gt; mappings, since now we will count also pages that the process in question never</span>
+<span class="quote">&gt; accessed, but only another process populated them and then let them become</span>
+<span class="quote">&gt; swapped out. I believe it is still less confusing and subtle than not showing</span>
+<span class="quote">&gt; any swap usage by shmem mappings at all. Also, swapped out pages only becomee a</span>
+<span class="quote">&gt; performance issue for future accesses, and we cannot predict those for neither</span>
+<span class="quote">&gt; kind of mapping.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Vlastimil Babka &lt;vbabka@suse.cz&gt;</span>
+<span class="quote">&gt; Acked-by: Konstantin Khlebnikov &lt;khlebnikov@yandex-team.ru&gt;</span>
+
+Neither Ack nor Nack from me.
+
+I don&#39;t want to stand in the way of this patch, if you and others
+believe that it will help to diagnose problems in the field better
+than what&#39;s shown at present; but to me it looks dangerously like
+replacing no information by wrong information.
+
+As you acknowledge in the commit message, if a file of 100 pages
+were copied to tmpfs, and 100 tasks map its full extent, but they
+all mess around with the first 50 pages and take no interest in
+the last 50, then it&#39;s quite likely that that last 50 will get
+swapped out; then with your patch, 100 tasks are each shown as
+using 50 pages of swap, when none of them are actually using any.
+
+It is rather as if we didn&#39;t bother to record Rss, and just put
+Size in there instead: you are (for understandable reasons) treating
+the virtual address space as if every page of it had been touched.
+
+But I accept that there may well be a class of processes and problems
+which would be better served by this fiction than the present: I expect
+you have much more experience of helping out in such situations than I.
+
+And perhaps you do balance it nicely by going to the opposite extreme
+with SwapPss 0 for all (again for the eminently understandable reason,
+that it would be a whole lot more new code to work out the right number).
+Altogther, you&#39;re saying everyone&#39;s using more swap than they probably
+are, but that&#39;s okay because it&#39;s infinitely shared.
+
+I am not at all angling for you or anyone to make the changes necessary
+to make those numbers accurate.  I think there&#39;s a point at which we
+stop cluttering up the core kernel code, just for the sake of
+maintaining numbers for a /proc file someone thought was a good idea
+at the time.  But I am hoping that if this patch goes in, you will take
+responsibility for batting away all the complaints that it doesn&#39;t work
+as this or that person expected, rather than a long stream of patches
+to refine it.
+
+I think the root problem is that we&#39;re trying to use /proc/&lt;pid&gt;/smaps
+for something that&#39;s independent of &lt;pid&gt; and its maps: a shmem object.
+Would we be better served by a tmpfs-ish filesystem mounted somewhere,
+which gives names to all the objects on the internal mount of tmpfs
+(SysV SHM, memfds etc); and some fincore-ish syscalls which could be
+used to interrogate how much swap any tmpfs file is using in any range?
+(I am not volunteering to write this, not in the foreseeable future.)
+
+I have no idea of the security implications of naming the hidden, it
+may be a non-starter.  And my guess is, it would be nice if it already
+existed, but you need a solution today to some problems that have been
+wasting your time; and grafting it into smaps looks to be good enough.
+
+Some comments on your implementation below.
+<span class="quote">
+&gt; ---</span>
+<span class="quote">&gt;  Documentation/filesystems/proc.txt |  6 ++--</span>
+<span class="quote">&gt;  fs/proc/task_mmu.c                 | 48 ++++++++++++++++++++++++++++++</span>
+<span class="quote">&gt;  include/linux/shmem_fs.h           |  6 ++++</span>
+<span class="quote">&gt;  mm/shmem.c                         | 61 ++++++++++++++++++++++++++++++++++++++</span>
+<span class="quote">&gt;  4 files changed, 119 insertions(+), 2 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt</span>
+<span class="quote">&gt; index 7ef50cb..82d3657 100644</span>
+<span class="quote">&gt; --- a/Documentation/filesystems/proc.txt</span>
+<span class="quote">&gt; +++ b/Documentation/filesystems/proc.txt</span>
+<span class="quote">&gt; @@ -457,8 +457,10 @@ accessed.</span>
+<span class="quote">&gt;  a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE</span>
+<span class="quote">&gt;  and a page is modified, the file page is replaced by a private anonymous copy.</span>
+<span class="quote">&gt;  &quot;Swap&quot; shows how much would-be-anonymous memory is also used, but out on</span>
+<span class="quote">&gt; -swap.</span>
+<span class="quote">&gt; -&quot;SwapPss&quot; shows proportional swap share of this mapping.</span>
+<span class="quote">&gt; +swap. For shmem mappings, &quot;Swap&quot; shows how much of the mapped portion of the</span>
+<span class="quote">&gt; +underlying shmem object is on swap.</span>
+
+And for private mappings of tmpfs files?  I expected it to show an
+inderminate mixture of the two, but it looks like you treat the private
+mapping just like a shared one, and take no notice of the COWed pages
+out on swap which would have been reported before.  Oh, no, I think
+I misread, and you add the two together?  I agree that&#39;s the easiest
+thing to do, and therefore perhaps the best; but it doesn&#39;t fill me
+with conviction that it&#39;s the right thing to do. 
+<span class="quote">
+&gt; +&quot;SwapPss&quot; shows proportional swap share of this mapping. Shmem mappings will</span>
+<span class="quote">&gt; +currently show 0 here.</span>
+
+Yes, my heart sank when I remembered SwapPss, and I wondered what you were
+going to do with that.  I was imagining that the Swap number would go into
+SwapPss, but no, I prefer your choice to show 0 there (but depressed to
+see the word &quot;currently&quot;, which hints at grand schemes to plumb in another
+radix_tree of swap counts, or more rmap_walks to calculate, or something).
+<span class="quote">
+&gt;  &quot;AnonHugePages&quot; shows the ammount of memory backed by transparent hugepage.</span>
+<span class="quote">&gt;  &quot;Shared_Hugetlb&quot; and &quot;Private_Hugetlb&quot; show the ammounts of memory backed by</span>
+<span class="quote">&gt;  hugetlbfs page which is *not* counted in &quot;RSS&quot; or &quot;PSS&quot; field for historical</span>
+<span class="quote">&gt; diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c</span>
+<span class="quote">&gt; index 04999b2..103457c 100644</span>
+<span class="quote">&gt; --- a/fs/proc/task_mmu.c</span>
+<span class="quote">&gt; +++ b/fs/proc/task_mmu.c</span>
+<span class="quote">&gt; @@ -14,6 +14,7 @@</span>
+<span class="quote">&gt;  #include &lt;linux/swapops.h&gt;</span>
+<span class="quote">&gt;  #include &lt;linux/mmu_notifier.h&gt;</span>
+<span class="quote">&gt;  #include &lt;linux/page_idle.h&gt;</span>
+<span class="quote">&gt; +#include &lt;linux/shmem_fs.h&gt;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  #include &lt;asm/elf.h&gt;</span>
+<span class="quote">&gt;  #include &lt;asm/uaccess.h&gt;</span>
+<span class="quote">&gt; @@ -657,6 +658,51 @@ static int smaps_hugetlb_range(pte_t *pte, unsigned long hmask,</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  #endif /* HUGETLB_PAGE */</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +#ifdef CONFIG_SHMEM</span>
+
+Correct.
+<span class="quote">
+&gt; +static unsigned long smaps_shmem_swap(struct vm_area_struct *vma)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	struct inode *inode;</span>
+<span class="quote">&gt; +	unsigned long swapped;</span>
+<span class="quote">&gt; +	pgoff_t start, end;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	if (!vma-&gt;vm_file)</span>
+<span class="quote">&gt; +		return 0;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	inode = file_inode(vma-&gt;vm_file);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	if (!shmem_mapping(inode-&gt;i_mapping))</span>
+<span class="quote">&gt; +		return 0;</span>
+
+Someone somewhere may ask for an ops method,
+but that someone will certainly not be me.
+<span class="quote">
+&gt; +</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * The easier cases are when the shmem object has nothing in swap, or</span>
+<span class="quote">&gt; +	 * we have the whole object mapped. Then we can simply use the stats</span>
+<span class="quote">&gt; +	 * that are already tracked by shmem.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	swapped = shmem_swap_usage(inode);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	if (swapped == 0)</span>
+<span class="quote">&gt; +		return 0;</span>
+
+You are absolutely right to go for that optimization, but please
+please do it all inside one call to shmem.c: all you need is one
+shmem_swap_usage(inode, start, end)
+or
+shmem_swap_usage(vma).
+<span class="quote">
+&gt; +</span>
+<span class="quote">&gt; +	if (vma-&gt;vm_end - vma-&gt;vm_start &gt;= inode-&gt;i_size)</span>
+
+That must be wrong.  It&#39;s probably right for all normal processes,
+and you may not be interested in the rest; but anyone can set up
+a mapping from end of file onwards, which won&#39;t intersect with the
+swap at all.  Just a little more thought on that test would be good.
+<span class="quote">
+&gt; +		return swapped;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Here we have to inspect individual pages in our mapped range to</span>
+<span class="quote">&gt; +	 * determine how much of them are swapped out. Thanks to RCU, we don&#39;t</span>
+<span class="quote">&gt; +	 * need i_mutex to protect against truncating or hole punching.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	start = linear_page_index(vma, vma-&gt;vm_start);</span>
+<span class="quote">&gt; +	end = linear_page_index(vma, vma-&gt;vm_end);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	return shmem_partial_swap_usage(inode-&gt;i_mapping, start, end);</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +#else</span>
+<span class="quote">&gt; +static unsigned long smaps_shmem_swap(struct vm_area_struct *vma)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	return 0;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +#endif</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  static int show_smap(struct seq_file *m, void *v, int is_pid)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	struct vm_area_struct *vma = v;</span>
+<span class="quote">&gt; @@ -674,6 +720,8 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)</span>
+<span class="quote">&gt;  	/* mmap_sem is held in m_start */</span>
+<span class="quote">&gt;  	walk_page_vma(vma, &amp;smaps_walk);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +	mss.swap += smaps_shmem_swap(vma);</span>
+<span class="quote">&gt; +</span>
+
+So, I think here you add the private swap to the object swap.
+<span class="quote">
+&gt;  	show_map_vma(m, vma, is_pid);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	seq_printf(m,</span>
+<span class="quote">&gt; diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h</span>
+<span class="quote">&gt; index 50777b5..12519e4 100644</span>
+<span class="quote">&gt; --- a/include/linux/shmem_fs.h</span>
+<span class="quote">&gt; +++ b/include/linux/shmem_fs.h</span>
+<span class="quote">&gt; @@ -60,6 +60,12 @@ extern struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,</span>
+<span class="quote">&gt;  extern void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end);</span>
+<span class="quote">&gt;  extern int shmem_unuse(swp_entry_t entry, struct page *page);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +#ifdef CONFIG_SWAP</span>
+
+As Andrew said, better just drop the #ifdef here.
+<span class="quote">
+&gt; +extern unsigned long shmem_swap_usage(struct inode *inode);</span>
+<span class="quote">&gt; +extern unsigned long shmem_partial_swap_usage(struct address_space *mapping,</span>
+<span class="quote">&gt; +						pgoff_t start, pgoff_t end);</span>
+<span class="quote">&gt; +#endif</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  static inline struct page *shmem_read_mapping_page(</span>
+<span class="quote">&gt;  				struct address_space *mapping, pgoff_t index)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; diff --git a/mm/shmem.c b/mm/shmem.c</span>
+<span class="quote">&gt; index b543cc7..b0e9e30 100644</span>
+<span class="quote">&gt; --- a/mm/shmem.c</span>
+<span class="quote">&gt; +++ b/mm/shmem.c</span>
+<span class="quote">&gt; @@ -360,6 +360,67 @@ static int shmem_free_swap(struct address_space *mapping,</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  /*</span>
+<span class="quote">&gt; + * Determine (in bytes) how much of the whole shmem object is swapped out.</span>
+<span class="quote">&gt; + */</span>
+<span class="quote">&gt; +unsigned long shmem_swap_usage(struct inode *inode)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	struct shmem_inode_info *info = SHMEM_I(inode);</span>
+<span class="quote">&gt; +	unsigned long swapped;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/* Mostly an overkill, but it&#39;s not atomic64_t */</span>
+<span class="quote">&gt; +	spin_lock(&amp;info-&gt;lock);</span>
+
+Entirely overkill, what&#39;s atomic64_t got to do with it?
+info-&gt;swapped is an unsigned long, 32-bit on 32-bit, 64-bit on 64-bit,
+there are no atomicity issues.  READ_ONCE if you like, but I can&#39;t even
+see where it would read twice, or what bad consequence could result.
+<span class="quote">
+&gt; +	swapped = info-&gt;swapped;</span>
+<span class="quote">&gt; +	spin_unlock(&amp;info-&gt;lock);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	return swapped &lt;&lt; PAGE_SHIFT;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +/*</span>
+<span class="quote">&gt; + * Determine (in bytes) how many pages within the given range are swapped out.</span>
+<span class="quote">&gt; + *</span>
+<span class="quote">&gt; + * Can be called without i_mutex or mapping-&gt;tree_lock thanks to RCU.</span>
+
+Correct.
+<span class="quote">
+&gt; + */</span>
+<span class="quote">&gt; +unsigned long shmem_partial_swap_usage(struct address_space *mapping,</span>
+<span class="quote">&gt; +						pgoff_t start, pgoff_t end)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	struct radix_tree_iter iter;</span>
+<span class="quote">&gt; +	void **slot;</span>
+<span class="quote">&gt; +	struct page *page;</span>
+<span class="quote">&gt; +	unsigned long swapped = 0;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	rcu_read_lock();</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +restart:</span>
+<span class="quote">&gt; +	radix_tree_for_each_slot(slot, &amp;mapping-&gt;page_tree, &amp;iter, start) {</span>
+<span class="quote">&gt; +		if (iter.index &gt;= end)</span>
+<span class="quote">&gt; +			break;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +		page = radix_tree_deref_slot(slot);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +		/*</span>
+<span class="quote">&gt; +		 * This should only be possible to happen at index 0, so we</span>
+<span class="quote">&gt; +		 * don&#39;t need to reset the counter, nor do we risk infinite</span>
+<span class="quote">&gt; +		 * restarts.</span>
+<span class="quote">&gt; +		 */</span>
+<span class="quote">&gt; +		if (radix_tree_deref_retry(page))</span>
+<span class="quote">&gt; +			goto restart;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +		if (radix_tree_exceptional_entry(page))</span>
+<span class="quote">&gt; +			swapped++;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +		if (need_resched()) {</span>
+<span class="quote">&gt; +			cond_resched_rcu();</span>
+<span class="quote">&gt; +			start = iter.index + 1;</span>
+<span class="quote">&gt; +			goto restart;</span>
+<span class="quote">&gt; +		}</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	rcu_read_unlock();</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	return swapped &lt;&lt; PAGE_SHIFT;</span>
+<span class="quote">&gt; +}</span>
+
+This is what you most wanted me to look at, but it looks perfect to me
+(aside from my wanting one call into shmem.c instead of two).
+
+Hugh
+<span class="quote">
+&gt; +</span>
+<span class="quote">&gt; +/*</span>
+<span class="quote">&gt;   * SysV IPC SHM_UNLOCK restore Unevictable pages to their evictable lists.</span>
+<span class="quote">&gt;   */</span>
+<span class="quote">&gt;  void shmem_unlock_mapping(struct address_space *mapping)</span>
+<span class="quote">&gt; -- </span>
+<span class="quote">&gt; 2.5.2</span>
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Oct. 5, 2015, 7:53 a.m.</div>
+<pre class="content">
+On Fri, Oct 02, 2015 at 03:35:49PM +0200, Vlastimil Babka wrote:
+<span class="quote">&gt; +static unsigned long smaps_shmem_swap(struct vm_area_struct *vma)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	struct inode *inode;</span>
+<span class="quote">&gt; +	unsigned long swapped;</span>
+<span class="quote">&gt; +	pgoff_t start, end;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	if (!vma-&gt;vm_file)</span>
+<span class="quote">&gt; +		return 0;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	inode = file_inode(vma-&gt;vm_file);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	if (!shmem_mapping(inode-&gt;i_mapping))</span>
+<span class="quote">&gt; +		return 0;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * The easier cases are when the shmem object has nothing in swap, or</span>
+<span class="quote">&gt; +	 * we have the whole object mapped. Then we can simply use the stats</span>
+<span class="quote">&gt; +	 * that are already tracked by shmem.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	swapped = shmem_swap_usage(inode);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	if (swapped == 0)</span>
+<span class="quote">&gt; +		return 0;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	if (vma-&gt;vm_end - vma-&gt;vm_start &gt;= inode-&gt;i_size)</span>
+<span class="quote">&gt; +		return swapped;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Here we have to inspect individual pages in our mapped range to</span>
+<span class="quote">&gt; +	 * determine how much of them are swapped out. Thanks to RCU, we don&#39;t</span>
+<span class="quote">&gt; +	 * need i_mutex to protect against truncating or hole punching.</span>
+<span class="quote">&gt; +	 */</span>
+
+At the very least put in an assertion that we hold the RCU read lock,
+otherwise RCU doesn&#39;t guarantee anything and its not obvious it is held
+here.
+<span class="quote">
+&gt; +	start = linear_page_index(vma, vma-&gt;vm_start);</span>
+<span class="quote">&gt; +	end = linear_page_index(vma, vma-&gt;vm_end);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	return shmem_partial_swap_usage(inode-&gt;i_mapping, start, end);</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">
+&gt; + * Determine (in bytes) how much of the whole shmem object is swapped out.</span>
+<span class="quote">&gt; + */</span>
+<span class="quote">&gt; +unsigned long shmem_swap_usage(struct inode *inode)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	struct shmem_inode_info *info = SHMEM_I(inode);</span>
+<span class="quote">&gt; +	unsigned long swapped;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/* Mostly an overkill, but it&#39;s not atomic64_t */</span>
+
+Yeah, that don&#39;t make any kind of sense.
+<span class="quote">
+&gt; +	spin_lock(&amp;info-&gt;lock);</span>
+<span class="quote">&gt; +	swapped = info-&gt;swapped;</span>
+<span class="quote">&gt; +	spin_unlock(&amp;info-&gt;lock);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	return swapped &lt;&lt; PAGE_SHIFT;</span>
+<span class="quote">&gt; +}</span>
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=72672">Vlastimil Babka</a> - Oct. 21, 2015, 2:39 p.m.</div>
+<pre class="content">
+On 10/05/2015 05:01 AM, Hugh Dickins wrote:
+<span class="quote">&gt; On Fri, 2 Oct 2015, Vlastimil Babka wrote:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; Currently, /proc/pid/smaps will always show &quot;Swap: 0 kB&quot; for shmem-backed</span>
+<span class="quote">&gt;&gt; mappings, even if the mapped portion does contain pages that were swapped out.</span>
+<span class="quote">&gt;&gt; This is because unlike private anonymous mappings, shmem does not change pte</span>
+<span class="quote">&gt;&gt; to swap entry, but pte_none when swapping the page out. In the smaps page</span>
+<span class="quote">&gt;&gt; walk, such page thus looks like it was never faulted in.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; This patch changes smaps_pte_entry() to determine the swap status for such</span>
+<span class="quote">&gt;&gt; pte_none entries for shmem mappings, similarly to how mincore_page() does it.</span>
+<span class="quote">&gt;&gt; Swapped out pages are thus accounted for.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; The accounting is arguably still not as precise as for private anonymous</span>
+<span class="quote">&gt;&gt; mappings, since now we will count also pages that the process in question never</span>
+<span class="quote">&gt;&gt; accessed, but only another process populated them and then let them become</span>
+<span class="quote">&gt;&gt; swapped out. I believe it is still less confusing and subtle than not showing</span>
+<span class="quote">&gt;&gt; any swap usage by shmem mappings at all. Also, swapped out pages only becomee a</span>
+<span class="quote">&gt;&gt; performance issue for future accesses, and we cannot predict those for neither</span>
+<span class="quote">&gt;&gt; kind of mapping.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Signed-off-by: Vlastimil Babka &lt;vbabka@suse.cz&gt;</span>
+<span class="quote">&gt;&gt; Acked-by: Konstantin Khlebnikov &lt;khlebnikov@yandex-team.ru&gt;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Neither Ack nor Nack from me.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I don&#39;t want to stand in the way of this patch, if you and others</span>
+<span class="quote">&gt; believe that it will help to diagnose problems in the field better</span>
+<span class="quote">&gt; than what&#39;s shown at present; but to me it looks dangerously like</span>
+<span class="quote">&gt; replacing no information by wrong information.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; As you acknowledge in the commit message, if a file of 100 pages</span>
+<span class="quote">&gt; were copied to tmpfs, and 100 tasks map its full extent, but they</span>
+<span class="quote">&gt; all mess around with the first 50 pages and take no interest in</span>
+<span class="quote">&gt; the last 50, then it&#39;s quite likely that that last 50 will get</span>
+<span class="quote">&gt; swapped out; then with your patch, 100 tasks are each shown as</span>
+<span class="quote">&gt; using 50 pages of swap, when none of them are actually using any.</span>
+
+Yeah, but isn&#39;t it the same with private memory which was swapped out at 
+some point and we don&#39;t know if it will be touched or not? The
+difference is in private case we know the process touched it at least
+once, but that can also mean nothing for the future (or maybe it just
+mmapped with MAP_POPULATE and didn&#39;t care about half of it).
+
+That&#39;s basically what I was trying to say in the changelog. I interpret
+the Swap: value as the amount of swap-in potential, if the process was
+going to access it, which is what the particular customer also expects 
+(see below). In that case showing zero is IMHO wrong and inconsistent 
+with the anonymous private mappings.
+<span class="quote">
+&gt; It is rather as if we didn&#39;t bother to record Rss, and just put</span>
+<span class="quote">&gt; Size in there instead: you are (for understandable reasons) treating</span>
+<span class="quote">&gt; the virtual address space as if every page of it had been touched.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; But I accept that there may well be a class of processes and problems</span>
+<span class="quote">&gt; which would be better served by this fiction than the present: I expect</span>
+<span class="quote">&gt; you have much more experience of helping out in such situations than I.</span>
+
+Well, the customers driving this change would in the best case want to
+see the shmem swap accounted continuously and e.g. see it immediately in 
+the top output. Fixing (IMHO) the smaps output is the next best thing. 
+The use case here is a application that really doesn&#39;t like page faults, 
+and has background thread that checks and prefaults such areas when they 
+are expected to be used soon. So they would like to identify these areas.
+<span class="quote">
+&gt; And perhaps you do balance it nicely by going to the opposite extreme</span>
+<span class="quote">&gt; with SwapPss 0 for all (again for the eminently understandable reason,</span>
+<span class="quote">&gt; that it would be a whole lot more new code to work out the right number).</span>
+<span class="quote">&gt; Altogther, you&#39;re saying everyone&#39;s using more swap than they probably</span>
+<span class="quote">&gt; are, but that&#39;s okay because it&#39;s infinitely shared.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I am not at all angling for you or anyone to make the changes necessary</span>
+<span class="quote">&gt; to make those numbers accurate.  I think there&#39;s a point at which we</span>
+<span class="quote">&gt; stop cluttering up the core kernel code, just for the sake of</span>
+<span class="quote">&gt; maintaining numbers for a /proc file someone thought was a good idea</span>
+<span class="quote">&gt; at the time.  But I am hoping that if this patch goes in, you will take</span>
+<span class="quote">&gt; responsibility for batting away all the complaints that it doesn&#39;t work</span>
+<span class="quote">&gt; as this or that person expected, rather than a long stream of patches</span>
+<span class="quote">&gt; to refine it.</span>
+
+I don&#39;t plan to fix SwapPss, so I can drop the &quot;currently&quot;.
+<span class="quote">
+&gt; I think the root problem is that we&#39;re trying to use /proc/&lt;pid&gt;/smaps</span>
+<span class="quote">&gt; for something that&#39;s independent of &lt;pid&gt; and its maps: a shmem object.</span>
+<span class="quote">&gt; Would we be better served by a tmpfs-ish filesystem mounted somewhere,</span>
+<span class="quote">&gt; which gives names to all the objects on the internal mount of tmpfs</span>
+<span class="quote">&gt; (SysV SHM, memfds etc); and some fincore-ish syscalls which could be</span>
+<span class="quote">&gt; used to interrogate how much swap any tmpfs file is using in any range?</span>
+<span class="quote">&gt; (I am not volunteering to write this, not in the foreseeable future.)</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I have no idea of the security implications of naming the hidden, it</span>
+<span class="quote">&gt; may be a non-starter.  And my guess is, it would be nice if it already</span>
+<span class="quote">&gt; existed, but you need a solution today to some problems that have been</span>
+<span class="quote">&gt; wasting your time; and grafting it into smaps looks to be good enough.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Some comments on your implementation below.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; ---</span>
+<span class="quote">&gt;&gt;   Documentation/filesystems/proc.txt |  6 ++--</span>
+<span class="quote">&gt;&gt;   fs/proc/task_mmu.c                 | 48 ++++++++++++++++++++++++++++++</span>
+<span class="quote">&gt;&gt;   include/linux/shmem_fs.h           |  6 ++++</span>
+<span class="quote">&gt;&gt;   mm/shmem.c                         | 61 ++++++++++++++++++++++++++++++++++++++</span>
+<span class="quote">&gt;&gt;   4 files changed, 119 insertions(+), 2 deletions(-)</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt</span>
+<span class="quote">&gt;&gt; index 7ef50cb..82d3657 100644</span>
+<span class="quote">&gt;&gt; --- a/Documentation/filesystems/proc.txt</span>
+<span class="quote">&gt;&gt; +++ b/Documentation/filesystems/proc.txt</span>
+<span class="quote">&gt;&gt; @@ -457,8 +457,10 @@ accessed.</span>
+<span class="quote">&gt;&gt;   a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE</span>
+<span class="quote">&gt;&gt;   and a page is modified, the file page is replaced by a private anonymous copy.</span>
+<span class="quote">&gt;&gt;   &quot;Swap&quot; shows how much would-be-anonymous memory is also used, but out on</span>
+<span class="quote">&gt;&gt; -swap.</span>
+<span class="quote">&gt;&gt; -&quot;SwapPss&quot; shows proportional swap share of this mapping.</span>
+<span class="quote">&gt;&gt; +swap. For shmem mappings, &quot;Swap&quot; shows how much of the mapped portion of the</span>
+<span class="quote">&gt;&gt; +underlying shmem object is on swap.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; And for private mappings of tmpfs files?  I expected it to show an</span>
+<span class="quote">&gt; inderminate mixture of the two, but it looks like you treat the private</span>
+<span class="quote">&gt; mapping just like a shared one, and take no notice of the COWed pages</span>
+<span class="quote">&gt; out on swap which would have been reported before.  Oh, no, I think</span>
+<span class="quote">&gt; I misread, and you add the two together?  I agree that&#39;s the easiest</span>
+<span class="quote">&gt; thing to do, and therefore perhaps the best; but it doesn&#39;t fill me</span>
+<span class="quote">&gt; with conviction that it&#39;s the right thing to do.</span>
+
+Thanks for pointing this out, I totally missed this possibility! Well
+the current patch is certainly not the right thing to do, as it can
+over-account. The most correct solution would have to be implemented 
+into the page walk and only check into shmem radix tree for individual 
+pages that were not COWed. Michal Hocko suggested I try that, and 
+although it does add some overhead (the complexity is n*log(n) AFAICT), 
+it&#39;s not that bad from preliminary checks. Another advantage is that no 
+new shmem code is needed, as we can use the generic find_get_entry(). 
+Unless we want to really limit the extra complexity only to the special 
+private mapping case with non-zero swap usage of the shmem object etc... 
+I&#39;ll repost the series with that approach.
+
+Other non-perfect solutions that come to mind:
+
+1) For private mappings, count only the swapents. &quot;Swap:&quot; is no longer
+showing full swap-in potential though.
+2) For private mappings, do not count swapents. Ditto.
+3) Provide two separate counters. The user won&#39;t know how much they
+overlap, though.
+
+ From these I would be inclined towards 3) as being more universal, 
+although then it&#39;s no longer a simple &quot;we&#39;re fixing a Swap: 0 value 
+which is wrong&quot;, but closer to original Jerome&#39;s versions, which IIRC 
+introduced several shmem-specific counters.
+
+Well at least now I do understand why you don&#39;t particularly like this 
+approach...
+<span class="quote">
+&gt;&gt; +&quot;SwapPss&quot; shows proportional swap share of this mapping. Shmem mappings will</span>
+<span class="quote">&gt;&gt; +currently show 0 here.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Yes, my heart sank when I remembered SwapPss, and I wondered what you were</span>
+<span class="quote">&gt; going to do with that.  I was imagining that the Swap number would go into</span>
+<span class="quote">&gt; SwapPss, but no, I prefer your choice to show 0 there (but depressed to</span>
+<span class="quote">&gt; see the word &quot;currently&quot;, which hints at grand schemes to plumb in another</span>
+<span class="quote">&gt; radix_tree of swap counts, or more rmap_walks to calculate, or something).</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt;   &quot;AnonHugePages&quot; shows the ammount of memory backed by transparent hugepage.</span>
+<span class="quote">&gt;&gt;   &quot;Shared_Hugetlb&quot; and &quot;Private_Hugetlb&quot; show the ammounts of memory backed by</span>
+<span class="quote">&gt;&gt;   hugetlbfs page which is *not* counted in &quot;RSS&quot; or &quot;PSS&quot; field for historical</span>
+<span class="quote">&gt;&gt; diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c</span>
+<span class="quote">&gt;&gt; index 04999b2..103457c 100644</span>
+<span class="quote">&gt;&gt; --- a/fs/proc/task_mmu.c</span>
+<span class="quote">&gt;&gt; +++ b/fs/proc/task_mmu.c</span>
+<span class="quote">&gt;&gt; @@ -14,6 +14,7 @@</span>
+<span class="quote">&gt;&gt;   #include &lt;linux/swapops.h&gt;</span>
+<span class="quote">&gt;&gt;   #include &lt;linux/mmu_notifier.h&gt;</span>
+<span class="quote">&gt;&gt;   #include &lt;linux/page_idle.h&gt;</span>
+<span class="quote">&gt;&gt; +#include &lt;linux/shmem_fs.h&gt;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;   #include &lt;asm/elf.h&gt;</span>
+<span class="quote">&gt;&gt;   #include &lt;asm/uaccess.h&gt;</span>
+<span class="quote">&gt;&gt; @@ -657,6 +658,51 @@ static int smaps_hugetlb_range(pte_t *pte, unsigned long hmask,</span>
+<span class="quote">&gt;&gt;   }</span>
+<span class="quote">&gt;&gt;   #endif /* HUGETLB_PAGE */</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; +#ifdef CONFIG_SHMEM</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Correct.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; +static unsigned long smaps_shmem_swap(struct vm_area_struct *vma)</span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +	struct inode *inode;</span>
+<span class="quote">&gt;&gt; +	unsigned long swapped;</span>
+<span class="quote">&gt;&gt; +	pgoff_t start, end;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	if (!vma-&gt;vm_file)</span>
+<span class="quote">&gt;&gt; +		return 0;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	inode = file_inode(vma-&gt;vm_file);</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	if (!shmem_mapping(inode-&gt;i_mapping))</span>
+<span class="quote">&gt;&gt; +		return 0;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Someone somewhere may ask for an ops method,</span>
+<span class="quote">&gt; but that someone will certainly not be me.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	/*</span>
+<span class="quote">&gt;&gt; +	 * The easier cases are when the shmem object has nothing in swap, or</span>
+<span class="quote">&gt;&gt; +	 * we have the whole object mapped. Then we can simply use the stats</span>
+<span class="quote">&gt;&gt; +	 * that are already tracked by shmem.</span>
+<span class="quote">&gt;&gt; +	 */</span>
+<span class="quote">&gt;&gt; +	swapped = shmem_swap_usage(inode);</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	if (swapped == 0)</span>
+<span class="quote">&gt;&gt; +		return 0;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; You are absolutely right to go for that optimization, but please</span>
+<span class="quote">&gt; please do it all inside one call to shmem.c: all you need is one</span>
+<span class="quote">&gt; shmem_swap_usage(inode, start, end)</span>
+<span class="quote">&gt; or</span>
+<span class="quote">&gt; shmem_swap_usage(vma).</span>
+
+OK.
+<span class="quote">
+&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	if (vma-&gt;vm_end - vma-&gt;vm_start &gt;= inode-&gt;i_size)</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; That must be wrong.  It&#39;s probably right for all normal processes,</span>
+<span class="quote">&gt; and you may not be interested in the rest; but anyone can set up</span>
+<span class="quote">&gt; a mapping from end of file onwards, which won&#39;t intersect with the</span>
+<span class="quote">&gt; swap at all.  Just a little more thought on that test would be good.</span>
+
+Uh right, thanks for pointing out.
+<span class="quote">
+&gt;&gt; +		return swapped;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	/*</span>
+<span class="quote">&gt;&gt; +	 * Here we have to inspect individual pages in our mapped range to</span>
+<span class="quote">&gt;&gt; +	 * determine how much of them are swapped out. Thanks to RCU, we don&#39;t</span>
+<span class="quote">&gt;&gt; +	 * need i_mutex to protect against truncating or hole punching.</span>
+<span class="quote">&gt;&gt; +	 */</span>
+<span class="quote">&gt;&gt; +	start = linear_page_index(vma, vma-&gt;vm_start);</span>
+<span class="quote">&gt;&gt; +	end = linear_page_index(vma, vma-&gt;vm_end);</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	return shmem_partial_swap_usage(inode-&gt;i_mapping, start, end);</span>
+<span class="quote">&gt;&gt; +}</span>
+<span class="quote">&gt;&gt; +#else</span>
+<span class="quote">&gt;&gt; +static unsigned long smaps_shmem_swap(struct vm_area_struct *vma)</span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +	return 0;</span>
+<span class="quote">&gt;&gt; +}</span>
+<span class="quote">&gt;&gt; +#endif</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt;   static int show_smap(struct seq_file *m, void *v, int is_pid)</span>
+<span class="quote">&gt;&gt;   {</span>
+<span class="quote">&gt;&gt;   	struct vm_area_struct *vma = v;</span>
+<span class="quote">&gt;&gt; @@ -674,6 +720,8 @@ static int show_smap(struct seq_file *m, void *v, int is_pid)</span>
+<span class="quote">&gt;&gt;   	/* mmap_sem is held in m_start */</span>
+<span class="quote">&gt;&gt;   	walk_page_vma(vma, &amp;smaps_walk);</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; +	mss.swap += smaps_shmem_swap(vma);</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; So, I think here you add the private swap to the object swap.</span>
+
+Yes, through ignorance.
+<span class="quote">
+&gt;&gt;   	show_map_vma(m, vma, is_pid);</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;   	seq_printf(m,</span>
+<span class="quote">&gt;&gt; diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h</span>
+<span class="quote">&gt;&gt; index 50777b5..12519e4 100644</span>
+<span class="quote">&gt;&gt; --- a/include/linux/shmem_fs.h</span>
+<span class="quote">&gt;&gt; +++ b/include/linux/shmem_fs.h</span>
+<span class="quote">&gt;&gt; @@ -60,6 +60,12 @@ extern struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,</span>
+<span class="quote">&gt;&gt;   extern void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end);</span>
+<span class="quote">&gt;&gt;   extern int shmem_unuse(swp_entry_t entry, struct page *page);</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; +#ifdef CONFIG_SWAP</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; As Andrew said, better just drop the #ifdef here.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; +extern unsigned long shmem_swap_usage(struct inode *inode);</span>
+<span class="quote">&gt;&gt; +extern unsigned long shmem_partial_swap_usage(struct address_space *mapping,</span>
+<span class="quote">&gt;&gt; +						pgoff_t start, pgoff_t end);</span>
+<span class="quote">&gt;&gt; +#endif</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt;   static inline struct page *shmem_read_mapping_page(</span>
+<span class="quote">&gt;&gt;   				struct address_space *mapping, pgoff_t index)</span>
+<span class="quote">&gt;&gt;   {</span>
+<span class="quote">&gt;&gt; diff --git a/mm/shmem.c b/mm/shmem.c</span>
+<span class="quote">&gt;&gt; index b543cc7..b0e9e30 100644</span>
+<span class="quote">&gt;&gt; --- a/mm/shmem.c</span>
+<span class="quote">&gt;&gt; +++ b/mm/shmem.c</span>
+<span class="quote">&gt;&gt; @@ -360,6 +360,67 @@ static int shmem_free_swap(struct address_space *mapping,</span>
+<span class="quote">&gt;&gt;   }</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;   /*</span>
+<span class="quote">&gt;&gt; + * Determine (in bytes) how much of the whole shmem object is swapped out.</span>
+<span class="quote">&gt;&gt; + */</span>
+<span class="quote">&gt;&gt; +unsigned long shmem_swap_usage(struct inode *inode)</span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +	struct shmem_inode_info *info = SHMEM_I(inode);</span>
+<span class="quote">&gt;&gt; +	unsigned long swapped;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	/* Mostly an overkill, but it&#39;s not atomic64_t */</span>
+<span class="quote">&gt;&gt; +	spin_lock(&amp;info-&gt;lock);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Entirely overkill, what&#39;s atomic64_t got to do with it?</span>
+<span class="quote">&gt; info-&gt;swapped is an unsigned long, 32-bit on 32-bit, 64-bit on 64-bit,</span>
+<span class="quote">&gt; there are no atomicity issues.  READ_ONCE if you like, but I can&#39;t even</span>
+<span class="quote">&gt; see where it would read twice, or what bad consequence could result.</span>
+
+Right, I was wrongly thinking that the counter would be 64bit also on
+32bit machines and thus not atomically readable...
+<span class="quote">
+&gt;&gt; +	swapped = info-&gt;swapped;</span>
+<span class="quote">&gt;&gt; +	spin_unlock(&amp;info-&gt;lock);</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	return swapped &lt;&lt; PAGE_SHIFT;</span>
+<span class="quote">&gt;&gt; +}</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +/*</span>
+<span class="quote">&gt;&gt; + * Determine (in bytes) how many pages within the given range are swapped out.</span>
+<span class="quote">&gt;&gt; + *</span>
+<span class="quote">&gt;&gt; + * Can be called without i_mutex or mapping-&gt;tree_lock thanks to RCU.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Correct.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; + */</span>
+<span class="quote">&gt;&gt; +unsigned long shmem_partial_swap_usage(struct address_space *mapping,</span>
+<span class="quote">&gt;&gt; +						pgoff_t start, pgoff_t end)</span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +	struct radix_tree_iter iter;</span>
+<span class="quote">&gt;&gt; +	void **slot;</span>
+<span class="quote">&gt;&gt; +	struct page *page;</span>
+<span class="quote">&gt;&gt; +	unsigned long swapped = 0;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	rcu_read_lock();</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +restart:</span>
+<span class="quote">&gt;&gt; +	radix_tree_for_each_slot(slot, &amp;mapping-&gt;page_tree, &amp;iter, start) {</span>
+<span class="quote">&gt;&gt; +		if (iter.index &gt;= end)</span>
+<span class="quote">&gt;&gt; +			break;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +		page = radix_tree_deref_slot(slot);</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +		/*</span>
+<span class="quote">&gt;&gt; +		 * This should only be possible to happen at index 0, so we</span>
+<span class="quote">&gt;&gt; +		 * don&#39;t need to reset the counter, nor do we risk infinite</span>
+<span class="quote">&gt;&gt; +		 * restarts.</span>
+<span class="quote">&gt;&gt; +		 */</span>
+<span class="quote">&gt;&gt; +		if (radix_tree_deref_retry(page))</span>
+<span class="quote">&gt;&gt; +			goto restart;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +		if (radix_tree_exceptional_entry(page))</span>
+<span class="quote">&gt;&gt; +			swapped++;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +		if (need_resched()) {</span>
+<span class="quote">&gt;&gt; +			cond_resched_rcu();</span>
+<span class="quote">&gt;&gt; +			start = iter.index + 1;</span>
+<span class="quote">&gt;&gt; +			goto restart;</span>
+<span class="quote">&gt;&gt; +		}</span>
+<span class="quote">&gt;&gt; +	}</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	rcu_read_unlock();</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	return swapped &lt;&lt; PAGE_SHIFT;</span>
+<span class="quote">&gt;&gt; +}</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; This is what you most wanted me to look at, but it looks perfect to me</span>
+<span class="quote">&gt; (aside from my wanting one call into shmem.c instead of two).</span>
+
+Thanks!
+<span class="quote">
+&gt; Hugh</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +/*</span>
+<span class="quote">&gt;&gt;    * SysV IPC SHM_UNLOCK restore Unevictable pages to their evictable lists.</span>
+<span class="quote">&gt;&gt;    */</span>
+<span class="quote">&gt;&gt;   void shmem_unlock_mapping(struct address_space *mapping)</span>
+<span class="quote">&gt;&gt; --</span>
+<span class="quote">&gt;&gt; 2.5.2</span>
+
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7851">Hugh Dickins</a> - Oct. 21, 2015, 10:38 p.m.</div>
+<pre class="content">
+On Wed, 21 Oct 2015, Vlastimil Babka wrote:
+<span class="quote">&gt; On 10/05/2015 05:01 AM, Hugh Dickins wrote:</span>
+<span class="quote">&gt; &gt; On Fri, 2 Oct 2015, Vlastimil Babka wrote:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Currently, /proc/pid/smaps will always show &quot;Swap: 0 kB&quot; for shmem-backed</span>
+<span class="quote">&gt; &gt; &gt; mappings, even if the mapped portion does contain pages that were swapped</span>
+<span class="quote">&gt; &gt; &gt; out.</span>
+<span class="quote">&gt; &gt; &gt; This is because unlike private anonymous mappings, shmem does not change</span>
+<span class="quote">&gt; &gt; &gt; pte</span>
+<span class="quote">&gt; &gt; &gt; to swap entry, but pte_none when swapping the page out. In the smaps page</span>
+<span class="quote">&gt; &gt; &gt; walk, such page thus looks like it was never faulted in.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; This patch changes smaps_pte_entry() to determine the swap status for</span>
+<span class="quote">&gt; &gt; &gt; such</span>
+<span class="quote">&gt; &gt; &gt; pte_none entries for shmem mappings, similarly to how mincore_page() does</span>
+<span class="quote">&gt; &gt; &gt; it.</span>
+<span class="quote">&gt; &gt; &gt; Swapped out pages are thus accounted for.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; The accounting is arguably still not as precise as for private anonymous</span>
+<span class="quote">&gt; &gt; &gt; mappings, since now we will count also pages that the process in question</span>
+<span class="quote">&gt; &gt; &gt; never</span>
+<span class="quote">&gt; &gt; &gt; accessed, but only another process populated them and then let them</span>
+<span class="quote">&gt; &gt; &gt; become</span>
+<span class="quote">&gt; &gt; &gt; swapped out. I believe it is still less confusing and subtle than not</span>
+<span class="quote">&gt; &gt; &gt; showing</span>
+<span class="quote">&gt; &gt; &gt; any swap usage by shmem mappings at all. Also, swapped out pages only</span>
+<span class="quote">&gt; &gt; &gt; becomee a</span>
+<span class="quote">&gt; &gt; &gt; performance issue for future accesses, and we cannot predict those for</span>
+<span class="quote">&gt; &gt; &gt; neither</span>
+<span class="quote">&gt; &gt; &gt; kind of mapping.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Signed-off-by: Vlastimil Babka &lt;vbabka@suse.cz&gt;</span>
+<span class="quote">&gt; &gt; &gt; Acked-by: Konstantin Khlebnikov &lt;khlebnikov@yandex-team.ru&gt;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Neither Ack nor Nack from me.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I don&#39;t want to stand in the way of this patch, if you and others</span>
+<span class="quote">&gt; &gt; believe that it will help to diagnose problems in the field better</span>
+<span class="quote">&gt; &gt; than what&#39;s shown at present; but to me it looks dangerously like</span>
+<span class="quote">&gt; &gt; replacing no information by wrong information.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; As you acknowledge in the commit message, if a file of 100 pages</span>
+<span class="quote">&gt; &gt; were copied to tmpfs, and 100 tasks map its full extent, but they</span>
+<span class="quote">&gt; &gt; all mess around with the first 50 pages and take no interest in</span>
+<span class="quote">&gt; &gt; the last 50, then it&#39;s quite likely that that last 50 will get</span>
+<span class="quote">&gt; &gt; swapped out; then with your patch, 100 tasks are each shown as</span>
+<span class="quote">&gt; &gt; using 50 pages of swap, when none of them are actually using any.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yeah, but isn&#39;t it the same with private memory which was swapped out at some</span>
+<span class="quote">&gt; point and we don&#39;t know if it will be touched or not? The</span>
+<span class="quote">&gt; difference is in private case we know the process touched it at least</span>
+<span class="quote">&gt; once, but that can also mean nothing for the future (or maybe it just</span>
+<span class="quote">&gt; mmapped with MAP_POPULATE and didn&#39;t care about half of it).</span>
+
+I see that as quite different myself; but agree that neither way
+predicts the future.  Now, if you can make a patch to predict the future...
+
+FWIW, I do seem to be looking at it more from a point of view of how
+much swap the process is using, whereas you&#39;re looking at it more
+from a point of view of what delays would be incurred in accessing.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; That&#39;s basically what I was trying to say in the changelog. I interpret</span>
+<span class="quote">&gt; the Swap: value as the amount of swap-in potential, if the process was</span>
+<span class="quote">&gt; going to access it, which is what the particular customer also expects (see</span>
+<span class="quote">&gt; below). In that case showing zero is IMHO wrong and inconsistent with the</span>
+<span class="quote">&gt; anonymous private mappings.</span>
+
+Yes, your changelog is honest about the difference, I don&#39;t dispute that.
+As I said, neither Ack nor Nack from me: I just don&#39;t feel in a position
+to judge whether changing the output of smaps to please this customer is
+likely to displease another customer or not.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt; It is rather as if we didn&#39;t bother to record Rss, and just put</span>
+<span class="quote">&gt; &gt; Size in there instead: you are (for understandable reasons) treating</span>
+<span class="quote">&gt; &gt; the virtual address space as if every page of it had been touched.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; But I accept that there may well be a class of processes and problems</span>
+<span class="quote">&gt; &gt; which would be better served by this fiction than the present: I expect</span>
+<span class="quote">&gt; &gt; you have much more experience of helping out in such situations than I.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Well, the customers driving this change would in the best case want to</span>
+<span class="quote">&gt; see the shmem swap accounted continuously and e.g. see it immediately in the</span>
+<span class="quote">&gt; top output. Fixing (IMHO) the smaps output is the next best thing. The use</span>
+<span class="quote">&gt; case here is a application that really doesn&#39;t like page faults, and has</span>
+<span class="quote">&gt; background thread that checks and prefaults such areas when they are expected</span>
+<span class="quote">&gt; to be used soon. So they would like to identify these areas.</span>
+
+And I guess I won&#39;t be able to sell mlock(2) to you :)
+
+Still neither Ack nor Nack from me: while your number is more information
+(or misinformation) than always 0, it&#39;s still not clear to me that it will
+give them what they need.
+
+...
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; And for private mappings of tmpfs files?  I expected it to show an</span>
+<span class="quote">&gt; &gt; inderminate mixture of the two, but it looks like you treat the private</span>
+<span class="quote">&gt; &gt; mapping just like a shared one, and take no notice of the COWed pages</span>
+<span class="quote">&gt; &gt; out on swap which would have been reported before.  Oh, no, I think</span>
+<span class="quote">&gt; &gt; I misread, and you add the two together?  I agree that&#39;s the easiest</span>
+<span class="quote">&gt; &gt; thing to do, and therefore perhaps the best; but it doesn&#39;t fill me</span>
+<span class="quote">&gt; &gt; with conviction that it&#39;s the right thing to do.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Thanks for pointing this out, I totally missed this possibility! Well</span>
+<span class="quote">&gt; the current patch is certainly not the right thing to do, as it can</span>
+<span class="quote">&gt; over-account. The most correct solution would have to be implemented into the</span>
+<span class="quote">&gt; page walk and only check into shmem radix tree for individual pages that were</span>
+<span class="quote">&gt; not COWed. Michal Hocko suggested I try that, and although it does add some</span>
+<span class="quote">&gt; overhead (the complexity is n*log(n) AFAICT), it&#39;s not that bad from</span>
+<span class="quote">&gt; preliminary checks. Another advantage is that no new shmem code is needed, as</span>
+<span class="quote">&gt; we can use the generic find_get_entry(). Unless we want to really limit the</span>
+<span class="quote">&gt; extra complexity only to the special private mapping case with non-zero swap</span>
+<span class="quote">&gt; usage of the shmem object etc... I&#39;ll repost the series with that approach.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Other non-perfect solutions that come to mind:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 1) For private mappings, count only the swapents. &quot;Swap:&quot; is no longer</span>
+<span class="quote">&gt; showing full swap-in potential though.</span>
+<span class="quote">&gt; 2) For private mappings, do not count swapents. Ditto.</span>
+<span class="quote">&gt; 3) Provide two separate counters. The user won&#39;t know how much they</span>
+<span class="quote">&gt; overlap, though.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; From these I would be inclined towards 3) as being more universal, although</span>
+<span class="quote">&gt; then it&#39;s no longer a simple &quot;we&#39;re fixing a Swap: 0 value which is wrong&quot;,</span>
+<span class="quote">&gt; but closer to original Jerome&#39;s versions, which IIRC introduced several</span>
+<span class="quote">&gt; shmem-specific counters.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Well at least now I do understand why you don&#39;t particularly like this</span>
+<span class="quote">&gt; approach...</span>
+
+Have you considered extending mincore(2) for them?
+
+It was always intended that more info could be added into its byte array
+later - the man page I&#39;m looking at says &quot;The settings of the other bits
+[than the least significant] in each byte are undefined; these bits are
+reserved for possible later use.&quot;
+
+That way your customers could get a precise picture of the status of
+each page: without ambiguity as to whether it&#39;s anon, shmem, file, anon
+swap, shmem swap, whatever; without ambiguity as to where 40kB of 80kB
+lies in the region, the unused half or the vital half etc.
+
+Or forget passing back the info: just offer an madvise(,, MADV_POPULATE)?
+
+Hugh
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=1608">Jerome Marchand</a> - Oct. 26, 2015, 11:22 a.m.</div>
+<pre class="content">
+On 10/21/2015 04:39 PM, Vlastimil Babka wrote:
+<span class="quote">&gt; On 10/05/2015 05:01 AM, Hugh Dickins wrote:</span>
+<span class="quote">&gt;&gt; On Fri, 2 Oct 2015, Vlastimil Babka wrote:</span>
+<span class="quote">
+&gt;&gt; As you acknowledge in the commit message, if a file of 100 pages</span>
+<span class="quote">&gt;&gt; were copied to tmpfs, and 100 tasks map its full extent, but they</span>
+<span class="quote">&gt;&gt; all mess around with the first 50 pages and take no interest in</span>
+<span class="quote">&gt;&gt; the last 50, then it&#39;s quite likely that that last 50 will get</span>
+<span class="quote">&gt;&gt; swapped out; then with your patch, 100 tasks are each shown as</span>
+<span class="quote">&gt;&gt; using 50 pages of swap, when none of them are actually using any.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yeah, but isn&#39;t it the same with private memory which was swapped out at</span>
+<span class="quote">&gt; some point and we don&#39;t know if it will be touched or not? The</span>
+<span class="quote">&gt; difference is in private case we know the process touched it at least</span>
+<span class="quote">&gt; once, but that can also mean nothing for the future (or maybe it just</span>
+<span class="quote">&gt; mmapped with MAP_POPULATE and didn&#39;t care about half of it).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; That&#39;s basically what I was trying to say in the changelog. I interpret</span>
+<span class="quote">&gt; the Swap: value as the amount of swap-in potential, if the process was</span>
+<span class="quote">&gt; going to access it, which is what the particular customer also expects</span>
+<span class="quote">&gt; (see below). In that case showing zero is IMHO wrong and inconsistent</span>
+<span class="quote">&gt; with the anonymous private mappings.</span>
+
+I didn&#39;t understand the changelog that way an IMHO it&#39;s a pretty
+specific interpretation. I&#39;ve always understood memory accounting as
+being primarily the answer to the question: how much resources a
+process uses? I guess its meaning as been overloaded with corollaries
+that are only true in the most simple non-shared cases, such as yours
+or &quot;how much memory would be freed if this process goes away?&quot;, but I
+don&#39;t think it should ever be used as a definition.
+
+I suppose the reason I didn&#39;t understand the changelog the way you
+intended is because I think that sometimes it&#39;s correct to blame a
+process for pages it never accessed (and I also believe that
+over-accounting is better that under accounting,  but I must admit
+that it is a quite arbitrary point of view). For instance, what if a
+process has a shared anonymous mapping that includes pages that it
+never accessed, but have been populated by an other process that has
+already exited or munmaped the range? That process is not to blame for
+the appearance of these pages, but it&#39;s the only reason why they
+stay.
+
+I&#39;ll offer a lollipop to anyone who comes up with a simple consistent
+model on how to account shmem pages for all the possible cases, a
+&quot;Grand Unified Theory of Memory Accounting&quot; so to speak.
+<span class="quote">
+&gt; Other non-perfect solutions that come to mind:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 1) For private mappings, count only the swapents. &quot;Swap:&quot; is no longer</span>
+<span class="quote">&gt; showing full swap-in potential though.</span>
+<span class="quote">&gt; 2) For private mappings, do not count swapents. Ditto.</span>
+<span class="quote">&gt; 3) Provide two separate counters. The user won&#39;t know how much they</span>
+<span class="quote">&gt; overlap, though.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; From these I would be inclined towards 3) as being more universal,</span>
+<span class="quote">&gt; although then it&#39;s no longer a simple &quot;we&#39;re fixing a Swap: 0 value</span>
+<span class="quote">&gt; which is wrong&quot;, but closer to original Jerome&#39;s versions, which IIRC</span>
+<span class="quote">&gt; introduced several shmem-specific counters.</span>
+
+You remember correctly. Given all the controversy around shmem
+accounting, maybe it would indeed be better to leave existing
+counters, that are relatively well defined and understood, untouched
+and add specific counters to mess around instead.
+
+Thanks,
+Jerome
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt</span>
+<span class="p_header">index 7ef50cb..82d3657 100644</span>
+<span class="p_header">--- a/Documentation/filesystems/proc.txt</span>
+<span class="p_header">+++ b/Documentation/filesystems/proc.txt</span>
+<span class="p_chunk">@@ -457,8 +457,10 @@</span> <span class="p_context"> accessed.</span>
+ a mapping associated with a file may contain anonymous pages: when MAP_PRIVATE
+ and a page is modified, the file page is replaced by a private anonymous copy.
+ &quot;Swap&quot; shows how much would-be-anonymous memory is also used, but out on
+<span class="p_del">-swap.</span>
+<span class="p_del">-&quot;SwapPss&quot; shows proportional swap share of this mapping.</span>
+<span class="p_add">+swap. For shmem mappings, &quot;Swap&quot; shows how much of the mapped portion of the</span>
+<span class="p_add">+underlying shmem object is on swap.</span>
+<span class="p_add">+&quot;SwapPss&quot; shows proportional swap share of this mapping. Shmem mappings will</span>
+<span class="p_add">+currently show 0 here.</span>
+ &quot;AnonHugePages&quot; shows the ammount of memory backed by transparent hugepage.
+ &quot;Shared_Hugetlb&quot; and &quot;Private_Hugetlb&quot; show the ammounts of memory backed by
+ hugetlbfs page which is *not* counted in &quot;RSS&quot; or &quot;PSS&quot; field for historical
+<span class="p_header">diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c</span>
+<span class="p_header">index 04999b2..103457c 100644</span>
+<span class="p_header">--- a/fs/proc/task_mmu.c</span>
+<span class="p_header">+++ b/fs/proc/task_mmu.c</span>
+<span class="p_chunk">@@ -14,6 +14,7 @@</span> <span class="p_context"></span>
+ #include &lt;linux/swapops.h&gt;
+ #include &lt;linux/mmu_notifier.h&gt;
+ #include &lt;linux/page_idle.h&gt;
+<span class="p_add">+#include &lt;linux/shmem_fs.h&gt;</span>
+ 
+ #include &lt;asm/elf.h&gt;
+ #include &lt;asm/uaccess.h&gt;
+<span class="p_chunk">@@ -657,6 +658,51 @@</span> <span class="p_context"> static int smaps_hugetlb_range(pte_t *pte, unsigned long hmask,</span>
+ }
+ #endif /* HUGETLB_PAGE */
+ 
+<span class="p_add">+#ifdef CONFIG_SHMEM</span>
+<span class="p_add">+static unsigned long smaps_shmem_swap(struct vm_area_struct *vma)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct inode *inode;</span>
+<span class="p_add">+	unsigned long swapped;</span>
+<span class="p_add">+	pgoff_t start, end;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!vma-&gt;vm_file)</span>
+<span class="p_add">+		return 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	inode = file_inode(vma-&gt;vm_file);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!shmem_mapping(inode-&gt;i_mapping))</span>
+<span class="p_add">+		return 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * The easier cases are when the shmem object has nothing in swap, or</span>
+<span class="p_add">+	 * we have the whole object mapped. Then we can simply use the stats</span>
+<span class="p_add">+	 * that are already tracked by shmem.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	swapped = shmem_swap_usage(inode);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (swapped == 0)</span>
+<span class="p_add">+		return 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (vma-&gt;vm_end - vma-&gt;vm_start &gt;= inode-&gt;i_size)</span>
+<span class="p_add">+		return swapped;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Here we have to inspect individual pages in our mapped range to</span>
+<span class="p_add">+	 * determine how much of them are swapped out. Thanks to RCU, we don&#39;t</span>
+<span class="p_add">+	 * need i_mutex to protect against truncating or hole punching.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	start = linear_page_index(vma, vma-&gt;vm_start);</span>
+<span class="p_add">+	end = linear_page_index(vma, vma-&gt;vm_end);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return shmem_partial_swap_usage(inode-&gt;i_mapping, start, end);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+#else</span>
+<span class="p_add">+static unsigned long smaps_shmem_swap(struct vm_area_struct *vma)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ static int show_smap(struct seq_file *m, void *v, int is_pid)
+ {
+ 	struct vm_area_struct *vma = v;
+<span class="p_chunk">@@ -674,6 +720,8 @@</span> <span class="p_context"> static int show_smap(struct seq_file *m, void *v, int is_pid)</span>
+ 	/* mmap_sem is held in m_start */
+ 	walk_page_vma(vma, &amp;smaps_walk);
+ 
+<span class="p_add">+	mss.swap += smaps_shmem_swap(vma);</span>
+<span class="p_add">+</span>
+ 	show_map_vma(m, vma, is_pid);
+ 
+ 	seq_printf(m,
+<span class="p_header">diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h</span>
+<span class="p_header">index 50777b5..12519e4 100644</span>
+<span class="p_header">--- a/include/linux/shmem_fs.h</span>
+<span class="p_header">+++ b/include/linux/shmem_fs.h</span>
+<span class="p_chunk">@@ -60,6 +60,12 @@</span> <span class="p_context"> extern struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,</span>
+ extern void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end);
+ extern int shmem_unuse(swp_entry_t entry, struct page *page);
+ 
+<span class="p_add">+#ifdef CONFIG_SWAP</span>
+<span class="p_add">+extern unsigned long shmem_swap_usage(struct inode *inode);</span>
+<span class="p_add">+extern unsigned long shmem_partial_swap_usage(struct address_space *mapping,</span>
+<span class="p_add">+						pgoff_t start, pgoff_t end);</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ static inline struct page *shmem_read_mapping_page(
+ 				struct address_space *mapping, pgoff_t index)
+ {
+<span class="p_header">diff --git a/mm/shmem.c b/mm/shmem.c</span>
+<span class="p_header">index b543cc7..b0e9e30 100644</span>
+<span class="p_header">--- a/mm/shmem.c</span>
+<span class="p_header">+++ b/mm/shmem.c</span>
+<span class="p_chunk">@@ -360,6 +360,67 @@</span> <span class="p_context"> static int shmem_free_swap(struct address_space *mapping,</span>
+ }
+ 
+ /*
+<span class="p_add">+ * Determine (in bytes) how much of the whole shmem object is swapped out.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+unsigned long shmem_swap_usage(struct inode *inode)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct shmem_inode_info *info = SHMEM_I(inode);</span>
+<span class="p_add">+	unsigned long swapped;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Mostly an overkill, but it&#39;s not atomic64_t */</span>
+<span class="p_add">+	spin_lock(&amp;info-&gt;lock);</span>
+<span class="p_add">+	swapped = info-&gt;swapped;</span>
+<span class="p_add">+	spin_unlock(&amp;info-&gt;lock);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return swapped &lt;&lt; PAGE_SHIFT;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Determine (in bytes) how many pages within the given range are swapped out.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Can be called without i_mutex or mapping-&gt;tree_lock thanks to RCU.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+unsigned long shmem_partial_swap_usage(struct address_space *mapping,</span>
+<span class="p_add">+						pgoff_t start, pgoff_t end)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct radix_tree_iter iter;</span>
+<span class="p_add">+	void **slot;</span>
+<span class="p_add">+	struct page *page;</span>
+<span class="p_add">+	unsigned long swapped = 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	rcu_read_lock();</span>
+<span class="p_add">+</span>
+<span class="p_add">+restart:</span>
+<span class="p_add">+	radix_tree_for_each_slot(slot, &amp;mapping-&gt;page_tree, &amp;iter, start) {</span>
+<span class="p_add">+		if (iter.index &gt;= end)</span>
+<span class="p_add">+			break;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		page = radix_tree_deref_slot(slot);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * This should only be possible to happen at index 0, so we</span>
+<span class="p_add">+		 * don&#39;t need to reset the counter, nor do we risk infinite</span>
+<span class="p_add">+		 * restarts.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (radix_tree_deref_retry(page))</span>
+<span class="p_add">+			goto restart;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (radix_tree_exceptional_entry(page))</span>
+<span class="p_add">+			swapped++;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (need_resched()) {</span>
+<span class="p_add">+			cond_resched_rcu();</span>
+<span class="p_add">+			start = iter.index + 1;</span>
+<span class="p_add">+			goto restart;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	rcu_read_unlock();</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return swapped &lt;&lt; PAGE_SHIFT;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+  * SysV IPC SHM_UNLOCK restore Unevictable pages to their evictable lists.
+  */
+ void shmem_unlock_mapping(struct address_space *mapping)
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

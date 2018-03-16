@@ -1,0 +1,3531 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,v9,for,4.15,01/14] Restartable sequences system call - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,v9,for,4.15,01/14] Restartable sequences system call</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Oct. 12, 2017, 11:03 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20171012230326.19984-2-mathieu.desnoyers@efficios.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10003205/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10003205/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10003205/">/patch/10003205/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	5E2506028A for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 12 Oct 2017 23:08:03 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 49959288C4
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 12 Oct 2017 23:08:03 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 3C22928A80; Thu, 12 Oct 2017 23:08:03 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 6EB4328CFD
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 12 Oct 2017 23:08:00 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1757697AbdJLXH6 convert rfc822-to-8bit (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 12 Oct 2017 19:07:58 -0400
+Received: from mail.efficios.com ([167.114.142.141]:40514 &quot;EHLO
+	mail.efficios.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1753200AbdJLXEB (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 12 Oct 2017 19:04:01 -0400
+Received: from localhost (localhost.localdomain [127.0.0.1])
+	by mail.efficios.com (Postfix) with ESMTP id 982E7340363;
+	Thu, 12 Oct 2017 23:05:52 +0000 (UTC)
+Received: from mail.efficios.com ([127.0.0.1])
+	by localhost (evm-mail-1.efficios.com [127.0.0.1]) (amavisd-new,
+	port 10032)
+	with ESMTP id 4OaAqtwLxiHc; Thu, 12 Oct 2017 23:05:37 +0000 (UTC)
+Received: from localhost (localhost.localdomain [127.0.0.1])
+	by mail.efficios.com (Postfix) with ESMTP id CC70234035D;
+	Thu, 12 Oct 2017 23:05:37 +0000 (UTC)
+X-Virus-Scanned: amavisd-new at efficios.com
+Received: from mail.efficios.com ([127.0.0.1])
+	by localhost (evm-mail-1.efficios.com [127.0.0.1]) (amavisd-new,
+	port 10026)
+	with ESMTP id oBywxOT1IB9J; Thu, 12 Oct 2017 23:05:37 +0000 (UTC)
+Received: from thinkos.internal.efficios.com
+	(cable-192.222.218.157.electronicbox.net [192.222.218.157])
+	by mail.efficios.com (Postfix) with ESMTPSA id 691B834035B;
+	Thu, 12 Oct 2017 23:05:37 +0000 (UTC)
+From: Mathieu Desnoyers &lt;mathieu.desnoyers@efficios.com&gt;
+To: &quot;Paul E. McKenney&quot; &lt;paulmck@linux.vnet.ibm.com&gt;,
+	Boqun Feng &lt;boqun.feng@gmail.com&gt;, Peter Zijlstra &lt;peterz@infradead.org&gt;,
+	Paul Turner &lt;pjt@google.com&gt;, Andrew Hunter &lt;ahh@google.com&gt;,
+	Andy Lutomirski &lt;luto@amacapital.net&gt;, Dave Watson &lt;davejwatson@fb.com&gt;,
+	Josh Triplett &lt;josh@joshtriplett.org&gt;, Will Deacon &lt;will.deacon@arm.com&gt;
+Cc: linux-kernel@vger.kernel.org,
+	Mathieu Desnoyers &lt;mathieu.desnoyers@efficios.com&gt;,
+	Thomas Gleixner &lt;tglx@linutronix.de&gt;,
+	Andi Kleen &lt;andi@firstfloor.org&gt;, Chris Lameter &lt;cl@linux.com&gt;,
+	Ingo Molnar &lt;mingo@redhat.com&gt;,
+	&quot;H. Peter Anvin&quot; &lt;hpa@zytor.com&gt;, Ben Maurer &lt;bmaurer@fb.com&gt;,
+	Steven Rostedt &lt;rostedt@goodmis.org&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Russell King &lt;linux@arm.linux.org.uk&gt;,
+	Catalin Marinas &lt;catalin.marinas@arm.com&gt;,
+	Michael Kerrisk &lt;mtk.manpages@gmail.com&gt;,
+	Alexander Viro &lt;viro@zeniv.linux.org.uk&gt;, linux-api@vger.kernel.org
+Subject: [RFC PATCH v9 for 4.15 01/14] Restartable sequences system call
+Date: Thu, 12 Oct 2017 19:03:13 -0400
+Message-Id: &lt;20171012230326.19984-2-mathieu.desnoyers@efficios.com&gt;
+X-Mailer: git-send-email 2.11.0
+In-Reply-To: &lt;20171012230326.19984-1-mathieu.desnoyers@efficios.com&gt;
+References: &lt;20171012230326.19984-1-mathieu.desnoyers@efficios.com&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8BIT
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Oct. 12, 2017, 11:03 p.m.</div>
+<pre class="content">
+Expose a new system call allowing each thread to register one userspace
+memory area to be used as an ABI between kernel and user-space for two
+purposes: user-space restartable sequences and quick access to read the
+current CPU number value from user-space.
+
+* Restartable sequences (per-cpu atomics)
+
+Restartables sequences allow user-space to perform update operations on
+per-cpu data without requiring heavy-weight atomic operations.
+
+The restartable critical sections (percpu atomics) work has been started
+by Paul Turner and Andrew Hunter. It lets the kernel handle restart of
+critical sections. [1] [2] The re-implementation proposed here brings a
+few simplifications to the ABI which facilitates porting to other
+architectures and speeds up the user-space fast path. A locking-based
+fall-back, purely implemented in user-space, is proposed here to deal
+with debugger single-stepping. This fallback interacts with rseq_start()
+and rseq_finish(), which force retries in response to concurrent
+lock-based activity.
+
+Here are benchmarks of counter increment in various scenarios compared
+to restartable sequences. Those benchmarks were taken on v8 of the
+patchset.
+
+ARMv7 Processor rev 4 (v7l)
+Machine model: Cubietruck
+
+                      Counter increment speed (ns/increment)
+                             1 thread    2 threads
+global increment (baseline)      6           N/A
+percpu rseq increment           50            52
+percpu rseq spinlock            94            94
+global atomic increment         48            74 (__sync_add_and_fetch_4)
+global atomic CAS               50           172 (__sync_val_compare_and_swap_4)
+global pthread mutex           148           862
+
+ARMv7 Processor rev 10 (v7l)
+Machine model: Wandboard
+
+                      Counter increment speed (ns/increment)
+                             1 thread    4 threads
+global increment (baseline)      7           N/A
+percpu rseq increment           50            50
+percpu rseq spinlock            82            84
+global atomic increment         44           262 (__sync_add_and_fetch_4)
+global atomic CAS               46           316 (__sync_val_compare_and_swap_4)
+global pthread mutex           146          1400
+
+x86-64 Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz:
+
+                      Counter increment speed (ns/increment)
+                              1 thread           8 threads
+global increment (baseline)      3.0                N/A
+percpu rseq increment            3.6                3.8
+percpu rseq spinlock             5.6                6.2
+global LOCK; inc                 8.0              166.4
+global LOCK; cmpxchg            13.4              435.2
+global pthread mutex            25.2             1363.6
+
+* Reading the current CPU number
+
+Speeding up reading the current CPU number on which the caller thread is
+running is done by keeping the current CPU number up do date within the
+cpu_id field of the memory area registered by the thread. This is done
+by making scheduler preemption set the TIF_NOTIFY_RESUME flag on the
+current thread. Upon return to user-space, a notify-resume handler
+updates the current CPU value within the registered user-space memory
+area. User-space can then read the current CPU number directly from
+memory.
+
+Keeping the current cpu id in a memory area shared between kernel and
+user-space is an improvement over current mechanisms available to read
+the current CPU number, which has the following benefits over
+alternative approaches:
+
+- 35x speedup on ARM vs system call through glibc
+- 20x speedup on x86 compared to calling glibc, which calls vdso
+  executing a &quot;lsl&quot; instruction,
+- 14x speedup on x86 compared to inlined &quot;lsl&quot; instruction,
+- Unlike vdso approaches, this cpu_id value can be read from an inline
+  assembly, which makes it a useful building block for restartable
+  sequences.
+- The approach of reading the cpu id through memory mapping shared
+  between kernel and user-space is portable (e.g. ARM), which is not the
+  case for the lsl-based x86 vdso.
+
+On x86, yet another possible approach would be to use the gs segment
+selector to point to user-space per-cpu data. This approach performs
+similarly to the cpu id cache, but it has two disadvantages: it is
+not portable, and it is incompatible with existing applications already
+using the gs segment selector for other purposes.
+
+Benchmarking various approaches for reading the current CPU number:
+
+ARMv7 Processor rev 4 (v7l)
+Machine model: Cubietruck
+- Baseline (empty loop):                                    8.4 ns
+- Read CPU from rseq cpu_id:                               16.7 ns
+- Read CPU from rseq cpu_id (lazy register):               19.8 ns
+- glibc 2.19-0ubuntu6.6 getcpu:                           301.8 ns
+- getcpu system call:                                     234.9 ns
+
+x86-64 Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz:
+- Baseline (empty loop):                                    0.8 ns
+- Read CPU from rseq cpu_id:                                0.8 ns
+- Read CPU from rseq cpu_id (lazy register):                0.8 ns
+- Read using gs segment selector:                           0.8 ns
+- &quot;lsl&quot; inline assembly:                                   13.0 ns
+- glibc 2.19-0ubuntu6 getcpu:                              16.6 ns
+- getcpu system call:                                      53.9 ns
+
+- Speed
+
+Running 10 runs of hackbench -l 100000 seems to indicate, contrary to
+expectations, that enabling CONFIG_RSEQ slightly accelerates the
+scheduler:
+
+Configuration: 2 sockets * 8-core Intel(R) Xeon(R) CPU E5-2630 v3 @
+2.40GHz (directly on hardware, hyperthreading disabled in BIOS, energy
+saving disabled in BIOS, turboboost disabled in BIOS, cpuidle.off=1
+kernel parameter), with a Linux v4.6 defconfig+localyesconfig,
+restartable sequences series applied.
+
+* CONFIG_RSEQ=n
+
+avg.:      41.37 s
+std.dev.:   0.36 s
+
+* CONFIG_RSEQ=y
+
+avg.:      40.46 s
+std.dev.:   0.33 s
+
+- Size
+
+On x86-64, between CONFIG_RSEQ=n/y, the text size increase of vmlinux is
+2855 bytes, and the data size increase of vmlinux is 1024 bytes.
+
+* CONFIG_RSEQ=n
+
+   text	   data	    bss	    dec	    hex	filename
+9964559	4256280	 962560	15183399	 e7ae27	vmlinux.norseq
+
+* CONFIG_RSEQ=y
+
+   text	   data	    bss	    dec	    hex	filename
+9967414	4257304	 962560	15187278	 e7bd4e	vmlinux.rseq
+
+[1] https://lwn.net/Articles/650333/
+[2] http://www.linuxplumbersconf.org/2013/ocw/system/presentations/1695/original/LPC%20-%20PerCpu%20Atomics.pdf
+
+Link: http://lkml.kernel.org/r/20151027235635.16059.11630.stgit@pjt-glaptop.roam.corp.google.com
+Link: http://lkml.kernel.org/r/20150624222609.6116.86035.stgit@kitami.mtv.corp.google.com
+<span class="signed-off-by">Signed-off-by: Mathieu Desnoyers &lt;mathieu.desnoyers@efficios.com&gt;</span>
+CC: Thomas Gleixner &lt;tglx@linutronix.de&gt;
+CC: Paul Turner &lt;pjt@google.com&gt;
+CC: Andrew Hunter &lt;ahh@google.com&gt;
+CC: Peter Zijlstra &lt;peterz@infradead.org&gt;
+CC: Andy Lutomirski &lt;luto@amacapital.net&gt;
+CC: Andi Kleen &lt;andi@firstfloor.org&gt;
+CC: Dave Watson &lt;davejwatson@fb.com&gt;
+CC: Chris Lameter &lt;cl@linux.com&gt;
+CC: Ingo Molnar &lt;mingo@redhat.com&gt;
+CC: &quot;H. Peter Anvin&quot; &lt;hpa@zytor.com&gt;
+CC: Ben Maurer &lt;bmaurer@fb.com&gt;
+CC: Steven Rostedt &lt;rostedt@goodmis.org&gt;
+CC: &quot;Paul E. McKenney&quot; &lt;paulmck@linux.vnet.ibm.com&gt;
+CC: Josh Triplett &lt;josh@joshtriplett.org&gt;
+CC: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+CC: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+CC: Russell King &lt;linux@arm.linux.org.uk&gt;
+CC: Catalin Marinas &lt;catalin.marinas@arm.com&gt;
+CC: Will Deacon &lt;will.deacon@arm.com&gt;
+CC: Michael Kerrisk &lt;mtk.manpages@gmail.com&gt;
+CC: Boqun Feng &lt;boqun.feng@gmail.com&gt;
+CC: Alexander Viro &lt;viro@zeniv.linux.org.uk&gt;
+CC: linux-api@vger.kernel.org
+---
+
+Changes since v1:
+- Return -1, errno=EINVAL if cpu_cache pointer is not aligned on
+  sizeof(int32_t).
+- Update man page to describe the pointer alignement requirements and
+  update atomicity guarantees.
+- Add MAINTAINERS file GETCPU_CACHE entry.
+- Remove dynamic memory allocation: go back to having a single
+  getcpu_cache entry per thread. Update documentation accordingly.
+- Rebased on Linux 4.4.
+
+Changes since v2:
+- Introduce a &quot;cmd&quot; argument, along with an enum with GETCPU_CACHE_GET
+  and GETCPU_CACHE_SET. Introduce a uapi header linux/getcpu_cache.h
+  defining this enumeration.
+- Split resume notifier architecture implementation from the system call
+  wire up in the following arch-specific patches.
+- Man pages updates.
+- Handle 32-bit compat pointers.
+- Simplify handling of getcpu_cache GETCPU_CACHE_SET compiler barrier:
+  set the current cpu cache pointer before doing the cache update, and
+  set it back to NULL if the update fails. Setting it back to NULL on
+  error ensures that no resume notifier will trigger a SIGSEGV if a
+  migration happened concurrently.
+
+Changes since v3:
+- Fix __user annotations in compat code,
+- Update memory ordering comments.
+- Rebased on kernel v4.5-rc5.
+
+Changes since v4:
+- Inline getcpu_cache_fork, getcpu_cache_execve, and getcpu_cache_exit.
+- Add new line between if() and switch() to improve readability.
+- Added sched switch benchmarks (hackbench) and size overhead comparison
+  to change log.
+
+Changes since v5:
+- Rename &quot;getcpu_cache&quot; to &quot;thread_local_abi&quot;, allowing to extend
+  this system call to cover future features such as restartable critical
+  sections. Generalizing this system call ensures that we can add
+  features similar to the cpu_id field within the same cache-line
+  without having to track one pointer per feature within the task
+  struct.
+- Add a tlabi_nr parameter to the system call, thus allowing to extend
+  the ABI beyond the initial 64-byte structure by registering structures
+  with tlabi_nr greater than 0. The initial ABI structure is associated
+  with tlabi_nr 0.
+- Rebased on kernel v4.5.
+
+Changes since v6:
+- Integrate &quot;restartable sequences&quot; v2 patchset from Paul Turner.
+- Add handling of single-stepping purely in user-space, with a
+  fallback to locking after 2 rseq failures to ensure progress, and
+  by exposing a __rseq_table section to debuggers so they know where
+  to put breakpoints when dealing with rseq assembly blocks which
+  can be aborted at any point.
+- make the code and ABI generic: porting the kernel implementation
+  simply requires to wire up the signal handler and return to user-space
+  hooks, and allocate the syscall number.
+- extend testing with a fully configurable test program. See
+  param_spinlock_test -h for details.
+- handling of rseq ENOSYS in user-space, also with a fallback
+  to locking.
+- modify Paul Turner&#39;s rseq ABI to only require a single TLS store on
+  the user-space fast-path, removing the need to populate two additional
+  registers. This is made possible by introducing struct rseq_cs into
+  the ABI to describe a critical section start_ip, post_commit_ip, and
+  abort_ip.
+- Rebased on kernel v4.7-rc7.
+
+Changes since v7:
+- Documentation updates.
+- Integrated powerpc architecture support.
+- Compare rseq critical section start_ip, allows shriking the user-space
+  fast-path code size.
+- Added Peter Zijlstra, Paul E. McKenney and Boqun Feng as
+  co-maintainers.
+- Added do_rseq2 and do_rseq_memcpy to test program helper library.
+- Code cleanup based on review from Peter Zijlstra, Andy Lutomirski and
+  Boqun Feng.
+- Rebase on kernel v4.8-rc2.
+
+Changes since v8:
+- clear rseq_cs even if non-nested. Speeds up user-space fast path by
+  removing the final &quot;rseq_cs=NULL&quot; assignment.
+- add enum rseq_flags: critical sections and threads can set migration,
+  preemption and signal &quot;disable&quot; flags to inhibit rseq behavior.
+- rseq_event_counter needs to be updated with a pre-increment: Otherwise
+  misses an increment after exec (when TLS and in-kernel states are
+  initially 0).
+
+Man page associated:
+
+RSEQ(2)                 Linux Programmer&#39;s Manual                 RSEQ(2)
+
+NAME
+       rseq - Restartable sequences and cpu number cache
+
+SYNOPSIS
+       #include &lt;linux/rseq.h&gt;
+
+       int rseq(struct rseq * rseq, int flags);
+
+DESCRIPTION
+       The  rseq()  ABI accelerates user-space operations on per-cpu data
+       by defining a shared data structure ABI  between  each  user-space
+       thread and the kernel.
+
+       It  allows user-space to perform update operations on per-cpu data
+       without requiring heavy-weight atomic operations.
+
+       Restartable sequences are atomic with respect to preemption  (mak‐
+       ing  it  atomic  with respect to other threads running on the same
+       CPU), as well as signal delivery  (user-space  execution  contexts
+       nested over the same thread).
+
+       It is suited for update operations on per-cpu data.
+
+       It  can be used on data structures shared between threads within a
+       process, and on data structures shared between threads across dif‐
+       ferent processes.
+
+       Some examples of operations that can be accelerated by this ABI:
+
+       · Querying the current CPU number,
+
+       · Incrementing per-CPU counters,
+
+       · Modifying data protected by per-CPU spinlocks,
+
+       · Inserting/removing elements in per-CPU linked-lists,
+
+       · Writing/reading per-CPU ring buffers content.
+
+       The  rseq argument is a pointer to the thread-local rseq structure
+       to be shared between kernel and  user-space.  A  NULL  rseq  value
+       unregisters the current thread rseq structure.
+
+       The layout of struct rseq is as follows:
+
+       Structure alignment
+              This structure is aligned on multiples of 128 bytes.
+
+       Structure size
+              This structure has a fixed size of 128 bytes.
+
+       Fields
+
+           cpu_id
+              Cache of the CPU number on which the current thread is run‐
+              ning.
+
+           event_counter
+              Counter guaranteed  to  be  incremented  when  the  current
+              thread  is  preempted  or when a signal is delivered to the
+              current thread.
+
+           rseq_cs
+              The rseq_cs field is a pointer to a struct rseq_cs.  Is  is
+              NULL when no rseq assembly block critical section is active
+              for the current thread.  Setting it to point to a  critical
+              section  descriptor (struct rseq_cs) marks the beginning of
+              the critical section. It is cleared after the  end  of  the
+              critical section.
+
+       The layout of struct rseq_cs is as follows:
+
+       Structure alignment
+              This structure is aligned on multiples of 256 bytes.
+
+       Structure size
+              This structure has a fixed size of 256 bytes.
+
+       Fields
+
+           start_ip
+              Instruction pointer address of the first instruction of the
+              sequence of consecutive assembly instructions.
+
+           post_commit_ip
+              Instruction pointer address after the last  instruction  of
+              the sequence of consecutive assembly instructions.
+
+           abort_ip
+              Instruction  pointer  address  where  to move the execution
+              flow in case of abort of the sequence of consecutive assem‐
+              bly instructions.
+
+       Upon registration, the flags argument is currently unused and must
+       be specified as 0. Upon unregistration, the flags argument can  be
+       either  specified  as  0,  or as RSEQ_FORCE_UNREGISTER, which will
+       force unregistration of  the  current  rseq  address  rather  than
+       requiring each registration to be matched by an unregistration.
+
+       Libraries  and  applications  should  keep the rseq structure in a
+       thread-local storage variable.  Since only one rseq address can be
+       registered  per  thread,  applications and libraries should define
+       their struct rseq as a volatile thread-local storage variable with
+       the weak symbol __rseq_abi.  This allows using rseq from an appli‐
+       cation executable and from multiple shared libraries linked to the
+       same executable. The cpu_id field should be initialized to -1.
+
+       Each  thread  is responsible for registering and unregistering its
+       rseq structure. No more than one rseq  structure  address  can  be
+       registered  per  thread  at  a given time. The same address can be
+       registered more than once for  a  thread,  and  each  registration
+       needs  to  have  a  matching  unregistration before the address is
+       effectively unregistered. After the rseq  address  is  effectively
+       unregistered for a thread, a new address can be registered. Unreg‐
+       istration of associated rseq  structure  is  implicitly  performed
+       when a thread or process exits.
+
+       In  a  typical  usage  scenario,  the  thread registering the rseq
+       structure will be performing loads and stores from/to that  struc‐
+       ture. It is however also allowed to read that structure from other
+       threads.  The rseq field updates performed by the  kernel  provide
+       relaxed  atomicity  semantics,  which guarantee that other threads
+       performing relaxed atomic reads  of  the  cpu  number  cache  will
+       always observe a consistent value.
+
+RETURN VALUE
+       A  return  value of 0 indicates success. On error, -1 is returned,
+       and errno is set appropriately.
+
+ERRORS
+       EINVAL Either flags contains an invalid value, or rseq contains an
+              address which is not appropriately aligned.
+
+       ENOSYS The rseq() system call is not implemented by this kernel.
+
+       EFAULT rseq is an invalid address.
+
+       EBUSY  The rseq argument contains a non-NULL address which differs
+              from  the  memory  location  already  registered  for  this
+              thread.
+
+       EOVERFLOW
+              Registering  the  rseq  address  is  not allowed because it
+              would cause a reference counter overflow.
+
+       ENOENT The rseq argument is NULL, but no memory location  is  cur‐
+              rently registered for this thread.
+
+VERSIONS
+       The rseq() system call was added in Linux 4.X (TODO).
+
+CONFORMING TO
+       rseq() is Linux-specific.
+
+ALGORITHM
+       The restartable sequences mechanism is the overlap of two distinct
+       restart mechanisms: a sequence  counter  tracking  preemption  and
+       signal  delivery for high-level code, and an ip-fixup-based mecha‐
+       nism for the final assembly instruction sequence.
+
+       A high-level summary of the algorithm to use rseq from  user-space
+       is as follows:
+
+       The  high-level  code between rseq_start() and rseq_finish() loads
+       the current value of the sequence  counter  in  rseq_start(),  and
+       then  it  gets  compared  with  the  new  current value within the
+       rseq_finish()   restartable    instruction    sequence.    Between
+       rseq_start()  and  rseq_finish(),  the high-level code can perform
+       operations that do not have side-effects, such as getting the cur‐
+       rent CPU number, and loading from variables.
+
+       Stores  are  performed at the very end of the restartable sequence
+       assembly block. Each  assembly  block  defines  a  struct  rseq_cs
+       structure   which   describes   the  start_ip  and  post_commit_ip
+       addresses, as well as the abort_ip address where the kernel should
+       move  the  thread  instruction  pointer if a rseq critical section
+       assembly block is preempted or if a signal is delivered on top  of
+       a rseq critical section assembly block.
+
+       Detailed algorithm of rseq use:
+
+       rseq_start()
+
+           0. Userspace  loads  the  current event counter value from the
+              event_counter field of the registered struct rseq TLS area,
+
+       rseq_finish()
+
+              Steps [1]-[3] (inclusive) need to be a sequence of instruc‐
+              tions  in  userspace  that  can  handle  being moved to the
+              abort_ip between any of those instructions.
+
+              The abort_ip address needs to be  less  than  start_ip,  or
+              greater-or-equal  the  post_commit_ip.   Step  [4]  and the
+              failure code step [F1] need to be at addresses lesser  than
+              start_ip, or greater-or-equal the post_commit_ip.
+
+           [ start_ip ]
+
+           1. Userspace stores the address of the struct rseq_cs assembly
+              block descriptor into the rseq_cs field of  the  registered
+              struct rseq TLS area.
+
+           2. Userspace  tests  to  see whether the current event_counter
+              value match the value loaded at [0].  Manually  jumping  to
+              [F1] in case of a mismatch.
+
+              Note  that  if  we are preempted or interrupted by a signal
+              after [1] and before post_commit_ip, then the  kernel  also
+              performs the comparison performed in [2], and conditionally
+              clears the rseq_cs field of struct rseq, then jumps  us  to
+              abort_ip.
+
+           3. Userspace   critical   section   final  instruction  before
+              post_commit_ip is the commit. The critical section is self-
+              terminating.
+
+           [ post_commit_ip ]
+
+           4. Userspace  clears  the rseq_cs field of the struct rseq TLS
+              area.
+
+           5. Return true.
+
+           On failure at [2]:
+
+           F1.
+              Userspace clears the rseq_cs field of the struct  rseq  TLS
+              area. Followed by step [F2].
+
+           [ abort_ip ]
+
+           F2.
+              Return false.
+
+EXAMPLE
+       The following code uses the rseq() system call to keep a thread-local
+       storage variable up to date with the current CPU number, with a fall‐
+       back on sched_getcpu(3) if the cache is not  available.  For  example
+       simplicity,  it  is  done in main(), but multithreaded programs would
+       need to invoke rseq() from each program thread.
+
+           #define _GNU_SOURCE
+           #include &lt;stdlib.h&gt;
+           #include &lt;stdio.h&gt;
+           #include &lt;unistd.h&gt;
+           #include &lt;stdint.h&gt;
+           #include &lt;sched.h&gt;
+           #include &lt;stddef.h&gt;
+           #include &lt;errno.h&gt;
+           #include &lt;string.h&gt;
+           #include &lt;stdbool.h&gt;
+           #include &lt;sys/syscall.h&gt;
+           #include &lt;linux/rseq.h&gt;
+
+           __attribute__((weak)) __thread volatile struct rseq __rseq_abi = {
+               .u.e.cpu_id = -1,
+           };
+
+           static int
+           sys_rseq(volatile struct rseq *rseq_abi, int flags)
+           {
+               return syscall(__NR_rseq, rseq_abi, flags);
+           }
+
+           static int32_t
+           rseq_current_cpu_raw(void)
+           {
+               return __rseq_abi.u.e.cpu_id;
+           }
+
+           static int32_t
+           rseq_current_cpu(void)
+           {
+               int32_t cpu;
+
+               cpu = rseq_current_cpu_raw();
+               if (cpu &lt; 0)
+                   cpu = sched_getcpu();
+               return cpu;
+           }
+
+           static int
+           rseq_register_current_thread(void)
+           {
+               int rc;
+
+               rc = sys_rseq(&amp;__rseq_abi, 0);
+               if (rc) {
+                   fprintf(stderr,
+                       &quot;Error: sys_rseq(...) register failed(%d): %s\n&quot;,
+                       errno, strerror(errno));
+                   return -1;
+               }
+               return 0;
+           }
+
+           static int
+           rseq_unregister_current_thread(void)
+           {
+               int rc;
+
+               rc = sys_rseq(NULL, 0);
+               if (rc) {
+                   fprintf(stderr,
+                       &quot;Error: sys_rseq(...) unregister failed(%d): %s\n&quot;,
+                       errno, strerror(errno));
+                   return -1;
+               }
+               return 0;
+           }
+
+           int
+           main(int argc, char **argv)
+           {
+               bool rseq_registered = false;
+
+               if (!rseq_register_current_thread()) {
+                   rseq_registered = true;
+               } else {
+                   fprintf(stderr,
+                       &quot;Unable to register restartable sequences.\n&quot;);
+                   fprintf(stderr, &quot;Using sched_getcpu() as fallback.\n&quot;);
+               }
+
+               printf(&quot;Current CPU number: %d\n&quot;, rseq_current_cpu());
+
+               if (rseq_registered &amp;&amp; rseq_unregister_current_thread()) {
+                   exit(EXIT_FAILURE);
+               }
+               exit(EXIT_SUCCESS);
+           }
+
+SEE ALSO
+       sched_getcpu(3)
+
+Linux                           2016-08-19                        RSEQ(2)
+---
+ MAINTAINERS               |  10 ++
+ arch/Kconfig              |   7 +
+ fs/exec.c                 |   1 +
+ include/linux/sched.h     |  89 ++++++++++++
+ include/uapi/linux/rseq.h | 131 +++++++++++++++++
+ init/Kconfig              |  13 ++
+ kernel/Makefile           |   1 +
+ kernel/fork.c             |   2 +
+ kernel/rseq.c             | 347 ++++++++++++++++++++++++++++++++++++++++++++++
+ kernel/sched/core.c       |   4 +
+ kernel/sys_ni.c           |   3 +
+ 11 files changed, 608 insertions(+)
+ create mode 100644 include/uapi/linux/rseq.h
+ create mode 100644 kernel/rseq.c
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=77">Linus Torvalds</a> - Oct. 13, 2017, 12:36 a.m.</div>
+<pre class="content">
+I do not hate this series, and I&#39;d be happy to apply it, but I will
+repeat what I&#39;ve asked for EVERY SINGLE TIME this series has come up:
+
+On Thu, Oct 12, 2017 at 4:03 PM, Mathieu Desnoyers
+&lt;mathieu.desnoyers@efficios.com&gt; wrote:
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Here are benchmarks of counter increment in various scenarios compared</span>
+<span class="quote">&gt; to restartable sequences. Those benchmarks were taken on v8 of the</span>
+<span class="quote">&gt; patchset.</span>
+
+I want to see real numbers from real issues.
+
+A &quot;increment percpu value&quot; simply isn&#39;t relevant.
+
+When I asked last time, people pointed me to potential uses, including
+malloc libraries that could get per-thread performance with just
+per-cpu (not per thread) data structure overhead. I see that you once
+more point to the slides from 2013 that again talks about it.
+
+But people didn&#39;t post code, people didn&#39;t post numbers, and people
+didn&#39;t point to actual real uses, just &quot;this could happen&quot;.
+
+I really really want more than hand-waving. I want more than pointless
+&quot;this is how quickly you can increment a per-thread counter&quot;. I want
+to hear about _real_ uses, and real numbers.
+
+This has been going on for long enough, that if there *still* are no
+actual real users, then I&#39;m *still* not interested in having this
+merged.
+
+Because without real-world uses, it&#39;s not obvious that there won&#39;t be
+somebody who goes &quot;oh, this isn&#39;t quite enough for us, the semantics
+are subtly incompatible with our real-world use case&quot;.
+
+So I want real numbers from a real implementation of malloc/free. And
+if it&#39;s not malloc/free, then what is it? I want something *real*, not
+some micro-benchmark that benchmarks a totally pointless load.
+
+Because until there are that kind of &quot;yes, this is more than theory&quot;,
+I&#39;m not really willing to have this merged.
+
+                   Linus
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137821">Ben Maurer</a> - Oct. 13, 2017, 9:35 a.m.</div>
+<pre class="content">
+Hey,
+
+I&#39;m really excited to hear that you&#39;re open to this patch set and totally understand the desire for some more numbers. I have a few thoughts and questions -- hopefully ones that could help better understand where you&#39;d like to see more data (potentially from myself and other Facebook folks)
+<span class="quote">
+&gt; A &quot;increment percpu value&quot; simply isn&#39;t relevant.</span>
+
+While I understand it seems trivial, my experience has been that this type of operation can actually be important in many server workloads. In applications with 1000s of threads, keeping a counter like this can pose a challenge. One can use a per-thread variable, but the size overhead here can be very large (8 bytes per counter per thread adds up very quickly). And atomic instructions can cause contention quickly. Server programs tend to have many statistical counters, being able to implement them efficiently without size bloat is a real world win.
+
+This type of per-cpu counter can also very quickly be used to implement other abstractions in common use -- eg an asymmetric reader-writer lock or a reference counted object that is changed infrequently. While thread local storage can also be used in these cases this can be a substantial size overhead and can also require cooperation between the application and the library to manage thread lifecycle.
+
+At least from what I&#39;ve seen of our usage of these types of abstractions within Facebook, if rseq met these use cases and did absolutely nothing else it would still be a feature that our applications would benefit from. Hopefully we can find evidence that it can do even more than this, but I think that this &quot;trivial&quot; use case is actually addressing a real world problem.
+<span class="quote">
+&gt; When I asked last time, people pointed me to potential uses, including</span>
+<span class="quote">&gt; malloc libraries that could get per-thread performance with just</span>
+<span class="quote">&gt; per-cpu (not per thread) data structure overhead. I see that you once</span>
+<span class="quote">&gt; more point to the slides from 2013 that again talks about it.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; But people didn&#39;t post code, people didn&#39;t post numbers, and people</span>
+<span class="quote">&gt; didn&#39;t point to actual real uses, just &quot;this could happen&quot;.</span>
+
+At Facebook we did some work to experiment with rseq and jemalloc Qi and David (cc&#39;d) may be able to provide more context on the current state.
+<span class="quote">
+&gt; Because without real-world uses, it&#39;s not obvious that there won&#39;t be</span>
+<span class="quote">&gt; somebody who goes &quot;oh, this isn&#39;t quite enough for us, the semantics</span>
+<span class="quote">&gt; are subtly incompatible with our real-world use case&quot;.</span>
+
+Is your concern mainly this question (is this patchset a good way to bring per-cpu algorithms to userspace)? I&#39;m hoping that given the variety of ways that per-cpu data structures are used in the kernel the concerns around this patch set are mainly around what approach we should take rather than if per-cpu algorithms are a good idea at all. If this is your main concern perhaps our focus should be around demonstrating that a number of useful per-cpu algorithms can be implemented using restartable sequences.
+
+Ultimately I&#39;m worried there&#39;s a chicken and egg problem here. It&#39;s hard to get people to commit to investing in rseq without a clear path to the patchset seeing the light of day. It&#39;s also easy to understand why you&#39;d be reluctant to merge such a substantial and unfamiliar API without extensive data. If we&#39;re still not able to get compelling data, I&#39;m wondering if there are other approaches that could get us unstuck, eg
+
+(1) Could we merge enough of this patchset (eg things like the faster getcpu() operation, which seems like a good improvement over the current approach). If we make the remaining patches small enough it may be easier for sophisticated users to apply the remaining patches, maintain them, and provide real-world operational experience with this abstraction.
+
+(2) Could we implement restartable sequences in the kernel but only allow the vdso to make use of them? We could have the vdso export a number of high-level operations (like the ones suggested in Paul Turner&#39;s original presentation -- per-cpu spin lock, per-cpu atomic increment/decrement, per-cpu list push/pop). This would allow us to get real-world data about how these primitives are used without committing to a complex ABI -- only committing to support the specific operations. If the whole idea flops we could eventually create a slow/naive implementation of the vdso functions and kill restartable sequences entirely.
+
+-b
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=84021">Florian Weimer</a> - Oct. 13, 2017, 12:50 p.m.</div>
+<pre class="content">
+On 10/13/2017 01:03 AM, Mathieu Desnoyers wrote:
+<span class="quote">&gt; Expose a new system call allowing each thread to register one userspace</span>
+<span class="quote">&gt; memory area to be used as an ABI between kernel and user-space for two</span>
+<span class="quote">&gt; purposes: user-space restartable sequences and quick access to read the</span>
+<span class="quote">&gt; current CPU number value from user-space.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; * Restartable sequences (per-cpu atomics)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Restartables sequences allow user-space to perform update operations on</span>
+<span class="quote">&gt; per-cpu data without requiring heavy-weight atomic operations.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The restartable critical sections (percpu atomics) work has been started</span>
+<span class="quote">&gt; by Paul Turner and Andrew Hunter. It lets the kernel handle restart of</span>
+<span class="quote">&gt; critical sections. [1] [2] The re-implementation proposed here brings a</span>
+<span class="quote">&gt; few simplifications to the ABI which facilitates porting to other</span>
+<span class="quote">&gt; architectures and speeds up the user-space fast path. A locking-based</span>
+<span class="quote">&gt; fall-back, purely implemented in user-space, is proposed here to deal</span>
+<span class="quote">&gt; with debugger single-stepping. This fallback interacts with rseq_start()</span>
+<span class="quote">&gt; and rseq_finish(), which force retries in response to concurrent</span>
+<span class="quote">&gt; lock-based activity.</span>
+
+This functionality essentially relies on writable function pointers (or 
+pointers to data containing function pointers), right?  Is there a way 
+to make this a less attractive target for exploit writers?
+
+Thanks,
+Florian
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Oct. 13, 2017, 1:40 p.m.</div>
+<pre class="content">
+----- On Oct 13, 2017, at 8:50 AM, Florian Weimer fweimer@redhat.com wrote:
+<span class="quote">
+&gt; On 10/13/2017 01:03 AM, Mathieu Desnoyers wrote:</span>
+<span class="quote">&gt;&gt; Expose a new system call allowing each thread to register one userspace</span>
+<span class="quote">&gt;&gt; memory area to be used as an ABI between kernel and user-space for two</span>
+<span class="quote">&gt;&gt; purposes: user-space restartable sequences and quick access to read the</span>
+<span class="quote">&gt;&gt; current CPU number value from user-space.</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; * Restartable sequences (per-cpu atomics)</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; Restartables sequences allow user-space to perform update operations on</span>
+<span class="quote">&gt;&gt; per-cpu data without requiring heavy-weight atomic operations.</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; The restartable critical sections (percpu atomics) work has been started</span>
+<span class="quote">&gt;&gt; by Paul Turner and Andrew Hunter. It lets the kernel handle restart of</span>
+<span class="quote">&gt;&gt; critical sections. [1] [2] The re-implementation proposed here brings a</span>
+<span class="quote">&gt;&gt; few simplifications to the ABI which facilitates porting to other</span>
+<span class="quote">&gt;&gt; architectures and speeds up the user-space fast path.</span>
+
+This part:
+<span class="quote">
+&gt;&gt; A locking-based</span>
+<span class="quote">&gt;&gt; fall-back, purely implemented in user-space, is proposed here to deal</span>
+<span class="quote">&gt;&gt; with debugger single-stepping. This fallback interacts with rseq_start()</span>
+<span class="quote">&gt;&gt; and rseq_finish(), which force retries in response to concurrent</span>
+<span class="quote">&gt;&gt; lock-based activity.</span>
+
+should have been updated in this series to:
+
+A second system call, cpu_opv(), is proposed as fallback to deal with debugger
+single-stepping. cpu_opv() executes a sequence of operations on behalf of
+user-space with preemption disabled.
+<span class="quote">
+&gt; This functionality essentially relies on writable function pointers (or</span>
+<span class="quote">&gt; pointers to data containing function pointers), right?  Is there a way</span>
+<span class="quote">&gt; to make this a less attractive target for exploit writers?</span>
+
+The proposed ABI does not require to store any function pointer. For a given
+rseq_finish() critical section, pointers to specific instructions (within a
+function) are emitted at link-time into a struct rseq_cs:
+
+struct rseq_cs {
+        RSEQ_FIELD_u32_u64(start_ip);
+        RSEQ_FIELD_u32_u64(post_commit_ip);
+        RSEQ_FIELD_u32_u64(abort_ip);
+        uint32_t flags;
+} __attribute__((aligned(4 * sizeof(uint64_t))));
+
+Then, at runtime, the fast-path stores the address of that struct rseq_cs
+into the TLS struct rseq &quot;rseq_cs&quot; field.
+
+So all we store at runtime is a pointer to data, not a pointer to functions.
+
+But you seem to hint that having a pointer to data containing pointers to code
+may still be making it easier for exploit writers. Can you elaborate on the
+scenario ?
+
+Thanks,
+
+Mathieu
+<span class="quote">
+
+&gt; </span>
+<span class="quote">&gt; Thanks,</span>
+<span class="quote">&gt; Florian</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=84021">Florian Weimer</a> - Oct. 13, 2017, 1:56 p.m.</div>
+<pre class="content">
+On 10/13/2017 03:40 PM, Mathieu Desnoyers wrote:
+<span class="quote">&gt; The proposed ABI does not require to store any function pointer. For a given</span>
+<span class="quote">&gt; rseq_finish() critical section, pointers to specific instructions (within a</span>
+<span class="quote">&gt; function) are emitted at link-time into a struct rseq_cs:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; struct rseq_cs {</span>
+<span class="quote">&gt;          RSEQ_FIELD_u32_u64(start_ip);</span>
+<span class="quote">&gt;          RSEQ_FIELD_u32_u64(post_commit_ip);</span>
+<span class="quote">&gt;          RSEQ_FIELD_u32_u64(abort_ip);</span>
+<span class="quote">&gt;          uint32_t flags;</span>
+<span class="quote">&gt; } __attribute__((aligned(4 * sizeof(uint64_t))));</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Then, at runtime, the fast-path stores the address of that struct rseq_cs</span>
+<span class="quote">&gt; into the TLS struct rseq &quot;rseq_cs&quot; field.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So all we store at runtime is a pointer to data, not a pointer to functions.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; But you seem to hint that having a pointer to data containing pointers to code</span>
+<span class="quote">&gt; may still be making it easier for exploit writers. Can you elaborate on the</span>
+<span class="quote">&gt; scenario ?</span>
+
+I&#39;m concerned that the exploit writer writes a totally made up struct 
+rseq_cs object into writable memory, along with function pointers, and 
+puts the address of that in to the rseq_cs field.
+
+This would be comparable to how C++ vtable pointers are targeted 
+(including those in the glibc libio implementation of stdio streams).
+
+Does this answer your questions?
+
+Thanks,
+Florian
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Oct. 13, 2017, 2:27 p.m.</div>
+<pre class="content">
+----- On Oct 13, 2017, at 9:56 AM, Florian Weimer fweimer@redhat.com wrote:
+<span class="quote">
+&gt; On 10/13/2017 03:40 PM, Mathieu Desnoyers wrote:</span>
+<span class="quote">&gt;&gt; The proposed ABI does not require to store any function pointer. For a given</span>
+<span class="quote">&gt;&gt; rseq_finish() critical section, pointers to specific instructions (within a</span>
+<span class="quote">&gt;&gt; function) are emitted at link-time into a struct rseq_cs:</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; struct rseq_cs {</span>
+<span class="quote">&gt;&gt;          RSEQ_FIELD_u32_u64(start_ip);</span>
+<span class="quote">&gt;&gt;          RSEQ_FIELD_u32_u64(post_commit_ip);</span>
+<span class="quote">&gt;&gt;          RSEQ_FIELD_u32_u64(abort_ip);</span>
+<span class="quote">&gt;&gt;          uint32_t flags;</span>
+<span class="quote">&gt;&gt; } __attribute__((aligned(4 * sizeof(uint64_t))));</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; Then, at runtime, the fast-path stores the address of that struct rseq_cs</span>
+<span class="quote">&gt;&gt; into the TLS struct rseq &quot;rseq_cs&quot; field.</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; So all we store at runtime is a pointer to data, not a pointer to functions.</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; But you seem to hint that having a pointer to data containing pointers to code</span>
+<span class="quote">&gt;&gt; may still be making it easier for exploit writers. Can you elaborate on the</span>
+<span class="quote">&gt;&gt; scenario ?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I&#39;m concerned that the exploit writer writes a totally made up struct</span>
+<span class="quote">&gt; rseq_cs object into writable memory, along with function pointers, and</span>
+<span class="quote">&gt; puts the address of that in to the rseq_cs field.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This would be comparable to how C++ vtable pointers are targeted</span>
+<span class="quote">&gt; (including those in the glibc libio implementation of stdio streams).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Does this answer your questions?</span>
+
+Yes, it does. How about we add a &quot;canary&quot; field to the TLS struct rseq, e.g.:
+
+struct rseq {
+        union rseq_cpu_event u;
+        RSEQ_FIELD_u32_u64(rseq_cs);  -&gt; pointer to struct rseq_cs
+        uint32_t flags;
+        uint32_t canary;   -&gt; 32 low bits of rseq_cs ^ canary_mask
+};
+
+We could then add a &quot;uint32_t canary_mask&quot; argument to sys_rseq, e.g.:
+
+SYSCALL_DEFINE3(rseq, struct rseq __user *, rseq, uint32_t, canary_mask, int, flags);
+
+So a thread which does not care about hardening would simply register its
+struct rseq TLS with a canary mask of &quot;0&quot;. Nothing changes on the fast-path.
+
+A thread belonging to a process that cares about hardening could use a random
+value as canary, and pass it as canary_mask argument to the syscall. The
+fast-path could then set the struct rseq &quot;canary&quot; value to
+(32-low-bits of rseq_cs) ^ canary_mask just surrounding the critical section,
+and set it back to 0 afterward.
+
+In the kernel, whenever the rseq_cs pointer would be loaded, its 32 low bits
+would be checked to match (canary ^ canary_mask). If it differs, then the
+kernel kills the process with SIGSEGV.
+
+Would that take care of your concern ?
+
+Thanks,
+
+Mathieu
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; Thanks,</span>
+<span class="quote">&gt; Florian</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41531">Andy Lutomirski</a> - Oct. 13, 2017, 5:24 p.m.</div>
+<pre class="content">
+On Fri, Oct 13, 2017 at 7:27 AM, Mathieu Desnoyers
+&lt;mathieu.desnoyers@efficios.com&gt; wrote:
+<span class="quote">&gt; ----- On Oct 13, 2017, at 9:56 AM, Florian Weimer fweimer@redhat.com wrote:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; On 10/13/2017 03:40 PM, Mathieu Desnoyers wrote:</span>
+<span class="quote">&gt;&gt;&gt; The proposed ABI does not require to store any function pointer. For a given</span>
+<span class="quote">&gt;&gt;&gt; rseq_finish() critical section, pointers to specific instructions (within a</span>
+<span class="quote">&gt;&gt;&gt; function) are emitted at link-time into a struct rseq_cs:</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; struct rseq_cs {</span>
+<span class="quote">&gt;&gt;&gt;          RSEQ_FIELD_u32_u64(start_ip);</span>
+<span class="quote">&gt;&gt;&gt;          RSEQ_FIELD_u32_u64(post_commit_ip);</span>
+<span class="quote">&gt;&gt;&gt;          RSEQ_FIELD_u32_u64(abort_ip);</span>
+<span class="quote">&gt;&gt;&gt;          uint32_t flags;</span>
+<span class="quote">&gt;&gt;&gt; } __attribute__((aligned(4 * sizeof(uint64_t))));</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; Then, at runtime, the fast-path stores the address of that struct rseq_cs</span>
+<span class="quote">&gt;&gt;&gt; into the TLS struct rseq &quot;rseq_cs&quot; field.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; So all we store at runtime is a pointer to data, not a pointer to functions.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; But you seem to hint that having a pointer to data containing pointers to code</span>
+<span class="quote">&gt;&gt;&gt; may still be making it easier for exploit writers. Can you elaborate on the</span>
+<span class="quote">&gt;&gt;&gt; scenario ?</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; I&#39;m concerned that the exploit writer writes a totally made up struct</span>
+<span class="quote">&gt;&gt; rseq_cs object into writable memory, along with function pointers, and</span>
+<span class="quote">&gt;&gt; puts the address of that in to the rseq_cs field.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; This would be comparable to how C++ vtable pointers are targeted</span>
+<span class="quote">&gt;&gt; (including those in the glibc libio implementation of stdio streams).</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Does this answer your questions?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Yes, it does. How about we add a &quot;canary&quot; field to the TLS struct rseq, e.g.:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; struct rseq {</span>
+<span class="quote">&gt;         union rseq_cpu_event u;</span>
+<span class="quote">&gt;         RSEQ_FIELD_u32_u64(rseq_cs);  -&gt; pointer to struct rseq_cs</span>
+<span class="quote">&gt;         uint32_t flags;</span>
+<span class="quote">&gt;         uint32_t canary;   -&gt; 32 low bits of rseq_cs ^ canary_mask</span>
+<span class="quote">&gt; };</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; We could then add a &quot;uint32_t canary_mask&quot; argument to sys_rseq, e.g.:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; SYSCALL_DEFINE3(rseq, struct rseq __user *, rseq, uint32_t, canary_mask, int, flags);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; So a thread which does not care about hardening would simply register its</span>
+<span class="quote">&gt; struct rseq TLS with a canary mask of &quot;0&quot;. Nothing changes on the fast-path.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; A thread belonging to a process that cares about hardening could use a random</span>
+<span class="quote">&gt; value as canary, and pass it as canary_mask argument to the syscall. The</span>
+<span class="quote">&gt; fast-path could then set the struct rseq &quot;canary&quot; value to</span>
+<span class="quote">&gt; (32-low-bits of rseq_cs) ^ canary_mask just surrounding the critical section,</span>
+<span class="quote">&gt; and set it back to 0 afterward.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; In the kernel, whenever the rseq_cs pointer would be loaded, its 32 low bits</span>
+<span class="quote">&gt; would be checked to match (canary ^ canary_mask). If it differs, then the</span>
+<span class="quote">&gt; kernel kills the process with SIGSEGV.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Would that take care of your concern ?</span>
+<span class="quote">&gt;</span>
+
+I would propose a slightly different solution: have the kernel verify
+that it jumps to a code sequence that occurs just after some
+highly-unlikely magic bytes in the text *and* that those bytes have
+some signature that matches a signature in the struct rseq that&#39;s
+passed in.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=84021">Florian Weimer</a> - Oct. 13, 2017, 5:53 p.m.</div>
+<pre class="content">
+On 10/13/2017 07:24 PM, Andy Lutomirski wrote:
+<span class="quote">&gt; On Fri, Oct 13, 2017 at 7:27 AM, Mathieu Desnoyers</span>
+<span class="quote">&gt; &lt;mathieu.desnoyers@efficios.com&gt; wrote:</span>
+<span class="quote">&gt;&gt; ----- On Oct 13, 2017, at 9:56 AM, Florian Weimer fweimer@redhat.com wrote:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; On 10/13/2017 03:40 PM, Mathieu Desnoyers wrote:</span>
+<span class="quote">&gt;&gt;&gt;&gt; The proposed ABI does not require to store any function pointer. For a given</span>
+<span class="quote">&gt;&gt;&gt;&gt; rseq_finish() critical section, pointers to specific instructions (within a</span>
+<span class="quote">&gt;&gt;&gt;&gt; function) are emitted at link-time into a struct rseq_cs:</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; struct rseq_cs {</span>
+<span class="quote">&gt;&gt;&gt;&gt;           RSEQ_FIELD_u32_u64(start_ip);</span>
+<span class="quote">&gt;&gt;&gt;&gt;           RSEQ_FIELD_u32_u64(post_commit_ip);</span>
+<span class="quote">&gt;&gt;&gt;&gt;           RSEQ_FIELD_u32_u64(abort_ip);</span>
+<span class="quote">&gt;&gt;&gt;&gt;           uint32_t flags;</span>
+<span class="quote">&gt;&gt;&gt;&gt; } __attribute__((aligned(4 * sizeof(uint64_t))));</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; Then, at runtime, the fast-path stores the address of that struct rseq_cs</span>
+<span class="quote">&gt;&gt;&gt;&gt; into the TLS struct rseq &quot;rseq_cs&quot; field.</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; So all we store at runtime is a pointer to data, not a pointer to functions.</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; But you seem to hint that having a pointer to data containing pointers to code</span>
+<span class="quote">&gt;&gt;&gt;&gt; may still be making it easier for exploit writers. Can you elaborate on the</span>
+<span class="quote">&gt;&gt;&gt;&gt; scenario ?</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; I&#39;m concerned that the exploit writer writes a totally made up struct</span>
+<span class="quote">&gt;&gt;&gt; rseq_cs object into writable memory, along with function pointers, and</span>
+<span class="quote">&gt;&gt;&gt; puts the address of that in to the rseq_cs field.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; This would be comparable to how C++ vtable pointers are targeted</span>
+<span class="quote">&gt;&gt;&gt; (including those in the glibc libio implementation of stdio streams).</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; Does this answer your questions?</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Yes, it does. How about we add a &quot;canary&quot; field to the TLS struct rseq, e.g.:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; struct rseq {</span>
+<span class="quote">&gt;&gt;          union rseq_cpu_event u;</span>
+<span class="quote">&gt;&gt;          RSEQ_FIELD_u32_u64(rseq_cs);  -&gt; pointer to struct rseq_cs</span>
+<span class="quote">&gt;&gt;          uint32_t flags;</span>
+<span class="quote">&gt;&gt;          uint32_t canary;   -&gt; 32 low bits of rseq_cs ^ canary_mask</span>
+<span class="quote">&gt;&gt; };</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; We could then add a &quot;uint32_t canary_mask&quot; argument to sys_rseq, e.g.:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; SYSCALL_DEFINE3(rseq, struct rseq __user *, rseq, uint32_t, canary_mask, int, flags);</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; So a thread which does not care about hardening would simply register its</span>
+<span class="quote">&gt;&gt; struct rseq TLS with a canary mask of &quot;0&quot;. Nothing changes on the fast-path.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; A thread belonging to a process that cares about hardening could use a random</span>
+<span class="quote">&gt;&gt; value as canary, and pass it as canary_mask argument to the syscall. The</span>
+<span class="quote">&gt;&gt; fast-path could then set the struct rseq &quot;canary&quot; value to</span>
+<span class="quote">&gt;&gt; (32-low-bits of rseq_cs) ^ canary_mask just surrounding the critical section,</span>
+<span class="quote">&gt;&gt; and set it back to 0 afterward.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; In the kernel, whenever the rseq_cs pointer would be loaded, its 32 low bits</span>
+<span class="quote">&gt;&gt; would be checked to match (canary ^ canary_mask). If it differs, then the</span>
+<span class="quote">&gt;&gt; kernel kills the process with SIGSEGV.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Would that take care of your concern ?</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I would propose a slightly different solution: have the kernel verify</span>
+<span class="quote">&gt; that it jumps to a code sequence that occurs just after some</span>
+<span class="quote">&gt; highly-unlikely magic bytes in the text *and* that those bytes have</span>
+<span class="quote">&gt; some signature that matches a signature in the struct rseq that&#39;s</span>
+<span class="quote">&gt; passed in.</span>
+
+And the signature is fixed at the time of the rseq syscall?
+
+Yes, that would be far more reliable.
+
+Thanks,
+Florian
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41531">Andy Lutomirski</a> - Oct. 13, 2017, 6:17 p.m.</div>
+<pre class="content">
+On Fri, Oct 13, 2017 at 10:53 AM, Florian Weimer &lt;fweimer@redhat.com&gt; wrote:
+<span class="quote">&gt; On 10/13/2017 07:24 PM, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; On Fri, Oct 13, 2017 at 7:27 AM, Mathieu Desnoyers</span>
+<span class="quote">&gt;&gt; &lt;mathieu.desnoyers@efficios.com&gt; wrote:</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; ----- On Oct 13, 2017, at 9:56 AM, Florian Weimer fweimer@redhat.com</span>
+<span class="quote">&gt;&gt;&gt; wrote:</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; On 10/13/2017 03:40 PM, Mathieu Desnoyers wrote:</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; The proposed ABI does not require to store any function pointer. For a</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; given</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; rseq_finish() critical section, pointers to specific instructions</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; (within a</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; function) are emitted at link-time into a struct rseq_cs:</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; struct rseq_cs {</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;           RSEQ_FIELD_u32_u64(start_ip);</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;           RSEQ_FIELD_u32_u64(post_commit_ip);</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;           RSEQ_FIELD_u32_u64(abort_ip);</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;           uint32_t flags;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; } __attribute__((aligned(4 * sizeof(uint64_t))));</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; Then, at runtime, the fast-path stores the address of that struct</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; rseq_cs</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; into the TLS struct rseq &quot;rseq_cs&quot; field.</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; So all we store at runtime is a pointer to data, not a pointer to</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; functions.</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; But you seem to hint that having a pointer to data containing pointers</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; to code</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; may still be making it easier for exploit writers. Can you elaborate on</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; the</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; scenario ?</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; I&#39;m concerned that the exploit writer writes a totally made up struct</span>
+<span class="quote">&gt;&gt;&gt;&gt; rseq_cs object into writable memory, along with function pointers, and</span>
+<span class="quote">&gt;&gt;&gt;&gt; puts the address of that in to the rseq_cs field.</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; This would be comparable to how C++ vtable pointers are targeted</span>
+<span class="quote">&gt;&gt;&gt;&gt; (including those in the glibc libio implementation of stdio streams).</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; Does this answer your questions?</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; Yes, it does. How about we add a &quot;canary&quot; field to the TLS struct rseq,</span>
+<span class="quote">&gt;&gt;&gt; e.g.:</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; struct rseq {</span>
+<span class="quote">&gt;&gt;&gt;          union rseq_cpu_event u;</span>
+<span class="quote">&gt;&gt;&gt;          RSEQ_FIELD_u32_u64(rseq_cs);  -&gt; pointer to struct rseq_cs</span>
+<span class="quote">&gt;&gt;&gt;          uint32_t flags;</span>
+<span class="quote">&gt;&gt;&gt;          uint32_t canary;   -&gt; 32 low bits of rseq_cs ^ canary_mask</span>
+<span class="quote">&gt;&gt;&gt; };</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; We could then add a &quot;uint32_t canary_mask&quot; argument to sys_rseq, e.g.:</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; SYSCALL_DEFINE3(rseq, struct rseq __user *, rseq, uint32_t, canary_mask,</span>
+<span class="quote">&gt;&gt;&gt; int, flags);</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; So a thread which does not care about hardening would simply register its</span>
+<span class="quote">&gt;&gt;&gt; struct rseq TLS with a canary mask of &quot;0&quot;. Nothing changes on the</span>
+<span class="quote">&gt;&gt;&gt; fast-path.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; A thread belonging to a process that cares about hardening could use a</span>
+<span class="quote">&gt;&gt;&gt; random</span>
+<span class="quote">&gt;&gt;&gt; value as canary, and pass it as canary_mask argument to the syscall. The</span>
+<span class="quote">&gt;&gt;&gt; fast-path could then set the struct rseq &quot;canary&quot; value to</span>
+<span class="quote">&gt;&gt;&gt; (32-low-bits of rseq_cs) ^ canary_mask just surrounding the critical</span>
+<span class="quote">&gt;&gt;&gt; section,</span>
+<span class="quote">&gt;&gt;&gt; and set it back to 0 afterward.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; In the kernel, whenever the rseq_cs pointer would be loaded, its 32 low</span>
+<span class="quote">&gt;&gt;&gt; bits</span>
+<span class="quote">&gt;&gt;&gt; would be checked to match (canary ^ canary_mask). If it differs, then the</span>
+<span class="quote">&gt;&gt;&gt; kernel kills the process with SIGSEGV.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; Would that take care of your concern ?</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; I would propose a slightly different solution: have the kernel verify</span>
+<span class="quote">&gt;&gt; that it jumps to a code sequence that occurs just after some</span>
+<span class="quote">&gt;&gt; highly-unlikely magic bytes in the text *and* that those bytes have</span>
+<span class="quote">&gt;&gt; some signature that matches a signature in the struct rseq that&#39;s</span>
+<span class="quote">&gt;&gt; passed in.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; And the signature is fixed at the time of the rseq syscall?</span>
+
+The point of the signature is to prevent an rseq landing pad from
+being used out of context.  Actually getting the details right might
+be tricky.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt; Yes, that would be far more reliable.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Thanks,</span>
+<span class="quote">&gt; Florian</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=77">Linus Torvalds</a> - Oct. 13, 2017, 6:30 p.m.</div>
+<pre class="content">
+On Fri, Oct 13, 2017 at 2:35 AM, Ben Maurer &lt;bmaurer@fb.com&gt; wrote:
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I&#39;m really excited to hear that you&#39;re open to this patch set and totally understand the desire for some more numbers.</span>
+
+So the patch-set actually looks very reasonable today. I looked
+through it (ok, I wasn&#39;t cc&#39;d on the ppc-only patches so I didn&#39;t look
+at those, but I don&#39;t think they are likely objectionable either), and
+everything looked fine from a patch standpoint.
+
+But it&#39;s not _just_ numbers for real loads I&#39;m looking for, it&#39;s
+actually an _existence proof_ for a real load too. I&#39;d like to know
+that the suggested interface _really_ works in practice too for all
+the expected users.
+
+In particular, it&#39;s easy to make test-cases to show basic
+functionality, but that does not necessarily show that the interface
+then works in &quot;real life&quot;.
+
+For example, if this is supposed to work for a malloc library, it&#39;s
+important that people show that yes, this can really work in a
+*LIBRARY*.
+
+That sounds so obvious and stupid that you might go &quot;What do you
+mean?&quot;, but for things to work for libraries, they have to work
+together with *other* users, and with *independent* users.
+
+For example, say that you&#39;re some runtime that wants to use the percpu
+thing for percpu counters - because you want to avoid cache ping-pong,
+and you want to avoid per-thread allocation overhead (or per-thread
+scaling for just summing up the counters) when you have potentially
+tens of thousands of threads.
+
+Now, how does this runtime work *together* with
+
+ - CPU hotplug adding new cpu&#39;s while you are running (and after you
+allocated your percpu areas)
+
+ - libraries and system admins that limit - or extend - you to a
+certain set of CPUs
+
+ - another library (like the malloc library) that wants to use the
+same interface for its percpu allocation queues.
+
+maybe all of this &quot;just works&quot;, but I really want to see an existence
+proof.  Not just a &quot;dedicated use of the interface for one benchmark&quot;.
+
+So yes, I want to see numbers, but I really want to see something much
+more fundamental. I want to feel like there is a good reason to
+believe that the interface really is sufficient and that it really
+does work, even when a single thread may have multiple *different*
+uses for this. Statistics, memory allocation queues, RCU, per-cpu
+locking, yadda yadda. All these things may want to use this, but they
+want to use it *together*, and without you having to write special
+code where every user needs to know about every other user statically.
+
+Can you load two different *dynamic* libraries that each independently
+uses this thing for their own use, without having to be built together
+for each other?
+<span class="quote">
+&gt;&gt; A &quot;increment percpu value&quot; simply isn&#39;t relevant.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; While I understand it seems trivial, my experience has been that this type of operation can actually be important in many server workloads.</span>
+
+Oh, I&#39;m not saying that it&#39;s not relevant to have high-performance
+statistics gathering using percpu data structures. Of _course_ that is
+important, we do that very much in the kernel itself.
+
+But a benchmark that does nothing else really isn&#39;t relevant.  If the
+*only* thing somebody uses this for is statistics, it&#39;s simply not
+good enough.
+<span class="quote">
+
+&gt;&gt; Because without real-world uses, it&#39;s not obvious that there won&#39;t be</span>
+<span class="quote">&gt;&gt; somebody who goes &quot;oh, this isn&#39;t quite enough for us, the semantics</span>
+<span class="quote">&gt;&gt; are subtly incompatible with our real-world use case&quot;.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Is your concern mainly this question (is this patchset a good way to</span>
+<span class="quote">&gt; bring per-cpu algorithms to userspace)? I&#39;m hoping that given the</span>
+<span class="quote">&gt; variety of ways that per-cpu data structures are used in the kernel</span>
+<span class="quote">&gt; the concerns around this patch set are mainly around what approach we</span>
+<span class="quote">&gt; should take rather than if per-cpu algorithms are a good idea at all.</span>
+<span class="quote">&gt; If this is your main concern perhaps our focus should be around</span>
+<span class="quote">&gt; demonstrating that a number of useful per-cpu algorithms can be</span>
+<span class="quote">&gt; implemented using restartable sequences.</span>
+
+The important thing for me is that it should demonstrate that you can
+have users co-exists, and that the interface is sufficient for that.
+
+So I do want to see &quot;just numbers&quot; in the sense that I would want to
+see that people have actually written code that takes advantage of the
+percpu nature to do real things (like an allocator). But more than
+that, I want to see *use*.
+<span class="quote">
+&gt; Ultimately I&#39;m worried there&#39;s a chicken and egg problem here.</span>
+
+This patch-set has been around for *years* in some form. It&#39;s improved
+over the years, but the basic approaches are not new.
+
+Honestly, if people still don&#39;t have any actual user-level code that
+really _uses_ this, I&#39;m not interested in merging it.
+
+There&#39;s no chicken-and-egg here. Anybody who wants to push this
+patch-set needs to write the user level code to validate that the
+patch-set makes sense. That&#39;s not chicken-and-egg, that&#39;s just
+&quot;without the user-space code, the kernel code has never been tested,
+validated or used&quot;.
+
+And if nobody can be bothered to write the user-level code and test
+this patch-series, then obviously it&#39;s not important enough for the
+kernel to merge it.
+
+                      Linus
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=61">Paul E. McKenney</a> - Oct. 13, 2017, 8:54 p.m.</div>
+<pre class="content">
+On Fri, Oct 13, 2017 at 11:30:29AM -0700, Linus Torvalds wrote:
+<span class="quote">&gt; On Fri, Oct 13, 2017 at 2:35 AM, Ben Maurer &lt;bmaurer@fb.com&gt; wrote:</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; I&#39;m really excited to hear that you&#39;re open to this patch set and totally understand the desire for some more numbers.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So the patch-set actually looks very reasonable today. I looked</span>
+<span class="quote">&gt; through it (ok, I wasn&#39;t cc&#39;d on the ppc-only patches so I didn&#39;t look</span>
+<span class="quote">&gt; at those, but I don&#39;t think they are likely objectionable either), and</span>
+<span class="quote">&gt; everything looked fine from a patch standpoint.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; But it&#39;s not _just_ numbers for real loads I&#39;m looking for, it&#39;s</span>
+<span class="quote">&gt; actually an _existence proof_ for a real load too. I&#39;d like to know</span>
+<span class="quote">&gt; that the suggested interface _really_ works in practice too for all</span>
+<span class="quote">&gt; the expected users.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; In particular, it&#39;s easy to make test-cases to show basic</span>
+<span class="quote">&gt; functionality, but that does not necessarily show that the interface</span>
+<span class="quote">&gt; then works in &quot;real life&quot;.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; For example, if this is supposed to work for a malloc library, it&#39;s</span>
+<span class="quote">&gt; important that people show that yes, this can really work in a</span>
+<span class="quote">&gt; *LIBRARY*.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; That sounds so obvious and stupid that you might go &quot;What do you</span>
+<span class="quote">&gt; mean?&quot;, but for things to work for libraries, they have to work</span>
+<span class="quote">&gt; together with *other* users, and with *independent* users.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; For example, say that you&#39;re some runtime that wants to use the percpu</span>
+<span class="quote">&gt; thing for percpu counters - because you want to avoid cache ping-pong,</span>
+<span class="quote">&gt; and you want to avoid per-thread allocation overhead (or per-thread</span>
+<span class="quote">&gt; scaling for just summing up the counters) when you have potentially</span>
+<span class="quote">&gt; tens of thousands of threads.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Now, how does this runtime work *together* with</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  - CPU hotplug adding new cpu&#39;s while you are running (and after you</span>
+<span class="quote">&gt; allocated your percpu areas)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  - libraries and system admins that limit - or extend - you to a</span>
+<span class="quote">&gt; certain set of CPUs</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  - another library (like the malloc library) that wants to use the</span>
+<span class="quote">&gt; same interface for its percpu allocation queues.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; maybe all of this &quot;just works&quot;, but I really want to see an existence</span>
+<span class="quote">&gt; proof.  Not just a &quot;dedicated use of the interface for one benchmark&quot;.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So yes, I want to see numbers, but I really want to see something much</span>
+<span class="quote">&gt; more fundamental. I want to feel like there is a good reason to</span>
+<span class="quote">&gt; believe that the interface really is sufficient and that it really</span>
+<span class="quote">&gt; does work, even when a single thread may have multiple *different*</span>
+<span class="quote">&gt; uses for this. Statistics, memory allocation queues, RCU, per-cpu</span>
+<span class="quote">&gt; locking, yadda yadda. All these things may want to use this, but they</span>
+<span class="quote">&gt; want to use it *together*, and without you having to write special</span>
+<span class="quote">&gt; code where every user needs to know about every other user statically.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Can you load two different *dynamic* libraries that each independently</span>
+<span class="quote">&gt; uses this thing for their own use, without having to be built together</span>
+<span class="quote">&gt; for each other?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt;&gt; A &quot;increment percpu value&quot; simply isn&#39;t relevant.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; While I understand it seems trivial, my experience has been that this type of operation can actually be important in many server workloads.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Oh, I&#39;m not saying that it&#39;s not relevant to have high-performance</span>
+<span class="quote">&gt; statistics gathering using percpu data structures. Of _course_ that is</span>
+<span class="quote">&gt; important, we do that very much in the kernel itself.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; But a benchmark that does nothing else really isn&#39;t relevant.  If the</span>
+<span class="quote">&gt; *only* thing somebody uses this for is statistics, it&#39;s simply not</span>
+<span class="quote">&gt; good enough.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt;&gt; Because without real-world uses, it&#39;s not obvious that there won&#39;t be</span>
+<span class="quote">&gt; &gt;&gt; somebody who goes &quot;oh, this isn&#39;t quite enough for us, the semantics</span>
+<span class="quote">&gt; &gt;&gt; are subtly incompatible with our real-world use case&quot;.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Is your concern mainly this question (is this patchset a good way to</span>
+<span class="quote">&gt; &gt; bring per-cpu algorithms to userspace)? I&#39;m hoping that given the</span>
+<span class="quote">&gt; &gt; variety of ways that per-cpu data structures are used in the kernel</span>
+<span class="quote">&gt; &gt; the concerns around this patch set are mainly around what approach we</span>
+<span class="quote">&gt; &gt; should take rather than if per-cpu algorithms are a good idea at all.</span>
+<span class="quote">&gt; &gt; If this is your main concern perhaps our focus should be around</span>
+<span class="quote">&gt; &gt; demonstrating that a number of useful per-cpu algorithms can be</span>
+<span class="quote">&gt; &gt; implemented using restartable sequences.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The important thing for me is that it should demonstrate that you can</span>
+<span class="quote">&gt; have users co-exists, and that the interface is sufficient for that.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So I do want to see &quot;just numbers&quot; in the sense that I would want to</span>
+<span class="quote">&gt; see that people have actually written code that takes advantage of the</span>
+<span class="quote">&gt; percpu nature to do real things (like an allocator). But more than</span>
+<span class="quote">&gt; that, I want to see *use*.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; Ultimately I&#39;m worried there&#39;s a chicken and egg problem here.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This patch-set has been around for *years* in some form. It&#39;s improved</span>
+<span class="quote">&gt; over the years, but the basic approaches are not new.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Honestly, if people still don&#39;t have any actual user-level code that</span>
+<span class="quote">&gt; really _uses_ this, I&#39;m not interested in merging it.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; There&#39;s no chicken-and-egg here. Anybody who wants to push this</span>
+<span class="quote">&gt; patch-set needs to write the user level code to validate that the</span>
+<span class="quote">&gt; patch-set makes sense. That&#39;s not chicken-and-egg, that&#39;s just</span>
+<span class="quote">&gt; &quot;without the user-space code, the kernel code has never been tested,</span>
+<span class="quote">&gt; validated or used&quot;.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; And if nobody can be bothered to write the user-level code and test</span>
+<span class="quote">&gt; this patch-series, then obviously it&#39;s not important enough for the</span>
+<span class="quote">&gt; kernel to merge it.</span>
+
+My guess is that it will take some time, probably measured in months,
+to carry out this level of integration and testing to.  But agreed, it
+is needed -- as you know, I recently removed some code from RCU that
+was requested but then never used.  Not fun.  Even worse would be a
+case where the requested code was half-used in a inefficient way, but
+precluding improvements.  And we actually had that problem some years
+back with the userspace-accessible ring-buffer code.
+
+So if it would help the people doing the testing, I would be happy to
+maintain a out-of-tree repository for this series.  That way, if the
+testing showed that kernel-code changes were required, these changes
+could be easily made without worrying about backwards compatibility
+(you don&#39;t get the backwards-compatibility guarantee until the code
+hits mainline).  This repository would be similar in some ways to the
+-rt tree, however, given the small size of this patchset, I cannot
+justify a separate git tree.  My thought is to provide (for example)
+v4.14-rc4-rseq tags within my -rcu tree.
+
+If there are problems with this approach, or if someone has a better idea,
+please let me know.
+
+							Thanx, Paul
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=77">Linus Torvalds</a> - Oct. 13, 2017, 9:05 p.m.</div>
+<pre class="content">
+On Fri, Oct 13, 2017 at 1:54 PM, Paul E. McKenney
+&lt;paulmck@linux.vnet.ibm.com&gt; wrote:
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; And if nobody can be bothered to write the user-level code and test</span>
+<span class="quote">&gt;&gt; this patch-series, then obviously it&#39;s not important enough for the</span>
+<span class="quote">&gt;&gt; kernel to merge it.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; My guess is that it will take some time, probably measured in months,</span>
+<span class="quote">&gt; to carry out this level of integration and testing to.</span>
+
+That would be an argument if this was a new patch series. &quot;Wait a few months&quot;.
+
+But that just isn&#39;t the case here.
+
+The fact is, these patches have been floating around in one form or
+another not for a couple of months, but for years. There&#39;s a LWN
+article about it from 2015, and it wasn&#39;t new back then either (slides
+from 2013).
+
+I wouldn&#39;t be surprised if there had been academic _papers_ written
+about the notion.
+
+So if there  *still* is no actual real code around this, then that
+just strengthens my point - no way should we merge something where
+people haven&#39;t actually bothered to write the user-mode component for
+years and years.
+
+It really boils down to: &quot;if nobody can be bothered to write the user
+mode parts after several years, why should it be merged into the
+kernel&quot;?
+
+I don&#39;t think that&#39;s too much to ask for.
+
+                Linus
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=61">Paul E. McKenney</a> - Oct. 13, 2017, 9:21 p.m.</div>
+<pre class="content">
+On Fri, Oct 13, 2017 at 02:05:50PM -0700, Linus Torvalds wrote:
+<span class="quote">&gt; On Fri, Oct 13, 2017 at 1:54 PM, Paul E. McKenney</span>
+<span class="quote">&gt; &lt;paulmck@linux.vnet.ibm.com&gt; wrote:</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; And if nobody can be bothered to write the user-level code and test</span>
+<span class="quote">&gt; &gt;&gt; this patch-series, then obviously it&#39;s not important enough for the</span>
+<span class="quote">&gt; &gt;&gt; kernel to merge it.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; My guess is that it will take some time, probably measured in months,</span>
+<span class="quote">&gt; &gt; to carry out this level of integration and testing to.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; That would be an argument if this was a new patch series. &quot;Wait a few months&quot;.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; But that just isn&#39;t the case here.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The fact is, these patches have been floating around in one form or</span>
+<span class="quote">&gt; another not for a couple of months, but for years. There&#39;s a LWN</span>
+<span class="quote">&gt; article about it from 2015, and it wasn&#39;t new back then either (slides</span>
+<span class="quote">&gt; from 2013).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I wouldn&#39;t be surprised if there had been academic _papers_ written</span>
+<span class="quote">&gt; about the notion.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So if there  *still* is no actual real code around this, then that</span>
+<span class="quote">&gt; just strengthens my point - no way should we merge something where</span>
+<span class="quote">&gt; people haven&#39;t actually bothered to write the user-mode component for</span>
+<span class="quote">&gt; years and years.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It really boils down to: &quot;if nobody can be bothered to write the user</span>
+<span class="quote">&gt; mode parts after several years, why should it be merged into the</span>
+<span class="quote">&gt; kernel&quot;?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I don&#39;t think that&#39;s too much to ask for.</span>
+
+Completely and totally agreed.  This doesn&#39;t go into mainline without
+being integrated into the various relevant usermode parts, and even then
+not without some significant advantages having been clearly demonstrated.
+
+The same as has been the case for the -rt patches.
+
+							Thanx, Paul
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Oct. 13, 2017, 9:36 p.m.</div>
+<pre class="content">
+----- On Oct 13, 2017, at 5:05 PM, Linus Torvalds torvalds@linux-foundation.org wrote:
+<span class="quote">
+&gt; On Fri, Oct 13, 2017 at 1:54 PM, Paul E. McKenney</span>
+<span class="quote">&gt; &lt;paulmck@linux.vnet.ibm.com&gt; wrote:</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; And if nobody can be bothered to write the user-level code and test</span>
+<span class="quote">&gt;&gt;&gt; this patch-series, then obviously it&#39;s not important enough for the</span>
+<span class="quote">&gt;&gt;&gt; kernel to merge it.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; My guess is that it will take some time, probably measured in months,</span>
+<span class="quote">&gt;&gt; to carry out this level of integration and testing to.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; That would be an argument if this was a new patch series. &quot;Wait a few months&quot;.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; But that just isn&#39;t the case here.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The fact is, these patches have been floating around in one form or</span>
+<span class="quote">&gt; another not for a couple of months, but for years. There&#39;s a LWN</span>
+<span class="quote">&gt; article about it from 2015, and it wasn&#39;t new back then either (slides</span>
+<span class="quote">&gt; from 2013).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I wouldn&#39;t be surprised if there had been academic _papers_ written</span>
+<span class="quote">&gt; about the notion.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So if there  *still* is no actual real code around this, then that</span>
+<span class="quote">&gt; just strengthens my point - no way should we merge something where</span>
+<span class="quote">&gt; people haven&#39;t actually bothered to write the user-mode component for</span>
+<span class="quote">&gt; years and years.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It really boils down to: &quot;if nobody can be bothered to write the user</span>
+<span class="quote">&gt; mode parts after several years, why should it be merged into the</span>
+<span class="quote">&gt; kernel&quot;?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I don&#39;t think that&#39;s too much to ask for.</span>
+
+I remember hearing that Google have been running their own version of
+this patch on their servers. My understanding is that they did not
+really care about things like single-stepping on server workloads,
+because they never single-step. One issue there is that getting
+rseq to work for specifically tuned systems (e.g. no cpu hotplug,
+no single-stepping, and so on) is fairly straightforward. The tricky
+part is to make it work in all situations, and I don&#39;t think Google
+had incentive to complete those tricky bits, because they don&#39;t need
+them.
+
+Facebook seem to try to follow upstream more closely. My understanding
+is that they can do specific prototypes to prove the value of the
+approach, as they did with their jemalloc integration from last year.
+
+I have myself integrated the LTTng-UST tracer to rseq as a prototype
+branch, and created a Userspace RCU prototype branch that works
+similarly to SRCU in the kernel, using per-cpu counters. Those are
+staying prototypes because I won&#39;t release an open source tool
+or library based on non-mainline system call numbers, this just cannot
+end well. Once/if rseq gets in, my next step will be to implement a
+multi-process userspace RCU flavor based on per-cpu counters (with
+rseq). Doing this with atomic operations is not worth it, because it
+just leads to really poor performance for read-side.
+
+I also spoke to Carlos O&#39;Donell from glibc about it, and he was very
+excited about the possible use of rseq for malloc speedup/memory usage
+improvement. But again, I don&#39;t see a project like glibc starting to
+use a system call for which the number will have to be bumped every
+now and then.
+
+I would *not* want this merged before we gather significant user feedback.
+The question is: how can we best gather that feedback ?
+
+Perhaps one approach could be to reserve system call numbers for
+sys_rseq and sys_cpu_opv, but leave them unimplemented for now
+(ENOSYS). This would lessen the amount of pain user-space would have
+to go through to adapt to system call number changes, and we could
+provide the implementation of those system calls in a -rseq tree, which
+I&#39;d be happy to maintain in order to gather feedback. If it ends up that
+it&#39;s not the right approach after all, all we would have lost is two
+unwired system call numbers per architecture.
+
+Thoughts ?
+
+Thanks,
+
+Mathieu
+<span class="quote">
+
+&gt; </span>
+<span class="quote">&gt;                 Linus</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=104">Andi Kleen</a> - Oct. 14, 2017, 3:01 a.m.</div>
+<pre class="content">
+<span class="quote">&gt; That sounds so obvious and stupid that you might go &quot;What do you</span>
+<span class="quote">&gt; mean?&quot;, but for things to work for libraries, they have to work</span>
+<span class="quote">&gt; together with *other* users, and with *independent* users.</span>
+
+As far as I can see the current model fundamentally only works for
+one user per process (because there is only a single range and abort IP) 
+
+So once malloc started using it noone else could.
+
+Since malloc is the primary user it would be pointless to ever
+try it on something else.
+
+It seems fixing that would complicate everything quite a bit --
+all ranges would need to be (unlimited?) arrays.
+
+-Andi
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=77">Linus Torvalds</a> - Oct. 14, 2017, 4:05 a.m.</div>
+<pre class="content">
+On Fri, Oct 13, 2017 at 8:01 PM, Andi Kleen &lt;andi@firstfloor.org&gt; wrote:
+<span class="quote">&gt;</span>
+<span class="quote">&gt; As far as I can see the current model fundamentally only works for</span>
+<span class="quote">&gt; one user per process (because there is only a single range and abort IP)</span>
+
+No, it should work for libraries, you just need to always initialize
+the proper start/commit/abort IP&#39;s for every transaction. Then
+everybody should be fine.
+
+So I _think_ it&#39;s all good. But I really would want to see that
+actually being the case.
+
+                Linus
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Oct. 14, 2017, 11:37 a.m.</div>
+<pre class="content">
+----- On Oct 14, 2017, at 12:05 AM, Linus Torvalds torvalds@linux-foundation.org wrote:
+<span class="quote">
+&gt; On Fri, Oct 13, 2017 at 8:01 PM, Andi Kleen &lt;andi@firstfloor.org&gt; wrote:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; As far as I can see the current model fundamentally only works for</span>
+<span class="quote">&gt;&gt; one user per process (because there is only a single range and abort IP)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; No, it should work for libraries, you just need to always initialize</span>
+<span class="quote">&gt; the proper start/commit/abort IP&#39;s for every transaction. Then</span>
+<span class="quote">&gt; everybody should be fine.</span>
+
+Yes, it does work for libraries. I have used it in my lttng-ust and
+liburcu prototypes, which are libraries. LTTng-UST requires at least
+two distinct critical sections (reserve and commit). For use in
+both executable and multiple libraries, we need each to declare the
+struct rseq TLS as a weak symbol, so only one gets picked throughout the
+process.
+
+One clarification about your statement above: the user-space fast-path
+does not need to initialize much at runtime: one &quot;rseq_cs descriptor&quot;
+is created by each rseq_finish assembly section. Each of those is
+initialized by the dynamic loader with the proper addresses.
+
+All the user-space fast-path really needs to do is to store the address
+to that descriptor into the TLS &quot;rseq_cs&quot; field. It does not even have to
+clear it after the critical section: the kernel can do it lazily.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; So I _think_ it&#39;s all good. But I really would want to see that</span>
+<span class="quote">&gt; actually being the case.</span>
+
+There is one other use-case I&#39;ve been made aware of in the past months:
+Will Deacon want to use rseq on aarch64 to read PMU counters on
+big.LITTLE to prevent migration and use of an unsupported PMC on a
+LITTLE core, which could trigger a fault.
+
+You had a really good point about cpu hotplug by the way. I recently
+realize that algorithms that have multiple non-atomic steps may
+_require_ to execute a series of steps on the same CPU.
+One example is lttng-ust ring buffer: it works on per-cpu buffers,
+and does a series of operations: reserve, [write to buffer], commit.
+Both reserve and commit can benefit from rseq, but we really need
+the commit to happen on the right CPU. Currently, in order to handle
+CPU hotplug, lttng-ust allocates CPU buffers for all possible cpus.
+If a CPU is hotunplugged between the reserve and commit though, we
+would run into a scenario where the &quot;commit&quot; could never be completed
+on the right CPU. I&#39;ve actually prepared a follow-up patch [1]
+yesterday that fixes this in the cpu_opv() system call: it detects
+situations where the target CPU is possible but not online, prevents
+cpu hotplug, grabs a mutex, and performs the requested operation
+from whichever CPU it happens to run on.
+
+Those are the kind of use-cases I want to gather more feedback on
+before we integrate those system calls for good.
+
+Thanks,
+
+Mathieu
+
+[1] https://github.com/compudj/linux-percpu-dev/commit/b602821e446f7bd8a0a2de44c598f257cf4120f5
+<span class="quote">
+
+&gt; </span>
+<span class="quote">&gt;                 Linus</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Oct. 14, 2017, 11:53 a.m.</div>
+<pre class="content">
+----- On Oct 13, 2017, at 2:17 PM, Andy Lutomirski luto@amacapital.net wrote:
+<span class="quote">
+&gt; On Fri, Oct 13, 2017 at 10:53 AM, Florian Weimer &lt;fweimer@redhat.com&gt; wrote:</span>
+<span class="quote">&gt;&gt; On 10/13/2017 07:24 PM, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; On Fri, Oct 13, 2017 at 7:27 AM, Mathieu Desnoyers</span>
+<span class="quote">&gt;&gt;&gt; &lt;mathieu.desnoyers@efficios.com&gt; wrote:</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; ----- On Oct 13, 2017, at 9:56 AM, Florian Weimer fweimer@redhat.com</span>
+<span class="quote">&gt;&gt;&gt;&gt; wrote:</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; On 10/13/2017 03:40 PM, Mathieu Desnoyers wrote:</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; The proposed ABI does not require to store any function pointer. For a</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; given</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; rseq_finish() critical section, pointers to specific instructions</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; (within a</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; function) are emitted at link-time into a struct rseq_cs:</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; struct rseq_cs {</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;           RSEQ_FIELD_u32_u64(start_ip);</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;           RSEQ_FIELD_u32_u64(post_commit_ip);</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;           RSEQ_FIELD_u32_u64(abort_ip);</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;           uint32_t flags;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; } __attribute__((aligned(4 * sizeof(uint64_t))));</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; Then, at runtime, the fast-path stores the address of that struct</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; rseq_cs</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; into the TLS struct rseq &quot;rseq_cs&quot; field.</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; So all we store at runtime is a pointer to data, not a pointer to</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; functions.</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; But you seem to hint that having a pointer to data containing pointers</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; to code</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; may still be making it easier for exploit writers. Can you elaborate on</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; the</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; scenario ?</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; I&#39;m concerned that the exploit writer writes a totally made up struct</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; rseq_cs object into writable memory, along with function pointers, and</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; puts the address of that in to the rseq_cs field.</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; This would be comparable to how C++ vtable pointers are targeted</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; (including those in the glibc libio implementation of stdio streams).</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; Does this answer your questions?</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; Yes, it does. How about we add a &quot;canary&quot; field to the TLS struct rseq,</span>
+<span class="quote">&gt;&gt;&gt;&gt; e.g.:</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; struct rseq {</span>
+<span class="quote">&gt;&gt;&gt;&gt;          union rseq_cpu_event u;</span>
+<span class="quote">&gt;&gt;&gt;&gt;          RSEQ_FIELD_u32_u64(rseq_cs);  -&gt; pointer to struct rseq_cs</span>
+<span class="quote">&gt;&gt;&gt;&gt;          uint32_t flags;</span>
+<span class="quote">&gt;&gt;&gt;&gt;          uint32_t canary;   -&gt; 32 low bits of rseq_cs ^ canary_mask</span>
+<span class="quote">&gt;&gt;&gt;&gt; };</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; We could then add a &quot;uint32_t canary_mask&quot; argument to sys_rseq, e.g.:</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; SYSCALL_DEFINE3(rseq, struct rseq __user *, rseq, uint32_t, canary_mask,</span>
+<span class="quote">&gt;&gt;&gt;&gt; int, flags);</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; So a thread which does not care about hardening would simply register its</span>
+<span class="quote">&gt;&gt;&gt;&gt; struct rseq TLS with a canary mask of &quot;0&quot;. Nothing changes on the</span>
+<span class="quote">&gt;&gt;&gt;&gt; fast-path.</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; A thread belonging to a process that cares about hardening could use a</span>
+<span class="quote">&gt;&gt;&gt;&gt; random</span>
+<span class="quote">&gt;&gt;&gt;&gt; value as canary, and pass it as canary_mask argument to the syscall. The</span>
+<span class="quote">&gt;&gt;&gt;&gt; fast-path could then set the struct rseq &quot;canary&quot; value to</span>
+<span class="quote">&gt;&gt;&gt;&gt; (32-low-bits of rseq_cs) ^ canary_mask just surrounding the critical</span>
+<span class="quote">&gt;&gt;&gt;&gt; section,</span>
+<span class="quote">&gt;&gt;&gt;&gt; and set it back to 0 afterward.</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; In the kernel, whenever the rseq_cs pointer would be loaded, its 32 low</span>
+<span class="quote">&gt;&gt;&gt;&gt; bits</span>
+<span class="quote">&gt;&gt;&gt;&gt; would be checked to match (canary ^ canary_mask). If it differs, then the</span>
+<span class="quote">&gt;&gt;&gt;&gt; kernel kills the process with SIGSEGV.</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; Would that take care of your concern ?</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; I would propose a slightly different solution: have the kernel verify</span>
+<span class="quote">&gt;&gt;&gt; that it jumps to a code sequence that occurs just after some</span>
+<span class="quote">&gt;&gt;&gt; highly-unlikely magic bytes in the text *and* that those bytes have</span>
+<span class="quote">&gt;&gt;&gt; some signature that matches a signature in the struct rseq that&#39;s</span>
+<span class="quote">&gt;&gt;&gt; passed in.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; And the signature is fixed at the time of the rseq syscall?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The point of the signature is to prevent an rseq landing pad from</span>
+<span class="quote">&gt; being used out of context.  Actually getting the details right might</span>
+<span class="quote">&gt; be tricky.</span>
+
+So my understanding is that we want to prevent an attacker that
+controls the stack to easily use rseq to trick the kernel into
+branching into an arbitrary pre-existing executable address in
+the process.
+
+I like the idea of putting a signature just before the abort_ip
+landing address and having it checked by the kernel. We could start
+by using a fixed hardcoded signature for now, and pass the
+signature value to the kernel when registering rseq. This would
+eventually allow a process to use a randomized signature if we
+figure out it&#39;s needed in the future.
+
+I don&#39;t see how placing this signature in struct rseq TLS area
+is a good idea: an attacker could then just overwrite that value
+so it matches whatever code is before the branch target it wishes
+to branch to.
+
+I also don&#39;t get how having the signature in the struct rseq_cs
+(restartable sequence descriptor) alongside with start/end/abort
+ip can be useful. Typically, an attacker would put its fake structure
+either on the stack, in data, or in rw memory, and make sure it
+uses the right signature in there. In the end, we don&#39;t really care
+whether the user ends up controlling the content of a struct rseq_cs,
+what we really care about is that it does not make the kernel branch
+to a pre-existing executable code address of its choosing.
+
+So having the kernel validate a signature placed just before the
+abort_ip should be enough for hardening purposes.
+
+Thoughts ?
+
+Thanks,
+
+Mathieu
+<span class="quote">
+
+&gt; </span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Yes, that would be far more reliable.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Thanks,</span>
+<span class="quote">&gt;&gt; Florian</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; --</span>
+<span class="quote">&gt; Andy Lutomirski</span>
+<span class="quote">&gt; AMA Capital Management, LLC</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=74241">Carlos O&#39;Donell</a> - Oct. 16, 2017, 4:04 p.m.</div>
+<pre class="content">
+On 10/13/2017 02:36 PM, Mathieu Desnoyers wrote:
+<span class="quote">&gt; I also spoke to Carlos O&#39;Donell from glibc about it, and he was very</span>
+<span class="quote">&gt; excited about the possible use of rseq for malloc speedup/memory usage</span>
+<span class="quote">&gt; improvement. But again, I don&#39;t see a project like glibc starting to</span>
+<span class="quote">&gt; use a system call for which the number will have to be bumped every</span>
+<span class="quote">&gt; now and then.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I would *not* want this merged before we gather significant user feedback.</span>
+<span class="quote">&gt; The question is: how can we best gather that feedback ?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Perhaps one approach could be to reserve system call numbers for</span>
+<span class="quote">&gt; sys_rseq and sys_cpu_opv, but leave them unimplemented for now</span>
+<span class="quote">&gt; (ENOSYS). This would lessen the amount of pain user-space would have</span>
+<span class="quote">&gt; to go through to adapt to system call number changes, and we could</span>
+<span class="quote">&gt; provide the implementation of those system calls in a -rseq tree, which</span>
+<span class="quote">&gt; I&#39;d be happy to maintain in order to gather feedback. If it ends up that</span>
+<span class="quote">&gt; it&#39;s not the right approach after all, all we would have lost is two</span>
+<span class="quote">&gt; unwired system call numbers per architecture.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Thoughts ?</span>
+
+We have similar problems in glibc with API/ABI issues, and there 
+isn&#39;t really any way around this except to present a reviewer with
+an overwhelming amount of evidence that use cases exist and work.
+
+How you collect, summarize, and analyze that overwhelming evidence
+is up to you, specific to each change, and difficult to do accurately
+and with any large measure of statistical confidence. The reviewer
+has to basically trust you to some degree :-)
+
+We should probably be working together to present the case to Linus
+that glibc is immediately ready to use restartable sequences and
+provide the use cases we have in mind with a public branch showing
+the work and the results. This would at least convince people that
+if we turned this on, every application would get benefit from a
+GNU system running glibc (which is less than the number of people
+running Linux on phones these days so YMMV).
+
+As always, glibc can use any new kernel features immediately,
+and only needs to detect presence at startup.
+
+My only concrete suggestion would be to add a level of indirection,
+some way to fetch the new syscalls dynamically at program startup,
+then I could construct a way to call them, mark it RO, and use that
+e.g. a userspace syscall table populated dynamically for experimental
+syscalls (semantic changes would require changes in the name used for
+lookup). It&#39;s just an expansion of the number of bits used to identify
+the syscall. Obviously such a patch is only for downstream testing
+in order to gather consensus for upstream patches.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=104">Andi Kleen</a> - Oct. 16, 2017, 4:46 p.m.</div>
+<pre class="content">
+<span class="quote">&gt; How you collect, summarize, and analyze that overwhelming evidence</span>
+<span class="quote">&gt; is up to you, specific to each change, and difficult to do accurately</span>
+<span class="quote">&gt; and with any large measure of statistical confidence. The reviewer</span>
+<span class="quote">&gt; has to basically trust you to some degree :-)</span>
+
+I think Linus&#39; just asked for some working &quot;real world, not micro&quot; code that
+demonstrates use.
+
+A prototype type implementation of the glibc malloc cache using this may
+be good enough.
+
+Even if the API still changes slightly later in review I would assume
+the basic concepts will stay the same, so it would be likely not
+too difficult to convert that prototype to the later final API.
+
+-Andi
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Oct. 16, 2017, 10:17 p.m.</div>
+<pre class="content">
+----- On Oct 16, 2017, at 12:46 PM, Andi Kleen andi@firstfloor.org wrote:
+<span class="quote">
+&gt;&gt; How you collect, summarize, and analyze that overwhelming evidence</span>
+<span class="quote">&gt;&gt; is up to you, specific to each change, and difficult to do accurately</span>
+<span class="quote">&gt;&gt; and with any large measure of statistical confidence. The reviewer</span>
+<span class="quote">&gt;&gt; has to basically trust you to some degree :-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I think Linus&#39; just asked for some working &quot;real world, not micro&quot; code that</span>
+<span class="quote">&gt; demonstrates use.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; A prototype type implementation of the glibc malloc cache using this may</span>
+<span class="quote">&gt; be good enough.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Even if the API still changes slightly later in review I would assume</span>
+<span class="quote">&gt; the basic concepts will stay the same, so it would be likely not</span>
+<span class="quote">&gt; too difficult to convert that prototype to the later final API.</span>
+
+In that respect, I have working prototypes of two non-trivial library
+projects using rseq within the same process.
+
+Those can be considered as being &quot;early adopters&quot; of rseq, before it
+becomes available in glibc.
+
+- liburcu per-cpu flavor prototype [1]
+  Interesting bits at
+  https://github.com/compudj/userspace-rcu-dev/blob/urcu-percpu/include/urcu/static/urcu-percpu.h
+  https://github.com/compudj/userspace-rcu-dev/blob/urcu-percpu/src/urcu-percpu.c
+  (it also has its own copy of rseq and cpu-opv helper libraries)
+
+- lttng-ust tracer rseq prototype [2, 3]
+  Interesting bits at
+  https://github.com/compudj/lttng-ust-dev/blob/rseq-integration-oct-2017/libringbuffer/getcpu.h#L85
+  https://github.com/compudj/lttng-ust-dev/blob/rseq-integration-oct-2017/libringbuffer/vatomic.h#L60
+  (it also has its own copy of rseq and cpu-opv helper libraries)
+
+They use a slightly updated version of the rseq patchset, which I
+plan to push into a new &quot;rseq&quot; tree on kernel.org soon. It takes care
+of the comments I received in the past few days.
+
+They end up sharing the &quot;__rseq_abi&quot; TLS weak symbol (initial state of
+cpu_id = -1). They lazy-detect whether rseq needs to be registered for
+the current thread by checking if the cpu_id read from the rseq TLS
+is &lt; 0. If rseq registration fails, they set its value to -2 and won&#39;t
+try to register again (will use their fallback). When they successfully
+register, they setup a pthread_key so rseq is unregistered when the
+thread exits.
+
+So far the restrictions I see for libraries using this symbol are:
+- They should never be unloaded,
+- They should never be loaded with dlopen RTLD_LOCAL flag.
+
+If those are considered acceptable limitations, then we can stick to
+the &quot;single rseq TLS per thread&quot; rule, and we don&#39;t have to implement
+a linked-list of rseq TLS per thread.
+
+When glibc eventually adds support for rseq, I expect it to deal with
+rseq TLS registration and unregistration at thread creation/exit.
+Therefore, the checks for negative cpu_id performed by lttng-ust and
+liburcu will figure out that rseq is already registered, and skip
+registration altogether when it&#39;s already performed by glibc.
+
+Thoughts ?
+
+Thanks,
+
+Mathieu
+
+[1] https://github.com/compudj/userspace-rcu-dev/tree/urcu-percpu
+[2] https://github.com/compudj/lttng-ust-dev/tree/rseq-integration-oct-2017
+[3] https://github.com/compudj/lttng-tools-dev/tree/urcu-percpu
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137821">Ben Maurer</a> - Oct. 17, 2017, 4:19 p.m.</div>
+<pre class="content">
+Hey,
+<span class="quote">
+&gt; So far the restrictions I see for libraries using this symbol are:</span>
+<span class="quote">&gt; - They should never be unloaded,</span>
+<span class="quote">&gt; - They should never be loaded with dlopen RTLD_LOCAL flag.</span>
+
+We talked a bit about this off-list but I wanted to state publicly that I think this model works well for our use case. Specifically,
+
+(1) It reduces complexity by focusing on the common case -- long term we expect glibc to manage the process of using this feature and registering/deregistering threads for rseq. Unloading isn&#39;t a challenge in these situations, so why add the complexity for it?
+
+(2) This still allows for early adopters to use rseq before there is glibc support. I believe the vast majority of real world applications meet these two criteria you&#39;ve listed. If not, they can create a thin shared library that has the sole purpose of providing the weak symbol and that never gets unloaded
+
+(3) This allows for applications to provide the __rseq_abi so that they can ensure it uses the initial_exec tls model and optimize in-application assembly code for it. This is a good optimization for server applications that tend to statically link.
+
+If others agree with this, would it make sense to remove the concept of reference counting in the system call that defines and redefines the per-thread area? Seems like it would remove complexity.
+
+-b
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Oct. 17, 2017, 4:33 p.m.</div>
+<pre class="content">
+----- On Oct 17, 2017, at 12:19 PM, Ben Maurer bmaurer@fb.com wrote:
+<span class="quote">
+&gt; Hey,</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; So far the restrictions I see for libraries using this symbol are:</span>
+<span class="quote">&gt;&gt; - They should never be unloaded,</span>
+<span class="quote">&gt;&gt; - They should never be loaded with dlopen RTLD_LOCAL flag.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; We talked a bit about this off-list but I wanted to state publicly that I think</span>
+<span class="quote">&gt; this model works well for our use case. Specifically,</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; (1) It reduces complexity by focusing on the common case -- long term we expect</span>
+<span class="quote">&gt; glibc to manage the process of using this feature and registering/deregistering</span>
+<span class="quote">&gt; threads for rseq. Unloading isn&#39;t a challenge in these situations, so why add</span>
+<span class="quote">&gt; the complexity for it?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; (2) This still allows for early adopters to use rseq before there is glibc</span>
+<span class="quote">&gt; support. I believe the vast majority of real world applications meet these two</span>
+<span class="quote">&gt; criteria you&#39;ve listed. If not, they can create a thin shared library that has</span>
+<span class="quote">&gt; the sole purpose of providing the weak symbol and that never gets unloaded</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; (3) This allows for applications to provide the __rseq_abi so that they can</span>
+<span class="quote">&gt; ensure it uses the initial_exec tls model and optimize in-application assembly</span>
+<span class="quote">&gt; code for it. This is a good optimization for server applications that tend to</span>
+<span class="quote">&gt; statically link.</span>
+
+Agreed with all the above,
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; If others agree with this, would it make sense to remove the concept of</span>
+<span class="quote">&gt; reference counting in the system call that defines and redefines the per-thread</span>
+<span class="quote">&gt; area? Seems like it would remove complexity.</span>
+
+I have a use-case for keeping the reference counting in place though. It&#39;s
+use of rseq in signal handlers.
+
+If we have two early-adopter libraries trying to lazy-register rseq, and
+one of those libraries can be called within a signal handler (e.g. lttng-ust),
+we run into a situation where signal handler could nest on top of the
+first library lazy-register (test, branch, register), and race against it.
+So having reference counting in place allows the kernel to deal with
+those multi-lib use-cases atomically wrt signal handlers from a thread
+perspective.
+
+And I don&#39;t want to require every early-adopter library to disable signals
+just in case some _other_ library would be invoked in a signal handler.
+
+Thoughts ?
+
+Thanks,
+
+Mathieu
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; -b</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137821">Ben Maurer</a> - Oct. 17, 2017, 4:41 p.m.</div>
+<pre class="content">
+<span class="quote">&gt; I have a use-case for keeping the reference counting in place though. It&#39;s</span>
+<span class="quote">&gt; use of rseq in signal handlers.</span>
+
+Would this be solved by saying that the rseq api will return an error if you register and there&#39;s already a block registered. In this case the signal handler would register the rseq abi area just as the non-signal code is trying to do the same. The non-signal code would see this error code and realize that its job had been done for it and then go on it&#39;s way.
+
+It would be unsafe for signal handler code to *unregister* the area, but I don&#39;t think that&#39;s necessary.
+
+Basically we&#39;d support a refcount of either 0 or 1, but nothing else.
+
+If a signal handler registers the ABI area, how will it ensure the ABI is cleaned up at thread exit? I can&#39;t imagine pthread_key is signal safe.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Oct. 17, 2017, 5:48 p.m.</div>
+<pre class="content">
+----- On Oct 17, 2017, at 12:41 PM, Ben Maurer bmaurer@fb.com wrote:
+<span class="quote">
+&gt;&gt; I have a use-case for keeping the reference counting in place though. It&#39;s</span>
+<span class="quote">&gt;&gt; use of rseq in signal handlers.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Would this be solved by saying that the rseq api will return an error if you</span>
+<span class="quote">&gt; register and there&#39;s already a block registered. In this case the signal</span>
+<span class="quote">&gt; handler would register the rseq abi area just as the non-signal code is trying</span>
+<span class="quote">&gt; to do the same. The non-signal code would see this error code and realize that</span>
+<span class="quote">&gt; its job had been done for it and then go on it&#39;s way.</span>
+
+Yes, that should work, as long as we return a specific error code, e.g. -EBUSY,
+to tell the caller that rseq has actually been registered.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; It would be unsafe for signal handler code to *unregister* the area, but I don&#39;t</span>
+<span class="quote">&gt; think that&#39;s necessary.</span>
+
+Right.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; Basically we&#39;d support a refcount of either 0 or 1, but nothing else.</span>
+
+Yep, I&#39;ll try this out.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; If a signal handler registers the ABI area, how will it ensure the ABI is</span>
+<span class="quote">&gt; cleaned up at thread exit? I can&#39;t imagine pthread_key is signal safe.</span>
+
+You have a very good point there. This highlights a signal-safety issue
+I have in liburcu-bp when used by lttng-ust. pthread_setspecific is
+indeed not listed as being signal-safe: it can perform on-demand memory
+allocation when a second level array is needed.
+
+I&#39;ll have to scratch my head a bit to fix this one.
+
+Thanks!
+
+Mathieu
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=37061">gregkh@linuxfoundation.org</a> - Oct. 18, 2017, 6:22 a.m.</div>
+<pre class="content">
+On Tue, Oct 17, 2017 at 04:19:41PM +0000, Ben Maurer wrote:
+<span class="quote">&gt; Hey,</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; So far the restrictions I see for libraries using this symbol are:</span>
+<span class="quote">&gt; &gt; - They should never be unloaded,</span>
+<span class="quote">&gt; &gt; - They should never be loaded with dlopen RTLD_LOCAL flag.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; We talked a bit about this off-list but I wanted to state publicly</span>
+<span class="quote">&gt; that I think this model works well for our use case. Specifically,</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; (1) It reduces complexity by focusing on the common case -- long term</span>
+<span class="quote">&gt; we expect glibc to manage the process of using this feature and</span>
+<span class="quote">&gt; registering/deregistering threads for rseq. Unloading isn&#39;t a</span>
+<span class="quote">&gt; challenge in these situations, so why add the complexity for it?</span>
+
+You never install a new version of glibc on a running system, and expect
+everything to keep running successfully?  Breaking that would not be
+good...
+
+thanks,
+
+greg k-h
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Oct. 18, 2017, 4:28 p.m.</div>
+<pre class="content">
+----- On Oct 18, 2017, at 2:22 AM, Greg Kroah-Hartman gregkh@linuxfoundation.org wrote:
+<span class="quote">
+&gt; On Tue, Oct 17, 2017 at 04:19:41PM +0000, Ben Maurer wrote:</span>
+<span class="quote">&gt;&gt; Hey,</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; &gt; So far the restrictions I see for libraries using this symbol are:</span>
+<span class="quote">&gt;&gt; &gt; - They should never be unloaded,</span>
+<span class="quote">&gt;&gt; &gt; - They should never be loaded with dlopen RTLD_LOCAL flag.</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; We talked a bit about this off-list but I wanted to state publicly</span>
+<span class="quote">&gt;&gt; that I think this model works well for our use case. Specifically,</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; (1) It reduces complexity by focusing on the common case -- long term</span>
+<span class="quote">&gt;&gt; we expect glibc to manage the process of using this feature and</span>
+<span class="quote">&gt;&gt; registering/deregistering threads for rseq. Unloading isn&#39;t a</span>
+<span class="quote">&gt;&gt; challenge in these situations, so why add the complexity for it?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; You never install a new version of glibc on a running system, and expect</span>
+<span class="quote">&gt; everything to keep running successfully?  Breaking that would not be</span>
+<span class="quote">&gt; good...</span>
+
+If we share the __rseq_abi TLS weak symbol between glibc, applications,
+and early-adopter libraries, we just need those early adopters to
+check whether the TLS is already registered (cpu_id field &gt;= 0), and
+don&#39;t bother doing their lazy registration if it&#39;s already been done
+for them (either by glibc or by the application).
+
+If either the application or a lazy-registering library gets a EBUSY
+errno from rseq registration, it can consider that another library
+already performed the registration for them (probably glibc).
+
+As long as early adopter libraries don&#39;t expect to be sole users
+of __rseq_abi, upgrading to newer glibc should work fine.
+
+But this means we need to get all early adopters to get it right from
+the get-go, or things could break when you compose them.
+
+Thoughts ?
+
+Thanks,
+
+Mathieu
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; thanks,</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; greg k-h</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137821">Ben Maurer</a> - Oct. 18, 2017, 4:41 p.m.</div>
+<pre class="content">
+<span class="quote">&gt; The layout of struct rseq_cs is as follows:</span>
+<span class="quote">
+&gt; start_ip</span>
+<span class="quote">&gt; Instruction pointer address of the first instruction of the</span>
+<span class="quote">&gt; sequence of consecutive assembly instructions.</span>
+<span class="quote">
+&gt; post_commit_ip</span>
+<span class="quote">&gt; Instruction pointer address after the last  instruction  of</span>
+<span class="quote">&gt;  the sequence of consecutive assembly instructions.</span>
+<span class="quote">
+&gt;  abort_ip</span>
+<span class="quote">&gt; Instruction  pointer  address  where  to move the execution</span>
+<span class="quote">&gt;  flow in case of abort of the sequence of consecutive assem‐</span>
+<span class="quote">&gt;  bly instructions.</span>
+
+Really minor performance performance thought here.
+
+1) In the kernel at context switch time you&#39;d need code like:
+
+if (ip &gt;= start_ip &amp;&amp; ip &lt;= post_commit_ip)
+
+This branch would be hard to predict because most instruction pointers would be either before or after. If post_commit_ip were relative to start_ip you could do this:
+
+if (ip - start_ip &lt;= post_commit_offset)
+
+which is a single branch that would be more predictable.
+
+2) In a shared library a rseq_cs structure would have to be relocated at runtime because at compilation time the final address of the library wouldn&#39;t be known. I&#39;m not sure if this is important enough to address, but it could be solved by making the pointers relative to the address of rseq_cs. But this would make for an uglier API.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Oct. 18, 2017, 6:11 p.m.</div>
+<pre class="content">
+----- On Oct 18, 2017, at 12:41 PM, Ben Maurer bmaurer@fb.com wrote:
+<span class="quote">
+&gt;&gt; The layout of struct rseq_cs is as follows:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; start_ip</span>
+<span class="quote">&gt;&gt; Instruction pointer address of the first instruction of the</span>
+<span class="quote">&gt;&gt; sequence of consecutive assembly instructions.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; post_commit_ip</span>
+<span class="quote">&gt;&gt; Instruction pointer address after the last  instruction  of</span>
+<span class="quote">&gt;&gt;  the sequence of consecutive assembly instructions.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt;  abort_ip</span>
+<span class="quote">&gt;&gt; Instruction  pointer  address  where  to move the execution</span>
+<span class="quote">&gt;&gt;  flow in case of abort of the sequence of consecutive assem‐</span>
+<span class="quote">&gt;&gt;  bly instructions.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Really minor performance performance thought here.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 1) In the kernel at context switch time you&#39;d need code like:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; if (ip &gt;= start_ip &amp;&amp; ip &lt;= post_commit_ip)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This branch would be hard to predict because most instruction pointers would be</span>
+<span class="quote">&gt; either before or after. If post_commit_ip were relative to start_ip you could</span>
+<span class="quote">&gt; do this:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; if (ip - start_ip &lt;= post_commit_offset)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; which is a single branch that would be more predictable.</span>
+
+The actual context switch code only sets the &quot;t-&gt;rseq_preempt&quot;
+flags and TIF_NOTIFY_RESUME. The user-accesses happen when
+returning to user-space with TIF_NOTIFY_RESUME set.
+
+Indeed, we can expect most context switch out of a registered
+rseq thread to trigger one __rseq_handle_notify_resume on
+return to user-space for that thread.
+
+As you point out, the &quot;common&quot; case is *not* nested over a
+critical section. This means t-&gt;rseq-&gt;rseq_cs is NULL.
+This effectively means post_commit_ip and start_ip are NULL in
+rseq_ip_fixup when compared to the current ip.
+
+The check is currently implemented like this:
+
+        /* Handle potentially not being within a critical section. */
+        if ((void __user *)instruction_pointer(regs) &gt;= post_commit_ip ||
+                        (void __user *)instruction_pointer(regs) &lt; start_ip)
+                return 1;
+
+So if non-nested over c.s., the first branch is ip &gt;= NULL, which turns
+out to be true, and we therefore return 1 from rseq_ip_fixup.
+
+I suspect that we&#39;d need to cast those pointers to (unsigned long) to
+be strictly C standard compliant.
+
+If we instead use &quot;post_commit_offset&quot; relative to start_ip, a non-nested
+common case would have start_ip = NULL, post_commit_offset = 0. The check
+you propose for not being nested over a c.s. would look like:
+
+if (!((long)ip - (long)start_ip &lt;= (long)post_commit_offset))
+   return 1;
+
+This introduces an issue here: if &quot;ip&quot; is lower than &quot;start_ip&quot;, we
+can incorrectly think we are in a critical section, when we are in
+fact not.
+
+With the previous approach proposed by Paul Turner, this was not an
+issue, because he was setting the equivalent of the rseq_cs pointer
+back to NULL at the end of the assembly fast-path. However, I have
+a fast-path optimization that only sets the rseq_cs pointer at the
+beginning of the fast-path, without clearing it afterward. It&#39;s up
+to the following critical section to overwrite the rseq_cs pointer,
+or to the kernel to set it back to NULL if it finds out that it is
+preempting/delivering a signal over an instruction pointer outside
+of the current rseq_cs start_ip/post_commit_ip range (lazy clear).
+
+Moreover, this modification would add a subtraction on the common case
+(ip - start_ip), and makes the ABI slightly uglier.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; 2) In a shared library a rseq_cs structure would have to be relocated at runtime</span>
+<span class="quote">&gt; because at compilation time the final address of the library wouldn&#39;t be known.</span>
+<span class="quote">&gt; I&#39;m not sure if this is important enough to address, but it could be solved by</span>
+<span class="quote">&gt; making the pointers relative to the address of rseq_cs. But this would make for</span>
+<span class="quote">&gt; an uglier API.</span>
+
+If I understand well, you are proposing to speed up .so load time by
+means of removing relocations of pointers within rseq_cs, done by
+making those relative to the rseq_cs address.
+
+So the downside here is extra arithmetic operations on resume to
+userspace (__rseq_handle_notify_resume): the kernel would have
+to calculate the offset of start_ip and post_commit_ip from the
+address of rseq_cs. Sure, we&#39;re only talking about two additions
+there, but I don&#39;t think marginally speeding up library load
+justifies extra work in that kernel path, nor the uglier ABI.
+
+Thoughts ?
+
+Thanks,
+
+Mathieu
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Oct. 19, 2017, 11:35 a.m.</div>
+<pre class="content">
+Speaking of optimization, I think the rseq.c helper library
+(and eventually glibc) should define the __rseq_abi TLS
+variable with __attribute__((tls_model(&quot;initial-exec&quot;))).
+It provides faster, and signal-safe, accesses to the TLS
+variable from libraries.
+
+The idea you were suggesting where the application could
+override the glibc symbol with its own just ends up enforcing
+an initial-exec model, but it looks like we can do this
+directly from the library.
+
+Thoughts ?
+
+Thanks,
+
+Mathieu
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=59521">Florian Weimer</a> - Oct. 19, 2017, 5:01 p.m.</div>
+<pre class="content">
+* Mathieu Desnoyers:
+<span class="quote">
+&gt; Speaking of optimization, I think the rseq.c helper library</span>
+<span class="quote">&gt; (and eventually glibc) should define the __rseq_abi TLS</span>
+<span class="quote">&gt; variable with __attribute__((tls_model(&quot;initial-exec&quot;))).</span>
+<span class="quote">&gt; It provides faster, and signal-safe, accesses to the TLS</span>
+<span class="quote">&gt; variable from libraries.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; The idea you were suggesting where the application could</span>
+<span class="quote">&gt; override the glibc symbol with its own just ends up enforcing</span>
+<span class="quote">&gt; an initial-exec model, but it looks like we can do this</span>
+<span class="quote">&gt; directly from the library.</span>
+
+This really depends on how the programming model turns out once
+multiple libraries are involved.  I think it&#39;s premature to discuss
+such details.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137821">Ben Maurer</a> - Oct. 23, 2017, 5:30 p.m.</div>
+<pre class="content">
+<span class="quote">&gt; if (!((long)ip - (long)start_ip &lt;= (long)post_commit_offset))</span>
+<span class="quote">&gt;   return 1;</span>
+<span class="quote">
+&gt; This introduces an issue here: if &quot;ip&quot; is lower than &quot;start_ip&quot;, we</span>
+<span class="quote">&gt; can incorrectly think we are in a critical section, when we are in</span>
+<span class="quote">&gt; fact not.</span>
+
+This shouldn&#39;t be an issue if we used unsigned numbers. Eg if start_ip is X and post_commit_offset is L, then (ip - X &lt;= L) means that if ip is less than X ip - X will be signed, which will become a large unsigned value. 
+<span class="quote">
+&gt; or to the kernel to set it back to NULL if it finds out that it is</span>
+<span class="quote">&gt; preempting/delivering a signal over an instruction pointer outside</span>
+<span class="quote">&gt; of the current rseq_cs start_ip/post_commit_ip range (lazy clear).</span>
+
+I see, lazy clear makes sense. Still, if during most execution periods the user code enters some rseq section (likely if rseq is used for something like malloc) on every context switch this code will have to be run.
+<span class="quote">
+&gt; Moreover, this modification would add a subtraction on the common case</span>
+<span class="quote">&gt; (ip - start_ip), and makes the ABI slightly uglier.</span>
+
+We could benchmark it but the subtraction should be similar in cost to the extra comparison but reducing the number of branches seems like it will help as well. FWIW GCC attempts to translate this kind of sequence to a subtract and compare: https://godbolt.org/g/5DGLvo.
+
+I agree the ABI is uglier, but since we&#39;re mucking with every context switch I thought I&#39;d point it out.
+<span class="quote">
+&gt; If I understand well, you are proposing to speed up .so load time by</span>
+<span class="quote">&gt; means of removing relocations of pointers within rseq_cs, done by</span>
+<span class="quote">&gt; making those relative to the rseq_cs address.</span>
+
+Yeah, I think this may be overkill as optimization.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Oct. 23, 2017, 8:44 p.m.</div>
+<pre class="content">
+----- On Oct 23, 2017, at 7:30 PM, Ben Maurer bmaurer@fb.com wrote:
+<span class="quote">
+&gt;&gt; if (!((long)ip - (long)start_ip &lt;= (long)post_commit_offset))</span>
+<span class="quote">&gt;&gt;   return 1;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; This introduces an issue here: if &quot;ip&quot; is lower than &quot;start_ip&quot;, we</span>
+<span class="quote">&gt;&gt; can incorrectly think we are in a critical section, when we are in</span>
+<span class="quote">&gt;&gt; fact not.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This shouldn&#39;t be an issue if we used unsigned numbers. Eg if start_ip is X and</span>
+<span class="quote">&gt; post_commit_offset is L, then (ip - X &lt;= L) means that if ip is less than X ip</span>
+<span class="quote">&gt; - X will be signed, which will become a large unsigned value.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; or to the kernel to set it back to NULL if it finds out that it is</span>
+<span class="quote">&gt;&gt; preempting/delivering a signal over an instruction pointer outside</span>
+<span class="quote">&gt;&gt; of the current rseq_cs start_ip/post_commit_ip range (lazy clear).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I see, lazy clear makes sense. Still, if during most execution periods the user</span>
+<span class="quote">&gt; code enters some rseq section (likely if rseq is used for something like</span>
+<span class="quote">&gt; malloc) on every context switch this code will have to be run.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; Moreover, this modification would add a subtraction on the common case</span>
+<span class="quote">&gt;&gt; (ip - start_ip), and makes the ABI slightly uglier.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; We could benchmark it but the subtraction should be similar in cost to the extra</span>
+<span class="quote">&gt; comparison but reducing the number of branches seems like it will help as well.</span>
+<span class="quote">&gt; FWIW GCC attempts to translate this kind of sequence to a subtract and compare:</span>
+<span class="quote">&gt; https://godbolt.org/g/5DGLvo.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I agree the ABI is uglier, but since we&#39;re mucking with every context switch I</span>
+<span class="quote">&gt; thought I&#39;d point it out.</span>
+
+Thanks for following up on this. I did not initially realize the importance
+of doing the unsigned comparison. I&#39;ve pushed a commit in my private dev branch
+implementing your suggestion.
+
+https://github.com/compudj/linux-percpu-dev/commit/4cf8e9104636b51741c0118f2c88519e3acab7aa
+
+Thanks!
+
+Mathieu
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; If I understand well, you are proposing to speed up .so load time by</span>
+<span class="quote">&gt;&gt; means of removing relocations of pointers within rseq_cs, done by</span>
+<span class="quote">&gt;&gt; making those relative to the rseq_cs address.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yeah, I think this may be overkill as optimization.</span>
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/MAINTAINERS b/MAINTAINERS</span>
+<span class="p_header">index 1c3feffb1c1c..f05c526fe1e8 100644</span>
+<span class="p_header">--- a/MAINTAINERS</span>
+<span class="p_header">+++ b/MAINTAINERS</span>
+<span class="p_chunk">@@ -11224,6 +11224,16 @@</span> <span class="p_context"> F:	include/dt-bindings/reset/</span>
+ F:	include/linux/reset.h
+ F:	include/linux/reset-controller.h
+ 
+<span class="p_add">+RESTARTABLE SEQUENCES SUPPORT</span>
+<span class="p_add">+M:	Mathieu Desnoyers &lt;mathieu.desnoyers@efficios.com&gt;</span>
+<span class="p_add">+M:	Peter Zijlstra &lt;peterz@infradead.org&gt;</span>
+<span class="p_add">+M:	&quot;Paul E. McKenney&quot; &lt;paulmck@linux.vnet.ibm.com&gt;</span>
+<span class="p_add">+M:	Boqun Feng &lt;boqun.feng@gmail.com&gt;</span>
+<span class="p_add">+L:	linux-kernel@vger.kernel.org</span>
+<span class="p_add">+S:	Supported</span>
+<span class="p_add">+F:	kernel/rseq.c</span>
+<span class="p_add">+F:	include/uapi/linux/rseq.h</span>
+<span class="p_add">+</span>
+ RFKILL
+ M:	Johannes Berg &lt;johannes@sipsolutions.net&gt;
+ L:	linux-wireless@vger.kernel.org
+<span class="p_header">diff --git a/arch/Kconfig b/arch/Kconfig</span>
+<span class="p_header">index 21d0089117fe..6f1203612403 100644</span>
+<span class="p_header">--- a/arch/Kconfig</span>
+<span class="p_header">+++ b/arch/Kconfig</span>
+<span class="p_chunk">@@ -257,6 +257,13 @@</span> <span class="p_context"> config HAVE_REGS_AND_STACK_ACCESS_API</span>
+ 	  declared in asm/ptrace.h
+ 	  For example the kprobes-based event tracer needs this API.
+ 
+<span class="p_add">+config HAVE_RSEQ</span>
+<span class="p_add">+	bool</span>
+<span class="p_add">+	depends on HAVE_REGS_AND_STACK_ACCESS_API</span>
+<span class="p_add">+	help</span>
+<span class="p_add">+	  This symbol should be selected by an architecture if it</span>
+<span class="p_add">+	  supports an implementation of restartable sequences.</span>
+<span class="p_add">+</span>
+ config HAVE_CLK
+ 	bool
+ 	help
+<span class="p_header">diff --git a/fs/exec.c b/fs/exec.c</span>
+<span class="p_header">index 62175cbcc801..75fcbaeb0206 100644</span>
+<span class="p_header">--- a/fs/exec.c</span>
+<span class="p_header">+++ b/fs/exec.c</span>
+<span class="p_chunk">@@ -1794,6 +1794,7 @@</span> <span class="p_context"> static int do_execveat_common(int fd, struct filename *filename,</span>
+ 	/* execve succeeded */
+ 	current-&gt;fs-&gt;in_exec = 0;
+ 	current-&gt;in_execve = 0;
+<span class="p_add">+	rseq_execve(current);</span>
+ 	acct_update_integrals(current);
+ 	task_numa_free(current);
+ 	free_bprm(bprm);
+<span class="p_header">diff --git a/include/linux/sched.h b/include/linux/sched.h</span>
+<span class="p_header">index c05ac5f5aa03..203abf387a14 100644</span>
+<span class="p_header">--- a/include/linux/sched.h</span>
+<span class="p_header">+++ b/include/linux/sched.h</span>
+<span class="p_chunk">@@ -26,6 +26,7 @@</span> <span class="p_context"></span>
+ #include &lt;linux/signal_types.h&gt;
+ #include &lt;linux/mm_types_task.h&gt;
+ #include &lt;linux/task_io_accounting.h&gt;
+<span class="p_add">+#include &lt;linux/rseq.h&gt;</span>
+ 
+ /* task_struct member predeclarations (sorted alphabetically): */
+ struct audit_context;
+<span class="p_chunk">@@ -966,6 +967,13 @@</span> <span class="p_context"> struct task_struct {</span>
+ 	unsigned long			numa_pages_migrated;
+ #endif /* CONFIG_NUMA_BALANCING */
+ 
+<span class="p_add">+#ifdef CONFIG_RSEQ</span>
+<span class="p_add">+	struct rseq __user *rseq;</span>
+<span class="p_add">+	u32 rseq_event_counter;</span>
+<span class="p_add">+	unsigned int rseq_refcount;</span>
+<span class="p_add">+	bool rseq_preempt, rseq_signal, rseq_migrate;</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ 	struct tlbflush_unmap_batch	tlb_ubc;
+ 
+ 	struct rcu_head			rcu;
+<span class="p_chunk">@@ -1626,4 +1634,85 @@</span> <span class="p_context"> extern long sched_getaffinity(pid_t pid, struct cpumask *mask);</span>
+ #define TASK_SIZE_OF(tsk)	TASK_SIZE
+ #endif
+ 
+<span class="p_add">+#ifdef CONFIG_RSEQ</span>
+<span class="p_add">+static inline void rseq_set_notify_resume(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (t-&gt;rseq)</span>
+<span class="p_add">+		set_tsk_thread_flag(t, TIF_NOTIFY_RESUME);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+void __rseq_handle_notify_resume(struct pt_regs *regs);</span>
+<span class="p_add">+static inline void rseq_handle_notify_resume(struct pt_regs *regs)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (current-&gt;rseq)</span>
+<span class="p_add">+		__rseq_handle_notify_resume(regs);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * If parent process has a registered restartable sequences area, the</span>
+<span class="p_add">+ * child inherits. Only applies when forking a process, not a thread. In</span>
+<span class="p_add">+ * case a parent fork() in the middle of a restartable sequence, set the</span>
+<span class="p_add">+ * resume notifier to force the child to retry.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static inline void rseq_fork(struct task_struct *t, unsigned long clone_flags)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (clone_flags &amp; CLONE_THREAD) {</span>
+<span class="p_add">+		t-&gt;rseq = NULL;</span>
+<span class="p_add">+		t-&gt;rseq_event_counter = 0;</span>
+<span class="p_add">+		t-&gt;rseq_refcount = 0;</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		t-&gt;rseq = current-&gt;rseq;</span>
+<span class="p_add">+		t-&gt;rseq_event_counter = current-&gt;rseq_event_counter;</span>
+<span class="p_add">+		t-&gt;rseq_refcount = current-&gt;rseq_refcount;</span>
+<span class="p_add">+		rseq_set_notify_resume(t);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_execve(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	t-&gt;rseq = NULL;</span>
+<span class="p_add">+	t-&gt;rseq_event_counter = 0;</span>
+<span class="p_add">+	t-&gt;rseq_refcount = 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_sched_out(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	rseq_set_notify_resume(t);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_signal_deliver(struct pt_regs *regs)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	current-&gt;rseq_signal = true;</span>
+<span class="p_add">+	rseq_handle_notify_resume(regs);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_preempt(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	t-&gt;rseq_preempt = true;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_migrate(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	t-&gt;rseq_migrate = true;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+#else</span>
+<span class="p_add">+static inline void rseq_set_notify_resume(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_handle_notify_resume(struct pt_regs *regs)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_fork(struct task_struct *t, unsigned long clone_flags)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_execve(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_sched_out(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_signal_deliver(struct pt_regs *regs)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_preempt(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_migrate(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ #endif
+<span class="p_header">diff --git a/include/uapi/linux/rseq.h b/include/uapi/linux/rseq.h</span>
+new file mode 100644
+<span class="p_header">index 000000000000..8abd8b638ce0</span>
+<span class="p_header">--- /dev/null</span>
+<span class="p_header">+++ b/include/uapi/linux/rseq.h</span>
+<span class="p_chunk">@@ -0,0 +1,131 @@</span> <span class="p_context"></span>
+<span class="p_add">+#ifndef _UAPI_LINUX_RSEQ_H</span>
+<span class="p_add">+#define _UAPI_LINUX_RSEQ_H</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * linux/rseq.h</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Restartable sequences system call API</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Copyright (c) 2015-2016 Mathieu Desnoyers &lt;mathieu.desnoyers@efficios.com&gt;</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Permission is hereby granted, free of charge, to any person obtaining a copy</span>
+<span class="p_add">+ * of this software and associated documentation files (the &quot;Software&quot;), to deal</span>
+<span class="p_add">+ * in the Software without restriction, including without limitation the rights</span>
+<span class="p_add">+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell</span>
+<span class="p_add">+ * copies of the Software, and to permit persons to whom the Software is</span>
+<span class="p_add">+ * furnished to do so, subject to the following conditions:</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * The above copyright notice and this permission notice shall be included in</span>
+<span class="p_add">+ * all copies or substantial portions of the Software.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR</span>
+<span class="p_add">+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,</span>
+<span class="p_add">+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE</span>
+<span class="p_add">+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER</span>
+<span class="p_add">+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,</span>
+<span class="p_add">+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE</span>
+<span class="p_add">+ * SOFTWARE.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifdef __KERNEL__</span>
+<span class="p_add">+# include &lt;linux/types.h&gt;</span>
+<span class="p_add">+#else	/* #ifdef __KERNEL__ */</span>
+<span class="p_add">+# include &lt;stdint.h&gt;</span>
+<span class="p_add">+#endif	/* #else #ifdef __KERNEL__ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;asm/byteorder.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifdef __LP64__</span>
+<span class="p_add">+# define RSEQ_FIELD_u32_u64(field)	uint64_t field</span>
+<span class="p_add">+#elif defined(__BYTE_ORDER) ? \</span>
+<span class="p_add">+	__BYTE_ORDER == __BIG_ENDIAN : defined(__BIG_ENDIAN)</span>
+<span class="p_add">+# define RSEQ_FIELD_u32_u64(field)	uint32_t _padding ## field, field</span>
+<span class="p_add">+#else</span>
+<span class="p_add">+# define RSEQ_FIELD_u32_u64(field)	uint32_t field, _padding ## field</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+<span class="p_add">+enum rseq_flags {</span>
+<span class="p_add">+	RSEQ_FORCE_UNREGISTER = (1 &lt;&lt; 0),</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+<span class="p_add">+enum rseq_cs_flags {</span>
+<span class="p_add">+	RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT	= (1U &lt;&lt; 0),</span>
+<span class="p_add">+	RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL	= (1U &lt;&lt; 1),</span>
+<span class="p_add">+	RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE	= (1U &lt;&lt; 2),</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * struct rseq_cs is aligned on 4 * 8 bytes to ensure it is always</span>
+<span class="p_add">+ * contained within a single cache-line. It is usually declared as</span>
+<span class="p_add">+ * link-time constant data.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+struct rseq_cs {</span>
+<span class="p_add">+	RSEQ_FIELD_u32_u64(start_ip);</span>
+<span class="p_add">+	RSEQ_FIELD_u32_u64(post_commit_ip);</span>
+<span class="p_add">+	RSEQ_FIELD_u32_u64(abort_ip);</span>
+<span class="p_add">+	uint32_t flags;</span>
+<span class="p_add">+} __attribute__((aligned(4 * sizeof(uint64_t))));</span>
+<span class="p_add">+</span>
+<span class="p_add">+union rseq_cpu_event {</span>
+<span class="p_add">+	struct {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Restartable sequences cpu_id field.</span>
+<span class="p_add">+		 * Updated by the kernel, and read by user-space with</span>
+<span class="p_add">+		 * single-copy atomicity semantics. Aligned on 32-bit.</span>
+<span class="p_add">+		 * Negative values are reserved for user-space.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		int32_t cpu_id;</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Restartable sequences event_counter field.</span>
+<span class="p_add">+		 * Updated by the kernel, and read by user-space with</span>
+<span class="p_add">+		 * single-copy atomicity semantics. Aligned on 32-bit.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		uint32_t event_counter;</span>
+<span class="p_add">+	} e;</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * On architectures with 64-bit aligned reads, both cpu_id and</span>
+<span class="p_add">+	 * event_counter can be read with single-copy atomicity</span>
+<span class="p_add">+	 * semantics.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	uint64_t v;</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * struct rseq is aligned on 4 * 8 bytes to ensure it is always</span>
+<span class="p_add">+ * contained within a single cache-line.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+struct rseq {</span>
+<span class="p_add">+	union rseq_cpu_event u;</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Restartable sequences rseq_cs field.</span>
+<span class="p_add">+	 * Contains NULL when no critical section is active for the</span>
+<span class="p_add">+	 * current thread, or holds a pointer to the currently active</span>
+<span class="p_add">+	 * struct rseq_cs.</span>
+<span class="p_add">+	 * Updated by user-space at the beginning and end of assembly</span>
+<span class="p_add">+	 * instruction sequence block, and by the kernel when it</span>
+<span class="p_add">+	 * restarts an assembly instruction sequence block. Read by the</span>
+<span class="p_add">+	 * kernel with single-copy atomicity semantics. Aligned on</span>
+<span class="p_add">+	 * 64-bit.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	RSEQ_FIELD_u32_u64(rseq_cs);</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * - RSEQ_DISABLE flag:</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Fallback fast-track flag for single-stepping.</span>
+<span class="p_add">+	 * Set by user-space if lack of progress is detected.</span>
+<span class="p_add">+	 * Cleared by user-space after rseq finish.</span>
+<span class="p_add">+	 * Read by the kernel.</span>
+<span class="p_add">+	 * - RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT</span>
+<span class="p_add">+	 *     Inhibit instruction sequence block restart and event</span>
+<span class="p_add">+	 *     counter increment on preemption for this thread.</span>
+<span class="p_add">+	 * - RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL</span>
+<span class="p_add">+	 *     Inhibit instruction sequence block restart and event</span>
+<span class="p_add">+	 *     counter increment on signal delivery for this thread.</span>
+<span class="p_add">+	 * - RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE</span>
+<span class="p_add">+	 *     Inhibit instruction sequence block restart and event</span>
+<span class="p_add">+	 *     counter increment on migration for this thread.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	uint32_t flags;</span>
+<span class="p_add">+} __attribute__((aligned(4 * sizeof(uint64_t))));</span>
+<span class="p_add">+</span>
+<span class="p_add">+#endif /* _UAPI_LINUX_RSEQ_H */</span>
+<span class="p_header">diff --git a/init/Kconfig b/init/Kconfig</span>
+<span class="p_header">index 8514b25db21c..b8aa41bd4f4f 100644</span>
+<span class="p_header">--- a/init/Kconfig</span>
+<span class="p_header">+++ b/init/Kconfig</span>
+<span class="p_chunk">@@ -1395,6 +1395,19 @@</span> <span class="p_context"> config MEMBARRIER</span>
+ 
+ 	  If unsure, say Y.
+ 
+<span class="p_add">+config RSEQ</span>
+<span class="p_add">+	bool &quot;Enable rseq() system call&quot; if EXPERT</span>
+<span class="p_add">+	default y</span>
+<span class="p_add">+	depends on HAVE_RSEQ</span>
+<span class="p_add">+	help</span>
+<span class="p_add">+	  Enable the restartable sequences system call. It provides a</span>
+<span class="p_add">+	  user-space cache for the current CPU number value, which</span>
+<span class="p_add">+	  speeds up getting the current CPU number from user-space,</span>
+<span class="p_add">+	  as well as an ABI to speed up user-space operations on</span>
+<span class="p_add">+	  per-CPU data.</span>
+<span class="p_add">+</span>
+<span class="p_add">+	  If unsure, say Y.</span>
+<span class="p_add">+</span>
+ config EMBEDDED
+ 	bool &quot;Embedded system&quot;
+ 	option allnoconfig_y
+<span class="p_header">diff --git a/kernel/Makefile b/kernel/Makefile</span>
+<span class="p_header">index 4cb8e8b23c6e..5c09592b3b9f 100644</span>
+<span class="p_header">--- a/kernel/Makefile</span>
+<span class="p_header">+++ b/kernel/Makefile</span>
+<span class="p_chunk">@@ -111,6 +111,7 @@</span> <span class="p_context"> obj-$(CONFIG_TORTURE_TEST) += torture.o</span>
+ obj-$(CONFIG_MEMBARRIER) += membarrier.o
+ 
+ obj-$(CONFIG_HAS_IOMEM) += memremap.o
+<span class="p_add">+obj-$(CONFIG_RSEQ) += rseq.o</span>
+ 
+ $(obj)/configs.o: $(obj)/config_data.h
+ 
+<span class="p_header">diff --git a/kernel/fork.c b/kernel/fork.c</span>
+<span class="p_header">index b7e9e57b71ea..f311a99fb1d1 100644</span>
+<span class="p_header">--- a/kernel/fork.c</span>
+<span class="p_header">+++ b/kernel/fork.c</span>
+<span class="p_chunk">@@ -1849,6 +1849,8 @@</span> <span class="p_context"> static __latent_entropy struct task_struct *copy_process(</span>
+ 	 */
+ 	copy_seccomp(p);
+ 
+<span class="p_add">+	rseq_fork(p, clone_flags);</span>
+<span class="p_add">+</span>
+ 	/*
+ 	 * Process group and session signals need to be delivered to just the
+ 	 * parent before the fork or both the parent and the child after the
+<span class="p_header">diff --git a/kernel/rseq.c b/kernel/rseq.c</span>
+new file mode 100644
+<span class="p_header">index 000000000000..706a83bd885c</span>
+<span class="p_header">--- /dev/null</span>
+<span class="p_header">+++ b/kernel/rseq.c</span>
+<span class="p_chunk">@@ -0,0 +1,347 @@</span> <span class="p_context"></span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Restartable sequences system call</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Restartable sequences are a lightweight interface that allows</span>
+<span class="p_add">+ * user-level code to be executed atomically relative to scheduler</span>
+<span class="p_add">+ * preemption and signal delivery. Typically used for implementing</span>
+<span class="p_add">+ * per-cpu operations.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * It allows user-space to perform update operations on per-cpu data</span>
+<span class="p_add">+ * without requiring heavy-weight atomic operations.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This program is free software; you can redistribute it and/or modify</span>
+<span class="p_add">+ * it under the terms of the GNU General Public License as published by</span>
+<span class="p_add">+ * the Free Software Foundation; either version 2 of the License, or</span>
+<span class="p_add">+ * (at your option) any later version.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This program is distributed in the hope that it will be useful,</span>
+<span class="p_add">+ * but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="p_add">+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="p_add">+ * GNU General Public License for more details.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Copyright (C) 2015, Google, Inc.,</span>
+<span class="p_add">+ * Paul Turner &lt;pjt@google.com&gt; and Andrew Hunter &lt;ahh@google.com&gt;</span>
+<span class="p_add">+ * Copyright (C) 2015-2016, EfficiOS Inc.,</span>
+<span class="p_add">+ * Mathieu Desnoyers &lt;mathieu.desnoyers@efficios.com&gt;</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;linux/sched.h&gt;</span>
+<span class="p_add">+#include &lt;linux/uaccess.h&gt;</span>
+<span class="p_add">+#include &lt;linux/syscalls.h&gt;</span>
+<span class="p_add">+#include &lt;linux/rseq.h&gt;</span>
+<span class="p_add">+#include &lt;linux/types.h&gt;</span>
+<span class="p_add">+#include &lt;asm/ptrace.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * The restartable sequences mechanism is the overlap of two distinct</span>
+<span class="p_add">+ * restart mechanisms: a sequence counter tracking preemption and signal</span>
+<span class="p_add">+ * delivery for high-level code, and an ip-fixup-based mechanism for the</span>
+<span class="p_add">+ * final assembly instruction sequence.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * A high-level summary of the algorithm to use rseq from user-space is</span>
+<span class="p_add">+ * as follows:</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * The high-level code between rseq_start() and rseq_finish() loads the</span>
+<span class="p_add">+ * current value of the sequence counter in rseq_start(), and then it</span>
+<span class="p_add">+ * gets compared with the new current value within the rseq_finish()</span>
+<span class="p_add">+ * restartable instruction sequence. Between rseq_start() and</span>
+<span class="p_add">+ * rseq_finish(), the high-level code can perform operations that do not</span>
+<span class="p_add">+ * have side-effects, such as getting the current CPU number, and</span>
+<span class="p_add">+ * loading from variables.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Stores are performed at the very end of the restartable sequence</span>
+<span class="p_add">+ * assembly block. Each assembly block within rseq_finish() defines a</span>
+<span class="p_add">+ * &quot;struct rseq_cs&quot; structure which describes the start_ip and</span>
+<span class="p_add">+ * post_commit_ip addresses, as well as the abort_ip address where the</span>
+<span class="p_add">+ * kernel should move the thread instruction pointer if a rseq critical</span>
+<span class="p_add">+ * section assembly block is preempted or if a signal is delivered on</span>
+<span class="p_add">+ * top of a rseq critical section assembly block.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Detailed algorithm of rseq use:</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * rseq_start()</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   0. Userspace loads the current event counter value from the</span>
+<span class="p_add">+ *      event_counter field of the registered struct rseq TLS area,</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * rseq_finish()</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   Steps [1]-[3] (inclusive) need to be a sequence of instructions in</span>
+<span class="p_add">+ *   userspace that can handle being moved to the abort_ip between any</span>
+<span class="p_add">+ *   of those instructions.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   The abort_ip address needs to be less than start_ip, or</span>
+<span class="p_add">+ *   greater-or-equal the post_commit_ip. Step [4] and the failure</span>
+<span class="p_add">+ *   code step [F1] need to be at addresses lesser than start_ip, or</span>
+<span class="p_add">+ *   greater-or-equal the post_commit_ip.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *       [start_ip]</span>
+<span class="p_add">+ *   1.  Userspace stores the address of the struct rseq_cs assembly</span>
+<span class="p_add">+ *       block descriptor into the rseq_cs field of the registered</span>
+<span class="p_add">+ *       struct rseq TLS area. This update is performed through a single</span>
+<span class="p_add">+ *       store, followed by a compiler barrier which prevents the</span>
+<span class="p_add">+ *       compiler from moving following loads or stores before this</span>
+<span class="p_add">+ *       store.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   2.  Userspace tests to see whether the current event counter value</span>
+<span class="p_add">+ *       match the value loaded at [0]. Manually jumping to [F1] in case</span>
+<span class="p_add">+ *       of a mismatch.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *       Note that if we are preempted or interrupted by a signal</span>
+<span class="p_add">+ *       after [1] and before post_commit_ip, then the kernel also</span>
+<span class="p_add">+ *       performs the comparison performed in [2], and conditionally</span>
+<span class="p_add">+ *       clears the rseq_cs field of struct rseq, then jumps us to</span>
+<span class="p_add">+ *       abort_ip.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   3.  Userspace critical section final instruction before</span>
+<span class="p_add">+ *       post_commit_ip is the commit. The critical section is</span>
+<span class="p_add">+ *       self-terminating.</span>
+<span class="p_add">+ *       [post_commit_ip]</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   4.  Userspace clears the rseq_cs field of the struct rseq</span>
+<span class="p_add">+ *       TLS area.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   5.  Return true.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   On failure at [2]:</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   F1. Userspace clears the rseq_cs field of the struct rseq</span>
+<span class="p_add">+ *       TLS area. Followed by step [F2].</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *       [abort_ip]</span>
+<span class="p_add">+ *   F2. Return false.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * The rseq_event_counter allow user-space to detect preemption and</span>
+<span class="p_add">+ * signal delivery. It increments at least once before returning to</span>
+<span class="p_add">+ * user-space if a thread is preempted or has a signal delivered. It is</span>
+<span class="p_add">+ * not meant to be an exact counter of such events.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Overflow of the event counter is not a problem in practice. It</span>
+<span class="p_add">+ * increments at most once between each user-space thread instruction</span>
+<span class="p_add">+ * executed, so we would need a thread to execute 2^32 instructions or</span>
+<span class="p_add">+ * more between rseq_start() and rseq_finish(), while single-stepping,</span>
+<span class="p_add">+ * for this to be an issue.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * On 64-bit architectures, both cpu_id and event_counter can be updated</span>
+<span class="p_add">+ * with a single 64-bit store. On 32-bit architectures, __put_user() is</span>
+<span class="p_add">+ * expected to perform two 32-bit single-copy stores to guarantee</span>
+<span class="p_add">+ * single-copy atomicity semantics for other threads.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static bool rseq_update_cpu_id_event_counter(struct task_struct *t,</span>
+<span class="p_add">+		bool inc_event_counter)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	union rseq_cpu_event u;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	u.e.cpu_id = raw_smp_processor_id();</span>
+<span class="p_add">+	u.e.event_counter = inc_event_counter ? ++t-&gt;rseq_event_counter :</span>
+<span class="p_add">+			t-&gt;rseq_event_counter;</span>
+<span class="p_add">+	if (__put_user(u.v, &amp;t-&gt;rseq-&gt;u.v))</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+	return true;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static bool rseq_get_rseq_cs(struct task_struct *t,</span>
+<span class="p_add">+		void __user **start_ip,</span>
+<span class="p_add">+		void __user **post_commit_ip,</span>
+<span class="p_add">+		void __user **abort_ip,</span>
+<span class="p_add">+		uint32_t *cs_flags)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long ptr;</span>
+<span class="p_add">+	struct rseq_cs __user *urseq_cs;</span>
+<span class="p_add">+	struct rseq_cs rseq_cs;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (__get_user(ptr, &amp;t-&gt;rseq-&gt;rseq_cs))</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+	if (!ptr)</span>
+<span class="p_add">+		return true;</span>
+<span class="p_add">+	urseq_cs = (struct rseq_cs __user *)ptr;</span>
+<span class="p_add">+	if (copy_from_user(&amp;rseq_cs, urseq_cs, sizeof(rseq_cs)))</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * We need to clear rseq_cs upon entry into a signal handler</span>
+<span class="p_add">+	 * nested on top of a rseq assembly block, so the signal handler</span>
+<span class="p_add">+	 * will not be fixed up if itself interrupted by a nested signal</span>
+<span class="p_add">+	 * handler or preempted.  We also need to clear rseq_cs if we</span>
+<span class="p_add">+	 * preempt or deliver a signal on top of code outside of the</span>
+<span class="p_add">+	 * rseq assembly block, to ensure that a following preemption or</span>
+<span class="p_add">+	 * signal delivery will not try to perform a fixup needlessly.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (clear_user(&amp;t-&gt;rseq-&gt;rseq_cs, sizeof(t-&gt;rseq-&gt;rseq_cs)))</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+	*start_ip = (void __user *)rseq_cs.start_ip;</span>
+<span class="p_add">+	*post_commit_ip = (void __user *)rseq_cs.post_commit_ip;</span>
+<span class="p_add">+	*abort_ip = (void __user *)rseq_cs.abort_ip;</span>
+<span class="p_add">+	*cs_flags = rseq_cs.flags;</span>
+<span class="p_add">+	return true;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int rseq_need_restart(struct task_struct *t, uint32_t cs_flags)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	bool need_restart = false;</span>
+<span class="p_add">+	uint32_t flags;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Get thread flags. */</span>
+<span class="p_add">+	if (__get_user(flags, &amp;t-&gt;rseq-&gt;flags))</span>
+<span class="p_add">+		return -EFAULT;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Take into account critical section flags. */</span>
+<span class="p_add">+	flags |= cs_flags;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Restart on signal can only be inhibited when restart on</span>
+<span class="p_add">+	 * preempt and restart on migrate are inhibited too. Otherwise,</span>
+<span class="p_add">+	 * a preempted signal handler could fail to restart the prior</span>
+<span class="p_add">+	 * execution context on sigreturn.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL) {</span>
+<span class="p_add">+		if (!(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE))</span>
+<span class="p_add">+			return -EINVAL;</span>
+<span class="p_add">+		if (!(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT))</span>
+<span class="p_add">+			return -EINVAL;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	if (t-&gt;rseq_migrate</span>
+<span class="p_add">+			&amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE))</span>
+<span class="p_add">+		need_restart = true;</span>
+<span class="p_add">+	else if (t-&gt;rseq_preempt</span>
+<span class="p_add">+			&amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT))</span>
+<span class="p_add">+		need_restart = true;</span>
+<span class="p_add">+	else if (t-&gt;rseq_signal</span>
+<span class="p_add">+			&amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL))</span>
+<span class="p_add">+		need_restart = true;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	t-&gt;rseq_preempt = false;</span>
+<span class="p_add">+	t-&gt;rseq_signal = false;</span>
+<span class="p_add">+	t-&gt;rseq_migrate = false;</span>
+<span class="p_add">+	if (need_restart)</span>
+<span class="p_add">+		return 1;</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int rseq_ip_fixup(struct pt_regs *regs)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct task_struct *t = current;</span>
+<span class="p_add">+	void __user *start_ip = NULL;</span>
+<span class="p_add">+	void __user *post_commit_ip = NULL;</span>
+<span class="p_add">+	void __user *abort_ip = NULL;</span>
+<span class="p_add">+	uint32_t cs_flags = 0;</span>
+<span class="p_add">+	int ret;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ret = rseq_get_rseq_cs(t, &amp;start_ip, &amp;post_commit_ip, &amp;abort_ip,</span>
+<span class="p_add">+			&amp;cs_flags);</span>
+<span class="p_add">+	if (!ret)</span>
+<span class="p_add">+		return -EFAULT;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ret = rseq_need_restart(t, cs_flags);</span>
+<span class="p_add">+	if (ret &lt; 0)</span>
+<span class="p_add">+		return -EFAULT;</span>
+<span class="p_add">+	if (!ret)</span>
+<span class="p_add">+		return 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Handle potentially not being within a critical section. */</span>
+<span class="p_add">+	if ((void __user *)instruction_pointer(regs) &gt;= post_commit_ip ||</span>
+<span class="p_add">+			(void __user *)instruction_pointer(regs) &lt; start_ip)</span>
+<span class="p_add">+		return 1;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * We set this after potentially failing in</span>
+<span class="p_add">+	 * clear_user so that the signal arrives at the</span>
+<span class="p_add">+	 * faulting rip.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	instruction_pointer_set(regs, (unsigned long)abort_ip);</span>
+<span class="p_add">+	return 1;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * This resume handler should always be executed between any of:</span>
+<span class="p_add">+ * - preemption,</span>
+<span class="p_add">+ * - signal delivery,</span>
+<span class="p_add">+ * and return to user-space.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This is how we can ensure that the entire rseq critical section,</span>
+<span class="p_add">+ * consisting of both the C part and the assembly instruction sequence,</span>
+<span class="p_add">+ * will issue the commit instruction only if executed atomically with</span>
+<span class="p_add">+ * respect to other threads scheduled on the same CPU, and with respect</span>
+<span class="p_add">+ * to signal handlers.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+void __rseq_handle_notify_resume(struct pt_regs *regs)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct task_struct *t = current;</span>
+<span class="p_add">+	int ret;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (unlikely(t-&gt;flags &amp; PF_EXITING))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	if (unlikely(!access_ok(VERIFY_WRITE, t-&gt;rseq, sizeof(*t-&gt;rseq))))</span>
+<span class="p_add">+		goto error;</span>
+<span class="p_add">+	ret = rseq_ip_fixup(regs);</span>
+<span class="p_add">+	if (unlikely(ret &lt; 0))</span>
+<span class="p_add">+		goto error;</span>
+<span class="p_add">+	if (unlikely(!rseq_update_cpu_id_event_counter(t, ret)))</span>
+<span class="p_add">+		goto error;</span>
+<span class="p_add">+	return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+error:</span>
+<span class="p_add">+	force_sig(SIGSEGV, t);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * sys_rseq - setup restartable sequences for caller thread.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+SYSCALL_DEFINE2(rseq, struct rseq __user *, rseq, int, flags)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (!rseq) {</span>
+<span class="p_add">+		/* Unregister rseq for current thread. */</span>
+<span class="p_add">+		if (unlikely(flags &amp; ~RSEQ_FORCE_UNREGISTER))</span>
+<span class="p_add">+			return -EINVAL;</span>
+<span class="p_add">+		if (flags &amp; RSEQ_FORCE_UNREGISTER) {</span>
+<span class="p_add">+			current-&gt;rseq = NULL;</span>
+<span class="p_add">+			current-&gt;rseq_refcount = 0;</span>
+<span class="p_add">+			return 0;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+		if (!current-&gt;rseq_refcount)</span>
+<span class="p_add">+			return -ENOENT;</span>
+<span class="p_add">+		if (!--current-&gt;rseq_refcount)</span>
+<span class="p_add">+			current-&gt;rseq = NULL;</span>
+<span class="p_add">+		return 0;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (unlikely(flags))</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (current-&gt;rseq) {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * If rseq is already registered, check whether</span>
+<span class="p_add">+		 * the provided address differs from the prior</span>
+<span class="p_add">+		 * one.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		BUG_ON(!current-&gt;rseq_refcount);</span>
+<span class="p_add">+		if (current-&gt;rseq != rseq)</span>
+<span class="p_add">+			return -EBUSY;</span>
+<span class="p_add">+		if (current-&gt;rseq_refcount == UINT_MAX)</span>
+<span class="p_add">+			return -EOVERFLOW;</span>
+<span class="p_add">+		current-&gt;rseq_refcount++;</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * If there was no rseq previously registered,</span>
+<span class="p_add">+		 * we need to ensure the provided rseq is</span>
+<span class="p_add">+		 * properly aligned and valid.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		BUG_ON(current-&gt;rseq_refcount);</span>
+<span class="p_add">+		if (!IS_ALIGNED((unsigned long)rseq, __alignof__(*rseq)))</span>
+<span class="p_add">+			return -EINVAL;</span>
+<span class="p_add">+		if (!access_ok(VERIFY_WRITE, rseq, sizeof(*rseq)))</span>
+<span class="p_add">+			return -EFAULT;</span>
+<span class="p_add">+		current-&gt;rseq = rseq;</span>
+<span class="p_add">+		current-&gt;rseq_refcount = 1;</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * If rseq was previously inactive, and has just</span>
+<span class="p_add">+		 * been registered, ensure the cpu_id and</span>
+<span class="p_add">+		 * event_counter fields are updated before</span>
+<span class="p_add">+		 * returning to user-space.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		rseq_set_notify_resume(current);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+<span class="p_header">diff --git a/kernel/sched/core.c b/kernel/sched/core.c</span>
+<span class="p_header">index 0869b20fba81..12da0f771d73 100644</span>
+<span class="p_header">--- a/kernel/sched/core.c</span>
+<span class="p_header">+++ b/kernel/sched/core.c</span>
+<span class="p_chunk">@@ -1170,6 +1170,8 @@</span> <span class="p_context"> void set_task_cpu(struct task_struct *p, unsigned int new_cpu)</span>
+ #endif
+ #endif
+ 
+<span class="p_add">+	rseq_migrate(p);</span>
+<span class="p_add">+</span>
+ 	trace_sched_migrate_task(p, new_cpu);
+ 
+ 	if (task_cpu(p) != new_cpu) {
+<span class="p_chunk">@@ -2572,6 +2574,7 @@</span> <span class="p_context"> prepare_task_switch(struct rq *rq, struct task_struct *prev,</span>
+ {
+ 	sched_info_switch(rq, prev, next);
+ 	perf_event_task_sched_out(prev, next);
+<span class="p_add">+	rseq_sched_out(prev);</span>
+ 	fire_sched_out_preempt_notifiers(prev, next);
+ 	prepare_lock_switch(rq, next);
+ 	prepare_arch_switch(next);
+<span class="p_chunk">@@ -3322,6 +3325,7 @@</span> <span class="p_context"> static void __sched notrace __schedule(bool preempt)</span>
+ 	clear_preempt_need_resched();
+ 
+ 	if (likely(prev != next)) {
+<span class="p_add">+		rseq_preempt(prev);</span>
+ 		rq-&gt;nr_switches++;
+ 		rq-&gt;curr = next;
+ 		++*switch_count;
+<span class="p_header">diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c</span>
+<span class="p_header">index 8acef8576ce9..c7b366ccf39c 100644</span>
+<span class="p_header">--- a/kernel/sys_ni.c</span>
+<span class="p_header">+++ b/kernel/sys_ni.c</span>
+<span class="p_chunk">@@ -258,3 +258,6 @@</span> <span class="p_context"> cond_syscall(sys_membarrier);</span>
+ cond_syscall(sys_pkey_mprotect);
+ cond_syscall(sys_pkey_alloc);
+ cond_syscall(sys_pkey_free);
+<span class="p_add">+</span>
+<span class="p_add">+/* restartable sequence */</span>
+<span class="p_add">+cond_syscall(sys_rseq);</span>
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

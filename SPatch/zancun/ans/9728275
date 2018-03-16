@@ -1,0 +1,461 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v1,09/11] x86/kasan: support on-demand shadow mapping - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v1,09/11] x86/kasan: support on-demand shadow mapping</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=39721">Joonsoo Kim</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>May 16, 2017, 1:16 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1494897409-14408-10-git-send-email-iamjoonsoo.kim@lge.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9728275/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9728275/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9728275/">/patch/9728275/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	8613F60380 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 16 May 2017 01:19:15 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 6AE0E289E8
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 16 May 2017 01:19:15 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 40BAC289EB; Tue, 16 May 2017 01:19:15 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-1.5 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID, DKIM_VALID_AU, FREEMAIL_FROM,
+	RCVD_IN_SORBS_SPAM autolearn=no version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 50CF8289E8
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 16 May 2017 01:19:09 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751626AbdEPBTC (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 15 May 2017 21:19:02 -0400
+Received: from mail-pf0-f195.google.com ([209.85.192.195]:36641 &quot;EHLO
+	mail-pf0-f195.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751392AbdEPBSK (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 15 May 2017 21:18:10 -0400
+Received: by mail-pf0-f195.google.com with SMTP id n23so16742646pfb.3
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Mon, 15 May 2017 18:18:10 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=gmail.com; s=20161025;
+	h=from:to:cc:subject:date:message-id:in-reply-to:references;
+	bh=tq6rrBjPn3zWGzvEkDSfNCafM7ctuzauVZZOpiOnr2Q=;
+	b=qTLBbp7IS9Uw4+s+ujph3ks4Tpj9wp7l/Z8IaN3T9qIyDa/AcwpuzoiXqyAXq4cUFn
+	ABNXlAYpl5Sic7e4XVO8o7lGH8EQtk8jCd9xJvF9jQcMhMKCpLwu/x5Rjls/w/+0tMe/
+	vqW7iDpu+kNGwQjPiP5SuwaizBVn1rs6G++SS6qJ7u9i0EOh+vFVlG2eV8kuflKOFjvG
+	e6Tl6x8zJHf5xFhPfRSrT9K/Sz/JQbyrKwr/J0RJ/15yT1IxP1p6GmiR0l/j7mYR0bMv
+	5G1mwSL8uwYKGO3Rn3n9qY/iUhz+dZWEYsqUAKrIhJCGBg8YlJm5RvGuDvwJzM20xOyF
+	mSEA==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+	:references;
+	bh=tq6rrBjPn3zWGzvEkDSfNCafM7ctuzauVZZOpiOnr2Q=;
+	b=DFYee94t/3VBisjfUhRQskydaeC+v83AB2Rj5ZMaVjd6ViRFHwP0xmRH+fYSsaXuMh
+	oumrY/uVa5+WzIrgepM7faaLWlHJTRr9QL31AM/TCITuIYTY2pP/t9FSXmmPxYnSZd7O
+	/NZMUtUVRReRXj3JQj6guHMivHGGBUr/EBasbvF7fG4u6cIAMlCJhkshGk0Ha9NS1Jpz
+	WFIFCK6/9QB+BLc/4Tb70pybgDLl9g5vk7G3XfPnxaPXhYw7rxrmX+MfGKLW/roFLUnk
+	njofymoDiGgRFlgWpeE+tyfLsA4lEf+Gk5lPRtrGWZajAycc3I/NF9wbut4dNahNToeh
+	j6PQ==
+X-Gm-Message-State: AODbwcC2Bb0sZrOM+b0+qrhrtU2zdbUmTC4kKWTSCO6wyXigHgFYMjjT
+	TmFdheRh2UECWg==
+X-Received: by 10.98.56.78 with SMTP id f75mr9488878pfa.227.1494897489795;
+	Mon, 15 May 2017 18:18:09 -0700 (PDT)
+Received: from localhost.localdomain ([124.56.155.17])
+	by smtp.gmail.com with ESMTPSA id
+	c7sm25648186pfk.103.2017.05.15.18.18.05
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+	Mon, 15 May 2017 18:18:08 -0700 (PDT)
+From: js1304@gmail.com
+X-Google-Original-From: iamjoonsoo.kim@lge.com
+To: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: Andrey Ryabinin &lt;aryabinin@virtuozzo.com&gt;,
+	Alexander Potapenko &lt;glider@google.com&gt;,
+	Dmitry Vyukov &lt;dvyukov@google.com&gt;, kasan-dev@googlegroups.com,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	Thomas Gleixner &lt;tglx@linutronix.de&gt;, Ingo Molnar &lt;mingo@redhat.com&gt;,
+	&quot;H . Peter Anvin&quot; &lt;hpa@zytor.com&gt;, kernel-team@lge.com,
+	Joonsoo Kim &lt;iamjoonsoo.kim@lge.com&gt;
+Subject: [PATCH v1 09/11] x86/kasan: support on-demand shadow mapping
+Date: Tue, 16 May 2017 10:16:47 +0900
+Message-Id: &lt;1494897409-14408-10-git-send-email-iamjoonsoo.kim@lge.com&gt;
+X-Mailer: git-send-email 2.7.4
+In-Reply-To: &lt;1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com&gt;
+References: &lt;1494897409-14408-1-git-send-email-iamjoonsoo.kim@lge.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=39721">Joonsoo Kim</a> - May 16, 2017, 1:16 a.m.</div>
+<pre class="content">
+<span class="from">From: Joonsoo Kim &lt;iamjoonsoo.kim@lge.com&gt;</span>
+
+Enable on-demand shadow mapping in x86.
+
+x86 uses separate per-cpu kernel stack for interrupt/exception context.
+We need to populate shadow memory for them before they are used.
+
+And, there are two possible problems due to stable TLB entry when using
+on-demand shadow mapping since we cannot fully flush the TLB in
+some context and we need to handle these situation.
+
+1. write protection fault: original shadow memory for the page is
+mapped by black shadow page with write protection in default. When
+this page is allocated for a slab or kernel stack, new mapping is
+established but stable TLB isn&#39;t fully flushed. So, when marking
+the shadow value happen in other cpu, write protection fault will happen.
+Thanks to x86&#39;s spurious fault handling, stale TLB will be invalidated
+after one exception fault so there is no actual problem in this case.
+
+2. false-positive in KASAN shadow check: With above situation, if someone
+try to check shadow memory, wrong value would be read due to stale
+TLB entry. We need to recheck with flushing the stale TLB in this
+case. It is implemented in arch_kasan_recheck_prepare() and
+generic KASAN check function.
+<span class="signed-off-by">
+Signed-off-by: Joonsoo Kim &lt;iamjoonsoo.kim@lge.com&gt;</span>
+---
+ arch/x86/include/asm/kasan.h     |  2 +
+ arch/x86/include/asm/processor.h |  4 ++
+ arch/x86/kernel/cpu/common.c     |  4 +-
+ arch/x86/kernel/setup_percpu.c   |  2 +
+ arch/x86/mm/kasan_init_64.c      | 82 +++++++++++++++++++++++++++++++++++++++-
+ 5 files changed, 90 insertions(+), 4 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/include/asm/kasan.h b/arch/x86/include/asm/kasan.h</span>
+<span class="p_header">index cfa63c7..91a29ed 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/kasan.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/kasan.h</span>
+<span class="p_chunk">@@ -29,9 +29,11 @@</span> <span class="p_context"></span>
+ #ifdef CONFIG_KASAN
+ void __init kasan_early_init(void);
+ void __init kasan_init(void);
+<span class="p_add">+void __init kasan_init_late(void);</span>
+ #else
+ static inline void kasan_early_init(void) { }
+ static inline void kasan_init(void) { }
+<span class="p_add">+static inline void kasan_init_late(void) { }</span>
+ #endif
+ 
+ #endif
+<span class="p_header">diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h</span>
+<span class="p_header">index 3cada99..516c972 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/processor.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/processor.h</span>
+<span class="p_chunk">@@ -377,6 +377,10 @@</span> <span class="p_context"> DECLARE_INIT_PER_CPU(irq_stack_union);</span>
+ 
+ DECLARE_PER_CPU(char *, irq_stack_ptr);
+ DECLARE_PER_CPU(unsigned int, irq_count);
+<span class="p_add">+</span>
+<span class="p_add">+#define EXCEPTION_STKSZ_TOTAL ((N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ)</span>
+<span class="p_add">+DECLARE_PER_CPU(char, exception_stacks[EXCEPTION_STKSZ_TOTAL]);</span>
+<span class="p_add">+</span>
+ extern asmlinkage void ignore_sysret(void);
+ #else	/* X86_64 */
+ #ifdef CONFIG_CC_STACKPROTECTOR
+<span class="p_header">diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c</span>
+<span class="p_header">index c8b3987..d16c65a 100644</span>
+<span class="p_header">--- a/arch/x86/kernel/cpu/common.c</span>
+<span class="p_header">+++ b/arch/x86/kernel/cpu/common.c</span>
+<span class="p_chunk">@@ -1328,8 +1328,8 @@</span> <span class="p_context"> static const unsigned int exception_stack_sizes[N_EXCEPTION_STACKS] = {</span>
+ 	  [DEBUG_STACK - 1]			= DEBUG_STKSZ
+ };
+ 
+<span class="p_del">-static DEFINE_PER_CPU_PAGE_ALIGNED(char, exception_stacks</span>
+<span class="p_del">-	[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_STKSZ]);</span>
+<span class="p_add">+DEFINE_PER_CPU_PAGE_ALIGNED(char, exception_stacks</span>
+<span class="p_add">+	[EXCEPTION_STKSZ_TOTAL]);</span>
+ 
+ /* May not be marked __init: used by software suspend */
+ void syscall_init(void)
+<span class="p_header">diff --git a/arch/x86/kernel/setup_percpu.c b/arch/x86/kernel/setup_percpu.c</span>
+<span class="p_header">index 10edd1e..cb3aeef 100644</span>
+<span class="p_header">--- a/arch/x86/kernel/setup_percpu.c</span>
+<span class="p_header">+++ b/arch/x86/kernel/setup_percpu.c</span>
+<span class="p_chunk">@@ -21,6 +21,7 @@</span> <span class="p_context"></span>
+ #include &lt;asm/cpumask.h&gt;
+ #include &lt;asm/cpu.h&gt;
+ #include &lt;asm/stackprotector.h&gt;
+<span class="p_add">+#include &lt;asm/kasan.h&gt;</span>
+ 
+ DEFINE_PER_CPU_READ_MOSTLY(int, cpu_number);
+ EXPORT_PER_CPU_SYMBOL(cpu_number);
+<span class="p_chunk">@@ -309,4 +310,5 @@</span> <span class="p_context"> void __init setup_per_cpu_areas(void)</span>
+ 			swapper_pg_dir     + KERNEL_PGD_BOUNDARY,
+ 			min(KERNEL_PGD_PTRS, KERNEL_PGD_BOUNDARY));
+ #endif
+<span class="p_add">+	kasan_init_late();</span>
+ }
+<span class="p_header">diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c</span>
+<span class="p_header">index 136b73d..a185668 100644</span>
+<span class="p_header">--- a/arch/x86/mm/kasan_init_64.c</span>
+<span class="p_header">+++ b/arch/x86/mm/kasan_init_64.c</span>
+<span class="p_chunk">@@ -7,6 +7,7 @@</span> <span class="p_context"></span>
+ #include &lt;linux/sched.h&gt;
+ #include &lt;linux/sched/task.h&gt;
+ #include &lt;linux/vmalloc.h&gt;
+<span class="p_add">+#include &lt;linux/memblock.h&gt;</span>
+ 
+ #include &lt;asm/e820/types.h&gt;
+ #include &lt;asm/tlbflush.h&gt;
+<span class="p_chunk">@@ -15,6 +16,12 @@</span> <span class="p_context"></span>
+ extern pgd_t early_level4_pgt[PTRS_PER_PGD];
+ extern struct range pfn_mapped[E820_MAX_ENTRIES];
+ 
+<span class="p_add">+static __init void *early_alloc(size_t size, int node)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return memblock_virt_alloc_try_nid(size, size, __pa(MAX_DMA_ADDRESS),</span>
+<span class="p_add">+					BOOTMEM_ALLOC_ACCESSIBLE, node);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ static int __init map_range(struct range *range, bool pshadow)
+ {
+ 	unsigned long start;
+<span class="p_chunk">@@ -38,7 +45,9 @@</span> <span class="p_context"> static int __init map_range(struct range *range, bool pshadow)</span>
+ 	start = (unsigned long)kasan_mem_to_shadow((void *)start);
+ 	end = (unsigned long)kasan_mem_to_shadow((void *)end);
+ 
+<span class="p_del">-	return vmemmap_populate(start, end + 1, NUMA_NO_NODE);</span>
+<span class="p_add">+	kasan_populate_shadow((void *)start, (void *)end + 1,</span>
+<span class="p_add">+						false, true);</span>
+<span class="p_add">+	return 0;</span>
+ }
+ 
+ static void __init clear_pgds(unsigned long start,
+<span class="p_chunk">@@ -240,11 +249,80 @@</span> <span class="p_context"> void __init kasan_init(void)</span>
+ 	pr_info(&quot;KernelAddressSanitizer initialized\n&quot;);
+ }
+ 
+<span class="p_add">+static void __init kasan_map_shadow_late(unsigned long start,</span>
+<span class="p_add">+					unsigned long end)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long addr;</span>
+<span class="p_add">+	unsigned char *page;</span>
+<span class="p_add">+	pgd_t *pgd;</span>
+<span class="p_add">+	p4d_t *p4d;</span>
+<span class="p_add">+	pud_t *pud;</span>
+<span class="p_add">+	pmd_t *pmd;</span>
+<span class="p_add">+	pte_t *ptep;</span>
+<span class="p_add">+	pte_t pte;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for (addr = start; addr &lt; end; addr += PAGE_SIZE) {</span>
+<span class="p_add">+		pgd = pgd_offset_k(addr);</span>
+<span class="p_add">+		p4d = p4d_offset(pgd, addr);</span>
+<span class="p_add">+		pud = pud_offset(p4d, addr);</span>
+<span class="p_add">+		pmd = pmd_offset(pud, addr);</span>
+<span class="p_add">+		ptep = pte_offset_kernel(pmd, addr);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		page = early_alloc(PAGE_SIZE, NUMA_NO_NODE);</span>
+<span class="p_add">+		pte = pfn_pte(PFN_DOWN(__pa(page)), PAGE_KERNEL);</span>
+<span class="p_add">+		set_pte_at(&amp;init_mm, addr, ptep, pte);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void __init __kasan_init_late(unsigned long start, unsigned long end)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long shadow_start, shadow_end;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	shadow_start = (unsigned long)kasan_mem_to_shadow((void *)start);</span>
+<span class="p_add">+	shadow_start = round_down(shadow_start, PAGE_SIZE);</span>
+<span class="p_add">+	shadow_end = (unsigned long)kasan_mem_to_shadow((void *)end);</span>
+<span class="p_add">+	shadow_end = ALIGN(shadow_end, PAGE_SIZE);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	kasan_map_shadow_late(shadow_start, shadow_end);</span>
+<span class="p_add">+	kasan_poison_pshadow((void *)start, ALIGN(end, PAGE_SIZE) - start);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+void __init kasan_init_late(void)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	int cpu;</span>
+<span class="p_add">+	unsigned long start, end;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for_each_possible_cpu(cpu) {</span>
+<span class="p_add">+		end   = (unsigned long)per_cpu(irq_stack_ptr, cpu);</span>
+<span class="p_add">+		start = end - IRQ_STACK_SIZE;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		__kasan_init_late(start, end);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		start = (unsigned long)per_cpu(exception_stacks, cpu);</span>
+<span class="p_add">+		end = start + sizeof(exception_stacks);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		__kasan_init_late(start, end);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * We cannot flush the TLBs in other cpus due to deadlock</span>
+<span class="p_add">+ * so just flush the TLB in current cpu. Accessing stale TLB</span>
+<span class="p_add">+ * entry would cause following two problem and we can handle them.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * 1. write protection fault: It will be handled by spurious</span>
+<span class="p_add">+ * fault handler. It will invalidate stale TLB entry.</span>
+<span class="p_add">+ * 2. false-positive in KASAN shadow check: It will be</span>
+<span class="p_add">+ * handled by re-check with flushing local TLB.</span>
+<span class="p_add">+ */</span>
+ void arch_kasan_map_shadow(unsigned long s, unsigned long e)
+ {
+<span class="p_add">+	__flush_tlb_all();</span>
+ }
+ 
+ bool arch_kasan_recheck_prepare(unsigned long addr, size_t size)
+ {
+<span class="p_del">-	return false;</span>
+<span class="p_add">+	__flush_tlb_all();</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return true;</span>
+ }
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,973 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>mm/hugetlbfs Fix bugs in fallocate hole punch of areas with holes - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    mm/hugetlbfs Fix bugs in fallocate hole punch of areas with holes</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Oct. 30, 2015, 11:32 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1446247932-11348-1-git-send-email-mike.kravetz@oracle.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7530011/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7530011/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7530011/">/patch/7530011/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id EC4EFBEEA4
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri, 30 Oct 2015 23:32:51 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 0D671206E2
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri, 30 Oct 2015 23:32:51 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id F3802206E5
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri, 30 Oct 2015 23:32:49 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1030535AbbJ3Xcp (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Fri, 30 Oct 2015 19:32:45 -0400
+Received: from aserp1040.oracle.com ([141.146.126.69]:46648 &quot;EHLO
+	aserp1040.oracle.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1750710AbbJ3Xco (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Fri, 30 Oct 2015 19:32:44 -0400
+Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
+	by aserp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2)
+	with ESMTP id t9UNWIoB026366
+	(version=TLSv1 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK);
+	Fri, 30 Oct 2015 23:32:18 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by aserv0022.oracle.com (8.13.8/8.13.8) with ESMTP id t9UNWHNN019486
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=FAIL); 
+	Fri, 30 Oct 2015 23:32:17 GMT
+Received: from abhmp0016.oracle.com (abhmp0016.oracle.com [141.146.116.22])
+	by userv0121.oracle.com (8.13.8/8.13.8) with ESMTP id
+	t9UNWGET009799; Fri, 30 Oct 2015 23:32:16 GMT
+Received: from monkey.oracle.com (/50.53.81.168)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Fri, 30 Oct 2015 16:32:15 -0700
+From: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	Hugh Dickins &lt;hughd@google.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: Dave Hansen &lt;dave.hansen@linux.intel.com&gt;,
+	Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;,
+	Davidlohr Bueso &lt;dave@stgolabs.net&gt;,
+	Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+Subject: [PATCH] mm/hugetlbfs Fix bugs in fallocate hole punch of areas with
+	holes
+Date: Fri, 30 Oct 2015 16:32:12 -0700
+Message-Id: &lt;1446247932-11348-1-git-send-email-mike.kravetz@oracle.com&gt;
+X-Mailer: git-send-email 2.4.3
+X-Source-IP: aserv0022.oracle.com [141.146.126.234]
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-7.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Oct. 30, 2015, 11:32 p.m.</div>
+<pre class="content">
+Hugh Dickins pointed out problems with the new hugetlbfs fallocate
+hole punch code.  These problems are in the routine remove_inode_hugepages
+and mostly occur in the case where there are holes in the range of
+pages to be removed.  These holes could be the result of a previous hole
+punch or simply sparse allocation.
+
+remove_inode_hugepages handles both hole punch and truncate operations.
+Page index handling was fixed/cleaned up so that holes are properly
+handled.  In addition, code was changed to ensure multiple passes of the
+address range only happens in the truncate case.  More comments were added
+to explain the different actions in each case.  A cond_resched() was added
+after removing up to PAGEVEC_SIZE pages.
+
+Some totally unnecessary code in hugetlbfs_fallocate() that remained from
+early development was also removed.
+<span class="signed-off-by">
+Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+---
+ fs/hugetlbfs/inode.c | 44 +++++++++++++++++++++++++++++---------------
+ 1 file changed, 29 insertions(+), 15 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=4407">Naoya Horiguchi</a> - Nov. 9, 2015, 6:57 a.m.</div>
+<pre class="content">
+On Fri, Oct 30, 2015 at 04:32:12PM -0700, Mike Kravetz wrote:
+<span class="quote">&gt; Hugh Dickins pointed out problems with the new hugetlbfs fallocate</span>
+<span class="quote">&gt; hole punch code.  These problems are in the routine remove_inode_hugepages</span>
+<span class="quote">&gt; and mostly occur in the case where there are holes in the range of</span>
+<span class="quote">&gt; pages to be removed.  These holes could be the result of a previous hole</span>
+<span class="quote">&gt; punch or simply sparse allocation.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; remove_inode_hugepages handles both hole punch and truncate operations.</span>
+<span class="quote">&gt; Page index handling was fixed/cleaned up so that holes are properly</span>
+<span class="quote">&gt; handled.  In addition, code was changed to ensure multiple passes of the</span>
+<span class="quote">&gt; address range only happens in the truncate case.  More comments were added</span>
+<span class="quote">&gt; to explain the different actions in each case.  A cond_resched() was added</span>
+<span class="quote">&gt; after removing up to PAGEVEC_SIZE pages.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Some totally unnecessary code in hugetlbfs_fallocate() that remained from</span>
+<span class="quote">&gt; early development was also removed.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  fs/hugetlbfs/inode.c | 44 +++++++++++++++++++++++++++++---------------</span>
+<span class="quote">&gt;  1 file changed, 29 insertions(+), 15 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; index 316adb9..30cf534 100644</span>
+<span class="quote">&gt; --- a/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; +++ b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; @@ -368,10 +368,25 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,</span>
+<span class="quote">&gt;  			lookup_nr = end - next;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  		/*</span>
+<span class="quote">&gt; -		 * This pagevec_lookup() may return pages past &#39;end&#39;,</span>
+<span class="quote">&gt; -		 * so we must check for page-&gt;index &gt; end.</span>
+<span class="quote">&gt; +		 * When no more pages are found, take different action for</span>
+<span class="quote">&gt; +		 * hole punch and truncate.</span>
+<span class="quote">&gt; +		 *</span>
+<span class="quote">&gt; +		 * For hole punch, this indicates we have removed each page</span>
+<span class="quote">&gt; +		 * within the range and are done.  Note that pages may have</span>
+<span class="quote">&gt; +		 * been faulted in after being removed in the hole punch case.</span>
+<span class="quote">&gt; +		 * This is OK as long as each page in the range was removed</span>
+<span class="quote">&gt; +		 * once.</span>
+<span class="quote">&gt; +		 *</span>
+<span class="quote">&gt; +		 * For truncate, we need to make sure all pages within the</span>
+<span class="quote">&gt; +		 * range are removed when exiting this routine.  We could</span>
+<span class="quote">&gt; +		 * have raced with a fault that brought in a page after it</span>
+<span class="quote">&gt; +		 * was first removed.  Check the range again until no pages</span>
+<span class="quote">&gt; +		 * are found.</span>
+<span class="quote">&gt;  		 */</span>
+<span class="quote">&gt;  		if (!pagevec_lookup(&amp;pvec, mapping, next, lookup_nr)) {</span>
+<span class="quote">&gt; +			if (!truncate_op)</span>
+<span class="quote">&gt; +				break;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  			if (next == start)</span>
+<span class="quote">&gt;  				break;</span>
+<span class="quote">&gt;  			next = start;</span>
+<span class="quote">&gt; @@ -382,19 +397,23 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,</span>
+<span class="quote">&gt;  			struct page *page = pvec.pages[i];</span>
+<span class="quote">&gt;  			u32 hash;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +			/*</span>
+<span class="quote">&gt; +			 * The page (index) could be beyond end.  This is</span>
+<span class="quote">&gt; +			 * only possible in the punch hole case as end is</span>
+<span class="quote">&gt; +			 * LLONG_MAX for truncate.</span>
+<span class="quote">&gt; +			 */</span>
+<span class="quote">&gt; +			if (page-&gt;index &gt;= end) {</span>
+<span class="quote">&gt; +				next = end;	/* we are done */</span>
+<span class="quote">&gt; +				break;</span>
+<span class="quote">&gt; +			}</span>
+<span class="quote">&gt; +			next = page-&gt;index;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  			hash = hugetlb_fault_mutex_hash(h, current-&gt;mm,</span>
+<span class="quote">&gt;  							&amp;pseudo_vma,</span>
+<span class="quote">&gt;  							mapping, next, 0);</span>
+<span class="quote">&gt;  			mutex_lock(&amp;hugetlb_fault_mutex_table[hash]);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  			lock_page(page);</span>
+<span class="quote">&gt; -			if (page-&gt;index &gt;= end) {</span>
+<span class="quote">&gt; -				unlock_page(page);</span>
+<span class="quote">&gt; -				mutex_unlock(&amp;hugetlb_fault_mutex_table[hash]);</span>
+<span class="quote">&gt; -				next = end;	/* we are done */</span>
+<span class="quote">&gt; -				break;</span>
+<span class="quote">&gt; -			}</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt;  			/*</span>
+<span class="quote">&gt;  			 * If page is mapped, it was faulted in after being</span>
+<span class="quote">&gt;  			 * unmapped.  Do nothing in this race case.  In the</span>
+<span class="quote">&gt; @@ -423,15 +442,13 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,</span>
+<span class="quote">&gt;  				}</span>
+<span class="quote">&gt;  			}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -			if (page-&gt;index &gt; next)</span>
+<span class="quote">&gt; -				next = page-&gt;index;</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt;  			++next;</span>
+
+You set next = page-&gt;index above, so this increment takes effect only in
+the final iteration. Can we put this outside (just after) this for-loop?
+
+Thanks,
+Naoya Horiguchi
+<span class="quote">
+&gt;  			unlock_page(page);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  			mutex_unlock(&amp;hugetlb_fault_mutex_table[hash]);</span>
+<span class="quote">&gt;  		}</span>
+<span class="quote">&gt;  		huge_pagevec_release(&amp;pvec);</span>
+<span class="quote">&gt; +		cond_resched();</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	if (truncate_op)</span>
+<span class="quote">&gt; @@ -647,9 +664,6 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,</span>
+<span class="quote">&gt;  	if (!(mode &amp; FALLOC_FL_KEEP_SIZE) &amp;&amp; offset + len &gt; inode-&gt;i_size)</span>
+<span class="quote">&gt;  		i_size_write(inode, offset + len);</span>
+<span class="quote">&gt;  	inode-&gt;i_ctime = CURRENT_TIME;</span>
+<span class="quote">&gt; -	spin_lock(&amp;inode-&gt;i_lock);</span>
+<span class="quote">&gt; -	inode-&gt;i_private = NULL;</span>
+<span class="quote">&gt; -	spin_unlock(&amp;inode-&gt;i_lock);</span>
+<span class="quote">&gt;  out:</span>
+<span class="quote">&gt;  	mutex_unlock(&amp;inode-&gt;i_mutex);</span>
+<span class="quote">&gt;  	return error;</span>
+<span class="quote">&gt; -- </span>
+<span class="quote">&gt; 2.4.3</span>
+<span class="quote">&gt; --</span>
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7851">Hugh Dickins</a> - Nov. 9, 2015, 7:09 a.m.</div>
+<pre class="content">
+Sorry for the delay, I needed some time set aside to look through.
+
+On Fri, 30 Oct 2015, Mike Kravetz wrote:
+<span class="quote">
+&gt; Hugh Dickins pointed out problems with the new hugetlbfs fallocate</span>
+<span class="quote">&gt; hole punch code.  These problems are in the routine remove_inode_hugepages</span>
+<span class="quote">&gt; and mostly occur in the case where there are holes in the range of</span>
+<span class="quote">&gt; pages to be removed.  These holes could be the result of a previous hole</span>
+<span class="quote">&gt; punch or simply sparse allocation.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; remove_inode_hugepages handles both hole punch and truncate operations.</span>
+<span class="quote">&gt; Page index handling was fixed/cleaned up so that holes are properly</span>
+<span class="quote">&gt; handled.  In addition, code was changed to ensure multiple passes of the</span>
+<span class="quote">&gt; address range only happens in the truncate case.  More comments were added</span>
+<span class="quote">&gt; to explain the different actions in each case.  A cond_resched() was added</span>
+<span class="quote">&gt; after removing up to PAGEVEC_SIZE pages.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Some totally unnecessary code in hugetlbfs_fallocate() that remained from</span>
+<span class="quote">&gt; early development was also removed.</span>
+
+Yes, I agree with most of that comment, and with removing the unnecessary
+leftover; and you were right to make the patch against v4.3 as you did.
+<span class="quote">
+&gt; </span>
+
+Should have
+Fixes: b5cec28d36f5 (&quot;hugetlbfs: truncate_hugepages() takes a range of pages&quot;)
+Cc: stable@vger.kernel.org [4.3]
+when it&#39;s finished.
+<span class="quote">
+&gt; Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  fs/hugetlbfs/inode.c | 44 +++++++++++++++++++++++++++++---------------</span>
+<span class="quote">&gt;  1 file changed, 29 insertions(+), 15 deletions(-)</span>
+<span class="quote">&gt; </span>
+
+I agree that this is an improvement, but I&#39;m afraid it still
+has (perhaps) a serious bug that I didn&#39;t notice before.
+
+It&#39;ll be clearer if I comment, not on your patch, but on the patched
+remove_inode_hugepages() itself.  Yes, most of what I say could have
+been said when you asked for review of that originally - sorry,
+but I just didn&#39;t have time to spare.
+
+static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
+				   loff_t lend)
+{
+	struct hstate *h = hstate_inode(inode);
+	struct address_space *mapping = &amp;inode-&gt;i_data;
+	const pgoff_t start = lstart &gt;&gt; huge_page_shift(h);
+	const pgoff_t end = lend &gt;&gt; huge_page_shift(h);
+	struct vm_area_struct pseudo_vma;
+	struct pagevec pvec;
+	pgoff_t next;
+	int i, freed = 0;
+	long lookup_nr = PAGEVEC_SIZE;
+	bool truncate_op = (lend == LLONG_MAX);
+
+	memset(&amp;pseudo_vma, 0, sizeof(struct vm_area_struct));
+	pseudo_vma.vm_flags = (VM_HUGETLB | VM_MAYSHARE | VM_SHARED);
+
+(I have to say in passing that this is horrid: what&#39;s needed is to
+replace hugetlb_fault_mutex_hash()&#39;s &quot;vma&quot; arg by a &quot;bool shared&quot;;
+or something else - it&#39;s irritating how half its args are irrelevant.
+But you&#39;re absolutely right not to do so in this patch, this being
+a fix for stable which should be kept minimal.  Maybe even leave
+out your i_lock/i_private cleanup for now.)
+
+	pagevec_init(&amp;pvec, 0);
+	next = start;
+	while (next &lt; end) {
+
+Okay: that confused me, but I think you&#39;re right to keep it that way for
+the holepunch break (and you don&#39;t expect to reach &quot;end&quot; in truncation).
+
+		/*
+		 * Make sure to never grab more pages that we
+
+The next comment makes clear that you cannot &quot;Make sure&quot; of that:
+&quot;Try not to grab more pages than we would need&quot; perhaps.
+
+		 * might possibly need.
+		 */
+		if (end - next &lt; lookup_nr)
+			lookup_nr = end - next;
+
+If you are going to restart for truncation (but it&#39;s not clear to me
+that you should), then you ought to reinit lookup_nr to PAGEVEC_SIZE
+before restarting; though I suppose that restart finding anything
+will be so rare as not to matter in practice.
+
+		/*
+		 * When no more pages are found, take different action for
+		 * hole punch and truncate.
+		 *
+		 * For hole punch, this indicates we have removed each page
+		 * within the range and are done.  Note that pages may have
+		 * been faulted in after being removed in the hole punch case.
+		 * This is OK as long as each page in the range was removed
+		 * once.
+		 *
+		 * For truncate, we need to make sure all pages within the
+		 * range are removed when exiting this routine.  We could
+		 * have raced with a fault that brought in a page after it
+		 * was first removed.  Check the range again until no pages
+		 * are found.
+		 */
+
+Good comment, but I don&#39;t know if it&#39;s going to stay.
+The big question is, whether it&#39;s possible for pages to get faulted
+back in in the truncation case: checks on i_size ought to protect from
+that, but yes, many filesystems will have races there; hugetlbfs perhaps
+not because of the fault_mutex, but I&#39;ve not looked deeply enough into it.
+
+		if (!pagevec_lookup(&amp;pvec, mapping, next, lookup_nr)) {
+			if (!truncate_op)
+				break;
+
+			if (next == start)
+				break;
+			next = start;
+			continue;
+		}
+
+		for (i = 0; i &lt; pagevec_count(&amp;pvec); ++i) {
+			struct page *page = pvec.pages[i];
+			u32 hash;
+
+			/*
+			 * The page (index) could be beyond end.  This is
+			 * only possible in the punch hole case as end is
+
+&quot;lend&quot; is LLONG_MAX for truncate, &quot;end&quot; is something less;
+but I believe it&#39;s still a safe ending condition,
+for an in-RAM filesystem if not for a disk-based one.
+
+			 * LLONG_MAX for truncate.
+			 */
+			if (page-&gt;index &gt;= end) {
+				next = end;	/* we are done */
+				break;
+			}
+			next = page-&gt;index;
+
+Okay: it would have been neater to move that up and test &quot;next &gt;= end&quot;,
+then no need to set &quot;next = end&quot; above; but it&#39;s okay how you have it.
+
+			hash = hugetlb_fault_mutex_hash(h, current-&gt;mm,
+							&amp;pseudo_vma,
+							mapping, next, 0);
+			mutex_lock(&amp;hugetlb_fault_mutex_table[hash]);
+
+			lock_page(page);
+			/*
+			 * If page is mapped, it was faulted in after being
+			 * unmapped.  Do nothing in this race case.  In the
+			 * normal case page is not mapped.
+			 */
+			if (!page_mapped(page)) {
+
+This is worrying.  If !page_mapped(page) can only happen in the
+the holepunch case, you&#39;re now okay.  But if it can happen in the
+truncation case, then this function is going to loop around and
+around restarting, until those processes which have page mapped
+finally unmap it; which is not how truncation is supposed to work.
+
+So I think you need to have something like a BUG_ON(truncate_op)
+in the page_mapped(page) case, after you&#39;ve made sure that i_size
+and fault_mutex and lock_page are guaranteeing that a page beyond
+i_size cannot be faulted in.
+
+But if that&#39;s the case, is there any need to loop back to restart?
+Normally, if a hugetlbfs page is instantiated, it&#39;s by faulting into
+userspace; though (I haven&#39;t looked) there could easily be races
+whereby the page is put into cache for a fault, then tbe fault
+abandoned because beyond i_size, but page left behind in cache;
+and of course you&#39;ve just added the fallocate possibility.
+
+Ideally, I think you should be able to eliminate the restarting
+altogether: if the locks you take don&#39;t already give the necessary
+guarantee, I hope that they can easily be made to do so.
+
+Alternatively, could you add a single-page hugetlb_vmdelete_list()
+under page lock, to match what ordinary truncation does?  I don&#39;t
+recall why you left that out.  But would still prefer that you check,
+and if necessary tighten, the locking to avoid any need for that.
+
+				bool rsv_on_error = !PagePrivate(page);
+				/*
+				 * We must free the huge page and remove
+				 * from page cache (remove_huge_page) BEFORE
+				 * removing the region/reserve map
+				 * (hugetlb_unreserve_pages).  In rare out
+				 * of memory conditions, removal of the
+				 * region/reserve map could fail.  Before
+				 * free&#39;ing the page, note PagePrivate which
+				 * is used in case of error.
+				 */
+				remove_huge_page(page);
+				freed++;
+				if (!truncate_op) {
+					if (unlikely(hugetlb_unreserve_pages(
+							inode, next,
+							next + 1, 1)))
+						hugetlb_fix_reserve_counts(
+							inode, rsv_on_error);
+
+Just a note to say that I&#39;ve never got into the hugetlb reserve business,
+so don&#39;t imagine that I&#39;m reviewing or understanding this difficult part.
+
+Hugh
+
+				}
+			}
+
+			++next;
+			unlock_page(page);
+
+			mutex_unlock(&amp;hugetlb_fault_mutex_table[hash]);
+		}
+		huge_pagevec_release(&amp;pvec);
+		cond_resched();
+	}
+
+	if (truncate_op)
+		(void)hugetlb_unreserve_pages(inode, start, LONG_MAX, freed);
+}
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Nov. 9, 2015, 11:24 p.m.</div>
+<pre class="content">
+On 11/08/2015 11:09 PM, Hugh Dickins wrote:
+<span class="quote">&gt; Sorry for the delay, I needed some time set aside to look through.</span>
+
+No problem.  I really appreciate your comments.
+<span class="quote">
+&gt; On Fri, 30 Oct 2015, Mike Kravetz wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; Hugh Dickins pointed out problems with the new hugetlbfs fallocate</span>
+<span class="quote">&gt;&gt; hole punch code.  These problems are in the routine remove_inode_hugepages</span>
+<span class="quote">&gt;&gt; and mostly occur in the case where there are holes in the range of</span>
+<span class="quote">&gt;&gt; pages to be removed.  These holes could be the result of a previous hole</span>
+<span class="quote">&gt;&gt; punch or simply sparse allocation.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; remove_inode_hugepages handles both hole punch and truncate operations.</span>
+<span class="quote">&gt;&gt; Page index handling was fixed/cleaned up so that holes are properly</span>
+<span class="quote">&gt;&gt; handled.  In addition, code was changed to ensure multiple passes of the</span>
+<span class="quote">&gt;&gt; address range only happens in the truncate case.  More comments were added</span>
+<span class="quote">&gt;&gt; to explain the different actions in each case.  A cond_resched() was added</span>
+<span class="quote">&gt;&gt; after removing up to PAGEVEC_SIZE pages.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Some totally unnecessary code in hugetlbfs_fallocate() that remained from</span>
+<span class="quote">&gt;&gt; early development was also removed.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yes, I agree with most of that comment, and with removing the unnecessary</span>
+<span class="quote">&gt; leftover; and you were right to make the patch against v4.3 as you did.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Should have</span>
+<span class="quote">&gt; Fixes: b5cec28d36f5 (&quot;hugetlbfs: truncate_hugepages() takes a range of pages&quot;)</span>
+<span class="quote">&gt; Cc: stable@vger.kernel.org [4.3]</span>
+<span class="quote">&gt; when it&#39;s finished.</span>
+
+Will do.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt;&gt; ---</span>
+<span class="quote">&gt;&gt;  fs/hugetlbfs/inode.c | 44 +++++++++++++++++++++++++++++---------------</span>
+<span class="quote">&gt;&gt;  1 file changed, 29 insertions(+), 15 deletions(-)</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I agree that this is an improvement, but I&#39;m afraid it still</span>
+<span class="quote">&gt; has (perhaps) a serious bug that I didn&#39;t notice before.</span>
+
+Yes, I think most of the issues revolve around the question of whether
+or not page faults can race with truncate.  As mentioned in the other
+e-mail, this may not be an issue and would result in simpler/cleaner code.
+<span class="quote">
+&gt; It&#39;ll be clearer if I comment, not on your patch, but on the patched</span>
+<span class="quote">&gt; remove_inode_hugepages() itself.  Yes, most of what I say could have</span>
+<span class="quote">&gt; been said when you asked for review of that originally - sorry,</span>
+<span class="quote">&gt; but I just didn&#39;t have time to spare.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; static void remove_inode_hugepages(struct inode *inode, loff_t lstart,</span>
+<span class="quote">&gt; 				   loff_t lend)</span>
+<span class="quote">&gt; {</span>
+<span class="quote">&gt; 	struct hstate *h = hstate_inode(inode);</span>
+<span class="quote">&gt; 	struct address_space *mapping = &amp;inode-&gt;i_data;</span>
+<span class="quote">&gt; 	const pgoff_t start = lstart &gt;&gt; huge_page_shift(h);</span>
+<span class="quote">&gt; 	const pgoff_t end = lend &gt;&gt; huge_page_shift(h);</span>
+<span class="quote">&gt; 	struct vm_area_struct pseudo_vma;</span>
+<span class="quote">&gt; 	struct pagevec pvec;</span>
+<span class="quote">&gt; 	pgoff_t next;</span>
+<span class="quote">&gt; 	int i, freed = 0;</span>
+<span class="quote">&gt; 	long lookup_nr = PAGEVEC_SIZE;</span>
+<span class="quote">&gt; 	bool truncate_op = (lend == LLONG_MAX);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 	memset(&amp;pseudo_vma, 0, sizeof(struct vm_area_struct));</span>
+<span class="quote">&gt; 	pseudo_vma.vm_flags = (VM_HUGETLB | VM_MAYSHARE | VM_SHARED);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; (I have to say in passing that this is horrid: what&#39;s needed is to</span>
+<span class="quote">&gt; replace hugetlb_fault_mutex_hash()&#39;s &quot;vma&quot; arg by a &quot;bool shared&quot;;</span>
+<span class="quote">&gt; or something else - it&#39;s irritating how half its args are irrelevant.</span>
+<span class="quote">&gt; But you&#39;re absolutely right not to do so in this patch, this being</span>
+<span class="quote">&gt; a fix for stable which should be kept minimal.  Maybe even leave</span>
+<span class="quote">&gt; out your i_lock/i_private cleanup for now.)</span>
+
+Ok, I&#39;m happy to drop the i_lock/i_private cleanup as well.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; 	pagevec_init(&amp;pvec, 0);</span>
+<span class="quote">&gt; 	next = start;</span>
+<span class="quote">&gt; 	while (next &lt; end) {</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Okay: that confused me, but I think you&#39;re right to keep it that way for</span>
+<span class="quote">&gt; the holepunch break (and you don&#39;t expect to reach &quot;end&quot; in truncation).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 		/*</span>
+<span class="quote">&gt; 		 * Make sure to never grab more pages that we</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The next comment makes clear that you cannot &quot;Make sure&quot; of that:</span>
+<span class="quote">&gt; &quot;Try not to grab more pages than we would need&quot; perhaps.</span>
+
+Agree, comment will be updated.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; 		 * might possibly need.</span>
+<span class="quote">&gt; 		 */</span>
+<span class="quote">&gt; 		if (end - next &lt; lookup_nr)</span>
+<span class="quote">&gt; 			lookup_nr = end - next;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If you are going to restart for truncation (but it&#39;s not clear to me</span>
+<span class="quote">&gt; that you should), then you ought to reinit lookup_nr to PAGEVEC_SIZE</span>
+<span class="quote">&gt; before restarting; though I suppose that restart finding anything</span>
+<span class="quote">&gt; will be so rare as not to matter in practice.</span>
+
+I&#39;m pretty sure we will not need to restart once I confirm that this
+routine does not need to handle races with faults in the truncate case.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; 		/*</span>
+<span class="quote">&gt; 		 * When no more pages are found, take different action for</span>
+<span class="quote">&gt; 		 * hole punch and truncate.</span>
+<span class="quote">&gt; 		 *</span>
+<span class="quote">&gt; 		 * For hole punch, this indicates we have removed each page</span>
+<span class="quote">&gt; 		 * within the range and are done.  Note that pages may have</span>
+<span class="quote">&gt; 		 * been faulted in after being removed in the hole punch case.</span>
+<span class="quote">&gt; 		 * This is OK as long as each page in the range was removed</span>
+<span class="quote">&gt; 		 * once.</span>
+<span class="quote">&gt; 		 *</span>
+<span class="quote">&gt; 		 * For truncate, we need to make sure all pages within the</span>
+<span class="quote">&gt; 		 * range are removed when exiting this routine.  We could</span>
+<span class="quote">&gt; 		 * have raced with a fault that brought in a page after it</span>
+<span class="quote">&gt; 		 * was first removed.  Check the range again until no pages</span>
+<span class="quote">&gt; 		 * are found.</span>
+<span class="quote">&gt; 		 */</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Good comment, but I don&#39;t know if it&#39;s going to stay.</span>
+<span class="quote">&gt; The big question is, whether it&#39;s possible for pages to get faulted</span>
+<span class="quote">&gt; back in in the truncation case: checks on i_size ought to protect from</span>
+<span class="quote">&gt; that, but yes, many filesystems will have races there; hugetlbfs perhaps</span>
+<span class="quote">&gt; not because of the fault_mutex, but I&#39;ve not looked deeply enough into it.</span>
+
+As previously mentioned, I think this will go away once I confirm that
+hugetlb_no_page() handles the race.
+<span class="quote">
+&gt; 		if (!pagevec_lookup(&amp;pvec, mapping, next, lookup_nr)) {</span>
+<span class="quote">&gt; 			if (!truncate_op)</span>
+<span class="quote">&gt; 				break;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 			if (next == start)</span>
+<span class="quote">&gt; 				break;</span>
+<span class="quote">&gt; 			next = start;</span>
+<span class="quote">&gt; 			continue;</span>
+<span class="quote">&gt; 		}</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 		for (i = 0; i &lt; pagevec_count(&amp;pvec); ++i) {</span>
+<span class="quote">&gt; 			struct page *page = pvec.pages[i];</span>
+<span class="quote">&gt; 			u32 hash;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 			/*</span>
+<span class="quote">&gt; 			 * The page (index) could be beyond end.  This is</span>
+<span class="quote">&gt; 			 * only possible in the punch hole case as end is</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &quot;lend&quot; is LLONG_MAX for truncate, &quot;end&quot; is something less;</span>
+<span class="quote">&gt; but I believe it&#39;s still a safe ending condition,</span>
+<span class="quote">&gt; for an in-RAM filesystem if not for a disk-based one.</span>
+
+Yes, I will at least update the comment.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; 			 * LLONG_MAX for truncate.</span>
+<span class="quote">&gt; 			 */</span>
+<span class="quote">&gt; 			if (page-&gt;index &gt;= end) {</span>
+<span class="quote">&gt; 				next = end;	/* we are done */</span>
+<span class="quote">&gt; 				break;</span>
+<span class="quote">&gt; 			}</span>
+<span class="quote">&gt; 			next = page-&gt;index;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Okay: it would have been neater to move that up and test &quot;next &gt;= end&quot;,</span>
+<span class="quote">&gt; then no need to set &quot;next = end&quot; above; but it&#39;s okay how you have it.</span>
+
+I like it better as you suggested.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; 			hash = hugetlb_fault_mutex_hash(h, current-&gt;mm,</span>
+<span class="quote">&gt; 							&amp;pseudo_vma,</span>
+<span class="quote">&gt; 							mapping, next, 0);</span>
+<span class="quote">&gt; 			mutex_lock(&amp;hugetlb_fault_mutex_table[hash]);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 			lock_page(page);</span>
+<span class="quote">&gt; 			/*</span>
+<span class="quote">&gt; 			 * If page is mapped, it was faulted in after being</span>
+<span class="quote">&gt; 			 * unmapped.  Do nothing in this race case.  In the</span>
+<span class="quote">&gt; 			 * normal case page is not mapped.</span>
+<span class="quote">&gt; 			 */</span>
+<span class="quote">&gt; 			if (!page_mapped(page)) {</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This is worrying.  If !page_mapped(page) can only happen in the</span>
+<span class="quote">&gt; the holepunch case, you&#39;re now okay.  But if it can happen in the</span>
+<span class="quote">&gt; truncation case, then this function is going to loop around and</span>
+<span class="quote">&gt; around restarting, until those processes which have page mapped</span>
+<span class="quote">&gt; finally unmap it; which is not how truncation is supposed to work.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So I think you need to have something like a BUG_ON(truncate_op)</span>
+<span class="quote">&gt; in the page_mapped(page) case, after you&#39;ve made sure that i_size</span>
+<span class="quote">&gt; and fault_mutex and lock_page are guaranteeing that a page beyond</span>
+<span class="quote">&gt; i_size cannot be faulted in.</span>
+
+Yes, I am pretty the truncate/fault race is handled outside this routine.
+When I confirm this, I like the idea of a BUG_ON.
+<span class="quote">
+&gt; But if that&#39;s the case, is there any need to loop back to restart?</span>
+<span class="quote">&gt; Normally, if a hugetlbfs page is instantiated, it&#39;s by faulting into</span>
+<span class="quote">&gt; userspace; though (I haven&#39;t looked) there could easily be races</span>
+<span class="quote">&gt; whereby the page is put into cache for a fault, then tbe fault</span>
+<span class="quote">&gt; abandoned because beyond i_size, but page left behind in cache;</span>
+<span class="quote">&gt; and of course you&#39;ve just added the fallocate possibility.</span>
+
+It appears that the fault code recehcks i_size and backs out before
+adding the page to the cache.  So, I think this will not be an issue.
+Again, I just want to look closer the fault code to make sure this
+really is the case.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; Ideally, I think you should be able to eliminate the restarting</span>
+<span class="quote">&gt; altogether: if the locks you take don&#39;t already give the necessary</span>
+<span class="quote">&gt; guarantee, I hope that they can easily be made to do so.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Alternatively, could you add a single-page hugetlb_vmdelete_list()</span>
+<span class="quote">&gt; under page lock, to match what ordinary truncation does?  I don&#39;t</span>
+<span class="quote">&gt; recall why you left that out.  But would still prefer that you check,</span>
+<span class="quote">&gt; and if necessary tighten, the locking to avoid any need for that.</span>
+
+I&#39;m hoping that all that complexity will not be needed.  The &#39;unmap
+single page&#39; was not added because it was not in the original code.
+When doing the original hole punch code, my idea was to ignore races
+with page faults.  The reasoning (perhaps incorrect) is that there
+was no way to tell from user space if the fault or hole punch came
+first.  So, just take the easy way out and leave any pages that raced.
+It was thinking about adding support for userfaultfd in the future
+that forced the issue of actually removing all pages within the hole.
+That requires the unmap of single pages within this routine.  So, it
+would be added as a requisite for userfaultfd.
+<span class="quote">
+&gt; 				bool rsv_on_error = !PagePrivate(page);</span>
+<span class="quote">&gt; 				/*</span>
+<span class="quote">&gt; 				 * We must free the huge page and remove</span>
+<span class="quote">&gt; 				 * from page cache (remove_huge_page) BEFORE</span>
+<span class="quote">&gt; 				 * removing the region/reserve map</span>
+<span class="quote">&gt; 				 * (hugetlb_unreserve_pages).  In rare out</span>
+<span class="quote">&gt; 				 * of memory conditions, removal of the</span>
+<span class="quote">&gt; 				 * region/reserve map could fail.  Before</span>
+<span class="quote">&gt; 				 * free&#39;ing the page, note PagePrivate which</span>
+<span class="quote">&gt; 				 * is used in case of error.</span>
+<span class="quote">&gt; 				 */</span>
+<span class="quote">&gt; 				remove_huge_page(page);</span>
+<span class="quote">&gt; 				freed++;</span>
+<span class="quote">&gt; 				if (!truncate_op) {</span>
+<span class="quote">&gt; 					if (unlikely(hugetlb_unreserve_pages(</span>
+<span class="quote">&gt; 							inode, next,</span>
+<span class="quote">&gt; 							next + 1, 1)))</span>
+<span class="quote">&gt; 						hugetlb_fix_reserve_counts(</span>
+<span class="quote">&gt; 							inode, rsv_on_error);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Just a note to say that I&#39;ve never got into the hugetlb reserve business,</span>
+<span class="quote">&gt; so don&#39;t imagine that I&#39;m reviewing or understanding this difficult part.</span>
+
+No worries.
+
+I&#39;ll put together another patch.  However, I will first put together an
+explanation as to why we do not need to handle truncation/page fault issues
+in this routine.  My hope is that will make this much simpler.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="p_header">index 316adb9..30cf534 100644</span>
+<span class="p_header">--- a/fs/hugetlbfs/inode.c</span>
+<span class="p_header">+++ b/fs/hugetlbfs/inode.c</span>
+<span class="p_chunk">@@ -368,10 +368,25 @@</span> <span class="p_context"> static void remove_inode_hugepages(struct inode *inode, loff_t lstart,</span>
+ 			lookup_nr = end - next;
+ 
+ 		/*
+<span class="p_del">-		 * This pagevec_lookup() may return pages past &#39;end&#39;,</span>
+<span class="p_del">-		 * so we must check for page-&gt;index &gt; end.</span>
+<span class="p_add">+		 * When no more pages are found, take different action for</span>
+<span class="p_add">+		 * hole punch and truncate.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * For hole punch, this indicates we have removed each page</span>
+<span class="p_add">+		 * within the range and are done.  Note that pages may have</span>
+<span class="p_add">+		 * been faulted in after being removed in the hole punch case.</span>
+<span class="p_add">+		 * This is OK as long as each page in the range was removed</span>
+<span class="p_add">+		 * once.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * For truncate, we need to make sure all pages within the</span>
+<span class="p_add">+		 * range are removed when exiting this routine.  We could</span>
+<span class="p_add">+		 * have raced with a fault that brought in a page after it</span>
+<span class="p_add">+		 * was first removed.  Check the range again until no pages</span>
+<span class="p_add">+		 * are found.</span>
+ 		 */
+ 		if (!pagevec_lookup(&amp;pvec, mapping, next, lookup_nr)) {
+<span class="p_add">+			if (!truncate_op)</span>
+<span class="p_add">+				break;</span>
+<span class="p_add">+</span>
+ 			if (next == start)
+ 				break;
+ 			next = start;
+<span class="p_chunk">@@ -382,19 +397,23 @@</span> <span class="p_context"> static void remove_inode_hugepages(struct inode *inode, loff_t lstart,</span>
+ 			struct page *page = pvec.pages[i];
+ 			u32 hash;
+ 
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * The page (index) could be beyond end.  This is</span>
+<span class="p_add">+			 * only possible in the punch hole case as end is</span>
+<span class="p_add">+			 * LLONG_MAX for truncate.</span>
+<span class="p_add">+			 */</span>
+<span class="p_add">+			if (page-&gt;index &gt;= end) {</span>
+<span class="p_add">+				next = end;	/* we are done */</span>
+<span class="p_add">+				break;</span>
+<span class="p_add">+			}</span>
+<span class="p_add">+			next = page-&gt;index;</span>
+<span class="p_add">+</span>
+ 			hash = hugetlb_fault_mutex_hash(h, current-&gt;mm,
+ 							&amp;pseudo_vma,
+ 							mapping, next, 0);
+ 			mutex_lock(&amp;hugetlb_fault_mutex_table[hash]);
+ 
+ 			lock_page(page);
+<span class="p_del">-			if (page-&gt;index &gt;= end) {</span>
+<span class="p_del">-				unlock_page(page);</span>
+<span class="p_del">-				mutex_unlock(&amp;hugetlb_fault_mutex_table[hash]);</span>
+<span class="p_del">-				next = end;	/* we are done */</span>
+<span class="p_del">-				break;</span>
+<span class="p_del">-			}</span>
+<span class="p_del">-</span>
+ 			/*
+ 			 * If page is mapped, it was faulted in after being
+ 			 * unmapped.  Do nothing in this race case.  In the
+<span class="p_chunk">@@ -423,15 +442,13 @@</span> <span class="p_context"> static void remove_inode_hugepages(struct inode *inode, loff_t lstart,</span>
+ 				}
+ 			}
+ 
+<span class="p_del">-			if (page-&gt;index &gt; next)</span>
+<span class="p_del">-				next = page-&gt;index;</span>
+<span class="p_del">-</span>
+ 			++next;
+ 			unlock_page(page);
+ 
+ 			mutex_unlock(&amp;hugetlb_fault_mutex_table[hash]);
+ 		}
+ 		huge_pagevec_release(&amp;pvec);
+<span class="p_add">+		cond_resched();</span>
+ 	}
+ 
+ 	if (truncate_op)
+<span class="p_chunk">@@ -647,9 +664,6 @@</span> <span class="p_context"> static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,</span>
+ 	if (!(mode &amp; FALLOC_FL_KEEP_SIZE) &amp;&amp; offset + len &gt; inode-&gt;i_size)
+ 		i_size_write(inode, offset + len);
+ 	inode-&gt;i_ctime = CURRENT_TIME;
+<span class="p_del">-	spin_lock(&amp;inode-&gt;i_lock);</span>
+<span class="p_del">-	inode-&gt;i_private = NULL;</span>
+<span class="p_del">-	spin_unlock(&amp;inode-&gt;i_lock);</span>
+ out:
+ 	mutex_unlock(&amp;inode-&gt;i_mutex);
+ 	return error;
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

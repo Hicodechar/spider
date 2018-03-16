@@ -1,0 +1,883 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[-v2,1/4] mm: Rework {set,clear,mm}_tlb_flush_pending() - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [-v2,1/4] mm: Rework {set,clear,mm}_tlb_flush_pending()</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Aug. 2, 2017, 11:38 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170802114030.020058451@infradead.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9876651/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9876651/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9876651/">/patch/9876651/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	ABF8160360 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  2 Aug 2017 11:49:16 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 9AAB228777
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  2 Aug 2017 11:49:16 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 8F5A728788; Wed,  2 Aug 2017 11:49:16 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.8 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	RCVD_IN_DNSWL_HI,T_DKIM_INVALID autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id A453728777
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  2 Aug 2017 11:49:15 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753214AbdHBLtM (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 2 Aug 2017 07:49:12 -0400
+Received: from merlin.infradead.org ([205.233.59.134]:46452 &quot;EHLO
+	merlin.infradead.org&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1753081AbdHBLtK (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 2 Aug 2017 07:49:10 -0400
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209;
+	h=Content-Type:MIME-Version:References:
+	Subject:Cc:To:From:Date:Message-Id:Sender:Reply-To:Content-Transfer-Encoding:
+	Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:
+	Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=Bx6ovFHlfAp/wK57auy84whqdo1ggKecLbtb2SsAwoA=;
+	b=v/GNazy0Rz4xqLCbaXJu9phi+t
+	4V4/xxXu7ZxzSU5cdNVh06Hok5tt4gB3GoMGLBZhNJZKasy2ZGF/CiSz99+g2JXi0yx7vwOdeNeF6
+	gv5x7JZxNi04IdmVt4QYIku558xR9dmvlZCo9wXSgHoMAcsOo1bbi3KYvwNJH1RE0xTttfgbYv6vN
+	5HUIv7Tj3sJ3hENw0VDA5cByMDHYtwVaSHXzidFgZbw17ANBXj95rubdJeb6KYkbvKjT43qo2LCcn
+	v/ICVjVu7EsgwflCFQ4esfKawCSP8F8WnxLwJGDm4z6RLV88/L7r8Bpb5RX2Rjw+b0FN9wKNpaY3a
+	xjYIuFTA==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100]
+	helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.87 #1 (Red Hat Linux))
+	id 1dcs44-0004K6-Nz; Wed, 02 Aug 2017 11:43:49 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 0)
+	id 5123D2029902D; Wed,  2 Aug 2017 13:43:46 +0200 (CEST)
+Message-Id: &lt;20170802114030.020058451@infradead.org&gt;
+User-Agent: quilt/0.63-1
+Date: Wed, 02 Aug 2017 13:38:38 +0200
+From: Peter Zijlstra &lt;peterz@infradead.org&gt;
+To: torvalds@linux-foundation.org, will.deacon@arm.com,
+	oleg@redhat.com, paulmck@linux.vnet.ibm.com,
+	benh@kernel.crashing.org, mpe@ellerman.id.au, npiggin@gmail.com
+Cc: linux-kernel@vger.kernel.org, mingo@kernel.org,
+	stern@rowland.harvard.edu, peterz@infradead.org,
+	Russell King &lt;linux@armlinux.org.uk&gt;,
+	Heiko Carstens &lt;heiko.carstens@de.ibm.com&gt;,
+	Ralf Baechle &lt;ralf@linux-mips.org&gt;, Vineet Gupta &lt;vgupta@synopsys.com&gt;,
+	&quot;David S. Miller&quot; &lt;davem@davemloft.net&gt;,
+	Mel Gorman &lt;mgorman@suse.de&gt;, Rik van Riel &lt;riel@redhat.com&gt;
+Subject: [PATCH -v2 1/4] mm: Rework {set,clear,mm}_tlb_flush_pending()
+References: &lt;20170802113837.280183420@infradead.org&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline; filename=peterz-mm_tlb_flush_pending.patch
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 2, 2017, 11:38 a.m.</div>
+<pre class="content">
+Commit:
+
+  af2c1401e6f9 (&quot;mm: numa: guarantee that tlb_flush_pending updates are visible before page table updates&quot;)
+
+added smp_mb__before_spinlock() to set_tlb_flush_pending(). I think we
+can solve the same problem without this barrier.
+
+If instead we mandate that mm_tlb_flush_pending() is used while
+holding the PTL we&#39;re guaranteed to observe prior
+set_tlb_flush_pending() instances.
+
+For this to work we need to rework migrate_misplaced_transhuge_page()
+a little and move the test up into do_huge_pmd_numa_page().
+
+NOTE: this relies on flush_tlb_range() to guarantee:
+
+   (1) it ensures that prior page table updates are visible to the
+       page table walker and
+   (2) it ensures that subsequent memory accesses are only made
+       visible after the invalidation has completed
+
+This is required for architectures that implement TRANSPARENT_HUGEPAGE
+(arc, arm, arm64, mips, powerpc, s390, sparc, x86) or otherwise use
+mm_tlb_flush_pending() in their page-table operations (arm, arm64,
+x86).
+
+This appears true for:
+
+ - arm (DSB ISB before and after),
+ - arm64 (DSB ISHST before, and DSB ISH after),
+ - powerpc (PTESYNC before and after),
+ - s390 and x86 TLB invalidate are serializing instructions
+
+But I failed to understand the situation for:
+
+ - arc, mips, sparc
+
+Now SPARC64 is a wee bit special in that flush_tlb_range() is a no-op
+and it flushes the TLBs using arch_{enter,leave}_lazy_mmu_mode()
+inside the PTL. It still needs to guarantee the PTL unlock happens
+_after_ the invalidate completes.
+
+Vineet, Ralf and Dave could you guys please have a look?
+
+Cc: Russell King &lt;linux@armlinux.org.uk&gt;
+Cc: Will Deacon &lt;will.deacon@arm.com&gt;
+Cc: Benjamin Herrenschmidt &lt;benh@kernel.crashing.org&gt;
+Cc: Heiko Carstens &lt;heiko.carstens@de.ibm.com&gt;
+Cc: Ralf Baechle &lt;ralf@linux-mips.org&gt;
+Cc: Vineet Gupta &lt;vgupta@synopsys.com&gt;
+Cc: &quot;David S. Miller&quot; &lt;davem@davemloft.net&gt;
+Cc: Mel Gorman &lt;mgorman@suse.de&gt;
+Cc: Rik van Riel &lt;riel@redhat.com&gt;
+<span class="signed-off-by">Signed-off-by: Peter Zijlstra (Intel) &lt;peterz@infradead.org&gt;</span>
+---
+ include/linux/mm_types.h |   33 +++++++++++++++++++++++++++------
+ mm/huge_memory.c         |   20 ++++++++++++++++++++
+ mm/migrate.c             |    6 ------
+ 3 files changed, 47 insertions(+), 12 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=24451">Mel Gorman</a> - Aug. 2, 2017, 1 p.m.</div>
+<pre class="content">
+On Wed, Aug 02, 2017 at 01:38:38PM +0200, Peter Zijlstra wrote:
+<span class="quote">&gt; For this to work we need to rework migrate_misplaced_transhuge_page()</span>
+<span class="quote">&gt; a little and move the test up into do_huge_pmd_numa_page().</span>
+<span class="quote">&gt; </span>
+
+Note that Nadav has a patch in parallel on it&#39;s way towards Andrew&#39;s
+tree that I suggested to always always check if a TLB flush is pending
+under the PTL. A conflict will happen but will be trivial to resolve.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=48431">Vineet Gupta</a> - Aug. 2, 2017, 1 p.m.</div>
+<pre class="content">
+On 08/02/2017 05:19 PM, Peter Zijlstra wrote:
+<span class="quote">&gt; Commit:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;    af2c1401e6f9 (&quot;mm: numa: guarantee that tlb_flush_pending updates are visible before page table updates&quot;)</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; added smp_mb__before_spinlock() to set_tlb_flush_pending(). I think we</span>
+<span class="quote">&gt; can solve the same problem without this barrier.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; If instead we mandate that mm_tlb_flush_pending() is used while</span>
+<span class="quote">&gt; holding the PTL we&#39;re guaranteed to observe prior</span>
+<span class="quote">&gt; set_tlb_flush_pending() instances.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; For this to work we need to rework migrate_misplaced_transhuge_page()</span>
+<span class="quote">&gt; a little and move the test up into do_huge_pmd_numa_page().</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; NOTE: this relies on flush_tlb_range() to guarantee:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;     (1) it ensures that prior page table updates are visible to the</span>
+<span class="quote">&gt;         page table walker and</span>
+
+ARC doesn&#39;t have hw page walker so this is not relevant.
+<span class="quote">
+&gt;     (2) it ensures that subsequent memory accesses are only made</span>
+<span class="quote">&gt;         visible after the invalidation has completed</span>
+
+flush_tlb_range() does a bunch of aux register accesses, I need to check with hw 
+folks if those can be assumed to serializing w.r.t. memory ordering.
+But if not then we need to add an explicit smb barrier (which will not be paired ? 
+) and would be penalizing the other callers of flush_tlb_range(). Will a new API 
+for this be an overkill ? Is a memory barrier needed here anyways - like ARM !
+<span class="quote">
+
+&gt;</span>
+<span class="quote">&gt; This is required for architectures that implement TRANSPARENT_HUGEPAGE</span>
+<span class="quote">&gt; (arc, arm, arm64, mips, powerpc, s390, sparc, x86) or otherwise use</span>
+<span class="quote">&gt; mm_tlb_flush_pending() in their page-table operations (arm, arm64,</span>
+<span class="quote">&gt; x86).</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; This appears true for:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;   - arm (DSB ISB before and after),</span>
+<span class="quote">&gt;   - arm64 (DSB ISHST before, and DSB ISH after),</span>
+<span class="quote">&gt;   - powerpc (PTESYNC before and after),</span>
+<span class="quote">&gt;   - s390 and x86 TLB invalidate are serializing instructions</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; But I failed to understand the situation for:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;   - arc, mips, sparc</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Now SPARC64 is a wee bit special in that flush_tlb_range() is a no-op</span>
+<span class="quote">&gt; and it flushes the TLBs using arch_{enter,leave}_lazy_mmu_mode()</span>
+<span class="quote">&gt; inside the PTL. It still needs to guarantee the PTL unlock happens</span>
+<span class="quote">&gt; _after_ the invalidate completes.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Vineet, Ralf and Dave could you guys please have a look?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Cc: Russell King &lt;linux@armlinux.org.uk&gt;</span>
+<span class="quote">&gt; Cc: Will Deacon &lt;will.deacon@arm.com&gt;</span>
+<span class="quote">&gt; Cc: Benjamin Herrenschmidt &lt;benh@kernel.crashing.org&gt;</span>
+<span class="quote">&gt; Cc: Heiko Carstens &lt;heiko.carstens@de.ibm.com&gt;</span>
+<span class="quote">&gt; Cc: Ralf Baechle &lt;ralf@linux-mips.org&gt;</span>
+<span class="quote">&gt; Cc: Vineet Gupta &lt;vgupta@synopsys.com&gt;</span>
+<span class="quote">&gt; Cc: &quot;David S. Miller&quot; &lt;davem@davemloft.net&gt;</span>
+<span class="quote">&gt; Cc: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+<span class="quote">&gt; Cc: Rik van Riel &lt;riel@redhat.com&gt;</span>
+<span class="quote">&gt; Signed-off-by: Peter Zijlstra (Intel) &lt;peterz@infradead.org&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;   include/linux/mm_types.h |   33 +++++++++++++++++++++++++++------</span>
+<span class="quote">&gt;   mm/huge_memory.c         |   20 ++++++++++++++++++++</span>
+<span class="quote">&gt;   mm/migrate.c             |    6 ------</span>
+<span class="quote">&gt;   3 files changed, 47 insertions(+), 12 deletions(-)</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; --- a/include/linux/mm_types.h</span>
+<span class="quote">&gt; +++ b/include/linux/mm_types.h</span>
+<span class="quote">&gt; @@ -527,23 +527,44 @@ static inline cpumask_t *mm_cpumask(stru</span>
+<span class="quote">&gt;    */</span>
+<span class="quote">&gt;   static inline bool mm_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="quote">&gt;   {</span>
+<span class="quote">&gt; -	barrier();</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Must be called with PTL held; such that our PTL acquire will have</span>
+<span class="quote">&gt; +	 * observed the store from set_tlb_flush_pending().</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt;   	return mm-&gt;tlb_flush_pending;</span>
+<span class="quote">&gt;   }</span>
+<span class="quote">&gt;   static inline void set_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="quote">&gt;   {</span>
+<span class="quote">&gt;   	mm-&gt;tlb_flush_pending = true;</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt;   	/*</span>
+<span class="quote">&gt; -	 * Guarantee that the tlb_flush_pending store does not leak into the</span>
+<span class="quote">&gt; -	 * critical section updating the page tables</span>
+<span class="quote">&gt; +	 * The only time this value is relevant is when there are indeed pages</span>
+<span class="quote">&gt; +	 * to flush. And we&#39;ll only flush pages after changing them, which</span>
+<span class="quote">&gt; +	 * requires the PTL.</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 * So the ordering here is:</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 *	mm-&gt;tlb_flush_pending = true;</span>
+<span class="quote">&gt; +	 *	spin_lock(&amp;ptl);</span>
+<span class="quote">&gt; +	 *	...</span>
+<span class="quote">&gt; +	 *	set_pte_at();</span>
+<span class="quote">&gt; +	 *	spin_unlock(&amp;ptl);</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 *				spin_lock(&amp;ptl)</span>
+<span class="quote">&gt; +	 *				mm_tlb_flush_pending();</span>
+<span class="quote">&gt; +	 *				....</span>
+<span class="quote">&gt; +	 *				spin_unlock(&amp;ptl);</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 *	flush_tlb_range();</span>
+<span class="quote">&gt; +	 *	mm-&gt;tlb_flush_pending = false;</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 * So the =true store is constrained by the PTL unlock, and the =false</span>
+<span class="quote">&gt; +	 * store is constrained by the TLB invalidate.</span>
+<span class="quote">&gt;   	 */</span>
+<span class="quote">&gt; -	smp_mb__before_spinlock();</span>
+<span class="quote">&gt;   }</span>
+<span class="quote">&gt;   /* Clearing is done after a TLB flush, which also provides a barrier. */</span>
+<span class="quote">&gt;   static inline void clear_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="quote">&gt;   {</span>
+<span class="quote">&gt; -	barrier();</span>
+<span class="quote">&gt; +	/* see set_tlb_flush_pending */</span>
+<span class="quote">&gt;   	mm-&gt;tlb_flush_pending = false;</span>
+<span class="quote">&gt;   }</span>
+<span class="quote">&gt;   #else</span>
+<span class="quote">&gt; --- a/mm/huge_memory.c</span>
+<span class="quote">&gt; +++ b/mm/huge_memory.c</span>
+<span class="quote">&gt; @@ -1410,6 +1410,7 @@ int do_huge_pmd_numa_page(struct vm_faul</span>
+<span class="quote">&gt;   	unsigned long haddr = vmf-&gt;address &amp; HPAGE_PMD_MASK;</span>
+<span class="quote">&gt;   	int page_nid = -1, this_nid = numa_node_id();</span>
+<span class="quote">&gt;   	int target_nid, last_cpupid = -1;</span>
+<span class="quote">&gt; +	bool need_flush = false;</span>
+<span class="quote">&gt;   	bool page_locked;</span>
+<span class="quote">&gt;   	bool migrated = false;</span>
+<span class="quote">&gt;   	bool was_writable;</span>
+<span class="quote">&gt; @@ -1496,10 +1497,29 @@ int do_huge_pmd_numa_page(struct vm_faul</span>
+<span class="quote">&gt;   	}</span>
+<span class="quote">&gt;   </span>
+<span class="quote">&gt;   	/*</span>
+<span class="quote">&gt; +	 * Since we took the NUMA fault, we must have observed the !accessible</span>
+<span class="quote">&gt; +	 * bit. Make sure all other CPUs agree with that, to avoid them</span>
+<span class="quote">&gt; +	 * modifying the page we&#39;re about to migrate.</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 * Must be done under PTL such that we&#39;ll observe the relevant</span>
+<span class="quote">&gt; +	 * set_tlb_flush_pending().</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	if (mm_tlb_flush_pending(vma-&gt;vm_mm))</span>
+<span class="quote">&gt; +		need_flush = true;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt;   	 * Migrate the THP to the requested node, returns with page unlocked</span>
+<span class="quote">&gt;   	 * and access rights restored.</span>
+<span class="quote">&gt;   	 */</span>
+<span class="quote">&gt;   	spin_unlock(vmf-&gt;ptl);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * We are not sure a pending tlb flush here is for a huge page</span>
+<span class="quote">&gt; +	 * mapping or not. Hence use the tlb range variant</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	if (need_flush)</span>
+<span class="quote">&gt; +		flush_tlb_range(vma, haddr, haddr + HPAGE_PMD_SIZE);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;   	migrated = migrate_misplaced_transhuge_page(vma-&gt;vm_mm, vma,</span>
+<span class="quote">&gt;   				vmf-&gt;pmd, pmd, vmf-&gt;address, page, target_nid);</span>
+<span class="quote">&gt;   	if (migrated) {</span>
+<span class="quote">&gt; --- a/mm/migrate.c</span>
+<span class="quote">&gt; +++ b/mm/migrate.c</span>
+<span class="quote">&gt; @@ -1937,12 +1937,6 @@ int migrate_misplaced_transhuge_page(str</span>
+<span class="quote">&gt;   		put_page(new_page);</span>
+<span class="quote">&gt;   		goto out_fail;</span>
+<span class="quote">&gt;   	}</span>
+<span class="quote">&gt; -	/*</span>
+<span class="quote">&gt; -	 * We are not sure a pending tlb flush here is for a huge page</span>
+<span class="quote">&gt; -	 * mapping or not. Hence use the tlb range variant</span>
+<span class="quote">&gt; -	 */</span>
+<span class="quote">&gt; -	if (mm_tlb_flush_pending(mm))</span>
+<span class="quote">&gt; -		flush_tlb_range(vma, mmun_start, mmun_end);</span>
+<span class="quote">&gt;   </span>
+<span class="quote">&gt;   	/* Prepare a page as a migration target */</span>
+<span class="quote">&gt;   	__SetPageLocked(new_page);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 2, 2017, 1:05 p.m.</div>
+<pre class="content">
+On Wed, Aug 02, 2017 at 02:00:40PM +0100, Mel Gorman wrote:
+<span class="quote">&gt; On Wed, Aug 02, 2017 at 01:38:38PM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; For this to work we need to rework migrate_misplaced_transhuge_page()</span>
+<span class="quote">&gt; &gt; a little and move the test up into do_huge_pmd_numa_page().</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Note that Nadav has a patch in parallel on it&#39;s way towards Andrew&#39;s</span>
+<span class="quote">&gt; tree that I suggested to always always check if a TLB flush is pending</span>
+<span class="quote">&gt; under the PTL. A conflict will happen but will be trivial to resolve.</span>
+
+Got a link?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 2, 2017, 1:17 p.m.</div>
+<pre class="content">
+On Wed, Aug 02, 2017 at 06:30:43PM +0530, Vineet Gupta wrote:
+<span class="quote">&gt; On 08/02/2017 05:19 PM, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; Commit:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;    af2c1401e6f9 (&quot;mm: numa: guarantee that tlb_flush_pending updates are visible before page table updates&quot;)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; added smp_mb__before_spinlock() to set_tlb_flush_pending(). I think we</span>
+<span class="quote">&gt; &gt; can solve the same problem without this barrier.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; If instead we mandate that mm_tlb_flush_pending() is used while</span>
+<span class="quote">&gt; &gt; holding the PTL we&#39;re guaranteed to observe prior</span>
+<span class="quote">&gt; &gt; set_tlb_flush_pending() instances.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; For this to work we need to rework migrate_misplaced_transhuge_page()</span>
+<span class="quote">&gt; &gt; a little and move the test up into do_huge_pmd_numa_page().</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; NOTE: this relies on flush_tlb_range() to guarantee:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;     (1) it ensures that prior page table updates are visible to the</span>
+<span class="quote">&gt; &gt;         page table walker and</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; ARC doesn&#39;t have hw page walker so this is not relevant.</span>
+
+Well, you still want your software walker to observe the new PTE entries
+before you start shooting down the old ones. So I would expect at least
+an smp_wmb() before the TLB invalidate to order against another CPU
+doing a software TLB fill, such that the other CPU will indeed observe
+the new PTE after it has observed the TLB missing.
+<span class="quote">
+&gt; &gt;     (2) it ensures that subsequent memory accesses are only made</span>
+<span class="quote">&gt; &gt;         visible after the invalidation has completed</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; flush_tlb_range() does a bunch of aux register accesses, I need to check</span>
+<span class="quote">&gt; with hw folks if those can be assumed to serializing w.r.t. memory ordering.</span>
+<span class="quote">&gt; But if not then we need to add an explicit smb barrier (which will not be</span>
+<span class="quote">&gt; paired ? )</span>
+
+It would pair with the ACQUIRE from the PTL in the below example.
+<span class="quote">
+&gt; and would be penalizing the other callers of flush_tlb_range().</span>
+<span class="quote">&gt; Will a new API for this be an overkill ? Is a memory barrier needed here</span>
+<span class="quote">&gt; anyways - like ARM !</span>
+
+It is needed at the very least if you do transparant huge pages as per
+the existing logic (this requirement isn&#39;t new per this patch, I was
+just the silly person wondering if flush_tlb_range() does indeed provide
+the ordering assumed).
+
+But yes, lots of architectures do provide this ordering already and
+some, like ARM and PPC do so with quite expensive barriers.
+
+To me it&#39;s also a natural / expected ordering, but that could just be
+me :-)
+<span class="quote">
+&gt; &gt;   	/*</span>
+<span class="quote">&gt; &gt; +	 * The only time this value is relevant is when there are indeed pages</span>
+<span class="quote">&gt; &gt; +	 * to flush. And we&#39;ll only flush pages after changing them, which</span>
+<span class="quote">&gt; &gt; +	 * requires the PTL.</span>
+<span class="quote">&gt; &gt; +	 *</span>
+<span class="quote">&gt; &gt; +	 * So the ordering here is:</span>
+<span class="quote">&gt; &gt; +	 *</span>
+<span class="quote">&gt; &gt; +	 *	mm-&gt;tlb_flush_pending = true;</span>
+<span class="quote">&gt; &gt; +	 *	spin_lock(&amp;ptl);</span>
+<span class="quote">&gt; &gt; +	 *	...</span>
+<span class="quote">&gt; &gt; +	 *	set_pte_at();</span>
+<span class="quote">&gt; &gt; +	 *	spin_unlock(&amp;ptl);</span>
+<span class="quote">&gt; &gt; +	 *</span>
+<span class="quote">&gt; &gt; +	 *				spin_lock(&amp;ptl)</span>
+<span class="quote">&gt; &gt; +	 *				mm_tlb_flush_pending();</span>
+<span class="quote">&gt; &gt; +	 *				....</span>
+<span class="quote">&gt; &gt; +	 *				spin_unlock(&amp;ptl);</span>
+<span class="quote">&gt; &gt; +	 *</span>
+<span class="quote">&gt; &gt; +	 *	flush_tlb_range();</span>
+<span class="quote">&gt; &gt; +	 *	mm-&gt;tlb_flush_pending = false;</span>
+<span class="quote">&gt; &gt; +	 *</span>
+<span class="quote">&gt; &gt; +	 * So the =true store is constrained by the PTL unlock, and the =false</span>
+<span class="quote">&gt; &gt; +	 * store is constrained by the TLB invalidate.</span>
+<span class="quote">&gt; &gt;   	 */</span>
+<span class="quote">&gt; &gt;   }</span>
+<span class="quote">&gt; &gt;   /* Clearing is done after a TLB flush, which also provides a barrier. */</span>
+
+See, not a new requirement.. I only mucked with the ordering for
+setting it, clearing already relied on the flush_tlb_range().
+<span class="quote">
+&gt; &gt;   static inline void clear_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt;   {</span>
+<span class="quote">&gt; &gt; +	/* see set_tlb_flush_pending */</span>
+<span class="quote">&gt; &gt;   	mm-&gt;tlb_flush_pending = false;</span>
+<span class="quote">&gt; &gt;   }</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=24451">Mel Gorman</a> - Aug. 2, 2017, 1:52 p.m.</div>
+<pre class="content">
+On Wed, Aug 02, 2017 at 03:05:50PM +0200, Peter Zijlstra wrote:
+<span class="quote">&gt; On Wed, Aug 02, 2017 at 02:00:40PM +0100, Mel Gorman wrote:</span>
+<span class="quote">&gt; &gt; On Wed, Aug 02, 2017 at 01:38:38PM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; &gt; For this to work we need to rework migrate_misplaced_transhuge_page()</span>
+<span class="quote">&gt; &gt; &gt; a little and move the test up into do_huge_pmd_numa_page().</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Note that Nadav has a patch in parallel on it&#39;s way towards Andrew&#39;s</span>
+<span class="quote">&gt; &gt; tree that I suggested to always always check if a TLB flush is pending</span>
+<span class="quote">&gt; &gt; under the PTL. A conflict will happen but will be trivial to resolve.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Got a link?</span>
+
+Subject: Revert &quot;mm: numa: defer TLB flush for THP migration as long as possible&quot;
+
+http://lkml.kernel.org/r/20170731164325.235019-4-namit@vmware.com
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 2, 2017, 2:16 p.m.</div>
+<pre class="content">
+On Wed, Aug 02, 2017 at 02:52:03PM +0100, Mel Gorman wrote:
+<span class="quote">&gt; On Wed, Aug 02, 2017 at 03:05:50PM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; On Wed, Aug 02, 2017 at 02:00:40PM +0100, Mel Gorman wrote:</span>
+<span class="quote">&gt; &gt; &gt; On Wed, Aug 02, 2017 at 01:38:38PM +0200, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; For this to work we need to rework migrate_misplaced_transhuge_page()</span>
+<span class="quote">&gt; &gt; &gt; &gt; a little and move the test up into do_huge_pmd_numa_page().</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Note that Nadav has a patch in parallel on it&#39;s way towards Andrew&#39;s</span>
+<span class="quote">&gt; &gt; &gt; tree that I suggested to always always check if a TLB flush is pending</span>
+<span class="quote">&gt; &gt; &gt; under the PTL. A conflict will happen but will be trivial to resolve.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Got a link?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Subject: Revert &quot;mm: numa: defer TLB flush for THP migration as long as possible&quot;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; http://lkml.kernel.org/r/20170731164325.235019-4-namit@vmware.com</span>
+<span class="quote">&gt; </span>
+
+Thanks, yes that should be easy to resolve.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - Aug. 3, 2017, 3:27 p.m.</div>
+<pre class="content">
+On Wed, Aug 02, 2017 at 01:38:38PM +0200, Peter Zijlstra wrote:
+<span class="quote">&gt; Commit:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   af2c1401e6f9 (&quot;mm: numa: guarantee that tlb_flush_pending updates are visible before page table updates&quot;)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; added smp_mb__before_spinlock() to set_tlb_flush_pending(). I think we</span>
+<span class="quote">&gt; can solve the same problem without this barrier.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If instead we mandate that mm_tlb_flush_pending() is used while</span>
+<span class="quote">&gt; holding the PTL we&#39;re guaranteed to observe prior</span>
+<span class="quote">&gt; set_tlb_flush_pending() instances.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; For this to work we need to rework migrate_misplaced_transhuge_page()</span>
+<span class="quote">&gt; a little and move the test up into do_huge_pmd_numa_page().</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; NOTE: this relies on flush_tlb_range() to guarantee:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;    (1) it ensures that prior page table updates are visible to the</span>
+<span class="quote">&gt;        page table walker and</span>
+<span class="quote">&gt;    (2) it ensures that subsequent memory accesses are only made</span>
+<span class="quote">&gt;        visible after the invalidation has completed</span>
+
+Works for me:
+<span class="acked-by">
+Acked-by: Will Deacon &lt;will.deacon@arm.com&gt;</span>
+
+Will
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 11, 2017, 9:45 a.m.</div>
+<pre class="content">
+On Wed, Aug 02, 2017 at 01:38:38PM +0200, Peter Zijlstra wrote:
+<span class="quote">&gt;  	/*</span>
+<span class="quote">&gt; +	 * The only time this value is relevant is when there are indeed pages</span>
+<span class="quote">&gt; +	 * to flush. And we&#39;ll only flush pages after changing them, which</span>
+<span class="quote">&gt; +	 * requires the PTL.</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 * So the ordering here is:</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 *	mm-&gt;tlb_flush_pending = true;</span>
+<span class="quote">&gt; +	 *	spin_lock(&amp;ptl);</span>
+<span class="quote">&gt; +	 *	...</span>
+<span class="quote">&gt; +	 *	set_pte_at();</span>
+<span class="quote">&gt; +	 *	spin_unlock(&amp;ptl);</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 *				spin_lock(&amp;ptl)</span>
+<span class="quote">&gt; +	 *				mm_tlb_flush_pending();</span>
+<span class="quote">&gt; +	 *				....</span>
+
+Crud, so while I was rebasing Nadav&#39;s patches I realized that this does
+not in fact work for PPC and split PTL. Because the PPC lwsync relies on
+the address dependency to actual produce the ordering.
+
+Also, since Nadav switched to atomic_inc/atomic_dec, I&#39;ll send a patch
+to add smp_mb__after_atomic(), and
+<span class="quote">
+&gt; +	 *				spin_unlock(&amp;ptl);</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 *	flush_tlb_range();</span>
+<span class="quote">&gt; +	 *	mm-&gt;tlb_flush_pending = false;</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 * So the =true store is constrained by the PTL unlock, and the =false</span>
+<span class="quote">&gt; +	 * store is constrained by the TLB invalidate.</span>
+<span class="quote">&gt;  	 */</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  /* Clearing is done after a TLB flush, which also provides a barrier. */</span>
+<span class="quote">&gt;  static inline void clear_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; +	/* see set_tlb_flush_pending */</span>
+
+smp_mb__before_atomic() here. That also avoids the whole reliance on the
+tlb_flush nonsense.
+
+It will overstuff on barriers on some platforms though :/
+<span class="quote">
+&gt;  	mm-&gt;tlb_flush_pending = false;</span>
+<span class="quote">&gt;  }</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Aug. 11, 2017, 2:15 p.m.</div>
+<pre class="content">
+On Wed, Aug 02, 2017 at 03:17:10PM +0200, Peter Zijlstra wrote:
+<span class="quote">&gt; On Wed, Aug 02, 2017 at 06:30:43PM +0530, Vineet Gupta wrote:</span>
+<span class="quote">&gt; &gt; flush_tlb_range() does a bunch of aux register accesses, I need to check</span>
+<span class="quote">&gt; &gt; with hw folks if those can be assumed to serializing w.r.t. memory ordering.</span>
+<span class="quote">&gt; &gt; But if not then we need to add an explicit smb barrier (which will not be</span>
+<span class="quote">&gt; &gt; paired ? )</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It would pair with the ACQUIRE from the PTL in the below example.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; and would be penalizing the other callers of flush_tlb_range().</span>
+<span class="quote">&gt; &gt; Will a new API for this be an overkill ? Is a memory barrier needed here</span>
+<span class="quote">&gt; &gt; anyways - like ARM !</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It is needed at the very least if you do transparant huge pages as per</span>
+<span class="quote">&gt; the existing logic (this requirement isn&#39;t new per this patch, I was</span>
+<span class="quote">&gt; just the silly person wondering if flush_tlb_range() does indeed provide</span>
+<span class="quote">&gt; the ordering assumed).</span>
+
+Any word on this? It just got way worse and anything SMP needs to
+provide this.
+
+See commit:
+
+  0a2dd266dd6b (&quot;mm: make tlb_flush_pending global&quot;)
+
+And these semantics are now required for the correct operation of KSM
+and MADV_{FREE,DONT_NEED}.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- a/include/linux/mm_types.h</span>
+<span class="p_header">+++ b/include/linux/mm_types.h</span>
+<span class="p_chunk">@@ -527,23 +527,44 @@</span> <span class="p_context"> static inline cpumask_t *mm_cpumask(stru</span>
+  */
+ static inline bool mm_tlb_flush_pending(struct mm_struct *mm)
+ {
+<span class="p_del">-	barrier();</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Must be called with PTL held; such that our PTL acquire will have</span>
+<span class="p_add">+	 * observed the store from set_tlb_flush_pending().</span>
+<span class="p_add">+	 */</span>
+ 	return mm-&gt;tlb_flush_pending;
+ }
+ static inline void set_tlb_flush_pending(struct mm_struct *mm)
+ {
+ 	mm-&gt;tlb_flush_pending = true;
+<span class="p_del">-</span>
+ 	/*
+<span class="p_del">-	 * Guarantee that the tlb_flush_pending store does not leak into the</span>
+<span class="p_del">-	 * critical section updating the page tables</span>
+<span class="p_add">+	 * The only time this value is relevant is when there are indeed pages</span>
+<span class="p_add">+	 * to flush. And we&#39;ll only flush pages after changing them, which</span>
+<span class="p_add">+	 * requires the PTL.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * So the ordering here is:</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 *	mm-&gt;tlb_flush_pending = true;</span>
+<span class="p_add">+	 *	spin_lock(&amp;ptl);</span>
+<span class="p_add">+	 *	...</span>
+<span class="p_add">+	 *	set_pte_at();</span>
+<span class="p_add">+	 *	spin_unlock(&amp;ptl);</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 *				spin_lock(&amp;ptl)</span>
+<span class="p_add">+	 *				mm_tlb_flush_pending();</span>
+<span class="p_add">+	 *				....</span>
+<span class="p_add">+	 *				spin_unlock(&amp;ptl);</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 *	flush_tlb_range();</span>
+<span class="p_add">+	 *	mm-&gt;tlb_flush_pending = false;</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * So the =true store is constrained by the PTL unlock, and the =false</span>
+<span class="p_add">+	 * store is constrained by the TLB invalidate.</span>
+ 	 */
+<span class="p_del">-	smp_mb__before_spinlock();</span>
+ }
+ /* Clearing is done after a TLB flush, which also provides a barrier. */
+ static inline void clear_tlb_flush_pending(struct mm_struct *mm)
+ {
+<span class="p_del">-	barrier();</span>
+<span class="p_add">+	/* see set_tlb_flush_pending */</span>
+ 	mm-&gt;tlb_flush_pending = false;
+ }
+ #else
+<span class="p_header">--- a/mm/huge_memory.c</span>
+<span class="p_header">+++ b/mm/huge_memory.c</span>
+<span class="p_chunk">@@ -1410,6 +1410,7 @@</span> <span class="p_context"> int do_huge_pmd_numa_page(struct vm_faul</span>
+ 	unsigned long haddr = vmf-&gt;address &amp; HPAGE_PMD_MASK;
+ 	int page_nid = -1, this_nid = numa_node_id();
+ 	int target_nid, last_cpupid = -1;
+<span class="p_add">+	bool need_flush = false;</span>
+ 	bool page_locked;
+ 	bool migrated = false;
+ 	bool was_writable;
+<span class="p_chunk">@@ -1496,10 +1497,29 @@</span> <span class="p_context"> int do_huge_pmd_numa_page(struct vm_faul</span>
+ 	}
+ 
+ 	/*
+<span class="p_add">+	 * Since we took the NUMA fault, we must have observed the !accessible</span>
+<span class="p_add">+	 * bit. Make sure all other CPUs agree with that, to avoid them</span>
+<span class="p_add">+	 * modifying the page we&#39;re about to migrate.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Must be done under PTL such that we&#39;ll observe the relevant</span>
+<span class="p_add">+	 * set_tlb_flush_pending().</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (mm_tlb_flush_pending(vma-&gt;vm_mm))</span>
+<span class="p_add">+		need_flush = true;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+ 	 * Migrate the THP to the requested node, returns with page unlocked
+ 	 * and access rights restored.
+ 	 */
+ 	spin_unlock(vmf-&gt;ptl);
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * We are not sure a pending tlb flush here is for a huge page</span>
+<span class="p_add">+	 * mapping or not. Hence use the tlb range variant</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (need_flush)</span>
+<span class="p_add">+		flush_tlb_range(vma, haddr, haddr + HPAGE_PMD_SIZE);</span>
+<span class="p_add">+</span>
+ 	migrated = migrate_misplaced_transhuge_page(vma-&gt;vm_mm, vma,
+ 				vmf-&gt;pmd, pmd, vmf-&gt;address, page, target_nid);
+ 	if (migrated) {
+<span class="p_header">--- a/mm/migrate.c</span>
+<span class="p_header">+++ b/mm/migrate.c</span>
+<span class="p_chunk">@@ -1937,12 +1937,6 @@</span> <span class="p_context"> int migrate_misplaced_transhuge_page(str</span>
+ 		put_page(new_page);
+ 		goto out_fail;
+ 	}
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * We are not sure a pending tlb flush here is for a huge page</span>
+<span class="p_del">-	 * mapping or not. Hence use the tlb range variant</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	if (mm_tlb_flush_pending(mm))</span>
+<span class="p_del">-		flush_tlb_range(vma, mmun_start, mmun_end);</span>
+ 
+ 	/* Prepare a page as a migration target */
+ 	__SetPageLocked(new_page);
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

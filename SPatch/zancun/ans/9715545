@@ -1,0 +1,1098 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,09/10] x86/mm: Rework lazy TLB to track the actual loaded mm - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,09/10] x86/mm: Rework lazy TLB to track the actual loaded mm</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>May 7, 2017, 12:38 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1a124281c99741606f1789140f9805beebb119da.1494160201.git.luto@kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9715545/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9715545/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9715545/">/patch/9715545/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	EE69460365 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sun,  7 May 2017 22:07:59 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id DCE472236A
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sun,  7 May 2017 22:07:59 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id D0C5922B26; Sun,  7 May 2017 22:07:59 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id B531F2236A
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sun,  7 May 2017 22:07:57 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1757255AbdEGWGw (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Sun, 7 May 2017 18:06:52 -0400
+Received: from mail.kernel.org ([198.145.29.136]:51062 &quot;EHLO mail.kernel.org&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1757102AbdEGWGW (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Sun, 7 May 2017 18:06:22 -0400
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 0921A20377;
+	Sun,  7 May 2017 12:39:28 +0000 (UTC)
+Received: from localhost (118-171-175-29.dynamic-ip.hinet.net
+	[118.171.175.29])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256
+	bits)) (No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id A95D3202EB;
+	Sun,  7 May 2017 12:39:25 +0000 (UTC)
+From: Andy Lutomirski &lt;luto@kernel.org&gt;
+To: X86 ML &lt;x86@kernel.org&gt;
+Cc: &quot;linux-kernel@vger.kernel.org&quot; &lt;linux-kernel@vger.kernel.org&gt;,
+	Borislav Petkov &lt;bpetkov@suse.de&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;, Mel Gorman &lt;mgorman@suse.de&gt;,
+	&quot;linux-mm@kvack.org&quot; &lt;linux-mm@kvack.org&gt;,
+	Andy Lutomirski &lt;luto@kernel.org&gt;, Rik van Riel &lt;riel@redhat.com&gt;,
+	Dave Hansen &lt;dave.hansen@intel.com&gt;,
+	Nadav Amit &lt;namit@vmware.com&gt;, Michal Hocko &lt;mhocko@suse.com&gt;,
+	Arjan van de Ven &lt;arjan@linux.intel.com&gt;
+Subject: [RFC 09/10] x86/mm: Rework lazy TLB to track the actual loaded mm
+Date: Sun,  7 May 2017 05:38:38 -0700
+Message-Id: &lt;1a124281c99741606f1789140f9805beebb119da.1494160201.git.luto@kernel.org&gt;
+X-Mailer: git-send-email 2.9.3
+In-Reply-To: &lt;cover.1494160201.git.luto@kernel.org&gt;
+References: &lt;cover.1494160201.git.luto@kernel.org&gt;
+In-Reply-To: &lt;cover.1494160201.git.luto@kernel.org&gt;
+References: &lt;cover.1494160201.git.luto@kernel.org&gt;
+X-Virus-Scanned: ClamAV using ClamSMTP
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - May 7, 2017, 12:38 p.m.</div>
+<pre class="content">
+Lazy TLB state is current managed in a rather baroque manner.
+AFAICT, there are three possible states:
+
+ - Non-lazy.  This means that we&#39;re running a user thread or a
+   kernel thread that has called use_mm().  current-&gt;mm ==
+   current-&gt;active_mm == cpu_tlbstate.active_mm and
+   cpu_tlbstate.state == TLBSTATE_OK.
+
+ - Lazy with user mm.  We&#39;re running a kernel thread without an mm
+   and we&#39;re borrowing an mm_struct.  We have current-&gt;mm == NULL,
+   current-&gt;active_mm == cpu_tlbstate.active_mm, cpu_tlbstate.state
+   != TLBSTATE_OK (i.e. TLBSTATE_LAZY or 0).  The current cpu is set
+   in mm_cpumask(current-&gt;active_mm).  CR3 points to
+   current-&gt;active_mm-&gt;pgd.  The TLB is up to date.
+
+ - Lazy with init_mm.  This happens when we call leave_mm().  We
+   have current-&gt;mm == NULL, current-&gt;active_mm ==
+   cpu_tlbstate.active_mm, but that mm is only relelvant insofar as
+   the scheduler is tracking it for refcounting.  cpu_tlbstate.state
+   != TLBSTATE_OK.  The current cpu is clear in
+   mm_cpumask(current-&gt;active_mm).  CR3 points to swapper_pg_dir,
+   i.e. init_mm-&gt;pgd.
+
+This patch simplifies the situation.  Other than perf, x86 stops
+caring about current-&gt;active_mm at all.  We have
+cpu_tlbstate.loaded_mm pointing to the mm that CR3 references.  The
+TLB is always up to date for that mm.  leave_mm() just switches us
+to init_mm.  There are no longer any special cases for mm_cpumask,
+and switch_mm() switches mms without worrying about laziness.
+
+After this patch, cpu_tlbstate.state serves only to tell the TLB
+flush code whether it may switch to init_mm instead of doing a
+normal flush.
+
+This makes fairly extensive changes to xen_exit_mmap(), which used
+to look a bit like black magic.
+
+Perf is unchanged.  With or without this change, perf may behave a bit
+erratically if it tries to read user memory in kernel thread context.
+We should build on this patch to teach perf to never look at user
+memory when cpu_tlbstate.loaded_mm != current-&gt;mm.
+
+Cc: Rik van Riel &lt;riel@redhat.com&gt;
+Cc: Dave Hansen &lt;dave.hansen@intel.com&gt;
+Cc: Nadav Amit &lt;namit@vmware.com&gt;
+Cc: Michal Hocko &lt;mhocko@suse.com&gt;
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: Arjan van de Ven &lt;arjan@linux.intel.com&gt;
+<span class="signed-off-by">Signed-off-by: Andy Lutomirski &lt;luto@kernel.org&gt;</span>
+---
+ arch/x86/events/core.c          |   3 +-
+ arch/x86/include/asm/tlbflush.h |  12 ++-
+ arch/x86/kernel/ldt.c           |   5 +-
+ arch/x86/mm/init.c              |   2 +-
+ arch/x86/mm/tlb.c               | 209 ++++++++++++++++++++--------------------
+ arch/x86/xen/mmu.c              |  51 +++++-----
+ 6 files changed, 143 insertions(+), 139 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=107">Thomas Gleixner</a> - May 9, 2017, 8:41 p.m.</div>
+<pre class="content">
+On Sun, 7 May 2017, Andy Lutomirski wrote:
+<span class="quote">&gt;  /* context.lock is held for us, so we don&#39;t need any locking. */</span>
+<span class="quote">&gt;  static void flush_ldt(void *current_mm)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; +	struct mm_struct *mm = current_mm;</span>
+<span class="quote">&gt;  	mm_context_t *pc;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	if (current-&gt;active_mm != current_mm)</span>
+<span class="quote">&gt; +	if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)</span>
+
+While functional correct, this really should compare against &#39;mm&#39;.
+<span class="quote">
+&gt;  		return;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	pc = &amp;current-&gt;active_mm-&gt;context;</span>
+<span class="quote">&gt; +	pc = &amp;mm-&gt;context;</span>
+
+Thanks,
+
+	tglx
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - May 9, 2017, 10:54 p.m.</div>
+<pre class="content">
+On Tue, May 9, 2017 at 1:41 PM, Thomas Gleixner &lt;tglx@linutronix.de&gt; wrote:
+<span class="quote">&gt; On Sun, 7 May 2017, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt;  /* context.lock is held for us, so we don&#39;t need any locking. */</span>
+<span class="quote">&gt;&gt;  static void flush_ldt(void *current_mm)</span>
+<span class="quote">&gt;&gt;  {</span>
+<span class="quote">&gt;&gt; +     struct mm_struct *mm = current_mm;</span>
+<span class="quote">&gt;&gt;       mm_context_t *pc;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; -     if (current-&gt;active_mm != current_mm)</span>
+<span class="quote">&gt;&gt; +     if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; While functional correct, this really should compare against &#39;mm&#39;.</span>
+<span class="quote">&gt;</span>
+
+Fixed.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=35552">Ingo Molnar</a> - May 10, 2017, 5:57 a.m.</div>
+<pre class="content">
+* Thomas Gleixner &lt;tglx@linutronix.de&gt; wrote:
+<span class="quote">
+&gt; On Sun, 7 May 2017, Andy Lutomirski wrote:</span>
+<span class="quote">&gt; &gt;  /* context.lock is held for us, so we don&#39;t need any locking. */</span>
+<span class="quote">&gt; &gt;  static void flush_ldt(void *current_mm)</span>
+<span class="quote">&gt; &gt;  {</span>
+<span class="quote">&gt; &gt; +	struct mm_struct *mm = current_mm;</span>
+<span class="quote">&gt; &gt;  	mm_context_t *pc;</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt; -	if (current-&gt;active_mm != current_mm)</span>
+<span class="quote">&gt; &gt; +	if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; While functional correct, this really should compare against &#39;mm&#39;.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt;  		return;</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt; -	pc = &amp;current-&gt;active_mm-&gt;context;</span>
+<span class="quote">&gt; &gt; +	pc = &amp;mm-&gt;context;</span>
+
+So this appears to be the function:
+
+ static void flush_ldt(void *current_mm)
+ {
+        struct mm_struct *mm = current_mm;
+        mm_context_t *pc;
+
+        if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)
+                return;
+
+        pc = &amp;mm-&gt;context;
+        set_ldt(pc-&gt;ldt-&gt;entries, pc-&gt;ldt-&gt;size);
+ }
+
+why not rename &#39;current_mm&#39; to &#39;mm&#39; and remove the &#39;mm&#39; local variable?
+
+Thanks,
+
+	Ingo
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=107">Thomas Gleixner</a> - May 10, 2017, 8:19 a.m.</div>
+<pre class="content">
+On Wed, 10 May 2017, Ingo Molnar wrote:
+<span class="quote">&gt; </span>
+<span class="quote">&gt; * Thomas Gleixner &lt;tglx@linutronix.de&gt; wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; On Sun, 7 May 2017, Andy Lutomirski wrote:</span>
+<span class="quote">&gt; &gt; &gt;  /* context.lock is held for us, so we don&#39;t need any locking. */</span>
+<span class="quote">&gt; &gt; &gt;  static void flush_ldt(void *current_mm)</span>
+<span class="quote">&gt; &gt; &gt;  {</span>
+<span class="quote">&gt; &gt; &gt; +	struct mm_struct *mm = current_mm;</span>
+<span class="quote">&gt; &gt; &gt;  	mm_context_t *pc;</span>
+<span class="quote">&gt; &gt; &gt;  </span>
+<span class="quote">&gt; &gt; &gt; -	if (current-&gt;active_mm != current_mm)</span>
+<span class="quote">&gt; &gt; &gt; +	if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; While functional correct, this really should compare against &#39;mm&#39;.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt;  		return;</span>
+<span class="quote">&gt; &gt; &gt;  </span>
+<span class="quote">&gt; &gt; &gt; -	pc = &amp;current-&gt;active_mm-&gt;context;</span>
+<span class="quote">&gt; &gt; &gt; +	pc = &amp;mm-&gt;context;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So this appears to be the function:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  static void flush_ldt(void *current_mm)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;         struct mm_struct *mm = current_mm;</span>
+<span class="quote">&gt;         mm_context_t *pc;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;         if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)</span>
+<span class="quote">&gt;                 return;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;         pc = &amp;mm-&gt;context;</span>
+<span class="quote">&gt;         set_ldt(pc-&gt;ldt-&gt;entries, pc-&gt;ldt-&gt;size);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; why not rename &#39;current_mm&#39; to &#39;mm&#39; and remove the &#39;mm&#39; local variable?</span>
+
+Because you cannot dereference a void pointer, i.e. &amp;mm-&gt;context ....
+
+Thanks,
+
+	tglx
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=35552">Ingo Molnar</a> - May 10, 2017, 8:24 a.m.</div>
+<pre class="content">
+* Thomas Gleixner &lt;tglx@linutronix.de&gt; wrote:
+<span class="quote">
+&gt; On Wed, 10 May 2017, Ingo Molnar wrote:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; * Thomas Gleixner &lt;tglx@linutronix.de&gt; wrote:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; On Sun, 7 May 2017, Andy Lutomirski wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt;  /* context.lock is held for us, so we don&#39;t need any locking. */</span>
+<span class="quote">&gt; &gt; &gt; &gt;  static void flush_ldt(void *current_mm)</span>
+<span class="quote">&gt; &gt; &gt; &gt;  {</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	struct mm_struct *mm = current_mm;</span>
+<span class="quote">&gt; &gt; &gt; &gt;  	mm_context_t *pc;</span>
+<span class="quote">&gt; &gt; &gt; &gt;  </span>
+<span class="quote">&gt; &gt; &gt; &gt; -	if (current-&gt;active_mm != current_mm)</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; While functional correct, this really should compare against &#39;mm&#39;.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt;  		return;</span>
+<span class="quote">&gt; &gt; &gt; &gt;  </span>
+<span class="quote">&gt; &gt; &gt; &gt; -	pc = &amp;current-&gt;active_mm-&gt;context;</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	pc = &amp;mm-&gt;context;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; So this appears to be the function:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;  static void flush_ldt(void *current_mm)</span>
+<span class="quote">&gt; &gt;  {</span>
+<span class="quote">&gt; &gt;         struct mm_struct *mm = current_mm;</span>
+<span class="quote">&gt; &gt;         mm_context_t *pc;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;         if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)</span>
+<span class="quote">&gt; &gt;                 return;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;         pc = &amp;mm-&gt;context;</span>
+<span class="quote">&gt; &gt;         set_ldt(pc-&gt;ldt-&gt;entries, pc-&gt;ldt-&gt;size);</span>
+<span class="quote">&gt; &gt;  }</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; why not rename &#39;current_mm&#39; to &#39;mm&#39; and remove the &#39;mm&#39; local variable?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Because you cannot dereference a void pointer, i.e. &amp;mm-&gt;context ....</span>
+
+Indeed, doh! The naming totally confused me. The way I&#39;d write it is the canonical 
+form for such callbacks:
+
+	static void flush_ldt(void *data)
+	{
+		struct mm_struct *mm = data;
+
+... which beyond unconfusing me would probably also have prevented any accidental 
+use of the &#39;current_mm&#39; callback argument.
+
+Thanks,
+
+	Ingo
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - May 10, 2017, 10:42 p.m.</div>
+<pre class="content">
+On Wed, May 10, 2017 at 1:24 AM, Ingo Molnar &lt;mingo@kernel.org&gt; wrote:
+<span class="quote">&gt;</span>
+<span class="quote">&gt; * Thomas Gleixner &lt;tglx@linutronix.de&gt; wrote:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; On Wed, 10 May 2017, Ingo Molnar wrote:</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; * Thomas Gleixner &lt;tglx@linutronix.de&gt; wrote:</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; &gt; On Sun, 7 May 2017, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; &gt; &gt; &gt;  /* context.lock is held for us, so we don&#39;t need any locking. */</span>
+<span class="quote">&gt;&gt; &gt; &gt; &gt;  static void flush_ldt(void *current_mm)</span>
+<span class="quote">&gt;&gt; &gt; &gt; &gt;  {</span>
+<span class="quote">&gt;&gt; &gt; &gt; &gt; +       struct mm_struct *mm = current_mm;</span>
+<span class="quote">&gt;&gt; &gt; &gt; &gt;         mm_context_t *pc;</span>
+<span class="quote">&gt;&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; &gt; &gt; -       if (current-&gt;active_mm != current_mm)</span>
+<span class="quote">&gt;&gt; &gt; &gt; &gt; +       if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)</span>
+<span class="quote">&gt;&gt; &gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; &gt; While functional correct, this really should compare against &#39;mm&#39;.</span>
+<span class="quote">&gt;&gt; &gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; &gt; &gt;                 return;</span>
+<span class="quote">&gt;&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; &gt; &gt; -       pc = &amp;current-&gt;active_mm-&gt;context;</span>
+<span class="quote">&gt;&gt; &gt; &gt; &gt; +       pc = &amp;mm-&gt;context;</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; So this appears to be the function:</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;  static void flush_ldt(void *current_mm)</span>
+<span class="quote">&gt;&gt; &gt;  {</span>
+<span class="quote">&gt;&gt; &gt;         struct mm_struct *mm = current_mm;</span>
+<span class="quote">&gt;&gt; &gt;         mm_context_t *pc;</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;         if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)</span>
+<span class="quote">&gt;&gt; &gt;                 return;</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;         pc = &amp;mm-&gt;context;</span>
+<span class="quote">&gt;&gt; &gt;         set_ldt(pc-&gt;ldt-&gt;entries, pc-&gt;ldt-&gt;size);</span>
+<span class="quote">&gt;&gt; &gt;  }</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; why not rename &#39;current_mm&#39; to &#39;mm&#39; and remove the &#39;mm&#39; local variable?</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Because you cannot dereference a void pointer, i.e. &amp;mm-&gt;context ....</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Indeed, doh! The naming totally confused me. The way I&#39;d write it is the canonical</span>
+<span class="quote">&gt; form for such callbacks:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;         static void flush_ldt(void *data)</span>
+<span class="quote">&gt;         {</span>
+<span class="quote">&gt;                 struct mm_struct *mm = data;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; ... which beyond unconfusing me would probably also have prevented any accidental</span>
+<span class="quote">&gt; use of the &#39;current_mm&#39; callback argument.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;</span>
+
+void *data and void *info both seem fairly common in the kernel.  How
+about my personal favorite for non-kernel work, though: void *mm_void?
+ It documents what the parameter means and avoids the confusion.
+
+--Andy
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=35552">Ingo Molnar</a> - May 11, 2017, 7:13 a.m.</div>
+<pre class="content">
+* Andy Lutomirski &lt;luto@kernel.org&gt; wrote:
+<span class="quote">
+&gt; On Wed, May 10, 2017 at 1:24 AM, Ingo Molnar &lt;mingo@kernel.org&gt; wrote:</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; * Thomas Gleixner &lt;tglx@linutronix.de&gt; wrote:</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; On Wed, 10 May 2017, Ingo Molnar wrote:</span>
+<span class="quote">&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt; * Thomas Gleixner &lt;tglx@linutronix.de&gt; wrote:</span>
+<span class="quote">&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt; &gt; On Sun, 7 May 2017, Andy Lutomirski wrote:</span>
+<span class="quote">&gt; &gt;&gt; &gt; &gt; &gt;  /* context.lock is held for us, so we don&#39;t need any locking. */</span>
+<span class="quote">&gt; &gt;&gt; &gt; &gt; &gt;  static void flush_ldt(void *current_mm)</span>
+<span class="quote">&gt; &gt;&gt; &gt; &gt; &gt;  {</span>
+<span class="quote">&gt; &gt;&gt; &gt; &gt; &gt; +       struct mm_struct *mm = current_mm;</span>
+<span class="quote">&gt; &gt;&gt; &gt; &gt; &gt;         mm_context_t *pc;</span>
+<span class="quote">&gt; &gt;&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt; &gt; &gt; -       if (current-&gt;active_mm != current_mm)</span>
+<span class="quote">&gt; &gt;&gt; &gt; &gt; &gt; +       if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)</span>
+<span class="quote">&gt; &gt;&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt; &gt; While functional correct, this really should compare against &#39;mm&#39;.</span>
+<span class="quote">&gt; &gt;&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt; &gt; &gt;                 return;</span>
+<span class="quote">&gt; &gt;&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt; &gt; &gt; -       pc = &amp;current-&gt;active_mm-&gt;context;</span>
+<span class="quote">&gt; &gt;&gt; &gt; &gt; &gt; +       pc = &amp;mm-&gt;context;</span>
+<span class="quote">&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt; So this appears to be the function:</span>
+<span class="quote">&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt;  static void flush_ldt(void *current_mm)</span>
+<span class="quote">&gt; &gt;&gt; &gt;  {</span>
+<span class="quote">&gt; &gt;&gt; &gt;         struct mm_struct *mm = current_mm;</span>
+<span class="quote">&gt; &gt;&gt; &gt;         mm_context_t *pc;</span>
+<span class="quote">&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt;         if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)</span>
+<span class="quote">&gt; &gt;&gt; &gt;                 return;</span>
+<span class="quote">&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt;         pc = &amp;mm-&gt;context;</span>
+<span class="quote">&gt; &gt;&gt; &gt;         set_ldt(pc-&gt;ldt-&gt;entries, pc-&gt;ldt-&gt;size);</span>
+<span class="quote">&gt; &gt;&gt; &gt;  }</span>
+<span class="quote">&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt; why not rename &#39;current_mm&#39; to &#39;mm&#39; and remove the &#39;mm&#39; local variable?</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; Because you cannot dereference a void pointer, i.e. &amp;mm-&gt;context ....</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Indeed, doh! The naming totally confused me. The way I&#39;d write it is the canonical</span>
+<span class="quote">&gt; &gt; form for such callbacks:</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt;         static void flush_ldt(void *data)</span>
+<span class="quote">&gt; &gt;         {</span>
+<span class="quote">&gt; &gt;                 struct mm_struct *mm = data;</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; ... which beyond unconfusing me would probably also have prevented any accidental</span>
+<span class="quote">&gt; &gt; use of the &#39;current_mm&#39; callback argument.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; void *data and void *info both seem fairly common in the kernel.</span>
+
+Yes, the most common variants are:
+
+  triton:~/tip&gt; git grep -E &#39;void.*\(.*void \*.*&#39; | grep -vE &#39;,|\*\*|;&#39; | cut -d\( -f2- | cut -d\) -f1 | sort | uniq -c | sort -n | tail -10
+     38 void *args
+     38 void *p
+     39 void *ptr
+     42 void *foo
+     46 void *context
+     55 void *addr
+     69 void *priv
+     95 void *info
+    235 void *arg
+    292 void *data
+<span class="quote">
+&gt; How about my personal favorite for non-kernel work, though: void *mm_void? It </span>
+<span class="quote">&gt; documents what the parameter means and avoids the confusion.</span>
+
+Dunno, and at the risk of painting that shed bright red it reads a bit weird to 
+me: void pointers are fine and are often primary parameters - the _real_ quality 
+here is not that it&#39;s void, but that&#39;s it&#39;s an opaque value passed in from a 
+common callback. Note that sometimes opaque data is &#39;unsigned long&#39; (such as in 
+the case of timers), so it&#39;s really not the &#39;void&#39; that matters.
+
+In that sense &#39;data&#39;, &#39;arg&#39; or &#39;info&#39; seem the most readable names, as they 
+clearly express the type opaqueness.
+
+My personal favorite is double underscores prefix, i.e. &#39;void *__mm&#39;, which would 
+clearly signal that this is something special. But this does not appear to have 
+been picked up overly widely:
+
+  triton:~/tip&gt; git grep -E &#39;void.*\(.*void \*.*&#39; | grep -vE &#39;,|\*\*|;&#39; | cut -d\( -f2- | cut -d\) -f1 | sort | uniq -c | sort -n | grep __
+      1 void *__data
+      1 void *__info
+      2 void *__dev
+      2 void *__tdata
+      2 void *__tve
+      3 void *__lock
+      3 void * __user *
+      3 volatile void *__p
+      4 void *__map
+
+... but either of these variants is fine to me.
+
+Thanks,
+
+	Ingo
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - May 12, 2017, 3:36 a.m.</div>
+<pre class="content">
+On Thu, May 11, 2017 at 12:13 AM, Ingo Molnar &lt;mingo@kernel.org&gt; wrote:
+<span class="quote">&gt; My personal favorite is double underscores prefix, i.e. &#39;void *__mm&#39;, which would</span>
+<span class="quote">&gt; clearly signal that this is something special. But this does not appear to have</span>
+<span class="quote">&gt; been picked up overly widely:</span>
+
+Nice bikeshed!  I&#39;ll use it.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/events/core.c b/arch/x86/events/core.c</span>
+<span class="p_header">index 580b60f5ac83..77a33096728d 100644</span>
+<span class="p_header">--- a/arch/x86/events/core.c</span>
+<span class="p_header">+++ b/arch/x86/events/core.c</span>
+<span class="p_chunk">@@ -2101,8 +2101,7 @@</span> <span class="p_context"> static int x86_pmu_event_init(struct perf_event *event)</span>
+ 
+ static void refresh_pce(void *ignored)
+ {
+<span class="p_del">-	if (current-&gt;active_mm)</span>
+<span class="p_del">-		load_mm_cr4(current-&gt;active_mm);</span>
+<span class="p_add">+	load_mm_cr4(this_cpu_read(cpu_tlbstate.loaded_mm));</span>
+ }
+ 
+ static void x86_pmu_event_mapped(struct perf_event *event)
+<span class="p_header">diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">index 3c9289637669..a08680d3edaa 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -66,7 +66,13 @@</span> <span class="p_context"> static inline void invpcid_flush_all_nonglobals(void)</span>
+ #endif
+ 
+ struct tlb_state {
+<span class="p_del">-	struct mm_struct *active_mm;</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * cpu_tlbstate.loaded_mm should match CR3 whenever interrupts</span>
+<span class="p_add">+	 * are on.  This means that it may not match current-&gt;active_mm,</span>
+<span class="p_add">+	 * which will contain the previous user mm when we&#39;re in lazy TLB</span>
+<span class="p_add">+	 * mode even if we&#39;ve already switched back to swapper_pg_dir.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	struct mm_struct *loaded_mm;</span>
+ 	int state;
+ 
+ 	/*
+<span class="p_chunk">@@ -256,7 +262,9 @@</span> <span class="p_context"> void native_flush_tlb_others(const struct cpumask *cpumask,</span>
+ static inline void reset_lazy_tlbstate(void)
+ {
+ 	this_cpu_write(cpu_tlbstate.state, 0);
+<span class="p_del">-	this_cpu_write(cpu_tlbstate.active_mm, &amp;init_mm);</span>
+<span class="p_add">+	this_cpu_write(cpu_tlbstate.loaded_mm, &amp;init_mm);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	WARN_ON(read_cr3() != __pa_symbol(swapper_pg_dir));</span>
+ }
+ 
+ static inline void arch_tlbbatch_add_mm(struct arch_tlbflush_unmap_batch *batch,
+<span class="p_header">diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c</span>
+<span class="p_header">index d4a15831ac58..d7e01790ae86 100644</span>
+<span class="p_header">--- a/arch/x86/kernel/ldt.c</span>
+<span class="p_header">+++ b/arch/x86/kernel/ldt.c</span>
+<span class="p_chunk">@@ -24,12 +24,13 @@</span> <span class="p_context"></span>
+ /* context.lock is held for us, so we don&#39;t need any locking. */
+ static void flush_ldt(void *current_mm)
+ {
+<span class="p_add">+	struct mm_struct *mm = current_mm;</span>
+ 	mm_context_t *pc;
+ 
+<span class="p_del">-	if (current-&gt;active_mm != current_mm)</span>
+<span class="p_add">+	if (this_cpu_read(cpu_tlbstate.loaded_mm) != current_mm)</span>
+ 		return;
+ 
+<span class="p_del">-	pc = &amp;current-&gt;active_mm-&gt;context;</span>
+<span class="p_add">+	pc = &amp;mm-&gt;context;</span>
+ 	set_ldt(pc-&gt;ldt-&gt;entries, pc-&gt;ldt-&gt;size);
+ }
+ 
+<span class="p_header">diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c</span>
+<span class="p_header">index 078972129885..47453ce2374e 100644</span>
+<span class="p_header">--- a/arch/x86/mm/init.c</span>
+<span class="p_header">+++ b/arch/x86/mm/init.c</span>
+<span class="p_chunk">@@ -792,7 +792,7 @@</span> <span class="p_context"> void __init zone_sizes_init(void)</span>
+ }
+ 
+ DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate) = {
+<span class="p_del">-	.active_mm = &amp;init_mm,</span>
+<span class="p_add">+	.loaded_mm = &amp;init_mm,</span>
+ 	.state = 0,
+ 	.cr4 = ~0UL,	/* fail hard if we screw up cr4 shadow initialization */
+ };
+<span class="p_header">diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c</span>
+<span class="p_header">index da1416c77bfb..c33fc1eaace4 100644</span>
+<span class="p_header">--- a/arch/x86/mm/tlb.c</span>
+<span class="p_header">+++ b/arch/x86/mm/tlb.c</span>
+<span class="p_chunk">@@ -34,20 +34,19 @@</span> <span class="p_context"></span>
+  */
+ void leave_mm(int cpu)
+ {
+<span class="p_del">-	struct mm_struct *active_mm = this_cpu_read(cpu_tlbstate.active_mm);</span>
+<span class="p_add">+	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);</span>
+ 	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
+ 		BUG();
+<span class="p_del">-	if (cpumask_test_cpu(cpu, mm_cpumask(active_mm))) {</span>
+<span class="p_del">-		cpumask_clear_cpu(cpu, mm_cpumask(active_mm));</span>
+<span class="p_del">-		load_cr3(swapper_pg_dir);</span>
+<span class="p_del">-		/*</span>
+<span class="p_del">-		 * This gets called in the idle path where RCU</span>
+<span class="p_del">-		 * functions differently.  Tracing normally</span>
+<span class="p_del">-		 * uses RCU, so we have to call the tracepoint</span>
+<span class="p_del">-		 * specially here.</span>
+<span class="p_del">-		 */</span>
+<span class="p_del">-		trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * It&#39;s plausible that we&#39;re in lazy TLB mode while our mm is init_mm.</span>
+<span class="p_add">+	 * If so, our callers still expect us to flush the TLB, but there</span>
+<span class="p_add">+	 * aren&#39;t any user TLB entries in init_mm to worry about.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (loaded_mm == &amp;init_mm)</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	switch_mm(NULL, &amp;init_mm, NULL);</span>
+ }
+ EXPORT_SYMBOL_GPL(leave_mm);
+ 
+<span class="p_chunk">@@ -65,108 +64,110 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ 			struct task_struct *tsk)
+ {
+ 	unsigned cpu = smp_processor_id();
+<span class="p_add">+	struct mm_struct *real_prev = this_cpu_read(cpu_tlbstate.loaded_mm);</span>
+ 
+<span class="p_del">-	if (likely(prev != next)) {</span>
+<span class="p_del">-		if (IS_ENABLED(CONFIG_VMAP_STACK)) {</span>
+<span class="p_del">-			/*</span>
+<span class="p_del">-			 * If our current stack is in vmalloc space and isn&#39;t</span>
+<span class="p_del">-			 * mapped in the new pgd, we&#39;ll double-fault.  Forcibly</span>
+<span class="p_del">-			 * map it.</span>
+<span class="p_del">-			 */</span>
+<span class="p_del">-			unsigned int stack_pgd_index = pgd_index(current_stack_pointer());</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * NB: The scheduler will call us with prev == next when</span>
+<span class="p_add">+	 * switching from lazy TLB mode to normal mode if active_mm</span>
+<span class="p_add">+	 * isn&#39;t changing.  When this happens, there is no guarantee</span>
+<span class="p_add">+	 * that CR3 (and hence cpu_tlbstate.loaded_mm) matches next.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * NB: leave_mm() calls us with prev == NULL and tsk == NULL.</span>
+<span class="p_add">+	 */</span>
+ 
+<span class="p_del">-			pgd_t *pgd = next-&gt;pgd + stack_pgd_index;</span>
+<span class="p_add">+	this_cpu_write(cpu_tlbstate.state, TLBSTATE_OK);</span>
+ 
+<span class="p_del">-			if (unlikely(pgd_none(*pgd)))</span>
+<span class="p_del">-				set_pgd(pgd, init_mm.pgd[stack_pgd_index]);</span>
+<span class="p_del">-		}</span>
+<span class="p_del">-</span>
+<span class="p_del">-		this_cpu_write(cpu_tlbstate.state, TLBSTATE_OK);</span>
+<span class="p_del">-		this_cpu_write(cpu_tlbstate.active_mm, next);</span>
+<span class="p_del">-</span>
+<span class="p_del">-		cpumask_set_cpu(cpu, mm_cpumask(next));</span>
+<span class="p_add">+	if (real_prev == next) {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * There&#39;s nothing to do: we always keep the per-mm control</span>
+<span class="p_add">+		 * regs in sync with cpu_tlbstate.loaded_mm.  Just</span>
+<span class="p_add">+		 * sanity-check mm_cpumask.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (WARN_ON_ONCE(!cpumask_test_cpu(cpu, mm_cpumask(next))))</span>
+<span class="p_add">+			cpumask_set_cpu(cpu, mm_cpumask(next));</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	}</span>
+ 
+<span class="p_add">+	if (IS_ENABLED(CONFIG_VMAP_STACK)) {</span>
+ 		/*
+<span class="p_del">-		 * Re-load page tables.</span>
+<span class="p_del">-		 *</span>
+<span class="p_del">-		 * This logic has an ordering constraint:</span>
+<span class="p_del">-		 *</span>
+<span class="p_del">-		 *  CPU 0: Write to a PTE for &#39;next&#39;</span>
+<span class="p_del">-		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.</span>
+<span class="p_del">-		 *  CPU 1: set bit 1 in next&#39;s mm_cpumask</span>
+<span class="p_del">-		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)</span>
+<span class="p_del">-		 *</span>
+<span class="p_del">-		 * We need to prevent an outcome in which CPU 1 observes</span>
+<span class="p_del">-		 * the new PTE value and CPU 0 observes bit 1 clear in</span>
+<span class="p_del">-		 * mm_cpumask.  (If that occurs, then the IPI will never</span>
+<span class="p_del">-		 * be sent, and CPU 0&#39;s TLB will contain a stale entry.)</span>
+<span class="p_del">-		 *</span>
+<span class="p_del">-		 * The bad outcome can occur if either CPU&#39;s load is</span>
+<span class="p_del">-		 * reordered before that CPU&#39;s store, so both CPUs must</span>
+<span class="p_del">-		 * execute full barriers to prevent this from happening.</span>
+<span class="p_del">-		 *</span>
+<span class="p_del">-		 * Thus, switch_mm needs a full barrier between the</span>
+<span class="p_del">-		 * store to mm_cpumask and any operation that could load</span>
+<span class="p_del">-		 * from next-&gt;pgd.  TLB fills are special and can happen</span>
+<span class="p_del">-		 * due to instruction fetches or for no reason at all,</span>
+<span class="p_del">-		 * and neither LOCK nor MFENCE orders them.</span>
+<span class="p_del">-		 * Fortunately, load_cr3() is serializing and gives the</span>
+<span class="p_del">-		 * ordering guarantee we need.</span>
+<span class="p_del">-		 *</span>
+<span class="p_add">+		 * If our current stack is in vmalloc space and isn&#39;t</span>
+<span class="p_add">+		 * mapped in the new pgd, we&#39;ll double-fault.  Forcibly</span>
+<span class="p_add">+		 * map it.</span>
+ 		 */
+<span class="p_del">-		load_cr3(next-&gt;pgd);</span>
+<span class="p_add">+		unsigned int stack_pgd_index = pgd_index(current_stack_pointer());</span>
+ 
+<span class="p_del">-		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);</span>
+<span class="p_add">+		pgd_t *pgd = next-&gt;pgd + stack_pgd_index;</span>
+ 
+<span class="p_del">-		/* Stop flush ipis for the previous mm */</span>
+<span class="p_del">-		cpumask_clear_cpu(cpu, mm_cpumask(prev));</span>
+<span class="p_add">+		if (unlikely(pgd_none(*pgd)))</span>
+<span class="p_add">+			set_pgd(pgd, init_mm.pgd[stack_pgd_index]);</span>
+<span class="p_add">+	}</span>
+ 
+<span class="p_del">-		/* Load per-mm CR4 state */</span>
+<span class="p_del">-		load_mm_cr4(next);</span>
+<span class="p_add">+	this_cpu_write(cpu_tlbstate.loaded_mm, next);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	WARN_ON_ONCE(cpumask_test_cpu(cpu, mm_cpumask(next)));</span>
+<span class="p_add">+	cpumask_set_cpu(cpu, mm_cpumask(next));</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Re-load page tables.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * This logic has an ordering constraint:</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 *  CPU 0: Write to a PTE for &#39;next&#39;</span>
+<span class="p_add">+	 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.</span>
+<span class="p_add">+	 *  CPU 1: set bit 1 in next&#39;s mm_cpumask</span>
+<span class="p_add">+	 *  CPU 1: load from the PTE that CPU 0 writes (implicit)</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * We need to prevent an outcome in which CPU 1 observes</span>
+<span class="p_add">+	 * the new PTE value and CPU 0 observes bit 1 clear in</span>
+<span class="p_add">+	 * mm_cpumask.  (If that occurs, then the IPI will never</span>
+<span class="p_add">+	 * be sent, and CPU 0&#39;s TLB will contain a stale entry.)</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * The bad outcome can occur if either CPU&#39;s load is</span>
+<span class="p_add">+	 * reordered before that CPU&#39;s store, so both CPUs must</span>
+<span class="p_add">+	 * execute full barriers to prevent this from happening.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Thus, switch_mm needs a full barrier between the</span>
+<span class="p_add">+	 * store to mm_cpumask and any operation that could load</span>
+<span class="p_add">+	 * from next-&gt;pgd.  TLB fills are special and can happen</span>
+<span class="p_add">+	 * due to instruction fetches or for no reason at all,</span>
+<span class="p_add">+	 * and neither LOCK nor MFENCE orders them.</span>
+<span class="p_add">+	 * Fortunately, load_cr3() is serializing and gives the</span>
+<span class="p_add">+	 * ordering guarantee we need.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	load_cr3(next-&gt;pgd);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * This gets called via leave_mm() in the idle path where RCU</span>
+<span class="p_add">+	 * functions differently.  Tracing normally uses RCU, so we have to</span>
+<span class="p_add">+	 * call the tracepoint specially here.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Stop flush ipis for the previous mm */</span>
+<span class="p_add">+	WARN_ON_ONCE(!cpumask_test_cpu(cpu, mm_cpumask(real_prev)) &amp;&amp;</span>
+<span class="p_add">+		     real_prev != &amp;init_mm);</span>
+<span class="p_add">+	cpumask_clear_cpu(cpu, mm_cpumask(real_prev));</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Load per-mm CR4 state */</span>
+<span class="p_add">+	load_mm_cr4(next);</span>
+ 
+ #ifdef CONFIG_MODIFY_LDT_SYSCALL
+<span class="p_del">-		/*</span>
+<span class="p_del">-		 * Load the LDT, if the LDT is different.</span>
+<span class="p_del">-		 *</span>
+<span class="p_del">-		 * It&#39;s possible that prev-&gt;context.ldt doesn&#39;t match</span>
+<span class="p_del">-		 * the LDT register.  This can happen if leave_mm(prev)</span>
+<span class="p_del">-		 * was called and then modify_ldt changed</span>
+<span class="p_del">-		 * prev-&gt;context.ldt but suppressed an IPI to this CPU.</span>
+<span class="p_del">-		 * In this case, prev-&gt;context.ldt != NULL, because we</span>
+<span class="p_del">-		 * never set context.ldt to NULL while the mm still</span>
+<span class="p_del">-		 * exists.  That means that next-&gt;context.ldt !=</span>
+<span class="p_del">-		 * prev-&gt;context.ldt, because mms never share an LDT.</span>
+<span class="p_del">-		 */</span>
+<span class="p_del">-		if (unlikely(prev-&gt;context.ldt != next-&gt;context.ldt))</span>
+<span class="p_del">-			load_mm_ldt(next);</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Load the LDT, if the LDT is different.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * It&#39;s possible that prev-&gt;context.ldt doesn&#39;t match</span>
+<span class="p_add">+	 * the LDT register.  This can happen if leave_mm(prev)</span>
+<span class="p_add">+	 * was called and then modify_ldt changed</span>
+<span class="p_add">+	 * prev-&gt;context.ldt but suppressed an IPI to this CPU.</span>
+<span class="p_add">+	 * In this case, prev-&gt;context.ldt != NULL, because we</span>
+<span class="p_add">+	 * never set context.ldt to NULL while the mm still</span>
+<span class="p_add">+	 * exists.  That means that next-&gt;context.ldt !=</span>
+<span class="p_add">+	 * prev-&gt;context.ldt, because mms never share an LDT.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (unlikely(real_prev-&gt;context.ldt != next-&gt;context.ldt))</span>
+<span class="p_add">+		load_mm_ldt(next);</span>
+ #endif
+<span class="p_del">-	} else {</span>
+<span class="p_del">-		this_cpu_write(cpu_tlbstate.state, TLBSTATE_OK);</span>
+<span class="p_del">-		BUG_ON(this_cpu_read(cpu_tlbstate.active_mm) != next);</span>
+<span class="p_del">-</span>
+<span class="p_del">-		if (!cpumask_test_cpu(cpu, mm_cpumask(next))) {</span>
+<span class="p_del">-			/*</span>
+<span class="p_del">-			 * On established mms, the mm_cpumask is only changed</span>
+<span class="p_del">-			 * from irq context, from ptep_clear_flush() while in</span>
+<span class="p_del">-			 * lazy tlb mode, and here. Irqs are blocked during</span>
+<span class="p_del">-			 * schedule, protecting us from simultaneous changes.</span>
+<span class="p_del">-			 */</span>
+<span class="p_del">-			cpumask_set_cpu(cpu, mm_cpumask(next));</span>
+<span class="p_del">-</span>
+<span class="p_del">-			/*</span>
+<span class="p_del">-			 * We were in lazy tlb mode and leave_mm disabled</span>
+<span class="p_del">-			 * tlb flush IPI delivery. We must reload CR3</span>
+<span class="p_del">-			 * to make sure to use no freed page tables.</span>
+<span class="p_del">-			 *</span>
+<span class="p_del">-			 * As above, load_cr3() is serializing and orders TLB</span>
+<span class="p_del">-			 * fills with respect to the mm_cpumask write.</span>
+<span class="p_del">-			 */</span>
+<span class="p_del">-			load_cr3(next-&gt;pgd);</span>
+<span class="p_del">-			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);</span>
+<span class="p_del">-			load_mm_cr4(next);</span>
+<span class="p_del">-			load_mm_ldt(next);</span>
+<span class="p_del">-		}</span>
+<span class="p_del">-	}</span>
+ }
+ 
+ /*
+<span class="p_chunk">@@ -246,7 +247,7 @@</span> <span class="p_context"> static void flush_tlb_func_remote(void *info)</span>
+ 
+ 	inc_irq_stat(irq_tlb_count);
+ 
+<span class="p_del">-	if (f-&gt;mm &amp;&amp; f-&gt;mm != this_cpu_read(cpu_tlbstate.active_mm))</span>
+<span class="p_add">+	if (f-&gt;mm &amp;&amp; f-&gt;mm != this_cpu_read(cpu_tlbstate.loaded_mm))</span>
+ 		return;
+ 
+ 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
+<span class="p_chunk">@@ -314,7 +315,7 @@</span> <span class="p_context"> void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,</span>
+ 		info.end = TLB_FLUSH_ALL;
+ 	}
+ 
+<span class="p_del">-	if (mm == current-&gt;active_mm)</span>
+<span class="p_add">+	if (mm == this_cpu_read(cpu_tlbstate.loaded_mm))</span>
+ 		flush_tlb_func_local(&amp;info, TLB_LOCAL_MM_SHOOTDOWN);
+ 	if (cpumask_any_but(mm_cpumask(mm), cpu) &lt; nr_cpu_ids)
+ 		flush_tlb_others(mm_cpumask(mm), &amp;info);
+<span class="p_header">diff --git a/arch/x86/xen/mmu.c b/arch/x86/xen/mmu.c</span>
+<span class="p_header">index 894daefd6958..c34fd91a0f5a 100644</span>
+<span class="p_header">--- a/arch/x86/xen/mmu.c</span>
+<span class="p_header">+++ b/arch/x86/xen/mmu.c</span>
+<span class="p_chunk">@@ -1013,37 +1013,32 @@</span> <span class="p_context"> static void xen_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)</span>
+ 	spin_unlock(&amp;mm-&gt;page_table_lock);
+ }
+ 
+<span class="p_del">-</span>
+<span class="p_del">-#ifdef CONFIG_SMP</span>
+<span class="p_del">-/* Another cpu may still have their %cr3 pointing at the pagetable, so</span>
+<span class="p_del">-   we need to repoint it somewhere else before we can unpin it. */</span>
+<span class="p_del">-static void drop_other_mm_ref(void *info)</span>
+<span class="p_add">+static void drop_mm_ref_this_cpu(void *info)</span>
+ {
+ 	struct mm_struct *mm = info;
+<span class="p_del">-	struct mm_struct *active_mm;</span>
+<span class="p_del">-</span>
+<span class="p_del">-	active_mm = this_cpu_read(cpu_tlbstate.active_mm);</span>
+ 
+<span class="p_del">-	if (active_mm == mm &amp;&amp; this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK)</span>
+<span class="p_add">+	if (this_cpu_read(cpu_tlbstate.loaded_mm) == mm)</span>
+ 		leave_mm(smp_processor_id());
+ 
+<span class="p_del">-	/* If this cpu still has a stale cr3 reference, then make sure</span>
+<span class="p_del">-	   it has been flushed. */</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * If this cpu still has a stale cr3 reference, then make sure</span>
+<span class="p_add">+	 * it has been flushed.</span>
+<span class="p_add">+	 */</span>
+ 	if (this_cpu_read(xen_current_cr3) == __pa(mm-&gt;pgd))
+<span class="p_del">-		load_cr3(swapper_pg_dir);</span>
+<span class="p_add">+		xen_mc_flush();</span>
+ }
+ 
+<span class="p_add">+#ifdef CONFIG_SMP</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Another cpu may still have their %cr3 pointing at the pagetable, so</span>
+<span class="p_add">+ * we need to repoint it somewhere else before we can unpin it.</span>
+<span class="p_add">+ */</span>
+ static void xen_drop_mm_ref(struct mm_struct *mm)
+ {
+ 	cpumask_var_t mask;
+ 	unsigned cpu;
+ 
+<span class="p_del">-	if (current-&gt;active_mm == mm) {</span>
+<span class="p_del">-		if (current-&gt;mm == mm)</span>
+<span class="p_del">-			load_cr3(swapper_pg_dir);</span>
+<span class="p_del">-		else</span>
+<span class="p_del">-			leave_mm(smp_processor_id());</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+	drop_mm_ref_this_cpu(mm);</span>
+ 
+ 	/* Get the &quot;official&quot; set of cpus referring to our pagetable. */
+ 	if (!alloc_cpumask_var(&amp;mask, GFP_ATOMIC)) {
+<span class="p_chunk">@@ -1051,31 +1046,31 @@</span> <span class="p_context"> static void xen_drop_mm_ref(struct mm_struct *mm)</span>
+ 			if (!cpumask_test_cpu(cpu, mm_cpumask(mm))
+ 			    &amp;&amp; per_cpu(xen_current_cr3, cpu) != __pa(mm-&gt;pgd))
+ 				continue;
+<span class="p_del">-			smp_call_function_single(cpu, drop_other_mm_ref, mm, 1);</span>
+<span class="p_add">+			smp_call_function_single(cpu, drop_mm_ref_this_cpu, mm, 1);</span>
+ 		}
+ 		return;
+ 	}
+ 	cpumask_copy(mask, mm_cpumask(mm));
+ 
+<span class="p_del">-	/* It&#39;s possible that a vcpu may have a stale reference to our</span>
+<span class="p_del">-	   cr3, because its in lazy mode, and it hasn&#39;t yet flushed</span>
+<span class="p_del">-	   its set of pending hypercalls yet.  In this case, we can</span>
+<span class="p_del">-	   look at its actual current cr3 value, and force it to flush</span>
+<span class="p_del">-	   if needed. */</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * It&#39;s possible that a vcpu may have a stale reference to our</span>
+<span class="p_add">+	 * cr3, because its in lazy mode, and it hasn&#39;t yet flushed</span>
+<span class="p_add">+	 * its set of pending hypercalls yet.  In this case, we can</span>
+<span class="p_add">+	 * look at its actual current cr3 value, and force it to flush</span>
+<span class="p_add">+	 * if needed.</span>
+<span class="p_add">+	 */</span>
+ 	for_each_online_cpu(cpu) {
+ 		if (per_cpu(xen_current_cr3, cpu) == __pa(mm-&gt;pgd))
+ 			cpumask_set_cpu(cpu, mask);
+ 	}
+ 
+<span class="p_del">-	if (!cpumask_empty(mask))</span>
+<span class="p_del">-		smp_call_function_many(mask, drop_other_mm_ref, mm, 1);</span>
+<span class="p_add">+	smp_call_function_many(mask, drop_mm_ref_this_cpu, mm, 1);</span>
+ 	free_cpumask_var(mask);
+ }
+ #else
+ static void xen_drop_mm_ref(struct mm_struct *mm)
+ {
+<span class="p_del">-	if (current-&gt;active_mm == mm)</span>
+<span class="p_del">-		load_cr3(swapper_pg_dir);</span>
+<span class="p_add">+	drop_mm_ref_this_cpu(mm);</span>
+ }
+ #endif
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

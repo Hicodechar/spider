@@ -1,0 +1,914 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>oom_reaper: close race without using oom_lock - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    oom_reaper: close race without using oom_lock</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=28">Tetsuo Handa</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>July 18, 2017, 2:06 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1500386810-4881-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9848427/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9848427/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9848427/">/patch/9848427/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	CAA2A600CC for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 18 Jul 2017 14:07:32 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id BA0641FF12
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 18 Jul 2017 14:07:32 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id AF24820144; Tue, 18 Jul 2017 14:07:32 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id A416F285BA
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 18 Jul 2017 14:07:31 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751471AbdGROH2 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 18 Jul 2017 10:07:28 -0400
+Received: from www262.sakura.ne.jp ([202.181.97.72]:22616 &quot;EHLO
+	www262.sakura.ne.jp&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751401AbdGROH1 (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 18 Jul 2017 10:07:27 -0400
+Received: from fsav104.sakura.ne.jp (fsav104.sakura.ne.jp [27.133.134.231])
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id
+	v6IE787L099760; Tue, 18 Jul 2017 23:07:08 +0900 (JST)
+	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
+Received: from www262.sakura.ne.jp (202.181.97.72) by fsav104.sakura.ne.jp
+	(F-Secure/fsigk_smtp/530/fsav104.sakura.ne.jp); 
+	Tue, 18 Jul 2017 23:07:08 +0900 (JST)
+X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav104.sakura.ne.jp)
+Received: from ccsecurity.localdomain (softbank126227147111.bbtec.net
+	[126.227.147.111]) (authenticated bits=0)
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id v6IE6u1d099712
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-CAMELLIA256-SHA bits=256
+	verify=NO); Tue, 18 Jul 2017 23:07:08 +0900 (JST)
+	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
+From: Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;
+To: linux-mm@kvack.org, mhocko@kernel.org, hannes@cmpxchg.org,
+	rientjes@google.com
+Cc: linux-kernel@vger.kernel.org,
+	Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;
+Subject: [PATCH] oom_reaper: close race without using oom_lock
+Date: Tue, 18 Jul 2017 23:06:50 +0900
+Message-Id: &lt;1500386810-4881-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp&gt;
+X-Mailer: git-send-email 1.8.3.1
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=28">Tetsuo Handa</a> - July 18, 2017, 2:06 p.m.</div>
+<pre class="content">
+Commit e2fe14564d3316d1 (&quot;oom_reaper: close race with exiting task&quot;)
+guarded whole OOM reaping operations using oom_lock. But there was no
+need to guard whole operations. We needed to guard only setting of
+MMF_OOM_REAPED flag because get_page_from_freelist() in
+__alloc_pages_may_oom() is called with oom_lock held.
+
+If we change to guard only setting of MMF_OOM_SKIP flag, the OOM reaper
+can start reaping operations as soon as wake_oom_reaper() is called.
+But since setting of MMF_OOM_SKIP flag at __mmput() is not guarded with
+oom_lock, guarding only the OOM reaper side is not sufficient.
+
+If we change the OOM killer side to ignore MMF_OOM_SKIP flag once,
+there is no need to guard setting of MMF_OOM_SKIP flag, and we can
+guarantee a chance to call get_page_from_freelist() in
+__alloc_pages_may_oom() without depending on oom_lock serialization.
+
+This patch makes MMF_OOM_SKIP act as if MMF_OOM_REAPED, and adds a new
+flag which acts as if MMF_OOM_SKIP, in order to close both race window
+(the OOM reaper side and __mmput() side) without using oom_lock.
+<span class="signed-off-by">
+Signed-off-by: Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;</span>
+---
+ include/linux/mm_types.h |  1 +
+ mm/oom_kill.c            | 42 +++++++++++++++---------------------------
+ 2 files changed, 16 insertions(+), 27 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - July 18, 2017, 2:16 p.m.</div>
+<pre class="content">
+On Tue 18-07-17 23:06:50, Tetsuo Handa wrote:
+<span class="quote">&gt; Commit e2fe14564d3316d1 (&quot;oom_reaper: close race with exiting task&quot;)</span>
+<span class="quote">&gt; guarded whole OOM reaping operations using oom_lock. But there was no</span>
+<span class="quote">&gt; need to guard whole operations. We needed to guard only setting of</span>
+<span class="quote">&gt; MMF_OOM_REAPED flag because get_page_from_freelist() in</span>
+<span class="quote">&gt; __alloc_pages_may_oom() is called with oom_lock held.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If we change to guard only setting of MMF_OOM_SKIP flag, the OOM reaper</span>
+<span class="quote">&gt; can start reaping operations as soon as wake_oom_reaper() is called.</span>
+<span class="quote">&gt; But since setting of MMF_OOM_SKIP flag at __mmput() is not guarded with</span>
+<span class="quote">&gt; oom_lock, guarding only the OOM reaper side is not sufficient.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If we change the OOM killer side to ignore MMF_OOM_SKIP flag once,</span>
+<span class="quote">&gt; there is no need to guard setting of MMF_OOM_SKIP flag, and we can</span>
+<span class="quote">&gt; guarantee a chance to call get_page_from_freelist() in</span>
+<span class="quote">&gt; __alloc_pages_may_oom() without depending on oom_lock serialization.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This patch makes MMF_OOM_SKIP act as if MMF_OOM_REAPED, and adds a new</span>
+<span class="quote">&gt; flag which acts as if MMF_OOM_SKIP, in order to close both race window</span>
+<span class="quote">&gt; (the OOM reaper side and __mmput() side) without using oom_lock.</span>
+
+Why do we need this patch when
+http://lkml.kernel.org/r/20170626130346.26314-1-mhocko@kernel.org
+already removes the lock and solves another problem at once?
+<span class="quote">
+&gt; Signed-off-by: Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  include/linux/mm_types.h |  1 +</span>
+<span class="quote">&gt;  mm/oom_kill.c            | 42 +++++++++++++++---------------------------</span>
+<span class="quote">&gt;  2 files changed, 16 insertions(+), 27 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h</span>
+<span class="quote">&gt; index ff15181..3184b7a 100644</span>
+<span class="quote">&gt; --- a/include/linux/mm_types.h</span>
+<span class="quote">&gt; +++ b/include/linux/mm_types.h</span>
+<span class="quote">&gt; @@ -495,6 +495,7 @@ struct mm_struct {</span>
+<span class="quote">&gt;  	 */</span>
+<span class="quote">&gt;  	bool tlb_flush_pending;</span>
+<span class="quote">&gt;  #endif</span>
+<span class="quote">&gt; +	bool oom_killer_synchronized;</span>
+<span class="quote">&gt;  	struct uprobes_state uprobes_state;</span>
+<span class="quote">&gt;  #ifdef CONFIG_HUGETLB_PAGE</span>
+<span class="quote">&gt;  	atomic_long_t hugetlb_usage;</span>
+<span class="quote">&gt; diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="quote">&gt; index 9e8b4f0..1710133 100644</span>
+<span class="quote">&gt; --- a/mm/oom_kill.c</span>
+<span class="quote">&gt; +++ b/mm/oom_kill.c</span>
+<span class="quote">&gt; @@ -300,11 +300,17 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)</span>
+<span class="quote">&gt;  	 * This task already has access to memory reserves and is being killed.</span>
+<span class="quote">&gt;  	 * Don&#39;t allow any other task to have access to the reserves unless</span>
+<span class="quote">&gt;  	 * the task has MMF_OOM_SKIP because chances that it would release</span>
+<span class="quote">&gt; -	 * any memory is quite low.</span>
+<span class="quote">&gt; +	 * any memory is quite low. But ignore MMF_OOM_SKIP once, for there is</span>
+<span class="quote">&gt; +	 * still possibility that get_page_from_freelist() with oom_lock held</span>
+<span class="quote">&gt; +	 * succeeds because MMF_OOM_SKIP is set without oom_lock held.</span>
+<span class="quote">&gt;  	 */</span>
+<span class="quote">&gt;  	if (!is_sysrq_oom(oc) &amp;&amp; tsk_is_oom_victim(task)) {</span>
+<span class="quote">&gt; -		if (test_bit(MMF_OOM_SKIP, &amp;task-&gt;signal-&gt;oom_mm-&gt;flags))</span>
+<span class="quote">&gt; +		struct mm_struct *mm = task-&gt;signal-&gt;oom_mm;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +		if (mm-&gt;oom_killer_synchronized)</span>
+<span class="quote">&gt;  			goto next;</span>
+<span class="quote">&gt; +		if (test_bit(MMF_OOM_SKIP, &amp;mm-&gt;flags))</span>
+<span class="quote">&gt; +			mm-&gt;oom_killer_synchronized = true;</span>
+<span class="quote">&gt;  		goto abort;</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; @@ -470,28 +476,10 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	struct mmu_gather tlb;</span>
+<span class="quote">&gt;  	struct vm_area_struct *vma;</span>
+<span class="quote">&gt; -	bool ret = true;</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; -	/*</span>
+<span class="quote">&gt; -	 * We have to make sure to not race with the victim exit path</span>
+<span class="quote">&gt; -	 * and cause premature new oom victim selection:</span>
+<span class="quote">&gt; -	 * __oom_reap_task_mm		exit_mm</span>
+<span class="quote">&gt; -	 *   mmget_not_zero</span>
+<span class="quote">&gt; -	 *				  mmput</span>
+<span class="quote">&gt; -	 *				    atomic_dec_and_test</span>
+<span class="quote">&gt; -	 *				  exit_oom_victim</span>
+<span class="quote">&gt; -	 *				[...]</span>
+<span class="quote">&gt; -	 *				out_of_memory</span>
+<span class="quote">&gt; -	 *				  select_bad_process</span>
+<span class="quote">&gt; -	 *				    # no TIF_MEMDIE task selects new victim</span>
+<span class="quote">&gt; -	 *  unmap_page_range # frees some memory</span>
+<span class="quote">&gt; -	 */</span>
+<span class="quote">&gt; -	mutex_lock(&amp;oom_lock);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	if (!down_read_trylock(&amp;mm-&gt;mmap_sem)) {</span>
+<span class="quote">&gt; -		ret = false;</span>
+<span class="quote">&gt;  		trace_skip_task_reaping(tsk-&gt;pid);</span>
+<span class="quote">&gt; -		goto unlock_oom;</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/*</span>
+<span class="quote">&gt; @@ -502,7 +490,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt;  	if (!mmget_not_zero(mm)) {</span>
+<span class="quote">&gt;  		up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt;  		trace_skip_task_reaping(tsk-&gt;pid);</span>
+<span class="quote">&gt; -		goto unlock_oom;</span>
+<span class="quote">&gt; +		return true;</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	trace_start_task_reaping(tsk-&gt;pid);</span>
+<span class="quote">&gt; @@ -549,9 +537,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt;  	 */</span>
+<span class="quote">&gt;  	mmput_async(mm);</span>
+<span class="quote">&gt;  	trace_finish_task_reaping(tsk-&gt;pid);</span>
+<span class="quote">&gt; -unlock_oom:</span>
+<span class="quote">&gt; -	mutex_unlock(&amp;oom_lock);</span>
+<span class="quote">&gt; -	return ret;</span>
+<span class="quote">&gt; +	return true;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  #define MAX_OOM_REAP_RETRIES 10</span>
+<span class="quote">&gt; @@ -661,8 +647,10 @@ static void mark_oom_victim(struct task_struct *tsk)</span>
+<span class="quote">&gt;  		return;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/* oom_mm is bound to the signal struct life time. */</span>
+<span class="quote">&gt; -	if (!cmpxchg(&amp;tsk-&gt;signal-&gt;oom_mm, NULL, mm))</span>
+<span class="quote">&gt; -		mmgrab(tsk-&gt;signal-&gt;oom_mm);</span>
+<span class="quote">&gt; +	if (!cmpxchg(&amp;tsk-&gt;signal-&gt;oom_mm, NULL, mm)) {</span>
+<span class="quote">&gt; +		mmgrab(mm);</span>
+<span class="quote">&gt; +		mm-&gt;oom_killer_synchronized = false;</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/*</span>
+<span class="quote">&gt;  	 * Make sure that the task is woken up from uninterruptible sleep</span>
+<span class="quote">&gt; -- </span>
+<span class="quote">&gt; 1.8.3.1</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=45">Johannes Weiner</a> - July 18, 2017, 2:17 p.m.</div>
+<pre class="content">
+On Tue, Jul 18, 2017 at 11:06:50PM +0900, Tetsuo Handa wrote:
+<span class="quote">&gt; Commit e2fe14564d3316d1 (&quot;oom_reaper: close race with exiting task&quot;)</span>
+<span class="quote">&gt; guarded whole OOM reaping operations using oom_lock. But there was no</span>
+<span class="quote">&gt; need to guard whole operations. We needed to guard only setting of</span>
+<span class="quote">&gt; MMF_OOM_REAPED flag because get_page_from_freelist() in</span>
+<span class="quote">&gt; __alloc_pages_may_oom() is called with oom_lock held.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; If we change to guard only setting of MMF_OOM_SKIP flag, the OOM reaper</span>
+<span class="quote">&gt; can start reaping operations as soon as wake_oom_reaper() is called.</span>
+<span class="quote">&gt; But since setting of MMF_OOM_SKIP flag at __mmput() is not guarded with</span>
+<span class="quote">&gt; oom_lock, guarding only the OOM reaper side is not sufficient.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If we change the OOM killer side to ignore MMF_OOM_SKIP flag once,</span>
+<span class="quote">&gt; there is no need to guard setting of MMF_OOM_SKIP flag, and we can</span>
+<span class="quote">&gt; guarantee a chance to call get_page_from_freelist() in</span>
+<span class="quote">&gt; __alloc_pages_may_oom() without depending on oom_lock serialization.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This patch makes MMF_OOM_SKIP act as if MMF_OOM_REAPED, and adds a new</span>
+<span class="quote">&gt; flag which acts as if MMF_OOM_SKIP, in order to close both race window</span>
+<span class="quote">&gt; (the OOM reaper side and __mmput() side) without using oom_lock.</span>
+
+I have no idea what this is about - a race window fix? A performance
+optimization? A code simplification?
+
+Users and vendors are later going to read through these changelogs and
+have to decide whether they want this patch or upgrade to a kernel
+containing it. Please keep these people in mind when writing the
+subject and first paragraph of the changelogs.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=28">Tetsuo Handa</a> - July 18, 2017, 8:51 p.m.</div>
+<pre class="content">
+Michal Hocko wrote:
+<span class="quote">&gt; On Tue 18-07-17 23:06:50, Tetsuo Handa wrote:</span>
+<span class="quote">&gt; &gt; Commit e2fe14564d3316d1 (&quot;oom_reaper: close race with exiting task&quot;)</span>
+<span class="quote">&gt; &gt; guarded whole OOM reaping operations using oom_lock. But there was no</span>
+<span class="quote">&gt; &gt; need to guard whole operations. We needed to guard only setting of</span>
+<span class="quote">&gt; &gt; MMF_OOM_REAPED flag because get_page_from_freelist() in</span>
+<span class="quote">&gt; &gt; __alloc_pages_may_oom() is called with oom_lock held.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; If we change to guard only setting of MMF_OOM_SKIP flag, the OOM reaper</span>
+<span class="quote">&gt; &gt; can start reaping operations as soon as wake_oom_reaper() is called.</span>
+<span class="quote">&gt; &gt; But since setting of MMF_OOM_SKIP flag at __mmput() is not guarded with</span>
+<span class="quote">&gt; &gt; oom_lock, guarding only the OOM reaper side is not sufficient.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; If we change the OOM killer side to ignore MMF_OOM_SKIP flag once,</span>
+<span class="quote">&gt; &gt; there is no need to guard setting of MMF_OOM_SKIP flag, and we can</span>
+<span class="quote">&gt; &gt; guarantee a chance to call get_page_from_freelist() in</span>
+<span class="quote">&gt; &gt; __alloc_pages_may_oom() without depending on oom_lock serialization.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; This patch makes MMF_OOM_SKIP act as if MMF_OOM_REAPED, and adds a new</span>
+<span class="quote">&gt; &gt; flag which acts as if MMF_OOM_SKIP, in order to close both race window</span>
+<span class="quote">&gt; &gt; (the OOM reaper side and __mmput() side) without using oom_lock.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Why do we need this patch when</span>
+<span class="quote">&gt; http://lkml.kernel.org/r/20170626130346.26314-1-mhocko@kernel.org</span>
+<span class="quote">&gt; already removes the lock and solves another problem at once?</span>
+
+We haven&#39;t got an answer from Hugh and/or Andrea whether that patch is safe.
+Even if that patch is safe, this patch still helps with CONFIG_MMU=n case.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - July 20, 2017, 2:11 p.m.</div>
+<pre class="content">
+On Wed 19-07-17 05:51:03, Tetsuo Handa wrote:
+<span class="quote">&gt; Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; On Tue 18-07-17 23:06:50, Tetsuo Handa wrote:</span>
+<span class="quote">&gt; &gt; &gt; Commit e2fe14564d3316d1 (&quot;oom_reaper: close race with exiting task&quot;)</span>
+<span class="quote">&gt; &gt; &gt; guarded whole OOM reaping operations using oom_lock. But there was no</span>
+<span class="quote">&gt; &gt; &gt; need to guard whole operations. We needed to guard only setting of</span>
+<span class="quote">&gt; &gt; &gt; MMF_OOM_REAPED flag because get_page_from_freelist() in</span>
+<span class="quote">&gt; &gt; &gt; __alloc_pages_may_oom() is called with oom_lock held.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; If we change to guard only setting of MMF_OOM_SKIP flag, the OOM reaper</span>
+<span class="quote">&gt; &gt; &gt; can start reaping operations as soon as wake_oom_reaper() is called.</span>
+<span class="quote">&gt; &gt; &gt; But since setting of MMF_OOM_SKIP flag at __mmput() is not guarded with</span>
+<span class="quote">&gt; &gt; &gt; oom_lock, guarding only the OOM reaper side is not sufficient.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; If we change the OOM killer side to ignore MMF_OOM_SKIP flag once,</span>
+<span class="quote">&gt; &gt; &gt; there is no need to guard setting of MMF_OOM_SKIP flag, and we can</span>
+<span class="quote">&gt; &gt; &gt; guarantee a chance to call get_page_from_freelist() in</span>
+<span class="quote">&gt; &gt; &gt; __alloc_pages_may_oom() without depending on oom_lock serialization.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; This patch makes MMF_OOM_SKIP act as if MMF_OOM_REAPED, and adds a new</span>
+<span class="quote">&gt; &gt; &gt; flag which acts as if MMF_OOM_SKIP, in order to close both race window</span>
+<span class="quote">&gt; &gt; &gt; (the OOM reaper side and __mmput() side) without using oom_lock.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Why do we need this patch when</span>
+<span class="quote">&gt; &gt; http://lkml.kernel.org/r/20170626130346.26314-1-mhocko@kernel.org</span>
+<span class="quote">&gt; &gt; already removes the lock and solves another problem at once?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; We haven&#39;t got an answer from Hugh and/or Andrea whether that patch is safe.</span>
+
+So what? I haven&#39;t see anybody disputing the correctness. And to be
+honest I really dislike your patch. Yet another round kind of solutions
+are just very ugly hacks usually because they are highly timing
+sensitive.
+<span class="quote">
+&gt; Even if that patch is safe, this patch still helps with CONFIG_MMU=n case.</span>
+
+Could you explain how?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=28">Tetsuo Handa</a> - July 20, 2017, 9:47 p.m.</div>
+<pre class="content">
+Michal Hocko wrote:
+<span class="quote">&gt; On Wed 19-07-17 05:51:03, Tetsuo Handa wrote:</span>
+<span class="quote">&gt; &gt; Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; &gt; On Tue 18-07-17 23:06:50, Tetsuo Handa wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; Commit e2fe14564d3316d1 (&quot;oom_reaper: close race with exiting task&quot;)</span>
+<span class="quote">&gt; &gt; &gt; &gt; guarded whole OOM reaping operations using oom_lock. But there was no</span>
+<span class="quote">&gt; &gt; &gt; &gt; need to guard whole operations. We needed to guard only setting of</span>
+<span class="quote">&gt; &gt; &gt; &gt; MMF_OOM_REAPED flag because get_page_from_freelist() in</span>
+<span class="quote">&gt; &gt; &gt; &gt; __alloc_pages_may_oom() is called with oom_lock held.</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; If we change to guard only setting of MMF_OOM_SKIP flag, the OOM reaper</span>
+<span class="quote">&gt; &gt; &gt; &gt; can start reaping operations as soon as wake_oom_reaper() is called.</span>
+<span class="quote">&gt; &gt; &gt; &gt; But since setting of MMF_OOM_SKIP flag at __mmput() is not guarded with</span>
+<span class="quote">&gt; &gt; &gt; &gt; oom_lock, guarding only the OOM reaper side is not sufficient.</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; If we change the OOM killer side to ignore MMF_OOM_SKIP flag once,</span>
+<span class="quote">&gt; &gt; &gt; &gt; there is no need to guard setting of MMF_OOM_SKIP flag, and we can</span>
+<span class="quote">&gt; &gt; &gt; &gt; guarantee a chance to call get_page_from_freelist() in</span>
+<span class="quote">&gt; &gt; &gt; &gt; __alloc_pages_may_oom() without depending on oom_lock serialization.</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; This patch makes MMF_OOM_SKIP act as if MMF_OOM_REAPED, and adds a new</span>
+<span class="quote">&gt; &gt; &gt; &gt; flag which acts as if MMF_OOM_SKIP, in order to close both race window</span>
+<span class="quote">&gt; &gt; &gt; &gt; (the OOM reaper side and __mmput() side) without using oom_lock.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Why do we need this patch when</span>
+<span class="quote">&gt; &gt; &gt; http://lkml.kernel.org/r/20170626130346.26314-1-mhocko@kernel.org</span>
+<span class="quote">&gt; &gt; &gt; already removes the lock and solves another problem at once?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; We haven&#39;t got an answer from Hugh and/or Andrea whether that patch is safe.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So what? I haven&#39;t see anybody disputing the correctness. And to be</span>
+<span class="quote">&gt; honest I really dislike your patch. Yet another round kind of solutions</span>
+<span class="quote">&gt; are just very ugly hacks usually because they are highly timing</span>
+<span class="quote">&gt; sensitive.</span>
+
+Yes, OOM killer is highly timing sensitive.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt; Even if that patch is safe, this patch still helps with CONFIG_MMU=n case.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Could you explain how?</span>
+
+Nothing prevents sequence below.
+
+    Process-1              Process-2
+
+    Takes oom_lock.
+    Fails get_page_from_freelist().
+    Enters out_of_memory().
+    Gets SIGKILL.
+    Gets TIF_MEMDIE.
+    Leaves out_of_memory().
+    Releases oom_lock.
+    Enters do_exit().
+    Calls __mmput().
+                           Takes oom_lock.
+                           Fails get_page_from_freelist().
+    Releases some memory.
+    Sets MMF_OOM_SKIP.
+                           Enters out_of_memory().
+                           Selects next victim because there is no !MMF_OOM_SKIP mm.
+                           Sends SIGKILL needlessly.
+
+If we ignore MMF_OOM_SKIP once, we can avoid sequence above.
+
+    Process-1              Process-2
+
+    Takes oom_lock.
+    Fails get_page_from_freelist().
+    Enters out_of_memory().
+    Get SIGKILL.
+    Get TIF_MEMDIE.
+    Leaves out_of_memory().
+    Releases oom_lock.
+    Enters do_exit().
+    Calls __mmput().
+                           Takes oom_lock.
+                           Fails get_page_from_freelist().
+    Releases some memory.
+    Sets MMF_OOM_SKIP.
+                           Enters out_of_memory().
+                           Ignores MMF_OOM_SKIP mm once.
+                           Leaves out_of_memory().
+                           Releases oom_lock.
+                           Succeeds get_page_from_freelist().
+
+Strictly speaking, this patch is independent with OOM reaper.
+This patch increases possibility of succeeding get_page_from_freelist()
+without sending SIGKILL. Your patch is trying to drop it silently.
+
+Serializing setting of MMF_OOM_SKIP with oom_lock is one approach,
+and ignoring MMF_OOM_SKIP once without oom_lock is another approach.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - July 21, 2017, 3 p.m.</div>
+<pre class="content">
+On Fri 21-07-17 06:47:11, Tetsuo Handa wrote:
+<span class="quote">&gt; Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; On Wed 19-07-17 05:51:03, Tetsuo Handa wrote:</span>
+<span class="quote">&gt; &gt; &gt; Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; On Tue 18-07-17 23:06:50, Tetsuo Handa wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; Commit e2fe14564d3316d1 (&quot;oom_reaper: close race with exiting task&quot;)</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; guarded whole OOM reaping operations using oom_lock. But there was no</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; need to guard whole operations. We needed to guard only setting of</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; MMF_OOM_REAPED flag because get_page_from_freelist() in</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; __alloc_pages_may_oom() is called with oom_lock held.</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; If we change to guard only setting of MMF_OOM_SKIP flag, the OOM reaper</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; can start reaping operations as soon as wake_oom_reaper() is called.</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; But since setting of MMF_OOM_SKIP flag at __mmput() is not guarded with</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; oom_lock, guarding only the OOM reaper side is not sufficient.</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; If we change the OOM killer side to ignore MMF_OOM_SKIP flag once,</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; there is no need to guard setting of MMF_OOM_SKIP flag, and we can</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; guarantee a chance to call get_page_from_freelist() in</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; __alloc_pages_may_oom() without depending on oom_lock serialization.</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; This patch makes MMF_OOM_SKIP act as if MMF_OOM_REAPED, and adds a new</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; flag which acts as if MMF_OOM_SKIP, in order to close both race window</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; (the OOM reaper side and __mmput() side) without using oom_lock.</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; Why do we need this patch when</span>
+<span class="quote">&gt; &gt; &gt; &gt; http://lkml.kernel.org/r/20170626130346.26314-1-mhocko@kernel.org</span>
+<span class="quote">&gt; &gt; &gt; &gt; already removes the lock and solves another problem at once?</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; We haven&#39;t got an answer from Hugh and/or Andrea whether that patch is safe.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; So what? I haven&#39;t see anybody disputing the correctness. And to be</span>
+<span class="quote">&gt; &gt; honest I really dislike your patch. Yet another round kind of solutions</span>
+<span class="quote">&gt; &gt; are just very ugly hacks usually because they are highly timing</span>
+<span class="quote">&gt; &gt; sensitive.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yes, OOM killer is highly timing sensitive.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Even if that patch is safe, this patch still helps with CONFIG_MMU=n case.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Could you explain how?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Nothing prevents sequence below.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;     Process-1              Process-2</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;     Takes oom_lock.</span>
+<span class="quote">&gt;     Fails get_page_from_freelist().</span>
+<span class="quote">&gt;     Enters out_of_memory().</span>
+<span class="quote">&gt;     Gets SIGKILL.</span>
+<span class="quote">&gt;     Gets TIF_MEMDIE.</span>
+<span class="quote">&gt;     Leaves out_of_memory().</span>
+<span class="quote">&gt;     Releases oom_lock.</span>
+<span class="quote">&gt;     Enters do_exit().</span>
+<span class="quote">&gt;     Calls __mmput().</span>
+<span class="quote">&gt;                            Takes oom_lock.</span>
+<span class="quote">&gt;                            Fails get_page_from_freelist().</span>
+<span class="quote">&gt;     Releases some memory.</span>
+<span class="quote">&gt;     Sets MMF_OOM_SKIP.</span>
+<span class="quote">&gt;                            Enters out_of_memory().</span>
+<span class="quote">&gt;                            Selects next victim because there is no !MMF_OOM_SKIP mm.</span>
+<span class="quote">&gt;                            Sends SIGKILL needlessly.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If we ignore MMF_OOM_SKIP once, we can avoid sequence above.</span>
+
+But we set MMF_OOM_SKIP _after_ the process lost its address space (well
+after the patch which allows to race oom reaper with the exit_mmap).
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;     Process-1              Process-2</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;     Takes oom_lock.</span>
+<span class="quote">&gt;     Fails get_page_from_freelist().</span>
+<span class="quote">&gt;     Enters out_of_memory().</span>
+<span class="quote">&gt;     Get SIGKILL.</span>
+<span class="quote">&gt;     Get TIF_MEMDIE.</span>
+<span class="quote">&gt;     Leaves out_of_memory().</span>
+<span class="quote">&gt;     Releases oom_lock.</span>
+<span class="quote">&gt;     Enters do_exit().</span>
+<span class="quote">&gt;     Calls __mmput().</span>
+<span class="quote">&gt;                            Takes oom_lock.</span>
+<span class="quote">&gt;                            Fails get_page_from_freelist().</span>
+<span class="quote">&gt;     Releases some memory.</span>
+<span class="quote">&gt;     Sets MMF_OOM_SKIP.</span>
+<span class="quote">&gt;                            Enters out_of_memory().</span>
+<span class="quote">&gt;                            Ignores MMF_OOM_SKIP mm once.</span>
+<span class="quote">&gt;                            Leaves out_of_memory().</span>
+<span class="quote">&gt;                            Releases oom_lock.</span>
+<span class="quote">&gt;                            Succeeds get_page_from_freelist().</span>
+
+OK, so let&#39;s say you have another task just about to jump into
+out_of_memory and ... end up in the same situation. This race is just
+unavoidable.
+<span class="quote">
+&gt; Strictly speaking, this patch is independent with OOM reaper.</span>
+<span class="quote">&gt; This patch increases possibility of succeeding get_page_from_freelist()</span>
+<span class="quote">&gt; without sending SIGKILL. Your patch is trying to drop it silently.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Serializing setting of MMF_OOM_SKIP with oom_lock is one approach,</span>
+<span class="quote">&gt; and ignoring MMF_OOM_SKIP once without oom_lock is another approach.</span>
+
+Or simply making sure that we only set the flag _after_ the address
+space is gone, which is what I am proposing.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=28">Tetsuo Handa</a> - July 21, 2017, 3:18 p.m.</div>
+<pre class="content">
+Michal Hocko wrote:
+<span class="quote">&gt; &gt; If we ignore MMF_OOM_SKIP once, we can avoid sequence above.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; But we set MMF_OOM_SKIP _after_ the process lost its address space (well</span>
+<span class="quote">&gt; after the patch which allows to race oom reaper with the exit_mmap).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;     Process-1              Process-2</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;     Takes oom_lock.</span>
+<span class="quote">&gt; &gt;     Fails get_page_from_freelist().</span>
+<span class="quote">&gt; &gt;     Enters out_of_memory().</span>
+<span class="quote">&gt; &gt;     Get SIGKILL.</span>
+<span class="quote">&gt; &gt;     Get TIF_MEMDIE.</span>
+<span class="quote">&gt; &gt;     Leaves out_of_memory().</span>
+<span class="quote">&gt; &gt;     Releases oom_lock.</span>
+<span class="quote">&gt; &gt;     Enters do_exit().</span>
+<span class="quote">&gt; &gt;     Calls __mmput().</span>
+<span class="quote">&gt; &gt;                            Takes oom_lock.</span>
+<span class="quote">&gt; &gt;                            Fails get_page_from_freelist().</span>
+<span class="quote">&gt; &gt;     Releases some memory.</span>
+<span class="quote">&gt; &gt;     Sets MMF_OOM_SKIP.</span>
+<span class="quote">&gt; &gt;                            Enters out_of_memory().</span>
+<span class="quote">&gt; &gt;                            Ignores MMF_OOM_SKIP mm once.</span>
+<span class="quote">&gt; &gt;                            Leaves out_of_memory().</span>
+<span class="quote">&gt; &gt;                            Releases oom_lock.</span>
+<span class="quote">&gt; &gt;                            Succeeds get_page_from_freelist().</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; OK, so let&#39;s say you have another task just about to jump into</span>
+<span class="quote">&gt; out_of_memory and ... end up in the same situation.</span>
+
+Right.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;                                                     This race is just</span>
+<span class="quote">&gt; unavoidable.</span>
+
+There is no perfect way (always timing dependent). But
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt; Strictly speaking, this patch is independent with OOM reaper.</span>
+<span class="quote">&gt; &gt; This patch increases possibility of succeeding get_page_from_freelist()</span>
+<span class="quote">&gt; &gt; without sending SIGKILL. Your patch is trying to drop it silently.</span>
+
+we can try to reduce possibility of ending up in the same situation by
+this proposal, and your proposal is irrelevant with reducing possibility of
+ending up in the same situation because
+<span class="quote">
+&gt; &gt; </span>
+<span class="quote">&gt; &gt; Serializing setting of MMF_OOM_SKIP with oom_lock is one approach,</span>
+<span class="quote">&gt; &gt; and ignoring MMF_OOM_SKIP once without oom_lock is another approach.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Or simply making sure that we only set the flag _after_ the address</span>
+<span class="quote">&gt; space is gone, which is what I am proposing.</span>
+
+the address space being gone does not guarantee that get_page_from_freelist()
+shall be called before entering into out_of_memory() (e.g. preempted for seconds
+between &quot;Fails get_page_from_freelist().&quot; and &quot;Enters out_of_memory().&quot;).
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - July 21, 2017, 3:33 p.m.</div>
+<pre class="content">
+On Sat 22-07-17 00:18:48, Tetsuo Handa wrote:
+<span class="quote">&gt; Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; &gt; If we ignore MMF_OOM_SKIP once, we can avoid sequence above.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; But we set MMF_OOM_SKIP _after_ the process lost its address space (well</span>
+<span class="quote">&gt; &gt; after the patch which allows to race oom reaper with the exit_mmap).</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt;     Process-1              Process-2</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt;     Takes oom_lock.</span>
+<span class="quote">&gt; &gt; &gt;     Fails get_page_from_freelist().</span>
+<span class="quote">&gt; &gt; &gt;     Enters out_of_memory().</span>
+<span class="quote">&gt; &gt; &gt;     Get SIGKILL.</span>
+<span class="quote">&gt; &gt; &gt;     Get TIF_MEMDIE.</span>
+<span class="quote">&gt; &gt; &gt;     Leaves out_of_memory().</span>
+<span class="quote">&gt; &gt; &gt;     Releases oom_lock.</span>
+<span class="quote">&gt; &gt; &gt;     Enters do_exit().</span>
+<span class="quote">&gt; &gt; &gt;     Calls __mmput().</span>
+<span class="quote">&gt; &gt; &gt;                            Takes oom_lock.</span>
+<span class="quote">&gt; &gt; &gt;                            Fails get_page_from_freelist().</span>
+<span class="quote">&gt; &gt; &gt;     Releases some memory.</span>
+<span class="quote">&gt; &gt; &gt;     Sets MMF_OOM_SKIP.</span>
+<span class="quote">&gt; &gt; &gt;                            Enters out_of_memory().</span>
+<span class="quote">&gt; &gt; &gt;                            Ignores MMF_OOM_SKIP mm once.</span>
+<span class="quote">&gt; &gt; &gt;                            Leaves out_of_memory().</span>
+<span class="quote">&gt; &gt; &gt;                            Releases oom_lock.</span>
+<span class="quote">&gt; &gt; &gt;                            Succeeds get_page_from_freelist().</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; OK, so let&#39;s say you have another task just about to jump into</span>
+<span class="quote">&gt; &gt; out_of_memory and ... end up in the same situation.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Right.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;                                                     This race is just</span>
+<span class="quote">&gt; &gt; unavoidable.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; There is no perfect way (always timing dependent). But</span>
+
+I would rather not add a code which _pretends_ it solves something. If
+we see the above race a real problem in out there then we should think
+about how to fix it. I definitely do not want to add more hack into an
+already complicated code base.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h</span>
+<span class="p_header">index ff15181..3184b7a 100644</span>
+<span class="p_header">--- a/include/linux/mm_types.h</span>
+<span class="p_header">+++ b/include/linux/mm_types.h</span>
+<span class="p_chunk">@@ -495,6 +495,7 @@</span> <span class="p_context"> struct mm_struct {</span>
+ 	 */
+ 	bool tlb_flush_pending;
+ #endif
+<span class="p_add">+	bool oom_killer_synchronized;</span>
+ 	struct uprobes_state uprobes_state;
+ #ifdef CONFIG_HUGETLB_PAGE
+ 	atomic_long_t hugetlb_usage;
+<span class="p_header">diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="p_header">index 9e8b4f0..1710133 100644</span>
+<span class="p_header">--- a/mm/oom_kill.c</span>
+<span class="p_header">+++ b/mm/oom_kill.c</span>
+<span class="p_chunk">@@ -300,11 +300,17 @@</span> <span class="p_context"> static int oom_evaluate_task(struct task_struct *task, void *arg)</span>
+ 	 * This task already has access to memory reserves and is being killed.
+ 	 * Don&#39;t allow any other task to have access to the reserves unless
+ 	 * the task has MMF_OOM_SKIP because chances that it would release
+<span class="p_del">-	 * any memory is quite low.</span>
+<span class="p_add">+	 * any memory is quite low. But ignore MMF_OOM_SKIP once, for there is</span>
+<span class="p_add">+	 * still possibility that get_page_from_freelist() with oom_lock held</span>
+<span class="p_add">+	 * succeeds because MMF_OOM_SKIP is set without oom_lock held.</span>
+ 	 */
+ 	if (!is_sysrq_oom(oc) &amp;&amp; tsk_is_oom_victim(task)) {
+<span class="p_del">-		if (test_bit(MMF_OOM_SKIP, &amp;task-&gt;signal-&gt;oom_mm-&gt;flags))</span>
+<span class="p_add">+		struct mm_struct *mm = task-&gt;signal-&gt;oom_mm;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (mm-&gt;oom_killer_synchronized)</span>
+ 			goto next;
+<span class="p_add">+		if (test_bit(MMF_OOM_SKIP, &amp;mm-&gt;flags))</span>
+<span class="p_add">+			mm-&gt;oom_killer_synchronized = true;</span>
+ 		goto abort;
+ 	}
+ 
+<span class="p_chunk">@@ -470,28 +476,10 @@</span> <span class="p_context"> static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+ {
+ 	struct mmu_gather tlb;
+ 	struct vm_area_struct *vma;
+<span class="p_del">-	bool ret = true;</span>
+<span class="p_del">-</span>
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * We have to make sure to not race with the victim exit path</span>
+<span class="p_del">-	 * and cause premature new oom victim selection:</span>
+<span class="p_del">-	 * __oom_reap_task_mm		exit_mm</span>
+<span class="p_del">-	 *   mmget_not_zero</span>
+<span class="p_del">-	 *				  mmput</span>
+<span class="p_del">-	 *				    atomic_dec_and_test</span>
+<span class="p_del">-	 *				  exit_oom_victim</span>
+<span class="p_del">-	 *				[...]</span>
+<span class="p_del">-	 *				out_of_memory</span>
+<span class="p_del">-	 *				  select_bad_process</span>
+<span class="p_del">-	 *				    # no TIF_MEMDIE task selects new victim</span>
+<span class="p_del">-	 *  unmap_page_range # frees some memory</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	mutex_lock(&amp;oom_lock);</span>
+ 
+ 	if (!down_read_trylock(&amp;mm-&gt;mmap_sem)) {
+<span class="p_del">-		ret = false;</span>
+ 		trace_skip_task_reaping(tsk-&gt;pid);
+<span class="p_del">-		goto unlock_oom;</span>
+<span class="p_add">+		return false;</span>
+ 	}
+ 
+ 	/*
+<span class="p_chunk">@@ -502,7 +490,7 @@</span> <span class="p_context"> static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+ 	if (!mmget_not_zero(mm)) {
+ 		up_read(&amp;mm-&gt;mmap_sem);
+ 		trace_skip_task_reaping(tsk-&gt;pid);
+<span class="p_del">-		goto unlock_oom;</span>
+<span class="p_add">+		return true;</span>
+ 	}
+ 
+ 	trace_start_task_reaping(tsk-&gt;pid);
+<span class="p_chunk">@@ -549,9 +537,7 @@</span> <span class="p_context"> static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+ 	 */
+ 	mmput_async(mm);
+ 	trace_finish_task_reaping(tsk-&gt;pid);
+<span class="p_del">-unlock_oom:</span>
+<span class="p_del">-	mutex_unlock(&amp;oom_lock);</span>
+<span class="p_del">-	return ret;</span>
+<span class="p_add">+	return true;</span>
+ }
+ 
+ #define MAX_OOM_REAP_RETRIES 10
+<span class="p_chunk">@@ -661,8 +647,10 @@</span> <span class="p_context"> static void mark_oom_victim(struct task_struct *tsk)</span>
+ 		return;
+ 
+ 	/* oom_mm is bound to the signal struct life time. */
+<span class="p_del">-	if (!cmpxchg(&amp;tsk-&gt;signal-&gt;oom_mm, NULL, mm))</span>
+<span class="p_del">-		mmgrab(tsk-&gt;signal-&gt;oom_mm);</span>
+<span class="p_add">+	if (!cmpxchg(&amp;tsk-&gt;signal-&gt;oom_mm, NULL, mm)) {</span>
+<span class="p_add">+		mmgrab(mm);</span>
+<span class="p_add">+		mm-&gt;oom_killer_synchronized = false;</span>
+<span class="p_add">+	}</span>
+ 
+ 	/*
+ 	 * Make sure that the task is woken up from uninterruptible sleep
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

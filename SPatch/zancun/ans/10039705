@@ -1,0 +1,428 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>mm/hugetlb: Implement ASLR and topdown for hugetlb mappings - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    mm/hugetlb: Implement ASLR and topdown for hugetlb mappings</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=175993">Zhang, Shile (NSB - CN/Hangzhou)</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Nov. 3, 2017, 9:19 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1509700757-34420-1-git-send-email-shile.zhang@nokia-sbell.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10039705/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10039705/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10039705/">/patch/10039705/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	0AB936032D for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  3 Nov 2017 09:20:35 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 0546B28D74
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  3 Nov 2017 09:20:35 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id ED1F829571; Fri,  3 Nov 2017 09:20:34 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID,RCVD_IN_DNSWL_HI autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id EEF2428D74
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  3 Nov 2017 09:20:32 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1755736AbdKCJUb (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Fri, 3 Nov 2017 05:20:31 -0400
+Received: from mail-eopbgr20110.outbound.protection.outlook.com
+	([40.107.2.110]:45240
+	&quot;EHLO EUR02-VE1-obe.outbound.protection.outlook.com&quot;
+	rhost-flags-OK-OK-OK-FAIL) by vger.kernel.org with ESMTP
+	id S1751944AbdKCJU2 (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Fri, 3 Nov 2017 05:20:28 -0400
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nokia.onmicrosoft.com;
+	s=selector2-nokia-onmicrosoft-com;
+	h=From:Date:Subject:Message-ID:Content-Type:MIME-Version;
+	bh=FT8WBOjSpYmITqFCt2GFmD7UW7HY4WLyMXUBtoZCmF0=;
+	b=YnJat+m40c6qhKy1wlAaF/s13BREieyEKzfvEkz1D/AlOmRsGThAEppaVg/NQNPwgIWblPiEsIE7/R9UBuezREqO59Lq/UKzWp8yGJRA3/wo1sLrlNmNe1tqhQpKJ6J6Wl4Xp/cSjRziYEt36IMi8RhgZkwyFNeyq+uuzWFOJ7o=
+Received: from AM5PR0701CA0055.eurprd07.prod.outlook.com
+	(2603:10a6:203:2::17)
+	by DB5PR07MB1287.eurprd07.prod.outlook.com (2a01:111:e400:599a::25)
+	with Microsoft SMTP Server (version=TLS1_2,
+	cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256_P256) id 15.20.218.6;
+	Fri, 3 Nov 2017 09:20:25 +0000
+Received: from DB5EUR03FT061.eop-EUR03.prod.protection.outlook.com
+	(2a01:111:f400:7e0a::201) by AM5PR0701CA0055.outlook.office365.com
+	(2603:10a6:203:2::17) with Microsoft SMTP Server (version=TLS1_2,
+	cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.20.197.4 via
+	Frontend Transport; Fri, 3 Nov 2017 09:20:25 +0000
+Authentication-Results: spf=pass (sender IP is 131.228.2.240)
+	smtp.mailfrom=nokia-sbell.com; armlinux.org.uk; dkim=none (message not
+	signed) header.d=none;armlinux.org.uk; dmarc=pass action=none
+	header.from=nokia-sbell.com;
+Received-SPF: Pass (protection.outlook.com: domain of nokia-sbell.com
+	designates 131.228.2.240 as permitted sender)
+	receiver=protection.outlook.com; client-ip=131.228.2.240;
+	helo=mailrelay.int.nokia.com;
+Received: from mailrelay.int.nokia.com (131.228.2.240) by
+	DB5EUR03FT061.mail.protection.outlook.com (10.152.21.234) with
+	Microsoft SMTP Server (version=TLS1_2,
+	cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384_P384) id
+	15.20.178.5 via Frontend Transport; Fri, 3 Nov 2017 09:20:24 +0000
+Received: from fihe3nok0734.emea.nsn-net.net (localhost [127.0.0.1])
+	by fihe3nok0734.emea.nsn-net.net (8.14.9/8.14.5) with ESMTP id
+	vA39JNnU028480
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256
+	verify=NOT); Fri, 3 Nov 2017 11:19:23 +0200
+Received: from hzling45.china.nsn-net.net (hzling45.china.nsn-net.net
+	[10.159.218.88])
+	by fihe3nok0734.emea.nsn-net.net (8.14.9/8.14.5) with ESMTP id
+	vA39JMfH028375; Fri, 3 Nov 2017 11:19:23 +0200
+X-HPESVCS-Source-Ip: 10.159.218.88
+Received: by hzling45.china.nsn-net.net (Postfix, from userid 61383349)
+	id A500065A20; Fri,  3 Nov 2017 17:19:20 +0800 (CST)
+From: Shile Zhang &lt;shile.zhang@nokia-sbell.com&gt;
+To: Russell King &lt;linux@armlinux.org.uk&gt;
+CC: &lt;linux-kernel@vger.kernel.org&gt;, Shile Zhang &lt;shile.zhang@nokia-sbell.com&gt;
+Subject: [PATCH] mm/hugetlb: Implement ASLR and topdown for hugetlb mappings
+Date: Fri, 3 Nov 2017 17:19:17 +0800
+Message-ID: &lt;1509700757-34420-1-git-send-email-shile.zhang@nokia-sbell.com&gt;
+X-Mailer: git-send-email 2.6.2
+X-EOPAttributedMessage: 0
+X-MS-Office365-Filtering-HT: Tenant
+X-Forefront-Antispam-Report: CIP:131.228.2.240; IPV:CAL; SCL:-1; CTRY:FI;
+	EFV:NLI; SFV:NSPM;
+	SFS:(10019020)(6009001)(376002)(346002)(39860400002)(2980300002)(438002)(189002)(199003)(478600001)(50226002)(575784001)(86362001)(6916009)(33646002)(6666003)(189998001)(90966002)(2906002)(5660300001)(50986999)(106002)(16586007)(54906003)(42186006)(103686004)(316002)(5003940100001)(47776003)(26826003)(45336002)(46386002)(8676002)(356003)(305945005)(48376002)(50466002)(4326008)(6266002)(53936002)(106466001)(97736004)(22756006)(81156014)(52956003)(8936002)(36756003)(81166006)(68736007)(107886003);
+	DIR:OUT; SFP:1102; SCL:1; SRVR:DB5PR07MB1287;
+	H:mailrelay.int.nokia.com; FPR:; SPF:Pass;
+	PTR:InfoDomainNonexistent; MX:1; A:0; LANG:en; 
+X-Microsoft-Exchange-Diagnostics: 1; DB5EUR03FT061;
+	1:KYMDt10UIXN+/j/mb5PXZZG+x8RGj/GDlAFuVmBs4OhAFTEQfnetgPTkcFRSSd1z3JShm+TWUoX4QNuYh0jBaSadT0JAyVn/fOiJVp2FuKGW8o5RG4j7sVxEP6lL8I9Y
+MIME-Version: 1.0
+Content-Type: text/plain
+X-MS-PublicTrafficType: Email
+X-MS-Office365-Filtering-Correlation-Id: a47ca957-c18b-427e-a856-08d5229c1da2
+X-Microsoft-Antispam: UriScan:; BCL:0; PCL:0;
+	RULEID:(22001)(8251501002)(4534020)(4602075)(4627115)(201703031133081)(201702281549075)(2017052603199);
+	SRVR:DB5PR07MB1287; 
+X-Microsoft-Exchange-Diagnostics: 1; DB5PR07MB1287;
+	3:XHaDdQ27bW4hWJ9S5o17gtmVi5QmaE0nmBWGxKoaExl2vfvgUnzo5+8SmHBOE7prAjZcGXGGFJFB8GB8SAvVn0Yxf5v6Y6JbsG5eWMLpAzkuz28XkRTIPcekO0a/Jyuq++rVZfm60oJLp0W1nomsWBZc7epK7fly5MD4OlG7OFlqA/tLSr4C7s8KFuOjsmJCcCpP3+GaahrSIBXf1EUC/Hd49/hwVpH5JaQE0NkkqM4lQ3Po3A2cclhY3PCnRAbE9BwQJiSDsBw5YeMtafJ1tZupRVHX35fhmf/0P/P7kPk27EgZUa5peBUJoN6Ng3RlEtq8WvsoK97yfxujI56gj7k8bI7F0EztOsat551Zkzg=;
+	25:x9OaxhrByqLGJhP0GjvyotKK0q/irurmkP2UAgivM1IvqAl87lBazLigowbkauhmLj6tmvqmuCAwg6eFqffo/xDnkkIeBcmWplW5ioGFd414dgKh6QGrbUK+fkWXOx1PzRo2kmt6PwHSDkX+QFbmkNTU8OiTZQ4Y35wFy5qMFDYyNqK7Zxih3iD46sUlGsN7+BeCqoXxP7WfcDyWAnFKSn4cYd46vHHAB5GAyfhXfj2UXw9ACZwe8VOeqjcsnVPQNUITzEdymPdt+/jCInuoZLNll6tVYXNFJo4mVCLaeyz9boU4ljpjvh2AMfq2NuV3bU48IYQgF4Xu00QXtinbVg==
+X-MS-TrafficTypeDiagnostic: DB5PR07MB1287:
+X-Microsoft-Exchange-Diagnostics: 1; DB5PR07MB1287;
+	31:F0+c4hbcdVwSJLTGEXFZ2P+On0Wk4anuHmIS0kTEKW6DFPam2Wm9jLjLRLTwPeYHZq6ht8UMdTGr/rT6dBP4d1vWDyu48pRul04o5ZY77ws6yW8d/X1dqcnYlzRYiqUnQhT22TLPtAkqdTcCgM6/WKMiZAWqyNzqefgrVg3Tg4uSfSlw5NWNr/TBHaR8qQuc62uGpdI+SwKg8Yre2+LM7u7CyXbQVfFZO/m7K/2cNYc=;
+	20:2ATqN1ZUsK7eeGvxxPI2gqMpg/am10m1qx2DhJiHOB2TCvwvflnKxbSHmIWo1hav4dw/Xerj5UEn6tuERZy5MUgNd3v/U/YO7Ce6f/Ny5a8kiB3dP9oGKAicXlnvC0gIu/JoteqaU99arTamypihlsbnvzWRBhoU004++W1l5qFevxDYE0IkiZtCIMu3b2UuYINBaDLUCLNnJ9oFkn1SdHh1hTMWkRdE4n7nTOa+ROWwMB+hBPg0pyX1l654jPSj2rcPxicibELrHYArCfcD0SkJWUkNOXQbIXN3+IQDyJBxLtdEX5GcZ7VJBT4ZDm6YebhfBEUiewuhC5t/4tWCEbtdof6Hj+34XchgPd2Yll1mJr4ho0rw+YwWri2ce2lDYRYfYZsVRQTgSfUA4vsKnTQa/u8ClhbR11xl2r0sIOOTcYodErWLxaYYDCmbnpJLDe+caFQNcJYTuwqTx/ljv6oighcfb+kaYpRj6U0Pwib5Vo6DmxvQSkyVNkxBq3zf7adqP5T2FNlW/aO2s/nyzqsXszvN2bnP62T+C8nqlFSHqD79RBm669cbvJwgrAfeU0o2sdGKsTXB/OUlB9T+Yxp5BjO5sMcoRa/dJbZytbM=
+X-Exchange-Antispam-Report-Test: UriScan:;
+X-Microsoft-Antispam-PRVS: &lt;DB5PR07MB12877EE6A845E17333A02843A15D0@DB5PR07MB1287.eurprd07.prod.outlook.com&gt;
+X-Exchange-Antispam-Report-CFA-Test: BCL:0; PCL:0;
+	RULEID:(100000700101)(100105000095)(100000701101)(100105300095)(100000702101)(100105100095)(6040450)(2401047)(5005006)(8121501046)(10201501046)(3231021)(3002001)(93006095)(93004095)(100000703101)(100105400095)(6055026)(6041248)(201703131423075)(201702281528075)(201703061421075)(201703061406153)(20161123562025)(20161123555025)(20161123560025)(20161123558100)(20161123564025)(6072148)(201708071742011)(100000704101)(100105200095)(100000705101)(100105500095);
+	SRVR:DB5PR07MB1287; BCL:0; PCL:0;
+	RULEID:(100000800101)(100110000095)(100000801101)(100110300095)(100000802101)(100110100095)(100000803101)(100110400095)(100000804101)(100110200095)(100000805101)(100110500095);
+	SRVR:DB5PR07MB1287; 
+X-Microsoft-Exchange-Diagnostics: 1; DB5PR07MB1287;
+	4:Yt9doan7geJxtCV3M0vbwyTfKkugszGZ/8qwNfJLiyErGbMKgRxWIEmFextG5Q2zYEficFUTPNF0aH/crr65G06RQZERtulBMlOF3Ahfcn6ZZT9ZRszK/o07gLDLriRXoqZu+vjUDuHA/JCgTpf8S1IQsJeDzufCxHAoTnmEQFCx8etthNwMGF8WVf9QJEQxCszkO4AGXimqFMpFVFcqP+svI2Rc3Di0gr4EvpQD0tr6BBEXEmKvCGnckSBMErIKnMA095sfGLa12EQuXug+Lg==
+X-Forefront-PRVS: 0480A51D4A
+X-Microsoft-Exchange-Diagnostics: =?us-ascii?Q?1; DB5PR07MB1287;
+	23:svSeQOjJW6MqxGqXK6ipImRu58FwiNecl1xD1w7b1?=
+	=?us-ascii?Q?7JL0UOmGnahDRSqJlNum7eCTCEDmV7z+5Sc7rASSS1tTwsg+reOu+gOtKqvz?=
+	=?us-ascii?Q?e/VS6Gsf8f/B/u0t060BAskuRrCfxct2NdlttlOE7T9BEN43ziqn3qNRk03j?=
+	=?us-ascii?Q?gH524Wg2rhCtUZ8XmlrLNku1Gf5j9ctnjUbQbPzQHAECRsatb9BvLXdfy1xn?=
+	=?us-ascii?Q?XmaZEDC54JjOSvQDRZy6Gi4sxBPM01yNmuUn5ASrgmgEZ8WwVeeNNh6ycVpT?=
+	=?us-ascii?Q?Oq93lDz7/24jyhRhBqX88v0pDSYx6QOTjXMXmQtOB8LjecRJ0zSYsFVc61UD?=
+	=?us-ascii?Q?Q8pnKekKIFzMZp9njey/d8gdwzNtPA23oFZd6TL1rF4S7fUwPW+shamVGruk?=
+	=?us-ascii?Q?OmeRZBSvK1idvcrxRgc+b8rF76MSny2iu3OLqe1Mlg+ZlqIcOUcqW5mXpNad?=
+	=?us-ascii?Q?LBNilvKJWktzLkMIMNratnyPX0CIxScgLT/lXDcw8zMiAjLfY7XQCqNBLt82?=
+	=?us-ascii?Q?WhX0lyh1+3CaAMb8VU4qxMm8mjoWTBWNeEZbXFGMcExBiLOtWjcGQkFwHQNq?=
+	=?us-ascii?Q?bI1IAinuXf7s31i4t16LSqgtHSxAy9yLwr3uj1FjraVUO25s9vMWjBt52V99?=
+	=?us-ascii?Q?ylaJ+JbJbcVF0Tr0g/9v9zzgKdSOh9E+b6mScHvQ5+WXD5E6tswBlBbDjSlz?=
+	=?us-ascii?Q?Are9Fh+18QhGlEzl0MVcpEfnFdhQIOOfQhCcsViA6JzrwHnIoDHvF2GTYhS7?=
+	=?us-ascii?Q?hXxUO1eiZxhBwBA4alop5CEoecwhT7GVOhvaOMrEB6egIHMmdjl1iI0YzFxc?=
+	=?us-ascii?Q?6Bhrtuf6U7cxVey8tJ9Gio4kkBFe43jZcQI+X5Bt4gHsm9yVbzmpcg/dcyvN?=
+	=?us-ascii?Q?HfyAjc5cUOE0RqMS+O6yzhbf9K8Wa59PyVVa4qraiusLlR9qvM7+kGtxZ8ue?=
+	=?us-ascii?Q?a6qFsV1Qe+o1QY1xRvyMCDPSkQudZil9LGU/jU7BMo3y3zt4qTHtF3YAqKiT?=
+	=?us-ascii?Q?e2ErSNXqXCjg9vbA58UZrfF4WtYa4PZwow6WA2v0hPhVRNCo6YSV6R1GcxBY?=
+	=?us-ascii?Q?BR/ZlQgdHUvUZc6ZUgZC3/A4ZtRY2k/GwRAzSpeyzlmMXtQY9sFZ5HOrcEb7?=
+	=?us-ascii?Q?oe2rfNXZU+lJbeDz4qP1WOMHPsx9ZGuKwhsaruzkm6PInCg/V1DLg=3D=3D?=
+X-Microsoft-Exchange-Diagnostics: 1; DB5PR07MB1287;
+	6:tQR7tQs9UonkZP3LYCrHDdIiUekw7EoLg0vrCRtZdzoY+67W4Cba35yKQJDZXKbzL/LJv8aMv5HuzK7iPXfYMSTcTY5RFoWDSC1MtUV2xxfF5bJUkdTPCotwJ0aRpbHAgVwiXvr3rp7SR99IBC75F5bo80lsE70vKVMOy8M/XwlSIwSjF4vKl53VNscur5o1Fx1c2tfhPX/DxKG6HmT67eopeBwZzmZaG5aPamn354c8mPFvUsqVr56dp8jqg/XH0N77PbUQ6a3CxcfElm6//5He0DWBlMyiLN9wJJ+bYt/WC1T0a3SOtcNZsCjaqnZQ3q+kxkqySwGfyOxuREYIWlOjC1oZCv6PaoBLtnsq6vk=;
+	5:JVZ/9QPJXtQ3w27/0gOd1Fi8v2OdITupWWfRN6Yenb9ndHdDxyI6W9VgXKaYTOX2QELGn1B5zbNMTUELp4Hn/N3b9dcKUpENoMJ0eDM6ZdrNqWjf/SwmchQc2cHF410VM9mv2a6dFnqMAYm4QLuvgO6QjYHhHJ3Q2O2XXR18Jnk=;
+	24:PLavlFtQ0RObhMrGZrPkBHIveZDwhtT8wfwF+9ebCuEAuBiaZpz3Fe3MkaRYmJ9+3WQtBY66hcFP4Qrb8uwBcHxNZXeYInkH8IsgbSbwEg0=;
+	7:ap79yVCYw58ApvQWdL9noYXJp9ggb5TgDJ2S4Gc5JMKKlaOsYmU2w41v6lIQF39obXoRGqQPs0Af+SZEQNVn2huuUcEAWzUJF1ATLsZ5OsLMCx5Y53pJZibW9FvpMAmb+1tz38VlMutGGWLJmTriEoOZqSfMXNXUrOcGjKH39UQtFstdc2Cp7F1jUZl7QYPNAXo4O/2jQ+oR7D6u8GUlkm27nsJP8OEAxhilkTpxDYzCckG3acSlQa0IS+kzMOjT
+SpamDiagnosticOutput: 1:99
+SpamDiagnosticMetadata: NSPM
+X-OriginatorOrg: nokia-sbell.com
+X-MS-Exchange-CrossTenant-OriginalArrivalTime: 03 Nov 2017 09:20:24.8359
+	(UTC)
+X-MS-Exchange-CrossTenant-Network-Message-Id: a47ca957-c18b-427e-a856-08d5229c1da2
+X-MS-Exchange-CrossTenant-Id: 5d471751-9675-428d-917b-70f44f9630b0
+X-MS-Exchange-CrossTenant-OriginalAttributedTenantConnectingIp: TenantId=5d471751-9675-428d-917b-70f44f9630b0;
+	Ip=[131.228.2.240]; Helo=[mailrelay.int.nokia.com]
+X-MS-Exchange-CrossTenant-FromEntityHeader: HybridOnPrem
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: DB5PR07MB1287
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=175993">Zhang, Shile (NSB - CN/Hangzhou)</a> - Nov. 3, 2017, 9:19 a.m.</div>
+<pre class="content">
+merge from arch/x86
+<span class="signed-off-by">
+Signed-off-by: Shile Zhang &lt;shile.zhang@nokia-sbell.com&gt;</span>
+---
+ arch/arm/include/asm/page.h |  1 +
+ arch/arm/mm/hugetlbpage.c   | 85 +++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 86 insertions(+)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/arm/include/asm/page.h b/arch/arm/include/asm/page.h</span>
+<span class="p_header">index 4355f0e..994630f 100644</span>
+<span class="p_header">--- a/arch/arm/include/asm/page.h</span>
+<span class="p_header">+++ b/arch/arm/include/asm/page.h</span>
+<span class="p_chunk">@@ -144,6 +144,7 @@</span> <span class="p_context"> extern void copy_page(void *to, const void *from);</span>
+ 
+ #ifdef CONFIG_KUSER_HELPERS
+ #define __HAVE_ARCH_GATE_AREA 1
+<span class="p_add">+#define HAVE_ARCH_HUGETLB_UNMAPPED_AREA</span>
+ #endif
+ 
+ #ifdef CONFIG_ARM_LPAE
+<span class="p_header">diff --git a/arch/arm/mm/hugetlbpage.c b/arch/arm/mm/hugetlbpage.c</span>
+<span class="p_header">index fcafb52..46ed0c8 100644</span>
+<span class="p_header">--- a/arch/arm/mm/hugetlbpage.c</span>
+<span class="p_header">+++ b/arch/arm/mm/hugetlbpage.c</span>
+<span class="p_chunk">@@ -45,3 +45,88 @@</span> <span class="p_context"> int pmd_huge(pmd_t pmd)</span>
+ {
+ 	return pmd_val(pmd) &amp;&amp; !(pmd_val(pmd) &amp; PMD_TABLE_BIT);
+ }
+<span class="p_add">+</span>
+<span class="p_add">+#ifdef CONFIG_HUGETLB_PAGE</span>
+<span class="p_add">+static unsigned long hugetlb_get_unmapped_area_bottomup(struct file *file,</span>
+<span class="p_add">+		unsigned long addr, unsigned long len,</span>
+<span class="p_add">+		unsigned long pgoff, unsigned long flags)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct hstate *h = hstate_file(file);</span>
+<span class="p_add">+	struct vm_unmapped_area_info info;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	info.flags = 0;</span>
+<span class="p_add">+	info.length = len;</span>
+<span class="p_add">+	info.low_limit = current-&gt;mm-&gt;mmap_legacy_base;</span>
+<span class="p_add">+	info.high_limit = TASK_SIZE;</span>
+<span class="p_add">+	info.align_mask = PAGE_MASK &amp; ~huge_page_mask(h);</span>
+<span class="p_add">+	info.align_offset = 0;</span>
+<span class="p_add">+	return vm_unmapped_area(&amp;info);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static unsigned long hugetlb_get_unmapped_area_topdown(struct file *file,</span>
+<span class="p_add">+		unsigned long addr0, unsigned long len,</span>
+<span class="p_add">+		unsigned long pgoff, unsigned long flags)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct hstate *h = hstate_file(file);</span>
+<span class="p_add">+	struct vm_unmapped_area_info info;</span>
+<span class="p_add">+	unsigned long addr;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	info.flags = VM_UNMAPPED_AREA_TOPDOWN;</span>
+<span class="p_add">+	info.length = len;</span>
+<span class="p_add">+	info.low_limit = PAGE_SIZE;</span>
+<span class="p_add">+	info.high_limit = current-&gt;mm-&gt;mmap_base;</span>
+<span class="p_add">+	info.align_mask = PAGE_MASK &amp; ~huge_page_mask(h);</span>
+<span class="p_add">+	info.align_offset = 0;</span>
+<span class="p_add">+	addr = vm_unmapped_area(&amp;info);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * A failed mmap() very likely causes application failure,</span>
+<span class="p_add">+	 * so fall back to the bottom-up function here. This scenario</span>
+<span class="p_add">+	 * can happen with large stack limits and large mmap()</span>
+<span class="p_add">+	 * allocations.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (addr &amp; ~PAGE_MASK) {</span>
+<span class="p_add">+		VM_BUG_ON(addr != -ENOMEM);</span>
+<span class="p_add">+		info.flags = 0;</span>
+<span class="p_add">+		info.low_limit = TASK_UNMAPPED_BASE;</span>
+<span class="p_add">+		info.high_limit = TASK_SIZE;</span>
+<span class="p_add">+		addr = vm_unmapped_area(&amp;info);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return addr;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+unsigned long</span>
+<span class="p_add">+hugetlb_get_unmapped_area(struct file *file, unsigned long addr,</span>
+<span class="p_add">+		unsigned long len, unsigned long pgoff, unsigned long flags)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct hstate *h = hstate_file(file);</span>
+<span class="p_add">+	struct mm_struct *mm = current-&gt;mm;</span>
+<span class="p_add">+	struct vm_area_struct *vma;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (len &amp; ~huge_page_mask(h))</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+	if (len &gt; TASK_SIZE)</span>
+<span class="p_add">+		return -ENOMEM;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (flags &amp; MAP_FIXED) {</span>
+<span class="p_add">+		if (prepare_hugepage_range(file, addr, len))</span>
+<span class="p_add">+			return -EINVAL;</span>
+<span class="p_add">+		return addr;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (addr) {</span>
+<span class="p_add">+		addr = ALIGN(addr, huge_page_size(h));</span>
+<span class="p_add">+		vma = find_vma(mm, addr);</span>
+<span class="p_add">+		if (TASK_SIZE - len &gt;= addr &amp;&amp;</span>
+<span class="p_add">+		    (!vma || addr + len &lt;= vma-&gt;vm_start))</span>
+<span class="p_add">+			return addr;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	if (mm-&gt;get_unmapped_area == arch_get_unmapped_area)</span>
+<span class="p_add">+		return hugetlb_get_unmapped_area_bottomup(file, addr, len,</span>
+<span class="p_add">+				pgoff, flags);</span>
+<span class="p_add">+	else</span>
+<span class="p_add">+		return hugetlb_get_unmapped_area_topdown(file, addr, len,</span>
+<span class="p_add">+				pgoff, flags);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+#endif /* CONFIG_HUGETLB_PAGE */</span>
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

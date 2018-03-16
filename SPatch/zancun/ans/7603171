@@ -1,0 +1,1040 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[4/6] x86/efi: Hoist page table switching code into efi_call_virt() - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [4/6] x86/efi: Hoist page table switching code into efi_call_virt()</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=119821">Matt Fleming</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Nov. 12, 2015, 3:40 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1447342823-3612-5-git-send-email-matt@codeblueprint.co.uk&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7603171/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7603171/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7603171/">/patch/7603171/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id 46CD9BF90C
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 12 Nov 2015 15:40:58 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 3DC56201D3
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 12 Nov 2015 15:40:57 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 04C5C203F1
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 12 Nov 2015 15:40:56 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1754930AbbKLPkk (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 12 Nov 2015 10:40:40 -0500
+Received: from mail-wm0-f47.google.com ([74.125.82.47]:38862 &quot;EHLO
+	mail-wm0-f47.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1754849AbbKLPkd (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 12 Nov 2015 10:40:33 -0500
+Received: by wmec201 with SMTP id c201so97408889wme.1
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Thu, 12 Nov 2015 07:40:32 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=codeblueprint_co_uk.20150623.gappssmtp.com; s=20150623;
+	h=from:to:cc:subject:date:message-id:in-reply-to:references;
+	bh=VCSceOZ0p3/nWhsRItKjBy9zPpPeSWSQcqJ8Dkcj58s=;
+	b=LQgo4Ue97NEruxmqTT3DywAPC2JK2zCatM7N65eBi0FckDvugnwcp7jxQk7DV3I2/0
+	V3ffR89lKf4AGHM2w9ucVVxXQbArr93GtNmRGoEDFrfwLY9y0v0Bf0zOrL1we5FaA4UJ
+	+Q/+r3NIJSBKEHKQPeVkTnHQrmGq0wr8Vv5uWNFMyZ8lF0x/LoIs4AiOJ2Nd2BEPN1I2
+	DwuiNeh1EUHWobpTTBWQqppvT2TLA7A8+pa8wuoKBkyMh/UADU0Ws17RpiwMEr5dv+3U
+	mCImU7XpoEe4HFh8zwIbrF2uhwTm5YFv4R4Lj9RUoQ3Lbj3tatOi1rbJ6TvpKSDr4VU1
+	h2Lw==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20130820;
+	h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+	:references;
+	bh=VCSceOZ0p3/nWhsRItKjBy9zPpPeSWSQcqJ8Dkcj58s=;
+	b=lwuCS+stwrp68Gvg0U4NvFurfw2PIPpndAMgfSIgcGfLyEZeLF8TQVeEbzzAlq5Vp3
+	5zywWxcTBhouWHAhgRbocDWK51X1lJhZ9q1vndYBOpseBMrVKhjk1+SEMAL0RFsd5WR5
+	7nx/ULVKXDapSeM7c4E//T6KxT+KYGKi0HVs3YLBsu1MXzEYJJrD+MLXQXry+E5dxG+9
+	JVGFqWtkQ3uJYOMAu2HCkRy5JCFC6R9vLb7O777nf5KhSb1shR0y2F4jqOeALJm8KgFU
+	Ft0QTzy0E1tLknaVkcAdBBG2o6GJkt8Icn6LLV1cNs+NvuA75N7FxqyZyp0Y4ulIfXde
+	dKyg==
+X-Gm-Message-State: ALoCoQn96XyOWGHrZwa/SL/7F6AmfyZvjnf8Z1znYb+qiGfoZ0s1wVcolebtno5+HdsvXubgR8G4
+X-Received: by 10.28.133.133 with SMTP id h127mr48211960wmd.41.1447342832057;
+	Thu, 12 Nov 2015 07:40:32 -0800 (PST)
+Received: from localhost ([2a02:c7d:4668:9600:a457:59b2:2167:8cd9])
+	by smtp.gmail.com with ESMTPSA id
+	bk7sm15033006wjb.25.2015.11.12.07.40.31
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Thu, 12 Nov 2015 07:40:31 -0800 (PST)
+From: Matt Fleming &lt;matt@codeblueprint.co.uk&gt;
+To: Ingo Molnar &lt;mingo@kernel.org&gt;, Thomas Gleixner &lt;tglx@linutronix.de&gt;,
+	&quot;H . Peter Anvin&quot; &lt;hpa@zytor.com&gt;
+Cc: Toshi Kani &lt;toshi.kani@hp.com&gt;, Matt Fleming &lt;matt@codeblueprint.co.uk&gt;,
+	linux-kernel@vger.kernel.org, linux-efi@vger.kernel.org,
+	Borislav Petkov &lt;bp@alien8.de&gt;,
+	Sai Praneeth Prakhya &lt;sai.praneeth.prakhya@intel.com&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Dave Jones &lt;davej@codemonkey.org.uk&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Andy Lutomirski &lt;luto@kernel.org&gt;, Denys Vlasenko &lt;dvlasenk@redhat.com&gt;,
+	Stephen Smalley &lt;sds@tycho.nsa.gov&gt;
+Subject: [PATCH 4/6] x86/efi: Hoist page table switching code into
+	efi_call_virt()
+Date: Thu, 12 Nov 2015 15:40:21 +0000
+Message-Id: &lt;1447342823-3612-5-git-send-email-matt@codeblueprint.co.uk&gt;
+X-Mailer: git-send-email 2.6.2
+In-Reply-To: &lt;1447342823-3612-1-git-send-email-matt@codeblueprint.co.uk&gt;
+References: &lt;1447342823-3612-1-git-send-email-matt@codeblueprint.co.uk&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-7.2 required=5.0 tests=BAYES_00,DKIM_SIGNED,
+	RCVD_IN_DNSWL_HI,RP_MATCHES_RCVD,T_DKIM_INVALID,UNPARSEABLE_RELAY
+	autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=119821">Matt Fleming</a> - Nov. 12, 2015, 3:40 p.m.</div>
+<pre class="content">
+This change is a prerequisite for pending patches that switch to a
+dedicated EFI page table, instead of using &#39;trampoline_pgd&#39; which
+shares PGD entries with &#39;swapper_pg_dir&#39;. The pending patches make it
+impossible to dereference the runtime service function pointer without
+first switching %cr3.
+
+It&#39;s true that we now have duplicated switching code in
+efi_call_virt() and efi_call_phys_{prolog,epilog}() but we are
+sacrificing code duplication for a little more clarity and the ease of
+writing the page table switching code in C instead of asm.
+
+Cc: Borislav Petkov &lt;bp@alien8.de&gt;
+Cc: Sai Praneeth Prakhya &lt;sai.praneeth.prakhya@intel.com&gt;
+Cc: Ingo Molnar &lt;mingo@kernel.org&gt;
+Cc: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+Cc: Dave Jones &lt;davej@codemonkey.org.uk&gt;
+Cc: Thomas Gleixner &lt;tglx@linutronix.de&gt;
+Cc: H. Peter Anvin &lt;hpa@zytor.com&gt;
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: Andy Lutomirski &lt;luto@kernel.org&gt;
+Cc: Denys Vlasenko &lt;dvlasenk@redhat.com&gt;,
+Cc: Stephen Smalley &lt;sds@tycho.nsa.gov&gt;
+<span class="signed-off-by">Signed-off-by: Matt Fleming &lt;matt@codeblueprint.co.uk&gt;</span>
+---
+ arch/x86/include/asm/efi.h          | 25 +++++++++++++++++++++
+ arch/x86/platform/efi/efi_64.c      | 24 ++++++++++-----------
+ arch/x86/platform/efi/efi_stub_64.S | 43 -------------------------------------
+ 3 files changed, 36 insertions(+), 56 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7500">Borislav Petkov</a> - Nov. 12, 2015, 6:44 p.m.</div>
+<pre class="content">
+On Thu, Nov 12, 2015 at 03:40:21PM +0000, Matt Fleming wrote:
+<span class="quote">&gt; This change is a prerequisite for pending patches that switch to a</span>
+<span class="quote">&gt; dedicated EFI page table, instead of using &#39;trampoline_pgd&#39; which</span>
+<span class="quote">&gt; shares PGD entries with &#39;swapper_pg_dir&#39;. The pending patches make it</span>
+<span class="quote">&gt; impossible to dereference the runtime service function pointer without</span>
+<span class="quote">&gt; first switching %cr3.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It&#39;s true that we now have duplicated switching code in</span>
+<span class="quote">&gt; efi_call_virt() and efi_call_phys_{prolog,epilog}() but we are</span>
+<span class="quote">&gt; sacrificing code duplication for a little more clarity and the ease of</span>
+<span class="quote">&gt; writing the page table switching code in C instead of asm.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Cc: Borislav Petkov &lt;bp@alien8.de&gt;</span>
+<span class="quote">&gt; Cc: Sai Praneeth Prakhya &lt;sai.praneeth.prakhya@intel.com&gt;</span>
+<span class="quote">&gt; Cc: Ingo Molnar &lt;mingo@kernel.org&gt;</span>
+<span class="quote">&gt; Cc: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;</span>
+<span class="quote">&gt; Cc: Dave Jones &lt;davej@codemonkey.org.uk&gt;</span>
+<span class="quote">&gt; Cc: Thomas Gleixner &lt;tglx@linutronix.de&gt;</span>
+<span class="quote">&gt; Cc: H. Peter Anvin &lt;hpa@zytor.com&gt;</span>
+<span class="quote">&gt; Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;</span>
+<span class="quote">&gt; Cc: Andy Lutomirski &lt;luto@kernel.org&gt;</span>
+<span class="quote">&gt; Cc: Denys Vlasenko &lt;dvlasenk@redhat.com&gt;,</span>
+<span class="quote">&gt; Cc: Stephen Smalley &lt;sds@tycho.nsa.gov&gt;</span>
+<span class="quote">&gt; Signed-off-by: Matt Fleming &lt;matt@codeblueprint.co.uk&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  arch/x86/include/asm/efi.h          | 25 +++++++++++++++++++++</span>
+<span class="quote">&gt;  arch/x86/platform/efi/efi_64.c      | 24 ++++++++++-----------</span>
+<span class="quote">&gt;  arch/x86/platform/efi/efi_stub_64.S | 43 -------------------------------------</span>
+<span class="quote">&gt;  3 files changed, 36 insertions(+), 56 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/arch/x86/include/asm/efi.h b/arch/x86/include/asm/efi.h</span>
+<span class="quote">&gt; index cfee9d4b02af..f9d99d4e7b1a 100644</span>
+<span class="quote">&gt; --- a/arch/x86/include/asm/efi.h</span>
+<span class="quote">&gt; +++ b/arch/x86/include/asm/efi.h</span>
+<span class="quote">&gt; @@ -3,6 +3,7 @@</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  #include &lt;asm/fpu/api.h&gt;</span>
+<span class="quote">&gt;  #include &lt;asm/pgtable.h&gt;</span>
+<span class="quote">&gt; +#include &lt;asm/tlb.h&gt;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  /*</span>
+<span class="quote">&gt;   * We map the EFI regions needed for runtime services non-contiguously,</span>
+<span class="quote">&gt; @@ -64,6 +65,17 @@ extern u64 asmlinkage efi_call(void *fp, ...);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  #define efi_call_phys(f, args...)		efi_call((f), args)</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +/*</span>
+<span class="quote">&gt; + * Scratch space used for switching the pagetable in the EFI stub</span>
+<span class="quote">&gt; + */</span>
+<span class="quote">&gt; +struct efi_scratch {</span>
+<span class="quote">&gt; +	u64 r15;</span>
+<span class="quote">&gt; +	u64 prev_cr3;</span>
+<span class="quote">&gt; +	pgd_t *efi_pgt;</span>
+<span class="quote">&gt; +	bool use_pgd;</span>
+<span class="quote">&gt; +	u64 phys_stack;</span>
+<span class="quote">&gt; +} __packed;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  #define efi_call_virt(f, ...)						\</span>
+<span class="quote">&gt;  ({									\</span>
+<span class="quote">&gt;  	efi_status_t __s;						\</span>
+<span class="quote">&gt; @@ -71,7 +83,20 @@ extern u64 asmlinkage efi_call(void *fp, ...);</span>
+<span class="quote">&gt;  	efi_sync_low_kernel_mappings();					\</span>
+<span class="quote">&gt;  	preempt_disable();						\</span>
+<span class="quote">&gt;  	__kernel_fpu_begin();						\</span>
+<span class="quote">&gt; +									\</span>
+<span class="quote">&gt; +	if (efi_scratch.use_pgd) {					\</span>
+<span class="quote">&gt; +		efi_scratch.prev_cr3 = read_cr3(); 			\</span>
+<span class="quote">&gt; +		write_cr3((unsigned long)efi_scratch.efi_pgt);		\</span>
+<span class="quote">&gt; +		__flush_tlb_all(); 					\</span>
+<span class="quote">&gt; +	}								\</span>
+<span class="quote">&gt; +									\</span>
+<span class="quote">&gt;  	__s = efi_call((void *)efi.systab-&gt;runtime-&gt;f, __VA_ARGS__);	\</span>
+<span class="quote">&gt; +									\</span>
+<span class="quote">&gt; +	if (efi_scratch.use_pgd) { 					\</span>
+<span class="quote">&gt; +		write_cr3(efi_scratch.prev_cr3);			\</span>
+<span class="quote">&gt; +		__flush_tlb_all(); 					\</span>
+<span class="quote">&gt; +	} 								\</span>
+<span class="quote">&gt; +									\</span>
+<span class="quote">&gt;  	__kernel_fpu_end();						\</span>
+<span class="quote">&gt;  	preempt_enable();						\</span>
+<span class="quote">&gt;  	__s;								\</span>
+<span class="quote">&gt; diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c</span>
+<span class="quote">&gt; index 634536034e32..ab5f14a886cc 100644</span>
+<span class="quote">&gt; --- a/arch/x86/platform/efi/efi_64.c</span>
+<span class="quote">&gt; +++ b/arch/x86/platform/efi/efi_64.c</span>
+<span class="quote">&gt; @@ -47,16 +47,7 @@</span>
+<span class="quote">&gt;   */</span>
+<span class="quote">&gt;  static u64 efi_va = EFI_VA_START;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -/*</span>
+<span class="quote">&gt; - * Scratch space used for switching the pagetable in the EFI stub</span>
+<span class="quote">&gt; - */</span>
+<span class="quote">&gt; -struct efi_scratch {</span>
+<span class="quote">&gt; -	u64 r15;</span>
+<span class="quote">&gt; -	u64 prev_cr3;</span>
+<span class="quote">&gt; -	pgd_t *efi_pgt;</span>
+<span class="quote">&gt; -	bool use_pgd;</span>
+<span class="quote">&gt; -	u64 phys_stack;</span>
+<span class="quote">&gt; -} __packed;</span>
+<span class="quote">&gt; +struct efi_scratch efi_scratch;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static void __init early_code_mapping_set_exec(int executable)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; @@ -83,8 +74,11 @@ pgd_t * __init efi_call_phys_prolog(void)</span>
+<span class="quote">&gt;  	int pgd;</span>
+<span class="quote">&gt;  	int n_pgds;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	if (!efi_enabled(EFI_OLD_MEMMAP))</span>
+<span class="quote">&gt; -		return NULL;</span>
+<span class="quote">&gt; +	if (!efi_enabled(EFI_OLD_MEMMAP)) {</span>
+<span class="quote">&gt; +		save_pgd = (pgd_t *)read_cr3();</span>
+<span class="quote">&gt; +		write_cr3((unsigned long)efi_scratch.efi_pgt);</span>
+<span class="quote">&gt; +		goto out;</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	early_code_mapping_set_exec(1);</span>
+<span class="quote">&gt;  </span>
+
+So this one is called in phys_efi_set_virtual_address_map() like this:
+
+----
+        save_pgd = efi_call_phys_prolog();
+
+        /* Disable interrupts around EFI calls: */
+        local_irq_save(flags);
+
+	&lt;--- MARKER
+
+        status = efi_call_phys(efi_phys.set_virtual_address_map,
+                               memory_map_size, descriptor_size,
+                               descriptor_version, virtual_map);
+        local_irq_restore(flags);
+
+        efi_call_phys_epilog(save_pgd);
+---
+
+
+Now, if you look at MARKER, the asm looks like this here:
+
+        .loc 1 91 0
+        call    efi_call_phys_prolog    #
+        movq    %rax, %r15      #, save_pgd
+
+        .file 6 &quot;./arch/x86/include/asm/irqflags.h&quot;
+        .loc 6 20 0
+#APP
+# 20 &quot;./arch/x86/include/asm/irqflags.h&quot; 1
+        # __raw_save_flags
+        pushf ; pop %r14        # flags
+
+
+That PUSHF implicitly pushes on the stack pointed by %rsp. But(!) we
+have switched the pagetable (i.e., %cr3 has efi_scratch.efi_pgt) and
+we&#39;re pushing to the VA where the stack *was* but is not anymore.
+
+Or maybe it is because you&#39;re copying all the PUDs. It is still not 100%
+clean, IMHO.
+
+Can you do the prolog/epilog calls inside the IRQs-off section?
+
+Btw, it was crap like that why I wanted to do SWITCH_PGT in asm...
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7500">Borislav Petkov</a> - Nov. 12, 2015, 6:47 p.m.</div>
+<pre class="content">
+On Thu, Nov 12, 2015 at 03:40:21PM +0000, Matt Fleming wrote:
+<span class="quote">&gt; This change is a prerequisite for pending patches that switch to a</span>
+<span class="quote">&gt; dedicated EFI page table, instead of using &#39;trampoline_pgd&#39; which</span>
+<span class="quote">&gt; shares PGD entries with &#39;swapper_pg_dir&#39;. The pending patches make it</span>
+<span class="quote">&gt; impossible to dereference the runtime service function pointer without</span>
+<span class="quote">&gt; first switching %cr3.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It&#39;s true that we now have duplicated switching code in</span>
+<span class="quote">&gt; efi_call_virt() and efi_call_phys_{prolog,epilog}() but we are</span>
+<span class="quote">&gt; sacrificing code duplication for a little more clarity and the ease of</span>
+<span class="quote">&gt; writing the page table switching code in C instead of asm.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Cc: Borislav Petkov &lt;bp@alien8.de&gt;</span>
+<span class="quote">&gt; Cc: Sai Praneeth Prakhya &lt;sai.praneeth.prakhya@intel.com&gt;</span>
+<span class="quote">&gt; Cc: Ingo Molnar &lt;mingo@kernel.org&gt;</span>
+<span class="quote">&gt; Cc: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;</span>
+<span class="quote">&gt; Cc: Dave Jones &lt;davej@codemonkey.org.uk&gt;</span>
+<span class="quote">&gt; Cc: Thomas Gleixner &lt;tglx@linutronix.de&gt;</span>
+<span class="quote">&gt; Cc: H. Peter Anvin &lt;hpa@zytor.com&gt;</span>
+<span class="quote">&gt; Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;</span>
+<span class="quote">&gt; Cc: Andy Lutomirski &lt;luto@kernel.org&gt;</span>
+<span class="quote">&gt; Cc: Denys Vlasenko &lt;dvlasenk@redhat.com&gt;,</span>
+<span class="quote">&gt; Cc: Stephen Smalley &lt;sds@tycho.nsa.gov&gt;</span>
+<span class="quote">&gt; Signed-off-by: Matt Fleming &lt;matt@codeblueprint.co.uk&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  arch/x86/include/asm/efi.h          | 25 +++++++++++++++++++++</span>
+<span class="quote">&gt;  arch/x86/platform/efi/efi_64.c      | 24 ++++++++++-----------</span>
+<span class="quote">&gt;  arch/x86/platform/efi/efi_stub_64.S | 43 -------------------------------------</span>
+<span class="quote">&gt;  3 files changed, 36 insertions(+), 56 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/arch/x86/include/asm/efi.h b/arch/x86/include/asm/efi.h</span>
+<span class="quote">&gt; index cfee9d4b02af..f9d99d4e7b1a 100644</span>
+<span class="quote">&gt; --- a/arch/x86/include/asm/efi.h</span>
+<span class="quote">&gt; +++ b/arch/x86/include/asm/efi.h</span>
+<span class="quote">&gt; @@ -3,6 +3,7 @@</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  #include &lt;asm/fpu/api.h&gt;</span>
+<span class="quote">&gt;  #include &lt;asm/pgtable.h&gt;</span>
+<span class="quote">&gt; +#include &lt;asm/tlb.h&gt;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  /*</span>
+<span class="quote">&gt;   * We map the EFI regions needed for runtime services non-contiguously,</span>
+<span class="quote">&gt; @@ -64,6 +65,17 @@ extern u64 asmlinkage efi_call(void *fp, ...);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  #define efi_call_phys(f, args...)		efi_call((f), args)</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +/*</span>
+<span class="quote">&gt; + * Scratch space used for switching the pagetable in the EFI stub</span>
+<span class="quote">&gt; + */</span>
+<span class="quote">&gt; +struct efi_scratch {</span>
+<span class="quote">&gt; +	u64 r15;</span>
+<span class="quote">&gt; +	u64 prev_cr3;</span>
+<span class="quote">&gt; +	pgd_t *efi_pgt;</span>
+<span class="quote">&gt; +	bool use_pgd;</span>
+<span class="quote">&gt; +	u64 phys_stack;</span>
+<span class="quote">&gt; +} __packed;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  #define efi_call_virt(f, ...)						\</span>
+<span class="quote">&gt;  ({									\</span>
+<span class="quote">&gt;  	efi_status_t __s;						\</span>
+<span class="quote">&gt; @@ -71,7 +83,20 @@ extern u64 asmlinkage efi_call(void *fp, ...);</span>
+<span class="quote">&gt;  	efi_sync_low_kernel_mappings();					\</span>
+<span class="quote">&gt;  	preempt_disable();						\</span>
+<span class="quote">&gt;  	__kernel_fpu_begin();						\</span>
+<span class="quote">&gt; +									\</span>
+<span class="quote">&gt; +	if (efi_scratch.use_pgd) {					\</span>
+<span class="quote">&gt; +		efi_scratch.prev_cr3 = read_cr3(); 			\</span>
+<span class="quote">&gt; +		write_cr3((unsigned long)efi_scratch.efi_pgt);		\</span>
+<span class="quote">&gt; +		__flush_tlb_all(); 					\</span>
+<span class="quote">&gt; +	}								\</span>
+<span class="quote">&gt; +									\</span>
+<span class="quote">&gt;  	__s = efi_call((void *)efi.systab-&gt;runtime-&gt;f, __VA_ARGS__);	\</span>
+<span class="quote">&gt; +									\</span>
+<span class="quote">&gt; +	if (efi_scratch.use_pgd) { 					\</span>
+<span class="quote">&gt; +		write_cr3(efi_scratch.prev_cr3);			\</span>
+<span class="quote">&gt; +		__flush_tlb_all(); 					\</span>
+<span class="quote">&gt; +	} 								\</span>
+<span class="quote">&gt; +									\</span>
+<span class="quote">&gt;  	__kernel_fpu_end();						\</span>
+<span class="quote">&gt;  	preempt_enable();						\</span>
+<span class="quote">&gt;  	__s;								\</span>
+
+checkpatch is bitching here - not that I agree with it:
+
+WARNING: please, no space before tabs
+#87: FILE: arch/x86/include/asm/efi.h:88:
++^I^Iefi_scratch.prev_cr3 = read_cr3(); ^I^I^I\$
+
+WARNING: please, no space before tabs
+#89: FILE: arch/x86/include/asm/efi.h:90:
++^I^I__flush_tlb_all(); ^I^I^I^I^I\$
+
+WARNING: please, no space before tabs
+#94: FILE: arch/x86/include/asm/efi.h:95:
++^Iif (efi_scratch.use_pgd) { ^I^I^I^I^I\$
+
+WARNING: please, no space before tabs
+#96: FILE: arch/x86/include/asm/efi.h:97:
++^I^I__flush_tlb_all(); ^I^I^I^I^I\$
+
+WARNING: please, no space before tabs
+#97: FILE: arch/x86/include/asm/efi.h:98:
++^I} ^I^I^I^I^I^I^I^I\$
+<span class="quote">
+
+&gt; diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c</span>
+<span class="quote">&gt; index 634536034e32..ab5f14a886cc 100644</span>
+<span class="quote">&gt; --- a/arch/x86/platform/efi/efi_64.c</span>
+<span class="quote">&gt; +++ b/arch/x86/platform/efi/efi_64.c</span>
+<span class="quote">&gt; @@ -47,16 +47,7 @@</span>
+<span class="quote">&gt;   */</span>
+<span class="quote">&gt;  static u64 efi_va = EFI_VA_START;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -/*</span>
+<span class="quote">&gt; - * Scratch space used for switching the pagetable in the EFI stub</span>
+<span class="quote">&gt; - */</span>
+<span class="quote">&gt; -struct efi_scratch {</span>
+<span class="quote">&gt; -	u64 r15;</span>
+<span class="quote">&gt; -	u64 prev_cr3;</span>
+<span class="quote">&gt; -	pgd_t *efi_pgt;</span>
+<span class="quote">&gt; -	bool use_pgd;</span>
+<span class="quote">&gt; -	u64 phys_stack;</span>
+<span class="quote">&gt; -} __packed;</span>
+<span class="quote">&gt; +struct efi_scratch efi_scratch;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static void __init early_code_mapping_set_exec(int executable)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; @@ -83,8 +74,11 @@ pgd_t * __init efi_call_phys_prolog(void)</span>
+<span class="quote">&gt;  	int pgd;</span>
+<span class="quote">&gt;  	int n_pgds;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	if (!efi_enabled(EFI_OLD_MEMMAP))</span>
+<span class="quote">&gt; -		return NULL;</span>
+<span class="quote">&gt; +	if (!efi_enabled(EFI_OLD_MEMMAP)) {</span>
+<span class="quote">&gt; +		save_pgd = (pgd_t *)read_cr3();</span>
+<span class="quote">&gt; +		write_cr3((unsigned long)efi_scratch.efi_pgt);</span>
+<span class="quote">&gt; +		goto out;</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	early_code_mapping_set_exec(1);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; @@ -96,6 +90,7 @@ pgd_t * __init efi_call_phys_prolog(void)</span>
+<span class="quote">&gt;  		vaddress = (unsigned long)__va(pgd * PGDIR_SIZE);</span>
+<span class="quote">&gt;  		set_pgd(pgd_offset_k(pgd * PGDIR_SIZE), *pgd_offset_k(vaddress));</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt; +out:</span>
+<span class="quote">&gt;  	__flush_tlb_all();</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	return save_pgd;</span>
+<span class="quote">&gt; @@ -109,8 +104,11 @@ void __init efi_call_phys_epilog(pgd_t *save_pgd)</span>
+
+There&#39;s a comment here:
+
+        /*
+         * After the lock is released, the original page table is restored.
+         */
+
+Which lock are we talking about?
+<span class="quote">
+&gt;  	int pgd_idx;</span>
+<span class="quote">&gt;  	int nr_pgds;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	if (!save_pgd)</span>
+<span class="quote">&gt; +	if (!efi_enabled(EFI_OLD_MEMMAP)) {</span>
+<span class="quote">&gt; +		write_cr3((unsigned long)save_pgd);</span>
+<span class="quote">&gt; +		__flush_tlb_all();</span>
+<span class="quote">&gt;  		return;</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	nr_pgds = DIV_ROUND_UP((max_pfn &lt;&lt; PAGE_SHIFT) , PGDIR_SIZE);</span>
+<span class="quote">&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=119821">Matt Fleming</a> - Nov. 12, 2015, 8:01 p.m.</div>
+<pre class="content">
+On Thu, 12 Nov, at 07:44:32PM, Borislav Petkov wrote:
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So this one is called in phys_efi_set_virtual_address_map() like this:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; ----</span>
+<span class="quote">&gt;         save_pgd = efi_call_phys_prolog();</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;         /* Disable interrupts around EFI calls: */</span>
+<span class="quote">&gt;         local_irq_save(flags);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 	&lt;--- MARKER</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;         status = efi_call_phys(efi_phys.set_virtual_address_map,</span>
+<span class="quote">&gt;                                memory_map_size, descriptor_size,</span>
+<span class="quote">&gt;                                descriptor_version, virtual_map);</span>
+<span class="quote">&gt;         local_irq_restore(flags);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;         efi_call_phys_epilog(save_pgd);</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Now, if you look at MARKER, the asm looks like this here:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;         .loc 1 91 0</span>
+<span class="quote">&gt;         call    efi_call_phys_prolog    #</span>
+<span class="quote">&gt;         movq    %rax, %r15      #, save_pgd</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;         .file 6 &quot;./arch/x86/include/asm/irqflags.h&quot;</span>
+<span class="quote">&gt;         .loc 6 20 0</span>
+<span class="quote">&gt; #APP</span>
+<span class="quote">&gt; # 20 &quot;./arch/x86/include/asm/irqflags.h&quot; 1</span>
+<span class="quote">&gt;         # __raw_save_flags</span>
+<span class="quote">&gt;         pushf ; pop %r14        # flags</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; That PUSHF implicitly pushes on the stack pointed by %rsp. But(!) we</span>
+<span class="quote">&gt; have switched the pagetable (i.e., %cr3 has efi_scratch.efi_pgt) and</span>
+<span class="quote">&gt; we&#39;re pushing to the VA where the stack *was* but is not anymore.</span>
+ 
+All the kernel mappings will still exist in the page table we switch
+to, so pushing to the stack should be fine.
+
+The mappings have to exist so that the firmware can dereference
+pointer arguments, e.g. when writing variable data to a kernel buffer.
+
+Or have I misunderstood your point?
+<span class="quote">
+&gt; Or maybe it is because you&#39;re copying all the PUDs. It is still not 100%</span>
+<span class="quote">&gt; clean, IMHO.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Can you do the prolog/epilog calls inside the IRQs-off section?</span>
+
+Not really because in the efi_enabled(EFI_OLD_MEMMAP) case we perform
+kmalloc(), see commit 23a0d4e8fa6d (&quot;efi: Disable interrupts around
+EFI calls, not in the epilog/prolog calls&quot;).
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=119821">Matt Fleming</a> - Nov. 12, 2015, 8:15 p.m.</div>
+<pre class="content">
+On Thu, 12 Nov, at 07:47:14PM, Borislav Petkov wrote:
+<span class="quote">&gt; </span>
+<span class="quote">&gt; checkpatch is bitching here - not that I agree with it:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; WARNING: please, no space before tabs</span>
+<span class="quote">&gt; #87: FILE: arch/x86/include/asm/efi.h:88:</span>
+<span class="quote">&gt; +^I^Iefi_scratch.prev_cr3 = read_cr3(); ^I^I^I\$</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; WARNING: please, no space before tabs</span>
+<span class="quote">&gt; #89: FILE: arch/x86/include/asm/efi.h:90:</span>
+<span class="quote">&gt; +^I^I__flush_tlb_all(); ^I^I^I^I^I\$</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; WARNING: please, no space before tabs</span>
+<span class="quote">&gt; #94: FILE: arch/x86/include/asm/efi.h:95:</span>
+<span class="quote">&gt; +^Iif (efi_scratch.use_pgd) { ^I^I^I^I^I\$</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; WARNING: please, no space before tabs</span>
+<span class="quote">&gt; #96: FILE: arch/x86/include/asm/efi.h:97:</span>
+<span class="quote">&gt; +^I^I__flush_tlb_all(); ^I^I^I^I^I\$</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; WARNING: please, no space before tabs</span>
+<span class="quote">&gt; #97: FILE: arch/x86/include/asm/efi.h:98:</span>
+<span class="quote">&gt; +^I} ^I^I^I^I^I^I^I^I\$</span>
+ 
+Crap. These look legit, I&#39;ll fix this up in v2.
+<span class="quote">
+&gt; &gt; diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c</span>
+<span class="quote">&gt; &gt; index 634536034e32..ab5f14a886cc 100644</span>
+<span class="quote">&gt; &gt; --- a/arch/x86/platform/efi/efi_64.c</span>
+<span class="quote">&gt; &gt; +++ b/arch/x86/platform/efi/efi_64.c</span>
+<span class="quote">&gt; &gt; @@ -47,16 +47,7 @@</span>
+<span class="quote">&gt; &gt;   */</span>
+<span class="quote">&gt; &gt;  static u64 efi_va = EFI_VA_START;</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt; -/*</span>
+<span class="quote">&gt; &gt; - * Scratch space used for switching the pagetable in the EFI stub</span>
+<span class="quote">&gt; &gt; - */</span>
+<span class="quote">&gt; &gt; -struct efi_scratch {</span>
+<span class="quote">&gt; &gt; -	u64 r15;</span>
+<span class="quote">&gt; &gt; -	u64 prev_cr3;</span>
+<span class="quote">&gt; &gt; -	pgd_t *efi_pgt;</span>
+<span class="quote">&gt; &gt; -	bool use_pgd;</span>
+<span class="quote">&gt; &gt; -	u64 phys_stack;</span>
+<span class="quote">&gt; &gt; -} __packed;</span>
+<span class="quote">&gt; &gt; +struct efi_scratch efi_scratch;</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt;  static void __init early_code_mapping_set_exec(int executable)</span>
+<span class="quote">&gt; &gt;  {</span>
+<span class="quote">&gt; &gt; @@ -83,8 +74,11 @@ pgd_t * __init efi_call_phys_prolog(void)</span>
+<span class="quote">&gt; &gt;  	int pgd;</span>
+<span class="quote">&gt; &gt;  	int n_pgds;</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt; -	if (!efi_enabled(EFI_OLD_MEMMAP))</span>
+<span class="quote">&gt; &gt; -		return NULL;</span>
+<span class="quote">&gt; &gt; +	if (!efi_enabled(EFI_OLD_MEMMAP)) {</span>
+<span class="quote">&gt; &gt; +		save_pgd = (pgd_t *)read_cr3();</span>
+<span class="quote">&gt; &gt; +		write_cr3((unsigned long)efi_scratch.efi_pgt);</span>
+<span class="quote">&gt; &gt; +		goto out;</span>
+<span class="quote">&gt; &gt; +	}</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt;  	early_code_mapping_set_exec(1);</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt; @@ -96,6 +90,7 @@ pgd_t * __init efi_call_phys_prolog(void)</span>
+<span class="quote">&gt; &gt;  		vaddress = (unsigned long)__va(pgd * PGDIR_SIZE);</span>
+<span class="quote">&gt; &gt;  		set_pgd(pgd_offset_k(pgd * PGDIR_SIZE), *pgd_offset_k(vaddress));</span>
+<span class="quote">&gt; &gt;  	}</span>
+<span class="quote">&gt; &gt; +out:</span>
+<span class="quote">&gt; &gt;  	__flush_tlb_all();</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt;  	return save_pgd;</span>
+<span class="quote">&gt; &gt; @@ -109,8 +104,11 @@ void __init efi_call_phys_epilog(pgd_t *save_pgd)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; There&#39;s a comment here:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;         /*</span>
+<span class="quote">&gt;          * After the lock is released, the original page table is restored.</span>
+<span class="quote">&gt;          */</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Which lock are we talking about?</span>
+
+No idea, we don&#39;t take any locks. Looks like a stale comment.
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7500">Borislav Petkov</a> - Nov. 13, 2015, 7:59 a.m.</div>
+<pre class="content">
+On Thu, Nov 12, 2015 at 08:01:08PM +0000, Matt Fleming wrote:
+<span class="quote">&gt; &gt; That PUSHF implicitly pushes on the stack pointed by %rsp. But(!) we</span>
+<span class="quote">&gt; &gt; have switched the pagetable (i.e., %cr3 has efi_scratch.efi_pgt) and</span>
+<span class="quote">&gt; &gt; we&#39;re pushing to the VA where the stack *was* but is not anymore.</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; All the kernel mappings will still exist in the page table we switch</span>
+<span class="quote">&gt; to, so pushing to the stack should be fine.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The mappings have to exist so that the firmware can dereference</span>
+<span class="quote">&gt; pointer arguments, e.g. when writing variable data to a kernel buffer.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Or have I misunderstood your point?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; Or maybe it is because you&#39;re copying all the PUDs. It is still not 100%</span>
+<span class="quote">&gt; &gt; clean, IMHO.</span>
+^^^^^^^^^^^^^^^^^
+
+I think we&#39;re on the same page - you&#39;re copying the PUDs in
+efi_sync_low_kernel_mappings() so the stack should be there.
+<span class="quote">
+&gt; &gt; Can you do the prolog/epilog calls inside the IRQs-off section?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Not really because in the efi_enabled(EFI_OLD_MEMMAP) case we perform</span>
+<span class="quote">&gt; kmalloc(), see commit 23a0d4e8fa6d (&quot;efi: Disable interrupts around</span>
+<span class="quote">&gt; EFI calls, not in the epilog/prolog calls&quot;).</span>
+
+        n_pgds = DIV_ROUND_UP((max_pfn &lt;&lt; PAGE_SHIFT), PGDIR_SIZE);
+        save_pgd = kmalloc(n_pgds * sizeof(pgd_t), GFP_KERNEL);
+
+This?
+
+That n_pgds thing is of static size so you can pre-alloc it maybe even
+once during boot and reuse it all the time when EFI_OLD_MEMMAP is
+enabled.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=119821">Matt Fleming</a> - Nov. 13, 2015, 4:19 p.m.</div>
+<pre class="content">
+On Fri, 13 Nov, at 08:59:43AM, Borislav Petkov wrote:
+<span class="quote">&gt; On Thu, Nov 12, 2015 at 08:01:08PM +0000, Matt Fleming wrote:</span>
+<span class="quote">&gt; &gt; &gt; That PUSHF implicitly pushes on the stack pointed by %rsp. But(!) we</span>
+<span class="quote">&gt; &gt; &gt; have switched the pagetable (i.e., %cr3 has efi_scratch.efi_pgt) and</span>
+<span class="quote">&gt; &gt; &gt; we&#39;re pushing to the VA where the stack *was* but is not anymore.</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt; All the kernel mappings will still exist in the page table we switch</span>
+<span class="quote">&gt; &gt; to, so pushing to the stack should be fine.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; The mappings have to exist so that the firmware can dereference</span>
+<span class="quote">&gt; &gt; pointer arguments, e.g. when writing variable data to a kernel buffer.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Or have I misunderstood your point?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Or maybe it is because you&#39;re copying all the PUDs. It is still not 100%</span>
+<span class="quote">&gt; &gt; &gt; clean, IMHO.</span>
+<span class="quote">&gt; ^^^^^^^^^^^^^^^^^</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I think we&#39;re on the same page - you&#39;re copying the PUDs in</span>
+<span class="quote">&gt; efi_sync_low_kernel_mappings() so the stack should be there.</span>
+
+Correct.
+<span class="quote">
+&gt; &gt; &gt; Can you do the prolog/epilog calls inside the IRQs-off section?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Not really because in the efi_enabled(EFI_OLD_MEMMAP) case we perform</span>
+<span class="quote">&gt; &gt; kmalloc(), see commit 23a0d4e8fa6d (&quot;efi: Disable interrupts around</span>
+<span class="quote">&gt; &gt; EFI calls, not in the epilog/prolog calls&quot;).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;         n_pgds = DIV_ROUND_UP((max_pfn &lt;&lt; PAGE_SHIFT), PGDIR_SIZE);</span>
+<span class="quote">&gt;         save_pgd = kmalloc(n_pgds * sizeof(pgd_t), GFP_KERNEL);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; That n_pgds thing is of static size so you can pre-alloc it maybe even</span>
+<span class="quote">&gt; once during boot and reuse it all the time when EFI_OLD_MEMMAP is</span>
+<span class="quote">&gt; enabled.</span>
+
+Well, this code is only executed once during boot anyway, for
+phys_efi_set_virtual_address_map().
+
+FYI, I&#39;m still planning on ripping out all the EFI_OLD_MEMMAP code, as
+it&#39;s getting particularly crufty.
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/include/asm/efi.h b/arch/x86/include/asm/efi.h</span>
+<span class="p_header">index cfee9d4b02af..f9d99d4e7b1a 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/efi.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/efi.h</span>
+<span class="p_chunk">@@ -3,6 +3,7 @@</span> <span class="p_context"></span>
+ 
+ #include &lt;asm/fpu/api.h&gt;
+ #include &lt;asm/pgtable.h&gt;
+<span class="p_add">+#include &lt;asm/tlb.h&gt;</span>
+ 
+ /*
+  * We map the EFI regions needed for runtime services non-contiguously,
+<span class="p_chunk">@@ -64,6 +65,17 @@</span> <span class="p_context"> extern u64 asmlinkage efi_call(void *fp, ...);</span>
+ 
+ #define efi_call_phys(f, args...)		efi_call((f), args)
+ 
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Scratch space used for switching the pagetable in the EFI stub</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+struct efi_scratch {</span>
+<span class="p_add">+	u64 r15;</span>
+<span class="p_add">+	u64 prev_cr3;</span>
+<span class="p_add">+	pgd_t *efi_pgt;</span>
+<span class="p_add">+	bool use_pgd;</span>
+<span class="p_add">+	u64 phys_stack;</span>
+<span class="p_add">+} __packed;</span>
+<span class="p_add">+</span>
+ #define efi_call_virt(f, ...)						\
+ ({									\
+ 	efi_status_t __s;						\
+<span class="p_chunk">@@ -71,7 +83,20 @@</span> <span class="p_context"> extern u64 asmlinkage efi_call(void *fp, ...);</span>
+ 	efi_sync_low_kernel_mappings();					\
+ 	preempt_disable();						\
+ 	__kernel_fpu_begin();						\
+<span class="p_add">+									\</span>
+<span class="p_add">+	if (efi_scratch.use_pgd) {					\</span>
+<span class="p_add">+		efi_scratch.prev_cr3 = read_cr3(); 			\</span>
+<span class="p_add">+		write_cr3((unsigned long)efi_scratch.efi_pgt);		\</span>
+<span class="p_add">+		__flush_tlb_all(); 					\</span>
+<span class="p_add">+	}								\</span>
+<span class="p_add">+									\</span>
+ 	__s = efi_call((void *)efi.systab-&gt;runtime-&gt;f, __VA_ARGS__);	\
+<span class="p_add">+									\</span>
+<span class="p_add">+	if (efi_scratch.use_pgd) { 					\</span>
+<span class="p_add">+		write_cr3(efi_scratch.prev_cr3);			\</span>
+<span class="p_add">+		__flush_tlb_all(); 					\</span>
+<span class="p_add">+	} 								\</span>
+<span class="p_add">+									\</span>
+ 	__kernel_fpu_end();						\
+ 	preempt_enable();						\
+ 	__s;								\
+<span class="p_header">diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c</span>
+<span class="p_header">index 634536034e32..ab5f14a886cc 100644</span>
+<span class="p_header">--- a/arch/x86/platform/efi/efi_64.c</span>
+<span class="p_header">+++ b/arch/x86/platform/efi/efi_64.c</span>
+<span class="p_chunk">@@ -47,16 +47,7 @@</span> <span class="p_context"></span>
+  */
+ static u64 efi_va = EFI_VA_START;
+ 
+<span class="p_del">-/*</span>
+<span class="p_del">- * Scratch space used for switching the pagetable in the EFI stub</span>
+<span class="p_del">- */</span>
+<span class="p_del">-struct efi_scratch {</span>
+<span class="p_del">-	u64 r15;</span>
+<span class="p_del">-	u64 prev_cr3;</span>
+<span class="p_del">-	pgd_t *efi_pgt;</span>
+<span class="p_del">-	bool use_pgd;</span>
+<span class="p_del">-	u64 phys_stack;</span>
+<span class="p_del">-} __packed;</span>
+<span class="p_add">+struct efi_scratch efi_scratch;</span>
+ 
+ static void __init early_code_mapping_set_exec(int executable)
+ {
+<span class="p_chunk">@@ -83,8 +74,11 @@</span> <span class="p_context"> pgd_t * __init efi_call_phys_prolog(void)</span>
+ 	int pgd;
+ 	int n_pgds;
+ 
+<span class="p_del">-	if (!efi_enabled(EFI_OLD_MEMMAP))</span>
+<span class="p_del">-		return NULL;</span>
+<span class="p_add">+	if (!efi_enabled(EFI_OLD_MEMMAP)) {</span>
+<span class="p_add">+		save_pgd = (pgd_t *)read_cr3();</span>
+<span class="p_add">+		write_cr3((unsigned long)efi_scratch.efi_pgt);</span>
+<span class="p_add">+		goto out;</span>
+<span class="p_add">+	}</span>
+ 
+ 	early_code_mapping_set_exec(1);
+ 
+<span class="p_chunk">@@ -96,6 +90,7 @@</span> <span class="p_context"> pgd_t * __init efi_call_phys_prolog(void)</span>
+ 		vaddress = (unsigned long)__va(pgd * PGDIR_SIZE);
+ 		set_pgd(pgd_offset_k(pgd * PGDIR_SIZE), *pgd_offset_k(vaddress));
+ 	}
+<span class="p_add">+out:</span>
+ 	__flush_tlb_all();
+ 
+ 	return save_pgd;
+<span class="p_chunk">@@ -109,8 +104,11 @@</span> <span class="p_context"> void __init efi_call_phys_epilog(pgd_t *save_pgd)</span>
+ 	int pgd_idx;
+ 	int nr_pgds;
+ 
+<span class="p_del">-	if (!save_pgd)</span>
+<span class="p_add">+	if (!efi_enabled(EFI_OLD_MEMMAP)) {</span>
+<span class="p_add">+		write_cr3((unsigned long)save_pgd);</span>
+<span class="p_add">+		__flush_tlb_all();</span>
+ 		return;
+<span class="p_add">+	}</span>
+ 
+ 	nr_pgds = DIV_ROUND_UP((max_pfn &lt;&lt; PAGE_SHIFT) , PGDIR_SIZE);
+ 
+<span class="p_header">diff --git a/arch/x86/platform/efi/efi_stub_64.S b/arch/x86/platform/efi/efi_stub_64.S</span>
+<span class="p_header">index 86d0f9e08dd9..32020cb8bb08 100644</span>
+<span class="p_header">--- a/arch/x86/platform/efi/efi_stub_64.S</span>
+<span class="p_header">+++ b/arch/x86/platform/efi/efi_stub_64.S</span>
+<span class="p_chunk">@@ -38,41 +38,6 @@</span> <span class="p_context"></span>
+ 	mov %rsi, %cr0;			\
+ 	mov (%rsp), %rsp
+ 
+<span class="p_del">-	/* stolen from gcc */</span>
+<span class="p_del">-	.macro FLUSH_TLB_ALL</span>
+<span class="p_del">-	movq %r15, efi_scratch(%rip)</span>
+<span class="p_del">-	movq %r14, efi_scratch+8(%rip)</span>
+<span class="p_del">-	movq %cr4, %r15</span>
+<span class="p_del">-	movq %r15, %r14</span>
+<span class="p_del">-	andb $0x7f, %r14b</span>
+<span class="p_del">-	movq %r14, %cr4</span>
+<span class="p_del">-	movq %r15, %cr4</span>
+<span class="p_del">-	movq efi_scratch+8(%rip), %r14</span>
+<span class="p_del">-	movq efi_scratch(%rip), %r15</span>
+<span class="p_del">-	.endm</span>
+<span class="p_del">-</span>
+<span class="p_del">-	.macro SWITCH_PGT</span>
+<span class="p_del">-	cmpb $0, efi_scratch+24(%rip)</span>
+<span class="p_del">-	je 1f</span>
+<span class="p_del">-	movq %r15, efi_scratch(%rip)		# r15</span>
+<span class="p_del">-	# save previous CR3</span>
+<span class="p_del">-	movq %cr3, %r15</span>
+<span class="p_del">-	movq %r15, efi_scratch+8(%rip)		# prev_cr3</span>
+<span class="p_del">-	movq efi_scratch+16(%rip), %r15		# EFI pgt</span>
+<span class="p_del">-	movq %r15, %cr3</span>
+<span class="p_del">-	1:</span>
+<span class="p_del">-	.endm</span>
+<span class="p_del">-</span>
+<span class="p_del">-	.macro RESTORE_PGT</span>
+<span class="p_del">-	cmpb $0, efi_scratch+24(%rip)</span>
+<span class="p_del">-	je 2f</span>
+<span class="p_del">-	movq efi_scratch+8(%rip), %r15</span>
+<span class="p_del">-	movq %r15, %cr3</span>
+<span class="p_del">-	movq efi_scratch(%rip), %r15</span>
+<span class="p_del">-	FLUSH_TLB_ALL</span>
+<span class="p_del">-	2:</span>
+<span class="p_del">-	.endm</span>
+<span class="p_del">-</span>
+ ENTRY(efi_call)
+ 	SAVE_XMM
+ 	mov (%rsp), %rax
+<span class="p_chunk">@@ -83,16 +48,8 @@</span> <span class="p_context"> ENTRY(efi_call)</span>
+ 	mov %r8, %r9
+ 	mov %rcx, %r8
+ 	mov %rsi, %rcx
+<span class="p_del">-	SWITCH_PGT</span>
+ 	call *%rdi
+<span class="p_del">-	RESTORE_PGT</span>
+ 	addq $48, %rsp
+ 	RESTORE_XMM
+ 	ret
+ ENDPROC(efi_call)
+<span class="p_del">-</span>
+<span class="p_del">-	.data</span>
+<span class="p_del">-ENTRY(efi_scratch)</span>
+<span class="p_del">-	.fill 3,8,0</span>
+<span class="p_del">-	.byte 0</span>
+<span class="p_del">-	.quad 0</span>
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

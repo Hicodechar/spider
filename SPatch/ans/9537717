@@ -1,0 +1,731 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[PATCHv2,07/12] mm: convert try_to_unmap_one() to page_vma_mapped_walk() - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [PATCHv2,07/12] mm: convert try_to_unmap_one() to page_vma_mapped_walk()</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=40781">Kirill A. Shutemov</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Jan. 25, 2017, 6:25 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170125182538.86249-8-kirill.shutemov@linux.intel.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9537717/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9537717/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9537717/">/patch/9537717/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	59C0E6042C for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 25 Jan 2017 18:29:12 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 4874526E75
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 25 Jan 2017 18:29:12 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 3B7B627D4D; Wed, 25 Jan 2017 18:29:12 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 75DC626E75
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 25 Jan 2017 18:29:11 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752519AbdAYS24 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 25 Jan 2017 13:28:56 -0500
+Received: from mga14.intel.com ([192.55.52.115]:14519 &quot;EHLO mga14.intel.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1752364AbdAYS1E (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 25 Jan 2017 13:27:04 -0500
+Received: from fmsmga002.fm.intel.com ([10.253.24.26])
+	by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384;
+	25 Jan 2017 10:27:03 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i=&quot;5.33,285,1477983600&quot;; d=&quot;scan&#39;208&quot;;a=&quot;1117767255&quot;
+Received: from black.fi.intel.com ([10.237.72.28])
+	by fmsmga002.fm.intel.com with ESMTP; 25 Jan 2017 10:27:01 -0800
+Received: by black.fi.intel.com (Postfix, from userid 1000)
+	id 728FC428; Wed, 25 Jan 2017 20:26:56 +0200 (EET)
+From: &quot;Kirill A. Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;
+To: Andrea Arcangeli &lt;aarcange@redhat.com&gt;, Hugh Dickins &lt;hughd@google.com&gt;,
+	Rik van Riel &lt;riel@redhat.com&gt;, Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	&quot;Kirill A. Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;
+Subject: [PATCHv2 07/12] mm: convert try_to_unmap_one() to
+	page_vma_mapped_walk()
+Date: Wed, 25 Jan 2017 21:25:33 +0300
+Message-Id: &lt;20170125182538.86249-8-kirill.shutemov@linux.intel.com&gt;
+X-Mailer: git-send-email 2.11.0
+In-Reply-To: &lt;20170125182538.86249-1-kirill.shutemov@linux.intel.com&gt;
+References: &lt;20170125182538.86249-1-kirill.shutemov@linux.intel.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=40781">Kirill A. Shutemov</a> - Jan. 25, 2017, 6:25 p.m.</div>
+<pre class="content">
+For consistency, it worth converting all page_check_address() to
+page_vma_mapped_walk(), so we could drop the former.
+
+It also makes freeze_page() as we walk though rmap only once.
+<span class="signed-off-by">
+Signed-off-by: Kirill A. Shutemov &lt;kirill.shutemov@linux.intel.com&gt;</span>
+---
+ mm/huge_memory.c |  16 +---
+ mm/rmap.c        | 260 ++++++++++++++++++++++++++++---------------------------
+ 2 files changed, 137 insertions(+), 139 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=143191">kbuild test robot</a> - Jan. 25, 2017, 7:02 p.m.</div>
+<pre class="content">
+Hi Kirill,
+
+[auto build test ERROR on mmotm/master]
+[also build test ERROR on v4.10-rc5 next-20170125]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+
+url:    https://github.com/0day-ci/linux/commits/Kirill-A-Shutemov/Fix-few-rmap-related-THP-bugs/20170126-023339
+base:   git://git.cmpxchg.org/linux-mmotm.git master
+config: parisc-c3000_defconfig (attached as .config)
+compiler: hppa-linux-gnu-gcc (Debian 6.1.1-9) 6.1.1 20160705
+reproduce:
+        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+        chmod +x ~/bin/make.cross
+        # save the attached .config to linux build tree
+        make.cross ARCH=parisc 
+
+All error/warnings (new ones prefixed by &gt;&gt;):
+
+   In file included from include/linux/mmzone.h:20:0,
+                    from include/linux/gfp.h:5,
+                    from include/linux/mm.h:9,
+                    from mm/rmap.c:48:
+   mm/rmap.c: In function &#39;try_to_unmap_one&#39;:
+<span class="quote">&gt;&gt; arch/parisc/include/asm/page.h:48:24: error: &#39;pvmw.pte&#39; is a pointer; did you mean to use &#39;-&gt;&#39;?</span>
+    #define pte_val(x) ((x).pte)
+                           ^
+                                     -&gt;
+<span class="quote">&gt;&gt; arch/parisc/include/asm/pgtable.h:410:22: note: in expansion of macro &#39;pte_val&#39;</span>
+    #define pte_pfn(x)  (pte_val(x) &gt;&gt; PFN_PTE_SHIFT)
+                         ^~~~~~~
+<span class="quote">&gt;&gt; mm/rmap.c:1520:34: note: in expansion of macro &#39;pte_pfn&#39;</span>
+      flush_cache_page(vma, address, pte_pfn(pvmw.pte));
+                                     ^~~~~~~
+
+vim +/pte_pfn +1520 mm/rmap.c
+
+  1504					break;
+  1505				}
+  1506				if (flags &amp; TTU_MUNLOCK)
+  1507					continue;
+  1508			}
+  1509	
+  1510			if (!(flags &amp; TTU_IGNORE_ACCESS)) {
+  1511				if (ptep_clear_flush_young_notify(vma, address,
+  1512							pvmw.pte)) {
+  1513					ret = SWAP_FAIL;
+  1514					page_vma_mapped_walk_done(&amp;pvmw);
+  1515					break;
+  1516				}
+  1517			}
+  1518	
+  1519			/* Nuke the page table entry. */
+<span class="quote">&gt; 1520			flush_cache_page(vma, address, pte_pfn(pvmw.pte));</span>
+  1521			if (should_defer_flush(mm, flags)) {
+  1522				/*
+  1523				 * We clear the PTE but do not flush so potentially
+  1524				 * a remote CPU could still be writing to the page.
+  1525				 * If the entry was previously clean then the
+  1526				 * architecture must guarantee that a clear-&gt;dirty
+  1527				 * transition on a cached TLB entry is written through
+  1528				 * and traps if the PTE is unmapped.
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=143191">kbuild test robot</a> - Jan. 25, 2017, 7:05 p.m.</div>
+<pre class="content">
+Hi Kirill,
+
+[auto build test WARNING on mmotm/master]
+[also build test WARNING on v4.10-rc5 next-20170125]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+
+url:    https://github.com/0day-ci/linux/commits/Kirill-A-Shutemov/Fix-few-rmap-related-THP-bugs/20170126-023339
+base:   git://git.cmpxchg.org/linux-mmotm.git master
+config: m68k-multi_defconfig (attached as .config)
+compiler: m68k-linux-gcc (GCC) 4.9.0
+reproduce:
+        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+        chmod +x ~/bin/make.cross
+        # save the attached .config to linux build tree
+        make.cross ARCH=m68k 
+
+All warnings (new ones prefixed by &gt;&gt;):
+
+   In file included from arch/m68k/include/asm/thread_info.h:5:0,
+                    from include/linux/thread_info.h:25,
+                    from include/asm-generic/preempt.h:4,
+                    from ./arch/m68k/include/generated/asm/preempt.h:1,
+                    from include/linux/preempt.h:59,
+                    from include/linux/spinlock.h:50,
+                    from include/linux/mmzone.h:7,
+                    from include/linux/gfp.h:5,
+                    from include/linux/mm.h:9,
+                    from mm/rmap.c:48:
+   mm/rmap.c: In function &#39;try_to_unmap_one&#39;:
+   arch/m68k/include/asm/page.h:29:24: error: request for member &#39;pte&#39; in something not a structure or union
+    #define pte_val(x) ((x).pte)
+                           ^
+<span class="quote">&gt;&gt; arch/m68k/include/asm/motorola_pgtable.h:134:24: note: in expansion of macro &#39;pte_val&#39;</span>
+    #define pte_pfn(pte)  (pte_val(pte) &gt;&gt; PAGE_SHIFT)
+                           ^
+   mm/rmap.c:1520:34: note: in expansion of macro &#39;pte_pfn&#39;
+      flush_cache_page(vma, address, pte_pfn(pvmw.pte));
+                                     ^
+
+vim +/pte_val +134 arch/m68k/include/asm/motorola_pgtable.h
+
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  118  
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  119  static inline void pgd_set(pgd_t *pgdp, pmd_t *pmdp)
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  120  {
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  121  	pgd_val(*pgdp) = _PAGE_TABLE | _PAGE_ACCESSED | __pa(pmdp);
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  122  }
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  123  
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  124  #define __pte_page(pte) ((unsigned long)__va(pte_val(pte) &amp; PAGE_MASK))
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  125  #define __pmd_page(pmd) ((unsigned long)__va(pmd_val(pmd) &amp; _TABLE_MASK))
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  126  #define __pgd_page(pgd) ((unsigned long)__va(pgd_val(pgd) &amp; _TABLE_MASK))
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  127  
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  128  
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  129  #define pte_none(pte)		(!pte_val(pte))
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  130  #define pte_present(pte)	(pte_val(pte) &amp; (_PAGE_PRESENT | _PAGE_PROTNONE))
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  131  #define pte_clear(mm,addr,ptep)		({ pte_val(*(ptep)) = 0; })
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  132  
+12d810c1 include/asm-m68k/motorola_pgtable.h Roman Zippel   2007-05-31  133  #define pte_page(pte)		virt_to_page(__va(pte_val(pte)))
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16 @134  #define pte_pfn(pte)		(pte_val(pte) &gt;&gt; PAGE_SHIFT)
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  135  #define pfn_pte(pfn, prot)	__pte(((pfn) &lt;&lt; PAGE_SHIFT) | pgprot_val(prot))
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  136  
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  137  #define pmd_none(pmd)		(!pmd_val(pmd))
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  138  #define pmd_bad(pmd)		((pmd_val(pmd) &amp; _DESCTYPE_MASK) != _PAGE_TABLE)
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  139  #define pmd_present(pmd)	(pmd_val(pmd) &amp; _PAGE_TABLE)
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  140  #define pmd_clear(pmdp) ({			\
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  141  	unsigned long *__ptr = pmdp-&gt;pmd;	\
+^1da177e include/asm-m68k/motorola_pgtable.h Linus Torvalds 2005-04-16  142  	short __i = 16;				\
+
+:::::: The code at line 134 was first introduced by commit
+:::::: 1da177e4c3f41524e886b7f1b8a0c1fc7321cac2 Linux-2.6.12-rc2
+
+:::::: TO: Linus Torvalds &lt;torvalds@ppc970.osdl.org&gt;
+:::::: CC: Linus Torvalds &lt;torvalds@ppc970.osdl.org&gt;
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/huge_memory.c b/mm/huge_memory.c</span>
+<span class="p_header">index 16820e001d79..ca7855f857fa 100644</span>
+<span class="p_header">--- a/mm/huge_memory.c</span>
+<span class="p_header">+++ b/mm/huge_memory.c</span>
+<span class="p_chunk">@@ -1839,24 +1839,16 @@</span> <span class="p_context"> void vma_adjust_trans_huge(struct vm_area_struct *vma,</span>
+ static void freeze_page(struct page *page)
+ {
+ 	enum ttu_flags ttu_flags = TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS |
+<span class="p_del">-		TTU_RMAP_LOCKED;</span>
+<span class="p_del">-	int i, ret;</span>
+<span class="p_add">+		TTU_RMAP_LOCKED | TTU_SPLIT_HUGE_PMD;</span>
+<span class="p_add">+	int ret;</span>
+ 
+ 	VM_BUG_ON_PAGE(!PageHead(page), page);
+ 
+ 	if (PageAnon(page))
+ 		ttu_flags |= TTU_MIGRATION;
+ 
+<span class="p_del">-	/* We only need TTU_SPLIT_HUGE_PMD once */</span>
+<span class="p_del">-	ret = try_to_unmap(page, ttu_flags | TTU_SPLIT_HUGE_PMD);</span>
+<span class="p_del">-	for (i = 1; !ret &amp;&amp; i &lt; HPAGE_PMD_NR; i++) {</span>
+<span class="p_del">-		/* Cut short if the page is unmapped */</span>
+<span class="p_del">-		if (page_count(page) == 1)</span>
+<span class="p_del">-			return;</span>
+<span class="p_del">-</span>
+<span class="p_del">-		ret = try_to_unmap(page + i, ttu_flags);</span>
+<span class="p_del">-	}</span>
+<span class="p_del">-	VM_BUG_ON_PAGE(ret, page + i - 1);</span>
+<span class="p_add">+	ret = try_to_unmap(page, ttu_flags);</span>
+<span class="p_add">+	VM_BUG_ON_PAGE(ret, page);</span>
+ }
+ 
+ static void unfreeze_page(struct page *page)
+<span class="p_header">diff --git a/mm/rmap.c b/mm/rmap.c</span>
+<span class="p_header">index 58597de049fd..95183dbea2eb 100644</span>
+<span class="p_header">--- a/mm/rmap.c</span>
+<span class="p_header">+++ b/mm/rmap.c</span>
+<span class="p_chunk">@@ -607,8 +607,7 @@</span> <span class="p_context"> void try_to_unmap_flush_dirty(void)</span>
+ 		try_to_unmap_flush();
+ }
+ 
+<span class="p_del">-static void set_tlb_ubc_flush_pending(struct mm_struct *mm,</span>
+<span class="p_del">-		struct page *page, bool writable)</span>
+<span class="p_add">+static void set_tlb_ubc_flush_pending(struct mm_struct *mm, bool writable)</span>
+ {
+ 	struct tlbflush_unmap_batch *tlb_ubc = &amp;current-&gt;tlb_ubc;
+ 
+<span class="p_chunk">@@ -643,8 +642,7 @@</span> <span class="p_context"> static bool should_defer_flush(struct mm_struct *mm, enum ttu_flags flags)</span>
+ 	return should_defer;
+ }
+ #else
+<span class="p_del">-static void set_tlb_ubc_flush_pending(struct mm_struct *mm,</span>
+<span class="p_del">-		struct page *page, bool writable)</span>
+<span class="p_add">+static void set_tlb_ubc_flush_pending(struct mm_struct *mm, bool writable)</span>
+ {
+ }
+ 
+<span class="p_chunk">@@ -1459,155 +1457,163 @@</span> <span class="p_context"> static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 		     unsigned long address, void *arg)
+ {
+ 	struct mm_struct *mm = vma-&gt;vm_mm;
+<span class="p_del">-	pte_t *pte;</span>
+<span class="p_add">+	struct page_vma_mapped_walk pvmw = {</span>
+<span class="p_add">+		.page = page,</span>
+<span class="p_add">+		.vma = vma,</span>
+<span class="p_add">+		.address = address,</span>
+<span class="p_add">+	};</span>
+ 	pte_t pteval;
+<span class="p_del">-	spinlock_t *ptl;</span>
+<span class="p_add">+	struct page *subpage;</span>
+ 	int ret = SWAP_AGAIN;
+ 	struct rmap_private *rp = arg;
+ 	enum ttu_flags flags = rp-&gt;flags;
+ 
+ 	/* munlock has nothing to gain from examining un-locked vmas */
+ 	if ((flags &amp; TTU_MUNLOCK) &amp;&amp; !(vma-&gt;vm_flags &amp; VM_LOCKED))
+<span class="p_del">-		goto out;</span>
+<span class="p_add">+		return SWAP_AGAIN;</span>
+ 
+ 	if (flags &amp; TTU_SPLIT_HUGE_PMD) {
+ 		split_huge_pmd_address(vma, address,
+ 				flags &amp; TTU_MIGRATION, page);
+<span class="p_del">-		/* check if we have anything to do after split */</span>
+<span class="p_del">-		if (page_mapcount(page) == 0)</span>
+<span class="p_del">-			goto out;</span>
+ 	}
+ 
+<span class="p_del">-	pte = page_check_address(page, mm, address, &amp;ptl,</span>
+<span class="p_del">-				 PageTransCompound(page));</span>
+<span class="p_del">-	if (!pte)</span>
+<span class="p_del">-		goto out;</span>
+<span class="p_add">+	while (page_vma_mapped_walk(&amp;pvmw)) {</span>
+<span class="p_add">+		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);</span>
+<span class="p_add">+		address = pvmw.address;</span>
+ 
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * If the page is mlock()d, we cannot swap it out.</span>
+<span class="p_del">-	 * If it&#39;s recently referenced (perhaps page_referenced</span>
+<span class="p_del">-	 * skipped over this mm) then we should reactivate it.</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	if (!(flags &amp; TTU_IGNORE_MLOCK)) {</span>
+<span class="p_del">-		if (vma-&gt;vm_flags &amp; VM_LOCKED) {</span>
+<span class="p_del">-			/* PTE-mapped THP are never mlocked */</span>
+<span class="p_del">-			if (!PageTransCompound(page)) {</span>
+<span class="p_del">-				/*</span>
+<span class="p_del">-				 * Holding pte lock, we do *not* need</span>
+<span class="p_del">-				 * mmap_sem here</span>
+<span class="p_del">-				 */</span>
+<span class="p_del">-				mlock_vma_page(page);</span>
+<span class="p_add">+		/* Unexpected PMD-mapped THP? */</span>
+<span class="p_add">+		VM_BUG_ON_PAGE(!pvmw.pte, page);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * If the page is mlock()d, we cannot swap it out.</span>
+<span class="p_add">+		 * If it&#39;s recently referenced (perhaps page_referenced</span>
+<span class="p_add">+		 * skipped over this mm) then we should reactivate it.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (!(flags &amp; TTU_IGNORE_MLOCK)) {</span>
+<span class="p_add">+			if (vma-&gt;vm_flags &amp; VM_LOCKED) {</span>
+<span class="p_add">+				/* PTE-mapped THP are never mlocked */</span>
+<span class="p_add">+				if (!PageTransCompound(page)) {</span>
+<span class="p_add">+					/*</span>
+<span class="p_add">+					 * Holding pte lock, we do *not* need</span>
+<span class="p_add">+					 * mmap_sem here</span>
+<span class="p_add">+					 */</span>
+<span class="p_add">+					mlock_vma_page(page);</span>
+<span class="p_add">+				}</span>
+<span class="p_add">+				ret = SWAP_MLOCK;</span>
+<span class="p_add">+				page_vma_mapped_walk_done(&amp;pvmw);</span>
+<span class="p_add">+				break;</span>
+ 			}
+<span class="p_del">-			ret = SWAP_MLOCK;</span>
+<span class="p_del">-			goto out_unmap;</span>
+<span class="p_add">+			if (flags &amp; TTU_MUNLOCK)</span>
+<span class="p_add">+				continue;</span>
+ 		}
+<span class="p_del">-		if (flags &amp; TTU_MUNLOCK)</span>
+<span class="p_del">-			goto out_unmap;</span>
+<span class="p_del">-	}</span>
+<span class="p_del">-	if (!(flags &amp; TTU_IGNORE_ACCESS)) {</span>
+<span class="p_del">-		if (ptep_clear_flush_young_notify(vma, address, pte)) {</span>
+<span class="p_del">-			ret = SWAP_FAIL;</span>
+<span class="p_del">-			goto out_unmap;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (!(flags &amp; TTU_IGNORE_ACCESS)) {</span>
+<span class="p_add">+			if (ptep_clear_flush_young_notify(vma, address,</span>
+<span class="p_add">+						pvmw.pte)) {</span>
+<span class="p_add">+				ret = SWAP_FAIL;</span>
+<span class="p_add">+				page_vma_mapped_walk_done(&amp;pvmw);</span>
+<span class="p_add">+				break;</span>
+<span class="p_add">+			}</span>
+ 		}
+<span class="p_del">-  	}</span>
+ 
+<span class="p_del">-	/* Nuke the page table entry. */</span>
+<span class="p_del">-	flush_cache_page(vma, address, page_to_pfn(page));</span>
+<span class="p_del">-	if (should_defer_flush(mm, flags)) {</span>
+<span class="p_del">-		/*</span>
+<span class="p_del">-		 * We clear the PTE but do not flush so potentially a remote</span>
+<span class="p_del">-		 * CPU could still be writing to the page. If the entry was</span>
+<span class="p_del">-		 * previously clean then the architecture must guarantee that</span>
+<span class="p_del">-		 * a clear-&gt;dirty transition on a cached TLB entry is written</span>
+<span class="p_del">-		 * through and traps if the PTE is unmapped.</span>
+<span class="p_del">-		 */</span>
+<span class="p_del">-		pteval = ptep_get_and_clear(mm, address, pte);</span>
+<span class="p_add">+		/* Nuke the page table entry. */</span>
+<span class="p_add">+		flush_cache_page(vma, address, pte_pfn(pvmw.pte));</span>
+<span class="p_add">+		if (should_defer_flush(mm, flags)) {</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * We clear the PTE but do not flush so potentially</span>
+<span class="p_add">+			 * a remote CPU could still be writing to the page.</span>
+<span class="p_add">+			 * If the entry was previously clean then the</span>
+<span class="p_add">+			 * architecture must guarantee that a clear-&gt;dirty</span>
+<span class="p_add">+			 * transition on a cached TLB entry is written through</span>
+<span class="p_add">+			 * and traps if the PTE is unmapped.</span>
+<span class="p_add">+			 */</span>
+<span class="p_add">+			pteval = ptep_get_and_clear(mm, address, pvmw.pte);</span>
+<span class="p_add">+</span>
+<span class="p_add">+			set_tlb_ubc_flush_pending(mm, pte_dirty(pteval));</span>
+<span class="p_add">+		} else {</span>
+<span class="p_add">+			pteval = ptep_clear_flush(vma, address, pvmw.pte);</span>
+<span class="p_add">+		}</span>
+ 
+<span class="p_del">-		set_tlb_ubc_flush_pending(mm, page, pte_dirty(pteval));</span>
+<span class="p_del">-	} else {</span>
+<span class="p_del">-		pteval = ptep_clear_flush(vma, address, pte);</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+		/* Move the dirty bit to the page. Now the pte is gone. */</span>
+<span class="p_add">+		if (pte_dirty(pteval))</span>
+<span class="p_add">+			set_page_dirty(page);</span>
+ 
+<span class="p_del">-	/* Move the dirty bit to the physical page now the pte is gone. */</span>
+<span class="p_del">-	if (pte_dirty(pteval))</span>
+<span class="p_del">-		set_page_dirty(page);</span>
+<span class="p_add">+		/* Update high watermark before we lower rss */</span>
+<span class="p_add">+		update_hiwater_rss(mm);</span>
+ 
+<span class="p_del">-	/* Update high watermark before we lower rss */</span>
+<span class="p_del">-	update_hiwater_rss(mm);</span>
+<span class="p_add">+		if (PageHWPoison(page) &amp;&amp; !(flags &amp; TTU_IGNORE_HWPOISON)) {</span>
+<span class="p_add">+			if (PageHuge(page)) {</span>
+<span class="p_add">+				int nr = 1 &lt;&lt; compound_order(page);</span>
+<span class="p_add">+				hugetlb_count_sub(nr, mm);</span>
+<span class="p_add">+			} else {</span>
+<span class="p_add">+				dec_mm_counter(mm, mm_counter(page));</span>
+<span class="p_add">+			}</span>
+ 
+<span class="p_del">-	if (PageHWPoison(page) &amp;&amp; !(flags &amp; TTU_IGNORE_HWPOISON)) {</span>
+<span class="p_del">-		if (PageHuge(page)) {</span>
+<span class="p_del">-			hugetlb_count_sub(1 &lt;&lt; compound_order(page), mm);</span>
+<span class="p_del">-		} else {</span>
+<span class="p_add">+			pteval = swp_entry_to_pte(make_hwpoison_entry(subpage));</span>
+<span class="p_add">+			set_pte_at(mm, address, pvmw.pte, pteval);</span>
+<span class="p_add">+		} else if (pte_unused(pteval)) {</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * The guest indicated that the page content is of no</span>
+<span class="p_add">+			 * interest anymore. Simply discard the pte, vmscan</span>
+<span class="p_add">+			 * will take care of the rest.</span>
+<span class="p_add">+			 */</span>
+ 			dec_mm_counter(mm, mm_counter(page));
+<span class="p_del">-		}</span>
+<span class="p_del">-		set_pte_at(mm, address, pte,</span>
+<span class="p_del">-			   swp_entry_to_pte(make_hwpoison_entry(page)));</span>
+<span class="p_del">-	} else if (pte_unused(pteval)) {</span>
+<span class="p_del">-		/*</span>
+<span class="p_del">-		 * The guest indicated that the page content is of no</span>
+<span class="p_del">-		 * interest anymore. Simply discard the pte, vmscan</span>
+<span class="p_del">-		 * will take care of the rest.</span>
+<span class="p_del">-		 */</span>
+<span class="p_del">-		dec_mm_counter(mm, mm_counter(page));</span>
+<span class="p_del">-	} else if (IS_ENABLED(CONFIG_MIGRATION) &amp;&amp; (flags &amp; TTU_MIGRATION)) {</span>
+<span class="p_del">-		swp_entry_t entry;</span>
+<span class="p_del">-		pte_t swp_pte;</span>
+<span class="p_del">-		/*</span>
+<span class="p_del">-		 * Store the pfn of the page in a special migration</span>
+<span class="p_del">-		 * pte. do_swap_page() will wait until the migration</span>
+<span class="p_del">-		 * pte is removed and then restart fault handling.</span>
+<span class="p_del">-		 */</span>
+<span class="p_del">-		entry = make_migration_entry(page, pte_write(pteval));</span>
+<span class="p_del">-		swp_pte = swp_entry_to_pte(entry);</span>
+<span class="p_del">-		if (pte_soft_dirty(pteval))</span>
+<span class="p_del">-			swp_pte = pte_swp_mksoft_dirty(swp_pte);</span>
+<span class="p_del">-		set_pte_at(mm, address, pte, swp_pte);</span>
+<span class="p_del">-	} else if (PageAnon(page)) {</span>
+<span class="p_del">-		swp_entry_t entry = { .val = page_private(page) };</span>
+<span class="p_del">-		pte_t swp_pte;</span>
+<span class="p_del">-		/*</span>
+<span class="p_del">-		 * Store the swap location in the pte.</span>
+<span class="p_del">-		 * See handle_pte_fault() ...</span>
+<span class="p_del">-		 */</span>
+<span class="p_del">-		VM_BUG_ON_PAGE(!PageSwapCache(page), page);</span>
+<span class="p_add">+		} else if (IS_ENABLED(CONFIG_MIGRATION) &amp;&amp;</span>
+<span class="p_add">+				(flags &amp; TTU_MIGRATION)) {</span>
+<span class="p_add">+			swp_entry_t entry;</span>
+<span class="p_add">+			pte_t swp_pte;</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * Store the pfn of the page in a special migration</span>
+<span class="p_add">+			 * pte. do_swap_page() will wait until the migration</span>
+<span class="p_add">+			 * pte is removed and then restart fault handling.</span>
+<span class="p_add">+			 */</span>
+<span class="p_add">+			entry = make_migration_entry(subpage,</span>
+<span class="p_add">+					pte_write(pteval));</span>
+<span class="p_add">+			swp_pte = swp_entry_to_pte(entry);</span>
+<span class="p_add">+			if (pte_soft_dirty(pteval))</span>
+<span class="p_add">+				swp_pte = pte_swp_mksoft_dirty(swp_pte);</span>
+<span class="p_add">+			set_pte_at(mm, address, pvmw.pte, swp_pte);</span>
+<span class="p_add">+		} else if (PageAnon(page)) {</span>
+<span class="p_add">+			swp_entry_t entry = { .val = page_private(subpage) };</span>
+<span class="p_add">+			pte_t swp_pte;</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * Store the swap location in the pte.</span>
+<span class="p_add">+			 * See handle_pte_fault() ...</span>
+<span class="p_add">+			 */</span>
+<span class="p_add">+			VM_BUG_ON_PAGE(!PageSwapCache(page), page);</span>
+<span class="p_add">+</span>
+<span class="p_add">+			if (!PageDirty(page) &amp;&amp; (flags &amp; TTU_LZFREE)) {</span>
+<span class="p_add">+				/* It&#39;s a freeable page by MADV_FREE */</span>
+<span class="p_add">+				dec_mm_counter(mm, MM_ANONPAGES);</span>
+<span class="p_add">+				rp-&gt;lazyfreed++;</span>
+<span class="p_add">+				goto discard;</span>
+<span class="p_add">+			}</span>
+ 
+<span class="p_del">-		if (!PageDirty(page) &amp;&amp; (flags &amp; TTU_LZFREE)) {</span>
+<span class="p_del">-			/* It&#39;s a freeable page by MADV_FREE */</span>
+<span class="p_add">+			if (swap_duplicate(entry) &lt; 0) {</span>
+<span class="p_add">+				set_pte_at(mm, address, pvmw.pte, pteval);</span>
+<span class="p_add">+				ret = SWAP_FAIL;</span>
+<span class="p_add">+				page_vma_mapped_walk_done(&amp;pvmw);</span>
+<span class="p_add">+				break;</span>
+<span class="p_add">+			}</span>
+<span class="p_add">+			if (list_empty(&amp;mm-&gt;mmlist)) {</span>
+<span class="p_add">+				spin_lock(&amp;mmlist_lock);</span>
+<span class="p_add">+				if (list_empty(&amp;mm-&gt;mmlist))</span>
+<span class="p_add">+					list_add(&amp;mm-&gt;mmlist, &amp;init_mm.mmlist);</span>
+<span class="p_add">+				spin_unlock(&amp;mmlist_lock);</span>
+<span class="p_add">+			}</span>
+ 			dec_mm_counter(mm, MM_ANONPAGES);
+<span class="p_del">-			rp-&gt;lazyfreed++;</span>
+<span class="p_del">-			goto discard;</span>
+<span class="p_del">-		}</span>
+<span class="p_del">-</span>
+<span class="p_del">-		if (swap_duplicate(entry) &lt; 0) {</span>
+<span class="p_del">-			set_pte_at(mm, address, pte, pteval);</span>
+<span class="p_del">-			ret = SWAP_FAIL;</span>
+<span class="p_del">-			goto out_unmap;</span>
+<span class="p_del">-		}</span>
+<span class="p_del">-		if (list_empty(&amp;mm-&gt;mmlist)) {</span>
+<span class="p_del">-			spin_lock(&amp;mmlist_lock);</span>
+<span class="p_del">-			if (list_empty(&amp;mm-&gt;mmlist))</span>
+<span class="p_del">-				list_add(&amp;mm-&gt;mmlist, &amp;init_mm.mmlist);</span>
+<span class="p_del">-			spin_unlock(&amp;mmlist_lock);</span>
+<span class="p_del">-		}</span>
+<span class="p_del">-		dec_mm_counter(mm, MM_ANONPAGES);</span>
+<span class="p_del">-		inc_mm_counter(mm, MM_SWAPENTS);</span>
+<span class="p_del">-		swp_pte = swp_entry_to_pte(entry);</span>
+<span class="p_del">-		if (pte_soft_dirty(pteval))</span>
+<span class="p_del">-			swp_pte = pte_swp_mksoft_dirty(swp_pte);</span>
+<span class="p_del">-		set_pte_at(mm, address, pte, swp_pte);</span>
+<span class="p_del">-	} else</span>
+<span class="p_del">-		dec_mm_counter(mm, mm_counter_file(page));</span>
+<span class="p_del">-</span>
+<span class="p_add">+			inc_mm_counter(mm, MM_SWAPENTS);</span>
+<span class="p_add">+			swp_pte = swp_entry_to_pte(entry);</span>
+<span class="p_add">+			if (pte_soft_dirty(pteval))</span>
+<span class="p_add">+				swp_pte = pte_swp_mksoft_dirty(swp_pte);</span>
+<span class="p_add">+			set_pte_at(mm, address, pvmw.pte, swp_pte);</span>
+<span class="p_add">+		} else</span>
+<span class="p_add">+			dec_mm_counter(mm, mm_counter_file(page));</span>
+ discard:
+<span class="p_del">-	page_remove_rmap(page, PageHuge(page));</span>
+<span class="p_del">-	put_page(page);</span>
+<span class="p_del">-</span>
+<span class="p_del">-out_unmap:</span>
+<span class="p_del">-	pte_unmap_unlock(pte, ptl);</span>
+<span class="p_del">-	if (ret != SWAP_FAIL &amp;&amp; ret != SWAP_MLOCK &amp;&amp; !(flags &amp; TTU_MUNLOCK))</span>
+<span class="p_add">+		page_remove_rmap(subpage, PageHuge(page));</span>
+<span class="p_add">+		put_page(page);</span>
+ 		mmu_notifier_invalidate_page(mm, address);
+<span class="p_del">-out:</span>
+<span class="p_add">+	}</span>
+ 	return ret;
+ }
+ 
+<span class="p_chunk">@@ -1632,7 +1638,7 @@</span> <span class="p_context"> static bool invalid_migration_vma(struct vm_area_struct *vma, void *arg)</span>
+ 
+ static int page_mapcount_is_zero(struct page *page)
+ {
+<span class="p_del">-	return !page_mapcount(page);</span>
+<span class="p_add">+	return !total_mapcount(page);</span>
+ }
+ 
+ /**
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

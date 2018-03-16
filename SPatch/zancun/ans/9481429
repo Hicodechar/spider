@@ -1,0 +1,289 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[4/4] oom-reaper: use madvise_dontneed() logic to decide if unmap the VMA - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [4/4] oom-reaper: use madvise_dontneed() logic to decide if unmap the VMA</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=40781">Kirill A. Shutemov</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Dec. 20, 2016, 10:46 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20161220104625.158107-1-kirill.shutemov@linux.intel.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9481429/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9481429/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9481429/">/patch/9481429/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	267CD600CA for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 20 Dec 2016 10:46:41 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 2433528285
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 20 Dec 2016 10:46:41 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 18617283A6; Tue, 20 Dec 2016 10:46:41 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 996EC28285
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 20 Dec 2016 10:46:40 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1755377AbcLTKqe (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 20 Dec 2016 05:46:34 -0500
+Received: from mga07.intel.com ([134.134.136.100]:5150 &quot;EHLO mga07.intel.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1752909AbcLTKqc (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 20 Dec 2016 05:46:32 -0500
+Received: from fmsmga004.fm.intel.com ([10.253.24.48])
+	by orsmga105.jf.intel.com with ESMTP; 20 Dec 2016 02:46:31 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i=&quot;5.33,378,1477983600&quot;; d=&quot;scan&#39;208&quot;;a=&quot;204891406&quot;
+Received: from black.fi.intel.com ([10.237.72.28])
+	by fmsmga004.fm.intel.com with ESMTP; 20 Dec 2016 02:46:28 -0800
+Received: by black.fi.intel.com (Postfix, from userid 1000)
+	id D81C32D8; Tue, 20 Dec 2016 12:46:27 +0200 (EET)
+From: &quot;Kirill A. Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;
+To: Michal Hocko &lt;mhocko@suse.com&gt;,
+	Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;,
+	Peter Zijlstra &lt;peterz@infradead.org&gt;, Rik van Riel &lt;riel@redhat.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	&quot;Kirill A. Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;
+Subject: [PATCH 4/4] oom-reaper: use madvise_dontneed() logic to decide if
+	unmap the VMA
+Date: Tue, 20 Dec 2016 13:46:25 +0300
+Message-Id: &lt;20161220104625.158107-1-kirill.shutemov@linux.intel.com&gt;
+X-Mailer: git-send-email 2.10.2
+In-Reply-To: &lt;20161219171722.77995-4-kirill.shutemov@linux.intel.com&gt;
+References: &lt;20161219171722.77995-4-kirill.shutemov@linux.intel.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=40781">Kirill A. Shutemov</a> - Dec. 20, 2016, 10:46 a.m.</div>
+<pre class="content">
+Logic on whether we can reap pages from the VMA should match what we
+have in madvise_dontneed(). In particular, we should skip, VM_PFNMAP
+VMAs, but we don&#39;t now.
+
+Let&#39;s just extract condition on which we can shoot down pagesi from a
+VMA with MADV_DONTNEED into separate function and use it in both places.
+<span class="signed-off-by">
+Signed-off-by: Kirill A. Shutemov &lt;kirill.shutemov@linux.intel.com&gt;</span>
+<span class="acked-by">Acked-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+---
+ mm/internal.h | 5 +++++
+ mm/madvise.c  | 4 +++-
+ mm/oom_kill.c | 9 +--------
+ 3 files changed, 9 insertions(+), 9 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/internal.h b/mm/internal.h</span>
+<span class="p_header">index 44d68895a9b9..7430628bff34 100644</span>
+<span class="p_header">--- a/mm/internal.h</span>
+<span class="p_header">+++ b/mm/internal.h</span>
+<span class="p_chunk">@@ -41,6 +41,11 @@</span> <span class="p_context"> int do_swap_page(struct vm_fault *vmf);</span>
+ void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+ 		unsigned long floor, unsigned long ceiling);
+ 
+<span class="p_add">+static inline bool can_madv_dontneed_vma(struct vm_area_struct *vma)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return !(vma-&gt;vm_flags &amp; (VM_LOCKED|VM_HUGETLB|VM_PFNMAP));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ void unmap_page_range(struct mmu_gather *tlb,
+ 			     struct vm_area_struct *vma,
+ 			     unsigned long addr, unsigned long end,
+<span class="p_header">diff --git a/mm/madvise.c b/mm/madvise.c</span>
+<span class="p_header">index aa4c502caecb..c53d8da9c8e6 100644</span>
+<span class="p_header">--- a/mm/madvise.c</span>
+<span class="p_header">+++ b/mm/madvise.c</span>
+<span class="p_chunk">@@ -24,6 +24,8 @@</span> <span class="p_context"></span>
+ 
+ #include &lt;asm/tlb.h&gt;
+ 
+<span class="p_add">+#include &quot;internal.h&quot;</span>
+<span class="p_add">+</span>
+ /*
+  * Any behaviour which results in changes to the vma-&gt;vm_flags needs to
+  * take mmap_sem for writing. Others, which simply traverse vmas, need
+<span class="p_chunk">@@ -473,7 +475,7 @@</span> <span class="p_context"> static long madvise_dontneed(struct vm_area_struct *vma,</span>
+ 			     unsigned long start, unsigned long end)
+ {
+ 	*prev = vma;
+<span class="p_del">-	if (vma-&gt;vm_flags &amp; (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))</span>
+<span class="p_add">+	if (!can_madv_dontneed_vma(vma))</span>
+ 		return -EINVAL;
+ 
+ 	zap_page_range(vma, start, end - start);
+<span class="p_header">diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="p_header">index 96a53ab0c9eb..b6d8ac4948db 100644</span>
+<span class="p_header">--- a/mm/oom_kill.c</span>
+<span class="p_header">+++ b/mm/oom_kill.c</span>
+<span class="p_chunk">@@ -508,14 +508,7 @@</span> <span class="p_context"> static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+ 
+ 	tlb_gather_mmu(&amp;tlb, mm, 0, -1);
+ 	for (vma = mm-&gt;mmap ; vma; vma = vma-&gt;vm_next) {
+<span class="p_del">-		if (is_vm_hugetlb_page(vma))</span>
+<span class="p_del">-			continue;</span>
+<span class="p_del">-</span>
+<span class="p_del">-		/*</span>
+<span class="p_del">-		 * mlocked VMAs require explicit munlocking before unmap.</span>
+<span class="p_del">-		 * Let&#39;s keep it simple here and skip such VMAs.</span>
+<span class="p_del">-		 */</span>
+<span class="p_del">-		if (vma-&gt;vm_flags &amp; VM_LOCKED)</span>
+<span class="p_add">+		if (!can_madv_dontneed_vma(vma))</span>
+ 			continue;
+ 
+ 		/*
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

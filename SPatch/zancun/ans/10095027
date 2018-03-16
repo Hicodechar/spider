@@ -1,0 +1,491 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>Multiple oom_reaper BUGs: unmap_page_range racing with exit_mmap - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    Multiple oom_reaper BUGs: unmap_page_range racing with exit_mmap</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=579">David Rientjes</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Dec. 6, 2017, 7:48 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;alpine.DEB.2.10.1712052323170.119719@chino.kir.corp.google.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10095027/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10095027/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10095027/">/patch/10095027/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	95C4560327 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  6 Dec 2017 07:48:33 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 8690A29BD1
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  6 Dec 2017 07:48:33 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 7ABFA29BD5; Wed,  6 Dec 2017 07:48:33 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-7.0 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID, DKIM_VALID_AU,
+	RCVD_IN_DNSWL_HI autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id C0AD429BD1
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  6 Dec 2017 07:48:32 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753877AbdLFHsZ (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 6 Dec 2017 02:48:25 -0500
+Received: from mail-it0-f53.google.com ([209.85.214.53]:45151 &quot;EHLO
+	mail-it0-f53.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1753340AbdLFHsY (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 6 Dec 2017 02:48:24 -0500
+Received: by mail-it0-f53.google.com with SMTP id z6so6111586iti.4
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Tue, 05 Dec 2017 23:48:24 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=google.com; s=20161025;
+	h=date:from:to:cc:subject:in-reply-to:message-id:references
+	:user-agent:mime-version;
+	bh=BcQHttBlo1ouVaU597NRfwEHJ7UhZ7kSELSwu6Ts8I8=;
+	b=UO3HgNYBRjGlU/ojJ8iSolpE9S5z84/gG/+qKItLa99/pSMyeOy9Fm2gW1VNrEMarm
+	U5G30SDczh494/3k9ZxQj170YXV8y9h0n7VD/rw/A0lVfpy9LlwNDh458uHfIAawsWAn
+	acKQ4ebtQJG1E7i31xndGtaOvB/CsOq/n3oEkjnBTD9DEpJVSgkesaVpxtHUtRmdtGsB
+	SEqUIK0luBQlu1YofjOskwLWUzzUa/RuVr00orfQLVNXlEO1p2BQmGXRtLdiZFa06PQK
+	UgOhBA0AnBx52WJOxn+ScbcMnr9Xoa72Se650OX8rXgq43kf+ZgQiqERJbK9UcKBij4H
+	AHLA==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:date:from:to:cc:subject:in-reply-to:message-id
+	:references:user-agent:mime-version;
+	bh=BcQHttBlo1ouVaU597NRfwEHJ7UhZ7kSELSwu6Ts8I8=;
+	b=pYuti9Flev1HsZKyhNF2BTIsEbb6QsB5hWIIo6+TpyBKrVLi5t9EPRvheuYVarlVlz
+	cHzHMgAfCZjmwVtDNy3kuhw4W9pRdCAf/kDFCqOu0tIE4Qfa1sw4FcfF+smapJUhdbaC
+	uDLFu3yfnAGyg//xl90VKKnTEgg2mQntmQivGbtDmKRTQmIVicRPrtL8xmGJXjv2jLTD
+	inVzAfLOuY/BEUBoqzFZZcdyk81XlsaTwCXMwdWVbqqjlV63SZm4Gybp/7/QeKqzvKLC
+	G9z/IVrjKZQEdYw0OgflTQKUFLe7pnZB36MLjuZQV+a0e6Xsuua/B0eVvifwxhzffXh4
+	Zbig==
+X-Gm-Message-State: AKGB3mL1qVbV7/1ULrfM6bVbit+hDYO3Ltj94fdLKu6euI9n/J7HMKzY
+	Gn/0nY8vfWZUk/Hc8vZIXqS3rg==
+X-Google-Smtp-Source: AGs4zMYdhgJYCPtE95p9zUzKiuhZrTjviH1ngCQ3Jr98veCem4P6JBT0joYNMY0+P2vUbGCW0bilig==
+X-Received: by 10.36.58.11 with SMTP id m11mr20644826itm.109.1512546503563; 
+	Tue, 05 Dec 2017 23:48:23 -0800 (PST)
+Received: from [2620:15c:17:3:1579:dee:6b0c:688c]
+	([2620:15c:17:3:1579:dee:6b0c:688c])
+	by smtp.gmail.com with ESMTPSA id
+	o71sm1211592itc.30.2017.12.05.23.48.22
+	(version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+	Tue, 05 Dec 2017 23:48:22 -0800 (PST)
+Date: Tue, 5 Dec 2017 23:48:21 -0800 (PST)
+From: David Rientjes &lt;rientjes@google.com&gt;
+X-X-Sender: rientjes@chino.kir.corp.google.com
+To: Tetsuo Handa &lt;penguin-kernel@i-love.sakura.ne.jp&gt;
+cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Michal Hocko &lt;mhocko@suse.com&gt;, Andrea Arcangeli &lt;aarcange@redhat.com&gt;,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: Multiple oom_reaper BUGs: unmap_page_range racing with exit_mmap
+In-Reply-To: &lt;201712060328.vB63SrDK069830@www262.sakura.ne.jp&gt;
+Message-ID: &lt;alpine.DEB.2.10.1712052323170.119719@chino.kir.corp.google.com&gt;
+References: &lt;alpine.DEB.2.10.1712051824050.91099@chino.kir.corp.google.com&gt;
+	&lt;alpine.DEB.2.10.1712051857450.98120@chino.kir.corp.google.com&gt;
+	&lt;201712060328.vB63SrDK069830@www262.sakura.ne.jp&gt;
+User-Agent: Alpine 2.10 (DEB 1266 2009-07-14)
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=579">David Rientjes</a> - Dec. 6, 2017, 7:48 a.m.</div>
+<pre class="content">
+On Wed, 6 Dec 2017, Tetsuo Handa wrote:
+<span class="quote">
+&gt; &gt; &gt; One way to solve the issue is to have two mm flags: one to indicate the mm </span>
+<span class="quote">&gt; &gt; &gt; is entering unmap_vmas(): set the flag, do down_write(&amp;mm-&gt;mmap_sem); </span>
+<span class="quote">&gt; &gt; &gt; up_write(&amp;mm-&gt;mmap_sem), then unmap_vmas().  The oom reaper needs this </span>
+<span class="quote">&gt; &gt; &gt; flag clear, not MMF_OOM_SKIP, while holding down_read(&amp;mm-&gt;mmap_sem) to be </span>
+<span class="quote">&gt; &gt; &gt; allowed to call unmap_page_range().  The oom killer will still defer </span>
+<span class="quote">&gt; &gt; &gt; selecting this victim for MMF_OOM_SKIP after unmap_vmas() returns.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; The result of that change would be that we do not oom reap from any mm </span>
+<span class="quote">&gt; &gt; &gt; entering unmap_vmas(): we let unmap_vmas() do the work itself and avoid </span>
+<span class="quote">&gt; &gt; &gt; racing with it.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I think we need something like the following?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This patch does not work. __oom_reap_task_mm() can find MMF_REAPING and</span>
+<span class="quote">&gt; return true and sets MMF_OOM_SKIP before exit_mmap() calls down_write().</span>
+<span class="quote">&gt; </span>
+
+Ah, you&#39;re talking about oom_reap_task() setting MMF_OOM_SKIP prematurely 
+and allowing for additional oom kills?  I see your point, but I was mainly 
+focused on preventing the panic as the first order of business.  We could 
+certainly fix oom_reap_task() to not set MMF_OOM_SKIP itself and rather 
+leave that to exit_mmap() if it finds MMF_REAPING if your concern matches 
+my understanding.
+<span class="quote">
+&gt; Also, I don&#39;t know what exit_mmap() is doing but I think that there is a</span>
+<span class="quote">&gt; possibility that the OOM reaper tries to reclaim mlocked pages as soon as</span>
+<span class="quote">&gt; exit_mmap() cleared VM_LOCKED flag by calling munlock_vma_pages_all().</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 	if (mm-&gt;locked_vm) {</span>
+<span class="quote">&gt; 		vma = mm-&gt;mmap;</span>
+<span class="quote">&gt; 		while (vma) {</span>
+<span class="quote">&gt; 			if (vma-&gt;vm_flags &amp; VM_LOCKED)</span>
+<span class="quote">&gt; 				munlock_vma_pages_all(vma);</span>
+<span class="quote">&gt; 			vma = vma-&gt;vm_next;</span>
+<span class="quote">&gt; 		}</span>
+<span class="quote">&gt; 	}</span>
+<span class="quote">&gt; </span>
+
+Yes, that looks possible as well, although the problem I have reported can 
+happen with or without mlock.  Did you find this by code inspection or 
+have you experienced runtime problems with it?
+
+I think this argues to do MMF_REAPING-style behavior at the beginning of 
+exit_mmap() and avoid reaping all together once we have reached that 
+point.  There are no more users of the mm and we are in the process of 
+tearing it down, I&#39;m not sure that the oom reaper should be in the 
+business with trying to interfere with that.  Or are there actual bug 
+reports where an oom victim gets wedged while in exit_mmap() prior to 
+releasing its memory?
+
+I know this conflicts with your patches in -mm to remove the oom mutex, 
+but I think we should make sure we can prevent crashes before cleaning it 
+up.
+
+(I also noticed that the mm_has_notifiers() check is missing a 
+trace_skip_task_reaping(tsk-&gt;pid))
+---
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Dec. 6, 2017, 9 a.m.</div>
+<pre class="content">
+On Tue 05-12-17 23:48:21, David Rientjes wrote:
+[...]
+<span class="quote">&gt; I think this argues to do MMF_REAPING-style behavior at the beginning of </span>
+<span class="quote">&gt; exit_mmap() and avoid reaping all together once we have reached that </span>
+<span class="quote">&gt; point.  There are no more users of the mm and we are in the process of </span>
+<span class="quote">&gt; tearing it down, I&#39;m not sure that the oom reaper should be in the </span>
+<span class="quote">&gt; business with trying to interfere with that.  Or are there actual bug </span>
+<span class="quote">&gt; reports where an oom victim gets wedged while in exit_mmap() prior to </span>
+<span class="quote">&gt; releasing its memory?</span>
+
+Something like that seem to work indeed. But we should better understand
+what is going on here before adding new oom reaper specific kludges. So
+let&#39;s focus on getting more information from your crashes first.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/include/linux/sched/coredump.h b/include/linux/sched/coredump.h</span>
+<span class="p_header">--- a/include/linux/sched/coredump.h</span>
+<span class="p_header">+++ b/include/linux/sched/coredump.h</span>
+<span class="p_chunk">@@ -70,6 +70,7 @@</span> <span class="p_context"> static inline int get_dumpable(struct mm_struct *mm)</span>
+ #define MMF_UNSTABLE		22	/* mm is unstable for copy_from_user */
+ #define MMF_HUGE_ZERO_PAGE	23      /* mm has ever used the global huge zero page */
+ #define MMF_DISABLE_THP		24	/* disable THP for all VMAs */
+<span class="p_add">+#define MMF_REAPING		25	/* mm is undergoing reaping */</span>
+ #define MMF_DISABLE_THP_MASK	(1 &lt;&lt; MMF_DISABLE_THP)
+ 
+ #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK |\
+<span class="p_header">diff --git a/mm/mmap.c b/mm/mmap.c</span>
+<span class="p_header">--- a/mm/mmap.c</span>
+<span class="p_header">+++ b/mm/mmap.c</span>
+<span class="p_chunk">@@ -2996,6 +2996,23 @@</span> <span class="p_context"> void exit_mmap(struct mm_struct *mm)</span>
+ 
+ 	/* mm&#39;s last user has gone, and its about to be pulled down */
+ 	mmu_notifier_release(mm);
+<span class="p_add">+	set_bit(MMF_REAPING, &amp;mm-&gt;flags);</span>
+<span class="p_add">+	if (unlikely(tsk_is_oom_victim(current))) {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Wait for oom_reap_task() to stop working on this</span>
+<span class="p_add">+		 * mm. Because MMF_REAPING is already set before</span>
+<span class="p_add">+		 * calling down_read(), oom_reap_task() will not run</span>
+<span class="p_add">+		 * on this &quot;mm&quot; post up_write().</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * tsk_is_oom_victim() cannot be set from under us</span>
+<span class="p_add">+		 * either because current-&gt;mm is already set to NULL</span>
+<span class="p_add">+		 * under task_lock before calling mmput and oom_mm is</span>
+<span class="p_add">+		 * set not NULL by the OOM killer only if current-&gt;mm</span>
+<span class="p_add">+		 * is found not NULL while holding the task_lock.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		down_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="p_add">+		up_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="p_add">+	}</span>
+ 
+ 	if (mm-&gt;locked_vm) {
+ 		vma = mm-&gt;mmap;
+<span class="p_chunk">@@ -3018,26 +3035,9 @@</span> <span class="p_context"> void exit_mmap(struct mm_struct *mm)</span>
+ 	/* update_hiwater_rss(mm) here? but nobody should be looking */
+ 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+ 	unmap_vmas(&amp;tlb, vma, 0, -1);
+<span class="p_del">-</span>
+<span class="p_del">-	set_bit(MMF_OOM_SKIP, &amp;mm-&gt;flags);</span>
+<span class="p_del">-	if (unlikely(tsk_is_oom_victim(current))) {</span>
+<span class="p_del">-		/*</span>
+<span class="p_del">-		 * Wait for oom_reap_task() to stop working on this</span>
+<span class="p_del">-		 * mm. Because MMF_OOM_SKIP is already set before</span>
+<span class="p_del">-		 * calling down_read(), oom_reap_task() will not run</span>
+<span class="p_del">-		 * on this &quot;mm&quot; post up_write().</span>
+<span class="p_del">-		 *</span>
+<span class="p_del">-		 * tsk_is_oom_victim() cannot be set from under us</span>
+<span class="p_del">-		 * either because current-&gt;mm is already set to NULL</span>
+<span class="p_del">-		 * under task_lock before calling mmput and oom_mm is</span>
+<span class="p_del">-		 * set not NULL by the OOM killer only if current-&gt;mm</span>
+<span class="p_del">-		 * is found not NULL while holding the task_lock.</span>
+<span class="p_del">-		 */</span>
+<span class="p_del">-		down_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="p_del">-		up_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="p_del">-	}</span>
+ 	free_pgtables(&amp;tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
+ 	tlb_finish_mmu(&amp;tlb, 0, -1);
+<span class="p_add">+	set_bit(MMF_OOM_SKIP, &amp;mm-&gt;flags);</span>
+ 
+ 	/*
+ 	 * Walk the list again, actually closing and freeing it,
+<span class="p_header">diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="p_header">--- a/mm/oom_kill.c</span>
+<span class="p_header">+++ b/mm/oom_kill.c</span>
+<span class="p_chunk">@@ -485,30 +485,29 @@</span> <span class="p_context"> static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);</span>
+ static struct task_struct *oom_reaper_list;
+ static DEFINE_SPINLOCK(oom_reaper_lock);
+ 
+<span class="p_del">-static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Returns 0 on success or</span>
+<span class="p_add">+ * 	-EAGAIN: mm-&gt;mmap_sem is contended</span>
+<span class="p_add">+ *	-EINVAL: mm is ineligible</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static int __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+ {
+ 	struct mmu_gather tlb;
+ 	struct vm_area_struct *vma;
+<span class="p_del">-	bool ret = true;</span>
+<span class="p_add">+	int ret = 0;</span>
+ 
+ 	/*
+ 	 * We have to make sure to not race with the victim exit path
+<span class="p_del">-	 * and cause premature new oom victim selection:</span>
+<span class="p_del">-	 * __oom_reap_task_mm		exit_mm</span>
+<span class="p_del">-	 *   mmget_not_zero</span>
+<span class="p_del">-	 *				  mmput</span>
+<span class="p_del">-	 *				    atomic_dec_and_test</span>
+<span class="p_del">-	 *				  exit_oom_victim</span>
+<span class="p_del">-	 *				[...]</span>
+<span class="p_del">-	 *				out_of_memory</span>
+<span class="p_del">-	 *				  select_bad_process</span>
+<span class="p_del">-	 *				    # no TIF_MEMDIE task selects new victim</span>
+<span class="p_del">-	 *  unmap_page_range # frees some memory</span>
+<span class="p_add">+	 * and cause premature new oom victim selection: if MMF_REAPING is</span>
+<span class="p_add">+	 * not set under the protection of mmap_sem, allow reaping because</span>
+<span class="p_add">+	 * exit_mmap() has not been entered, which is serialized with a</span>
+<span class="p_add">+	 * down_write();up_write() cycle.  Otherwise, leave reaping to</span>
+<span class="p_add">+	 * exit_mmap(), which will set MMF_OOM_SKIP itself.</span>
+ 	 */
+ 	mutex_lock(&amp;oom_lock);
+ 
+ 	if (!down_read_trylock(&amp;mm-&gt;mmap_sem)) {
+<span class="p_del">-		ret = false;</span>
+<span class="p_add">+		ret = -EAGAIN;</span>
+ 		trace_skip_task_reaping(tsk-&gt;pid);
+ 		goto unlock_oom;
+ 	}
+<span class="p_chunk">@@ -529,13 +528,14 @@</span> <span class="p_context"> static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+ 	}
+ 
+ 	/*
+<span class="p_del">-	 * MMF_OOM_SKIP is set by exit_mmap when the OOM reaper can&#39;t</span>
+<span class="p_del">-	 * work on the mm anymore. The check for MMF_OOM_SKIP must run</span>
+<span class="p_add">+	 * MMF_REAPING is set by exit_mmap when the OOM reaper can&#39;t</span>
+<span class="p_add">+	 * work on the mm anymore. The check for MMF_REAPING must run</span>
+ 	 * under mmap_sem for reading because it serializes against the
+ 	 * down_write();up_write() cycle in exit_mmap().
+ 	 */
+<span class="p_del">-	if (test_bit(MMF_OOM_SKIP, &amp;mm-&gt;flags)) {</span>
+<span class="p_add">+	if (test_bit(MMF_REAPING, &amp;mm-&gt;flags)) {</span>
+ 		up_read(&amp;mm-&gt;mmap_sem);
+<span class="p_add">+		ret = -EINVAL;</span>
+ 		trace_skip_task_reaping(tsk-&gt;pid);
+ 		goto unlock_oom;
+ 	}
+<span class="p_chunk">@@ -589,15 +589,18 @@</span> <span class="p_context"> static void oom_reap_task(struct task_struct *tsk)</span>
+ {
+ 	int attempts = 0;
+ 	struct mm_struct *mm = tsk-&gt;signal-&gt;oom_mm;
+<span class="p_add">+	int ret;</span>
+ 
+ 	/* Retry the down_read_trylock(mmap_sem) a few times */
+<span class="p_del">-	while (attempts++ &lt; MAX_OOM_REAP_RETRIES &amp;&amp; !__oom_reap_task_mm(tsk, mm))</span>
+<span class="p_add">+	while (attempts++ &lt; MAX_OOM_REAP_RETRIES) {</span>
+<span class="p_add">+		ret = __oom_reap_task_mm(tsk, mm);</span>
+<span class="p_add">+		if (ret != -EAGAIN)</span>
+<span class="p_add">+			break;</span>
+ 		schedule_timeout_idle(HZ/10);
+<span class="p_del">-</span>
+<span class="p_add">+	}</span>
+ 	if (attempts &lt;= MAX_OOM_REAP_RETRIES)
+ 		goto done;
+ 
+<span class="p_del">-</span>
+ 	pr_info(&quot;oom_reaper: unable to reap pid:%d (%s)\n&quot;,
+ 		task_pid_nr(tsk), tsk-&gt;comm);
+ 	debug_show_all_locks();
+<span class="p_chunk">@@ -609,7 +612,8 @@</span> <span class="p_context"> static void oom_reap_task(struct task_struct *tsk)</span>
+ 	 * Hide this mm from OOM killer because it has been either reaped or
+ 	 * somebody can&#39;t call up_write(mmap_sem).
+ 	 */
+<span class="p_del">-	set_bit(MMF_OOM_SKIP, &amp;mm-&gt;flags);</span>
+<span class="p_add">+	if (ret != -EINVAL)</span>
+<span class="p_add">+		set_bit(MMF_OOM_SKIP, &amp;mm-&gt;flags);</span>
+ 
+ 	/* Drop a reference taken by wake_oom_reaper */
+ 	put_task_struct(tsk);
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

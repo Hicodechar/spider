@@ -1,0 +1,436 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[1/3] mm/vmalloc: Abstract out vmap_area_lock lock/unlock operations - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [1/3] mm/vmalloc: Abstract out vmap_area_lock lock/unlock operations</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=35552">Ingo Molnar</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Aug. 22, 2015, 10:44 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1440240300-6206-2-git-send-email-mingo@kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7055681/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7055681/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7055681/">/patch/7055681/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id 5175CC05AC
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 22 Aug 2015 10:46:26 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 54FCC206A0
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 22 Aug 2015 10:46:25 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 30B47206A6
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 22 Aug 2015 10:46:24 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753579AbbHVKqA (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Sat, 22 Aug 2015 06:46:00 -0400
+Received: from mail-wi0-f173.google.com ([209.85.212.173]:36109 &quot;EHLO
+	mail-wi0-f173.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1753466AbbHVKpc (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Sat, 22 Aug 2015 06:45:32 -0400
+Received: by wicja10 with SMTP id ja10so33597163wic.1
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Sat, 22 Aug 2015 03:45:30 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=gmail.com; s=20120113;
+	h=sender:from:to:cc:subject:date:message-id:in-reply-to:references;
+	bh=9SWaU5bmKT5+1JEb18WBQ7ianqNRjldC8mOwd3Q2EsE=;
+	b=z73VhoqfEbzVi115yG3ItxVi0Nk7aLN88pqaKwbDnyMbNsWwPXMX+RFc+2b3ZJVdH/
+	TUyHWkSHbc736xKt5JdGMZjWgfdRwxYkYMm0MmMkSkEFlH2paLD9al/nGwt9Q903Z43q
+	k7zU+ayuY0DaoVQavw9zUEuEnMPUEXfdwyZf/+Cl9et1XMEOCo9r/ZJBereLIpnWN3Qw
+	YeoKPF3CTCvb17FsNNAprzuwuLtrwflCFwnXsPXjV+Ez6A0WIur0s7/vTFNYJNc6XM92
+	H5CQKXj7On9imFRhiVd3gw0BZ36RRoUce1mg4hcKAr+YBxlDBb3XQd4UihIG8pzHpNTj
+	ErGA==
+X-Received: by 10.180.76.232 with SMTP id n8mr14312785wiw.72.1440240330677; 
+	Sat, 22 Aug 2015 03:45:30 -0700 (PDT)
+Received: from localhost.localdomain (54033495.catv.pool.telekom.hu.
+	[84.3.52.149]) by smtp.gmail.com with ESMTPSA id
+	e8sm6839102wiz.0.2015.08.22.03.45.29
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+	Sat, 22 Aug 2015 03:45:30 -0700 (PDT)
+From: Ingo Molnar &lt;mingo@kernel.org&gt;
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Dave Hansen &lt;dave@sr71.net&gt;, Peter Zijlstra &lt;peterz@infradead.org&gt;,
+	David Rientjes &lt;rientjes@google.com&gt;, Rik van Riel &lt;riel@redhat.com&gt;,
+	Rasmus Villemoes &lt;linux@rasmusvillemoes.dk&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+Subject: [PATCH 1/3] mm/vmalloc: Abstract out vmap_area_lock lock/unlock
+	operations
+Date: Sat, 22 Aug 2015 12:44:58 +0200
+Message-Id: &lt;1440240300-6206-2-git-send-email-mingo@kernel.org&gt;
+X-Mailer: git-send-email 2.1.4
+In-Reply-To: &lt;1440240300-6206-1-git-send-email-mingo@kernel.org&gt;
+References: &lt;1440240300-6206-1-git-send-email-mingo@kernel.org&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-7.7 required=5.0 tests=BAYES_00,DKIM_SIGNED,
+	RCVD_IN_DNSWL_HI,RP_MATCHES_RCVD,T_DKIM_INVALID,UNPARSEABLE_RELAY
+	autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=35552">Ingo Molnar</a> - Aug. 22, 2015, 10:44 a.m.</div>
+<pre class="content">
+We want to add some extra cache invalidation logic to vmalloc()
+area list unlocks - for that first abstract away the vmap_area_lock
+operations into vmap_lock()/vmap_unlock().
+
+Cc: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: Rik van Riel &lt;riel@redhat.com&gt;
+Cc: linux-mm@kvack.org
+<span class="signed-off-by">Signed-off-by: Ingo Molnar &lt;mingo@kernel.org&gt;</span>
+---
+ mm/vmalloc.c | 55 +++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 33 insertions(+), 22 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/vmalloc.c b/mm/vmalloc.c</span>
+<span class="p_header">index 2faaa2976447..605138083880 100644</span>
+<span class="p_header">--- a/mm/vmalloc.c</span>
+<span class="p_header">+++ b/mm/vmalloc.c</span>
+<span class="p_chunk">@@ -277,6 +277,17 @@</span> <span class="p_context"> EXPORT_SYMBOL(vmalloc_to_pfn);</span>
+ #define VM_VM_AREA	0x04
+ 
+ static DEFINE_SPINLOCK(vmap_area_lock);
+<span class="p_add">+</span>
+<span class="p_add">+static inline void vmap_lock(void)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void vmap_unlock(void)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ /* Export for kexec only */
+ LIST_HEAD(vmap_area_list);
+ static struct rb_root vmap_area_root = RB_ROOT;
+<span class="p_chunk">@@ -373,7 +384,7 @@</span> <span class="p_context"> static struct vmap_area *alloc_vmap_area(unsigned long size,</span>
+ 	kmemleak_scan_area(&amp;va-&gt;rb_node, SIZE_MAX, gfp_mask &amp; GFP_RECLAIM_MASK);
+ 
+ retry:
+<span class="p_del">-	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	vmap_lock();</span>
+ 	/*
+ 	 * Invalidate cache if we have more permissive parameters.
+ 	 * cached_hole_size notes the largest hole noticed _below_
+<span class="p_chunk">@@ -452,7 +463,7 @@</span> <span class="p_context"> static struct vmap_area *alloc_vmap_area(unsigned long size,</span>
+ 	va-&gt;flags = 0;
+ 	__insert_vmap_area(va);
+ 	free_vmap_cache = &amp;va-&gt;rb_node;
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	vmap_unlock();</span>
+ 
+ 	BUG_ON(va-&gt;va_start &amp; (align-1));
+ 	BUG_ON(va-&gt;va_start &lt; vstart);
+<span class="p_chunk">@@ -461,7 +472,7 @@</span> <span class="p_context"> static struct vmap_area *alloc_vmap_area(unsigned long size,</span>
+ 	return va;
+ 
+ overflow:
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	vmap_unlock();</span>
+ 	if (!purged) {
+ 		purge_vmap_area_lazy();
+ 		purged = 1;
+<span class="p_chunk">@@ -514,9 +525,9 @@</span> <span class="p_context"> static void __free_vmap_area(struct vmap_area *va)</span>
+  */
+ static void free_vmap_area(struct vmap_area *va)
+ {
+<span class="p_del">-	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	vmap_lock();</span>
+ 	__free_vmap_area(va);
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	vmap_unlock();</span>
+ }
+ 
+ /*
+<span class="p_chunk">@@ -642,10 +653,10 @@</span> <span class="p_context"> static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,</span>
+ 		flush_tlb_kernel_range(*start, *end);
+ 
+ 	if (nr) {
+<span class="p_del">-		spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+		vmap_lock();</span>
+ 		list_for_each_entry_safe(va, n_va, &amp;valist, purge_list)
+ 			__free_vmap_area(va);
+<span class="p_del">-		spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+		vmap_unlock();</span>
+ 	}
+ 	spin_unlock(&amp;purge_lock);
+ }
+<span class="p_chunk">@@ -707,9 +718,9 @@</span> <span class="p_context"> static struct vmap_area *find_vmap_area(unsigned long addr)</span>
+ {
+ 	struct vmap_area *va;
+ 
+<span class="p_del">-	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	vmap_lock();</span>
+ 	va = __find_vmap_area(addr);
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	vmap_unlock();</span>
+ 
+ 	return va;
+ }
+<span class="p_chunk">@@ -1304,14 +1315,14 @@</span> <span class="p_context"> EXPORT_SYMBOL_GPL(map_vm_area);</span>
+ static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
+ 			      unsigned long flags, const void *caller)
+ {
+<span class="p_del">-	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	vmap_lock();</span>
+ 	vm-&gt;flags = flags;
+ 	vm-&gt;addr = (void *)va-&gt;va_start;
+ 	vm-&gt;size = va-&gt;va_end - va-&gt;va_start;
+ 	vm-&gt;caller = caller;
+ 	va-&gt;vm = vm;
+ 	va-&gt;flags |= VM_VM_AREA;
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	vmap_unlock();</span>
+ }
+ 
+ static void clear_vm_uninitialized_flag(struct vm_struct *vm)
+<span class="p_chunk">@@ -1433,10 +1444,10 @@</span> <span class="p_context"> struct vm_struct *remove_vm_area(const void *addr)</span>
+ 	if (va &amp;&amp; va-&gt;flags &amp; VM_VM_AREA) {
+ 		struct vm_struct *vm = va-&gt;vm;
+ 
+<span class="p_del">-		spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+		vmap_lock();</span>
+ 		va-&gt;vm = NULL;
+ 		va-&gt;flags &amp;= ~VM_VM_AREA;
+<span class="p_del">-		spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+		vmap_unlock();</span>
+ 
+ 		vmap_debug_free_range(va-&gt;va_start, va-&gt;va_end);
+ 		kasan_free_shadow(vm);
+<span class="p_chunk">@@ -2008,7 +2019,7 @@</span> <span class="p_context"> long vread(char *buf, char *addr, unsigned long count)</span>
+ 	if ((unsigned long) addr + count &lt; count)
+ 		count = -(unsigned long) addr;
+ 
+<span class="p_del">-	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	vmap_lock();</span>
+ 	list_for_each_entry(va, &amp;vmap_area_list, list) {
+ 		if (!count)
+ 			break;
+<span class="p_chunk">@@ -2040,7 +2051,7 @@</span> <span class="p_context"> long vread(char *buf, char *addr, unsigned long count)</span>
+ 		count -= n;
+ 	}
+ finished:
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	vmap_unlock();</span>
+ 
+ 	if (buf == buf_start)
+ 		return 0;
+<span class="p_chunk">@@ -2090,7 +2101,7 @@</span> <span class="p_context"> long vwrite(char *buf, char *addr, unsigned long count)</span>
+ 		count = -(unsigned long) addr;
+ 	buflen = count;
+ 
+<span class="p_del">-	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	vmap_lock();</span>
+ 	list_for_each_entry(va, &amp;vmap_area_list, list) {
+ 		if (!count)
+ 			break;
+<span class="p_chunk">@@ -2121,7 +2132,7 @@</span> <span class="p_context"> long vwrite(char *buf, char *addr, unsigned long count)</span>
+ 		count -= n;
+ 	}
+ finished:
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	vmap_unlock();</span>
+ 	if (!copied)
+ 		return 0;
+ 	return buflen;
+<span class="p_chunk">@@ -2435,7 +2446,7 @@</span> <span class="p_context"> struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,</span>
+ 			goto err_free;
+ 	}
+ retry:
+<span class="p_del">-	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	vmap_lock();</span>
+ 
+ 	/* start scanning - we scan from the top, begin with the last area */
+ 	area = term_area = last_area;
+<span class="p_chunk">@@ -2457,7 +2468,7 @@</span> <span class="p_context"> struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,</span>
+ 		 * comparing.
+ 		 */
+ 		if (base + last_end &lt; vmalloc_start + last_end) {
+<span class="p_del">-			spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+			vmap_unlock();</span>
+ 			if (!purged) {
+ 				purge_vmap_area_lazy();
+ 				purged = true;
+<span class="p_chunk">@@ -2512,7 +2523,7 @@</span> <span class="p_context"> struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,</span>
+ 
+ 	vmap_area_pcpu_hole = base + offsets[last_area];
+ 
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	vmap_unlock();</span>
+ 
+ 	/* insert all vm&#39;s */
+ 	for (area = 0; area &lt; nr_vms; area++)
+<span class="p_chunk">@@ -2557,7 +2568,7 @@</span> <span class="p_context"> static void *s_start(struct seq_file *m, loff_t *pos)</span>
+ 	loff_t n = *pos;
+ 	struct vmap_area *va;
+ 
+<span class="p_del">-	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	vmap_lock();</span>
+ 	va = list_entry((&amp;vmap_area_list)-&gt;next, typeof(*va), list);
+ 	while (n &gt; 0 &amp;&amp; &amp;va-&gt;list != &amp;vmap_area_list) {
+ 		n--;
+<span class="p_chunk">@@ -2585,7 +2596,7 @@</span> <span class="p_context"> static void *s_next(struct seq_file *m, void *p, loff_t *pos)</span>
+ static void s_stop(struct seq_file *m, void *p)
+ 	__releases(&amp;vmap_area_lock)
+ {
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	vmap_unlock();</span>
+ }
+ 
+ static void show_numa_info(struct seq_file *m, struct vm_struct *v)
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

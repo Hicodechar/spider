@@ -1,0 +1,534 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[4.4,42/73] s390/mm: fix asce_bits handling with dynamic pagetable levels - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [4.4,42/73] s390/mm: fix asce_bits handling with dynamic pagetable levels</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=37061">gregkh@linuxfoundation.org</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>May 17, 2016, 1:15 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20160517011453.804767049@linuxfoundation.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9107741/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9107741/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9107741/">/patch/9107741/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id D1600BF29F
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 17 May 2016 01:50:00 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id C0E8220165
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 17 May 2016 01:49:59 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 5D99720160
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 17 May 2016 01:49:58 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S933489AbcEQBtl (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 16 May 2016 21:49:41 -0400
+Received: from mail.linuxfoundation.org ([140.211.169.12]:33905 &quot;EHLO
+	mail.linuxfoundation.org&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1754845AbcEQBQF (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 16 May 2016 21:16:05 -0400
+Received: from localhost (c-50-170-35-168.hsd1.wa.comcast.net
+	[50.170.35.168])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id A278C948;
+	Tue, 17 May 2016 01:16:04 +0000 (UTC)
+From: Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;,
+	stable@vger.kernel.org, Michael Munday &lt;munday@ca.ibm.com&gt;,
+	Martin Schwidefsky &lt;schwidefsky@de.ibm.com&gt;,
+	Gerald Schaefer &lt;gerald.schaefer@de.ibm.com&gt;
+Subject: [PATCH 4.4 42/73] s390/mm: fix asce_bits handling with dynamic
+	pagetable levels
+Date: Mon, 16 May 2016 18:15:12 -0700
+Message-Id: &lt;20160517011453.804767049@linuxfoundation.org&gt;
+X-Mailer: git-send-email 2.8.2
+In-Reply-To: &lt;20160517011451.827433776@linuxfoundation.org&gt;
+References: &lt;20160517011451.827433776@linuxfoundation.org&gt;
+User-Agent: quilt/0.64
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-8.3 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=37061">gregkh@linuxfoundation.org</a> - May 17, 2016, 1:15 a.m.</div>
+<pre class="content">
+4.4-stable review patch.  If anyone has any objections, please let me know.
+
+------------------
+<span class="from">
+From: Gerald Schaefer &lt;gerald.schaefer@de.ibm.com&gt;</span>
+
+commit 723cacbd9dc79582e562c123a0bacf8bfc69e72a upstream.
+
+There is a race with multi-threaded applications between context switch and
+pagetable upgrade. In switch_mm() a new user_asce is built from mm-&gt;pgd and
+mm-&gt;context.asce_bits, w/o holding any locks. A concurrent mmap with a
+pagetable upgrade on another thread in crst_table_upgrade() could already
+have set new asce_bits, but not yet the new mm-&gt;pgd. This would result in a
+corrupt user_asce in switch_mm(), and eventually in a kernel panic from a
+translation exception.
+
+Fix this by storing the complete asce instead of just the asce_bits, which
+can then be read atomically from switch_mm(), so that it either sees the
+old value or the new value, but no mixture. Both cases are OK. Having the
+old value would result in a page fault on access to the higher level memory,
+but the fault handler would see the new mm-&gt;pgd, if it was a valid access
+after the mmap on the other thread has completed. So as worst-case scenario
+we would have a page fault loop for the racing thread until the next time
+slice.
+
+Also remove dead code and simplify the upgrade/downgrade path, there are no
+upgrades from 2 levels, and only downgrades from 3 levels for compat tasks.
+There are also no concurrent upgrades, because the mmap_sem is held with
+down_write() in do_mmap, so the flush and table checks during upgrade can
+be removed.
+
+Reported-by: Michael Munday &lt;munday@ca.ibm.com&gt;
+<span class="reviewed-by">Reviewed-by: Martin Schwidefsky &lt;schwidefsky@de.ibm.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Gerald Schaefer &lt;gerald.schaefer@de.ibm.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Martin Schwidefsky &lt;schwidefsky@de.ibm.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;</span>
+
+---
+ arch/s390/include/asm/mmu.h         |    2 
+ arch/s390/include/asm/mmu_context.h |   28 +++++++++--
+ arch/s390/include/asm/pgalloc.h     |    4 -
+ arch/s390/include/asm/processor.h   |    2 
+ arch/s390/include/asm/tlbflush.h    |    9 +--
+ arch/s390/mm/init.c                 |    3 -
+ arch/s390/mm/mmap.c                 |    6 +-
+ arch/s390/mm/pgtable.c              |   85 +++++++++++-------------------------
+ 8 files changed, 62 insertions(+), 77 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- a/arch/s390/include/asm/mmu.h</span>
+<span class="p_header">+++ b/arch/s390/include/asm/mmu.h</span>
+<span class="p_chunk">@@ -11,7 +11,7 @@</span> <span class="p_context"> typedef struct {</span>
+ 	spinlock_t list_lock;
+ 	struct list_head pgtable_list;
+ 	struct list_head gmap_list;
+<span class="p_del">-	unsigned long asce_bits;</span>
+<span class="p_add">+	unsigned long asce;</span>
+ 	unsigned long asce_limit;
+ 	unsigned long vdso_base;
+ 	/* The mmu context allocates 4K page tables. */
+<span class="p_header">--- a/arch/s390/include/asm/mmu_context.h</span>
+<span class="p_header">+++ b/arch/s390/include/asm/mmu_context.h</span>
+<span class="p_chunk">@@ -26,12 +26,28 @@</span> <span class="p_context"> static inline int init_new_context(struc</span>
+ 	mm-&gt;context.has_pgste = 0;
+ 	mm-&gt;context.use_skey = 0;
+ #endif
+<span class="p_del">-	if (mm-&gt;context.asce_limit == 0) {</span>
+<span class="p_add">+	switch (mm-&gt;context.asce_limit) {</span>
+<span class="p_add">+	case 1UL &lt;&lt; 42:</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * forked 3-level task, fall through to set new asce with new</span>
+<span class="p_add">+		 * mm-&gt;pgd</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+	case 0:</span>
+ 		/* context created by exec, set asce limit to 4TB */
+<span class="p_del">-		mm-&gt;context.asce_bits = _ASCE_TABLE_LENGTH |</span>
+<span class="p_del">-			_ASCE_USER_BITS | _ASCE_TYPE_REGION3;</span>
+ 		mm-&gt;context.asce_limit = STACK_TOP_MAX;
+<span class="p_del">-	} else if (mm-&gt;context.asce_limit == (1UL &lt;&lt; 31)) {</span>
+<span class="p_add">+		mm-&gt;context.asce = __pa(mm-&gt;pgd) | _ASCE_TABLE_LENGTH |</span>
+<span class="p_add">+				   _ASCE_USER_BITS | _ASCE_TYPE_REGION3;</span>
+<span class="p_add">+		break;</span>
+<span class="p_add">+	case 1UL &lt;&lt; 53:</span>
+<span class="p_add">+		/* forked 4-level task, set new asce with new mm-&gt;pgd */</span>
+<span class="p_add">+		mm-&gt;context.asce = __pa(mm-&gt;pgd) | _ASCE_TABLE_LENGTH |</span>
+<span class="p_add">+				   _ASCE_USER_BITS | _ASCE_TYPE_REGION2;</span>
+<span class="p_add">+		break;</span>
+<span class="p_add">+	case 1UL &lt;&lt; 31:</span>
+<span class="p_add">+		/* forked 2-level compat task, set new asce with new mm-&gt;pgd */</span>
+<span class="p_add">+		mm-&gt;context.asce = __pa(mm-&gt;pgd) | _ASCE_TABLE_LENGTH |</span>
+<span class="p_add">+				   _ASCE_USER_BITS | _ASCE_TYPE_SEGMENT;</span>
+<span class="p_add">+		/* pgd_alloc() did not increase mm-&gt;nr_pmds */</span>
+ 		mm_inc_nr_pmds(mm);
+ 	}
+ 	crst_table_init((unsigned long *) mm-&gt;pgd, pgd_entry_type(mm));
+<span class="p_chunk">@@ -42,7 +58,7 @@</span> <span class="p_context"> static inline int init_new_context(struc</span>
+ 
+ static inline void set_user_asce(struct mm_struct *mm)
+ {
+<span class="p_del">-	S390_lowcore.user_asce = mm-&gt;context.asce_bits | __pa(mm-&gt;pgd);</span>
+<span class="p_add">+	S390_lowcore.user_asce = mm-&gt;context.asce;</span>
+ 	if (current-&gt;thread.mm_segment.ar4)
+ 		__ctl_load(S390_lowcore.user_asce, 7, 7);
+ 	set_cpu_flag(CIF_ASCE);
+<span class="p_chunk">@@ -71,7 +87,7 @@</span> <span class="p_context"> static inline void switch_mm(struct mm_s</span>
+ {
+ 	int cpu = smp_processor_id();
+ 
+<span class="p_del">-	S390_lowcore.user_asce = next-&gt;context.asce_bits | __pa(next-&gt;pgd);</span>
+<span class="p_add">+	S390_lowcore.user_asce = next-&gt;context.asce;</span>
+ 	if (prev == next)
+ 		return;
+ 	if (MACHINE_HAS_TLB_LC)
+<span class="p_header">--- a/arch/s390/include/asm/pgalloc.h</span>
+<span class="p_header">+++ b/arch/s390/include/asm/pgalloc.h</span>
+<span class="p_chunk">@@ -56,8 +56,8 @@</span> <span class="p_context"> static inline unsigned long pgd_entry_ty</span>
+ 	return _REGION2_ENTRY_EMPTY;
+ }
+ 
+<span class="p_del">-int crst_table_upgrade(struct mm_struct *, unsigned long limit);</span>
+<span class="p_del">-void crst_table_downgrade(struct mm_struct *, unsigned long limit);</span>
+<span class="p_add">+int crst_table_upgrade(struct mm_struct *);</span>
+<span class="p_add">+void crst_table_downgrade(struct mm_struct *);</span>
+ 
+ static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long address)
+ {
+<span class="p_header">--- a/arch/s390/include/asm/processor.h</span>
+<span class="p_header">+++ b/arch/s390/include/asm/processor.h</span>
+<span class="p_chunk">@@ -163,7 +163,7 @@</span> <span class="p_context"> extern __vector128 init_task_fpu_regs[__</span>
+ 	regs-&gt;psw.mask	= PSW_USER_BITS | PSW_MASK_BA;			\
+ 	regs-&gt;psw.addr	= new_psw | PSW_ADDR_AMODE;			\
+ 	regs-&gt;gprs[15]	= new_stackp;					\
+<span class="p_del">-	crst_table_downgrade(current-&gt;mm, 1UL &lt;&lt; 31);			\</span>
+<span class="p_add">+	crst_table_downgrade(current-&gt;mm);				\</span>
+ 	execve_tail();							\
+ } while (0)
+ 
+<span class="p_header">--- a/arch/s390/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/s390/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -110,8 +110,7 @@</span> <span class="p_context"> static inline void __tlb_flush_asce(stru</span>
+ static inline void __tlb_flush_kernel(void)
+ {
+ 	if (MACHINE_HAS_IDTE)
+<span class="p_del">-		__tlb_flush_idte((unsigned long) init_mm.pgd |</span>
+<span class="p_del">-				 init_mm.context.asce_bits);</span>
+<span class="p_add">+		__tlb_flush_idte(init_mm.context.asce);</span>
+ 	else
+ 		__tlb_flush_global();
+ }
+<span class="p_chunk">@@ -133,8 +132,7 @@</span> <span class="p_context"> static inline void __tlb_flush_asce(stru</span>
+ static inline void __tlb_flush_kernel(void)
+ {
+ 	if (MACHINE_HAS_TLB_LC)
+<span class="p_del">-		__tlb_flush_idte_local((unsigned long) init_mm.pgd |</span>
+<span class="p_del">-				       init_mm.context.asce_bits);</span>
+<span class="p_add">+		__tlb_flush_idte_local(init_mm.context.asce);</span>
+ 	else
+ 		__tlb_flush_local();
+ }
+<span class="p_chunk">@@ -148,8 +146,7 @@</span> <span class="p_context"> static inline void __tlb_flush_mm(struct</span>
+ 	 * only ran on the local cpu.
+ 	 */
+ 	if (MACHINE_HAS_IDTE &amp;&amp; list_empty(&amp;mm-&gt;context.gmap_list))
+<span class="p_del">-		__tlb_flush_asce(mm, (unsigned long) mm-&gt;pgd |</span>
+<span class="p_del">-				 mm-&gt;context.asce_bits);</span>
+<span class="p_add">+		__tlb_flush_asce(mm, mm-&gt;context.asce);</span>
+ 	else
+ 		__tlb_flush_full(mm);
+ }
+<span class="p_header">--- a/arch/s390/mm/init.c</span>
+<span class="p_header">+++ b/arch/s390/mm/init.c</span>
+<span class="p_chunk">@@ -89,7 +89,8 @@</span> <span class="p_context"> void __init paging_init(void)</span>
+ 		asce_bits = _ASCE_TYPE_REGION3 | _ASCE_TABLE_LENGTH;
+ 		pgd_type = _REGION3_ENTRY_EMPTY;
+ 	}
+<span class="p_del">-	S390_lowcore.kernel_asce = (__pa(init_mm.pgd) &amp; PAGE_MASK) | asce_bits;</span>
+<span class="p_add">+	init_mm.context.asce = (__pa(init_mm.pgd) &amp; PAGE_MASK) | asce_bits;</span>
+<span class="p_add">+	S390_lowcore.kernel_asce = init_mm.context.asce;</span>
+ 	clear_table((unsigned long *) init_mm.pgd, pgd_type,
+ 		    sizeof(unsigned long)*2048);
+ 	vmem_map_init();
+<span class="p_header">--- a/arch/s390/mm/mmap.c</span>
+<span class="p_header">+++ b/arch/s390/mm/mmap.c</span>
+<span class="p_chunk">@@ -174,7 +174,7 @@</span> <span class="p_context"> int s390_mmap_check(unsigned long addr,</span>
+ 	if (!(flags &amp; MAP_FIXED))
+ 		addr = 0;
+ 	if ((addr + len) &gt;= TASK_SIZE)
+<span class="p_del">-		return crst_table_upgrade(current-&gt;mm, 1UL &lt;&lt; 53);</span>
+<span class="p_add">+		return crst_table_upgrade(current-&gt;mm);</span>
+ 	return 0;
+ }
+ 
+<span class="p_chunk">@@ -191,7 +191,7 @@</span> <span class="p_context"> s390_get_unmapped_area(struct file *filp</span>
+ 		return area;
+ 	if (area == -ENOMEM &amp;&amp; !is_compat_task() &amp;&amp; TASK_SIZE &lt; (1UL &lt;&lt; 53)) {
+ 		/* Upgrade the page table to 4 levels and retry. */
+<span class="p_del">-		rc = crst_table_upgrade(mm, 1UL &lt;&lt; 53);</span>
+<span class="p_add">+		rc = crst_table_upgrade(mm);</span>
+ 		if (rc)
+ 			return (unsigned long) rc;
+ 		area = arch_get_unmapped_area(filp, addr, len, pgoff, flags);
+<span class="p_chunk">@@ -213,7 +213,7 @@</span> <span class="p_context"> s390_get_unmapped_area_topdown(struct fi</span>
+ 		return area;
+ 	if (area == -ENOMEM &amp;&amp; !is_compat_task() &amp;&amp; TASK_SIZE &lt; (1UL &lt;&lt; 53)) {
+ 		/* Upgrade the page table to 4 levels and retry. */
+<span class="p_del">-		rc = crst_table_upgrade(mm, 1UL &lt;&lt; 53);</span>
+<span class="p_add">+		rc = crst_table_upgrade(mm);</span>
+ 		if (rc)
+ 			return (unsigned long) rc;
+ 		area = arch_get_unmapped_area_topdown(filp, addr, len,
+<span class="p_header">--- a/arch/s390/mm/pgtable.c</span>
+<span class="p_header">+++ b/arch/s390/mm/pgtable.c</span>
+<span class="p_chunk">@@ -49,81 +49,52 @@</span> <span class="p_context"> static void __crst_table_upgrade(void *a</span>
+ 	__tlb_flush_local();
+ }
+ 
+<span class="p_del">-int crst_table_upgrade(struct mm_struct *mm, unsigned long limit)</span>
+<span class="p_add">+int crst_table_upgrade(struct mm_struct *mm)</span>
+ {
+ 	unsigned long *table, *pgd;
+<span class="p_del">-	unsigned long entry;</span>
+<span class="p_del">-	int flush;</span>
+ 
+<span class="p_del">-	BUG_ON(limit &gt; (1UL &lt;&lt; 53));</span>
+<span class="p_del">-	flush = 0;</span>
+<span class="p_del">-repeat:</span>
+<span class="p_add">+	/* upgrade should only happen from 3 to 4 levels */</span>
+<span class="p_add">+	BUG_ON(mm-&gt;context.asce_limit != (1UL &lt;&lt; 42));</span>
+<span class="p_add">+</span>
+ 	table = crst_table_alloc(mm);
+ 	if (!table)
+ 		return -ENOMEM;
+<span class="p_add">+</span>
+ 	spin_lock_bh(&amp;mm-&gt;page_table_lock);
+<span class="p_del">-	if (mm-&gt;context.asce_limit &lt; limit) {</span>
+<span class="p_del">-		pgd = (unsigned long *) mm-&gt;pgd;</span>
+<span class="p_del">-		if (mm-&gt;context.asce_limit &lt;= (1UL &lt;&lt; 31)) {</span>
+<span class="p_del">-			entry = _REGION3_ENTRY_EMPTY;</span>
+<span class="p_del">-			mm-&gt;context.asce_limit = 1UL &lt;&lt; 42;</span>
+<span class="p_del">-			mm-&gt;context.asce_bits = _ASCE_TABLE_LENGTH |</span>
+<span class="p_del">-						_ASCE_USER_BITS |</span>
+<span class="p_del">-						_ASCE_TYPE_REGION3;</span>
+<span class="p_del">-		} else {</span>
+<span class="p_del">-			entry = _REGION2_ENTRY_EMPTY;</span>
+<span class="p_del">-			mm-&gt;context.asce_limit = 1UL &lt;&lt; 53;</span>
+<span class="p_del">-			mm-&gt;context.asce_bits = _ASCE_TABLE_LENGTH |</span>
+<span class="p_del">-						_ASCE_USER_BITS |</span>
+<span class="p_del">-						_ASCE_TYPE_REGION2;</span>
+<span class="p_del">-		}</span>
+<span class="p_del">-		crst_table_init(table, entry);</span>
+<span class="p_del">-		pgd_populate(mm, (pgd_t *) table, (pud_t *) pgd);</span>
+<span class="p_del">-		mm-&gt;pgd = (pgd_t *) table;</span>
+<span class="p_del">-		mm-&gt;task_size = mm-&gt;context.asce_limit;</span>
+<span class="p_del">-		table = NULL;</span>
+<span class="p_del">-		flush = 1;</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+	pgd = (unsigned long *) mm-&gt;pgd;</span>
+<span class="p_add">+	crst_table_init(table, _REGION2_ENTRY_EMPTY);</span>
+<span class="p_add">+	pgd_populate(mm, (pgd_t *) table, (pud_t *) pgd);</span>
+<span class="p_add">+	mm-&gt;pgd = (pgd_t *) table;</span>
+<span class="p_add">+	mm-&gt;context.asce_limit = 1UL &lt;&lt; 53;</span>
+<span class="p_add">+	mm-&gt;context.asce = __pa(mm-&gt;pgd) | _ASCE_TABLE_LENGTH |</span>
+<span class="p_add">+			   _ASCE_USER_BITS | _ASCE_TYPE_REGION2;</span>
+<span class="p_add">+	mm-&gt;task_size = mm-&gt;context.asce_limit;</span>
+ 	spin_unlock_bh(&amp;mm-&gt;page_table_lock);
+<span class="p_del">-	if (table)</span>
+<span class="p_del">-		crst_table_free(mm, table);</span>
+<span class="p_del">-	if (mm-&gt;context.asce_limit &lt; limit)</span>
+<span class="p_del">-		goto repeat;</span>
+<span class="p_del">-	if (flush)</span>
+<span class="p_del">-		on_each_cpu(__crst_table_upgrade, mm, 0);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	on_each_cpu(__crst_table_upgrade, mm, 0);</span>
+ 	return 0;
+ }
+ 
+<span class="p_del">-void crst_table_downgrade(struct mm_struct *mm, unsigned long limit)</span>
+<span class="p_add">+void crst_table_downgrade(struct mm_struct *mm)</span>
+ {
+ 	pgd_t *pgd;
+ 
+<span class="p_add">+	/* downgrade should only happen from 3 to 2 levels (compat only) */</span>
+<span class="p_add">+	BUG_ON(mm-&gt;context.asce_limit != (1UL &lt;&lt; 42));</span>
+<span class="p_add">+</span>
+ 	if (current-&gt;active_mm == mm) {
+ 		clear_user_asce();
+ 		__tlb_flush_mm(mm);
+ 	}
+<span class="p_del">-	while (mm-&gt;context.asce_limit &gt; limit) {</span>
+<span class="p_del">-		pgd = mm-&gt;pgd;</span>
+<span class="p_del">-		switch (pgd_val(*pgd) &amp; _REGION_ENTRY_TYPE_MASK) {</span>
+<span class="p_del">-		case _REGION_ENTRY_TYPE_R2:</span>
+<span class="p_del">-			mm-&gt;context.asce_limit = 1UL &lt;&lt; 42;</span>
+<span class="p_del">-			mm-&gt;context.asce_bits = _ASCE_TABLE_LENGTH |</span>
+<span class="p_del">-						_ASCE_USER_BITS |</span>
+<span class="p_del">-						_ASCE_TYPE_REGION3;</span>
+<span class="p_del">-			break;</span>
+<span class="p_del">-		case _REGION_ENTRY_TYPE_R3:</span>
+<span class="p_del">-			mm-&gt;context.asce_limit = 1UL &lt;&lt; 31;</span>
+<span class="p_del">-			mm-&gt;context.asce_bits = _ASCE_TABLE_LENGTH |</span>
+<span class="p_del">-						_ASCE_USER_BITS |</span>
+<span class="p_del">-						_ASCE_TYPE_SEGMENT;</span>
+<span class="p_del">-			break;</span>
+<span class="p_del">-		default:</span>
+<span class="p_del">-			BUG();</span>
+<span class="p_del">-		}</span>
+<span class="p_del">-		mm-&gt;pgd = (pgd_t *) (pgd_val(*pgd) &amp; _REGION_ENTRY_ORIGIN);</span>
+<span class="p_del">-		mm-&gt;task_size = mm-&gt;context.asce_limit;</span>
+<span class="p_del">-		crst_table_free(mm, (unsigned long *) pgd);</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pgd = mm-&gt;pgd;</span>
+<span class="p_add">+	mm-&gt;pgd = (pgd_t *) (pgd_val(*pgd) &amp; _REGION_ENTRY_ORIGIN);</span>
+<span class="p_add">+	mm-&gt;context.asce_limit = 1UL &lt;&lt; 31;</span>
+<span class="p_add">+	mm-&gt;context.asce = __pa(mm-&gt;pgd) | _ASCE_TABLE_LENGTH |</span>
+<span class="p_add">+			   _ASCE_USER_BITS | _ASCE_TYPE_SEGMENT;</span>
+<span class="p_add">+	mm-&gt;task_size = mm-&gt;context.asce_limit;</span>
+<span class="p_add">+	crst_table_free(mm, (unsigned long *) pgd);</span>
+<span class="p_add">+</span>
+ 	if (current-&gt;active_mm == mm)
+ 		set_user_asce(mm);
+ }
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

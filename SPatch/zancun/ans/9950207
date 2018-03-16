@@ -1,0 +1,1519 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v8,16/18] RISC-V: Paging and MMU - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v8,16/18] RISC-V: Paging and MMU</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=90941">Palmer Dabbelt</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Sept. 12, 2017, 9:57 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170912215715.4186-17-palmer@dabbelt.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9950207/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9950207/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9950207/">/patch/9950207/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	548206038F for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 12 Sep 2017 21:58:45 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 43C1B28C60
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 12 Sep 2017 21:58:45 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 37B6928CCA; Tue, 12 Sep 2017 21:58:45 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.4 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID, RCVD_IN_DNSWL_HI,
+	RCVD_IN_SORBS_SPAM autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 1D1D428C60
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 12 Sep 2017 21:58:42 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751854AbdILV6j (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 12 Sep 2017 17:58:39 -0400
+Received: from mail-pf0-f196.google.com ([209.85.192.196]:36168 &quot;EHLO
+	mail-pf0-f196.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751686AbdILV6G (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 12 Sep 2017 17:58:06 -0400
+Received: by mail-pf0-f196.google.com with SMTP id f84so6720328pfj.3
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Tue, 12 Sep 2017 14:58:06 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=dabbelt-com.20150623.gappssmtp.com; s=20150623;
+	h=subject:date:message-id:in-reply-to:references:cc:from:to;
+	bh=3+ndh5bIztp4/3QsHKfO1FZ7IKu5GL4M3kqMdOfTaAU=;
+	b=oGx7ecUmjFXMBXL9/6+Lf1KlpvMs1EyrEPxLa/INxZRX9HyqzSmEYCoNwnKpoBGTze
+	Vx5fhEES8W99kBUjvz6ivvp8E4ti5zxvE6xMCquGxzrJ8IbpBsoCbn6w9adK52rB/mLB
+	S9OQICDVnoo/loLs2epnue/n4K2RRdAPHC/Ki+XaiU2V3rGSo+fSnm12SYpMq8zEtg1r
+	j1BtAabUuKSWeOeLKiP29cOXsHEXUsgXacwuv23kttBVDOpm8RK7pVmeebc4qzeEx1xz
+	ARIAS8vUpFyhyGtgbU0A5ydTygRyYRYOcDo+ElTswEGrekHczf0AvCVKCaAgyk1JHJNk
+	9uPg==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:subject:date:message-id:in-reply-to:references
+	:cc:from:to;
+	bh=3+ndh5bIztp4/3QsHKfO1FZ7IKu5GL4M3kqMdOfTaAU=;
+	b=oHEBklYpodrc2wo1fnGeeNd35fpAFwNNRDMy0+V0MiDmivjJl4FDowuM0MhUuTLMcl
+	/gOLMS+Qv8o/nBRpBFZtDCzLWNWg5beAJXjtNT1wINz4CtQD21kxUMQ0fO6DXO1t1dMF
+	AL9ssIt853Thz3JT49awcxTwUDypMGPJNicZvnZDBnQPAbMc5cYXAj0RKOQZtI79adxz
+	u7MZx+2abVvXNkpwBXYdSWq7fGE9/GYUMDUSe+q06ksg2h69vA/ENKSWM8ydzQySl47C
+	db3a4apVBLF7Z4ogqYwIlU4zbPBjos+yRqw0Vde+EvEZFADEqckH2wW4aIOhU9Nb3wEZ
+	6gIw==
+X-Gm-Message-State: AHPjjUgyjhevTQ+L3aOIaFSNhiHBkU5turafj4Vims1+fx8+D5NsX11I
+	FRHifA88fq8fPgX7
+X-Google-Smtp-Source: ADKCNb7nYTzOo9dzYlViyhe4o52sMUtBS69FRniP1aXam3s36zdvi3abXrlja21Eb2rsls81xKdvxQ==
+X-Received: by 10.98.34.149 with SMTP id p21mr16277069pfj.322.1505253485332; 
+	Tue, 12 Sep 2017 14:58:05 -0700 (PDT)
+Received: from localhost ([12.206.222.5]) by smtp.gmail.com with ESMTPSA id
+	b63sm22085945pga.27.2017.09.12.14.58.04
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Tue, 12 Sep 2017 14:58:04 -0700 (PDT)
+Subject: [PATCH v8 16/18] RISC-V: Paging and MMU
+Date: Tue, 12 Sep 2017 14:57:13 -0700
+Message-Id: &lt;20170912215715.4186-17-palmer@dabbelt.com&gt;
+X-Mailer: git-send-email 2.13.5
+In-Reply-To: &lt;20170912215715.4186-1-palmer@dabbelt.com&gt;
+References: &lt;20170912215715.4186-1-palmer@dabbelt.com&gt;
+Cc: yamada.masahiro@socionext.com, mmarek@suse.com, albert@sifive.com,
+	will.deacon@arm.com, boqun.feng@gmail.com, oleg@redhat.com,
+	mingo@redhat.com, daniel.lezcano@linaro.org,
+	gregkh@linuxfoundation.org, jslaby@suse.com, davem@davemloft.net,
+	mchehab@kernel.org, hverkuil@xs4all.nl, rdunlap@infradead.org,
+	viro@zeniv.linux.org.uk, mhiramat@kernel.org, fweisbec@gmail.com,
+	mcgrof@kernel.org, dledford@redhat.com, bart.vanassche@sandisk.com,
+	sstabellini@kernel.org, mpe@ellerman.id.au,
+	rmk+kernel@armlinux.org.uk, paul.gortmaker@windriver.com,
+	nicolas.dichtel@6wind.com, linux@roeck-us.net,
+	heiko.carstens@de.ibm.com, schwidefsky@de.ibm.com,
+	geert@linux-m68k.org, akpm@linux-foundation.org,
+	andriy.shevchenko@linux.intel.com, jiri@mellanox.com,
+	vgupta@synopsys.com, airlied@redhat.com, jk@ozlabs.org,
+	chris@chris-wilson.co.uk, Jason@zx2c4.com,
+	paulmck@linux.vnet.ibm.com, ncardwell@google.com,
+	linux-kernel@vger.kernel.org, linux-kbuild@vger.kernel.org,
+	patches@groups.riscv.org, Palmer Dabbelt &lt;palmer@dabbelt.com&gt;
+From: Palmer Dabbelt &lt;palmer@dabbelt.com&gt;
+To: peterz@infradead.org, tglx@linutronix.de, jason@lakedaemon.net,
+	marc.zyngier@arm.com, Arnd Bergmann &lt;arnd@arndb.de&gt;, dmitriy@oss-tech.org
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=90941">Palmer Dabbelt</a> - Sept. 12, 2017, 9:57 p.m.</div>
+<pre class="content">
+This patch contains code to manage the RISC-V MMU, including definitions
+of the page tables and the page walking code.
+<span class="signed-off-by">
+Signed-off-by: Palmer Dabbelt &lt;palmer@dabbelt.com&gt;</span>
+---
+ arch/riscv/include/asm/mmu_context.h  |  69 ++++++
+ arch/riscv/include/asm/page.h         | 130 ++++++++++
+ arch/riscv/include/asm/pgalloc.h      | 124 ++++++++++
+ arch/riscv/include/asm/pgtable-32.h   |  25 ++
+ arch/riscv/include/asm/pgtable-64.h   |  84 +++++++
+ arch/riscv/include/asm/pgtable-bits.h |  48 ++++
+ arch/riscv/include/asm/pgtable.h      | 430 ++++++++++++++++++++++++++++++++++
+ arch/riscv/mm/fault.c                 | 282 ++++++++++++++++++++++
+ 8 files changed, 1192 insertions(+)
+ create mode 100644 arch/riscv/include/asm/mmu_context.h
+ create mode 100644 arch/riscv/include/asm/page.h
+ create mode 100644 arch/riscv/include/asm/pgalloc.h
+ create mode 100644 arch/riscv/include/asm/pgtable-32.h
+ create mode 100644 arch/riscv/include/asm/pgtable-64.h
+ create mode 100644 arch/riscv/include/asm/pgtable-bits.h
+ create mode 100644 arch/riscv/include/asm/pgtable.h
+ create mode 100644 arch/riscv/mm/fault.c
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/riscv/include/asm/mmu_context.h b/arch/riscv/include/asm/mmu_context.h</span>
+new file mode 100644
+<span class="p_header">index 000000000000..de1fc1631fc4</span>
+<span class="p_header">--- /dev/null</span>
+<span class="p_header">+++ b/arch/riscv/include/asm/mmu_context.h</span>
+<span class="p_chunk">@@ -0,0 +1,69 @@</span> <span class="p_context"></span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Copyright (C) 2012 Regents of the University of California</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   This program is free software; you can redistribute it and/or</span>
+<span class="p_add">+ *   modify it under the terms of the GNU General Public License</span>
+<span class="p_add">+ *   as published by the Free Software Foundation, version 2.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   This program is distributed in the hope that it will be useful,</span>
+<span class="p_add">+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="p_add">+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="p_add">+ *   GNU General Public License for more details.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifndef _ASM_RISCV_MMU_CONTEXT_H</span>
+<span class="p_add">+#define _ASM_RISCV_MMU_CONTEXT_H</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;asm-generic/mm_hooks.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;linux/mm.h&gt;</span>
+<span class="p_add">+#include &lt;linux/sched.h&gt;</span>
+<span class="p_add">+#include &lt;asm/tlbflush.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void enter_lazy_tlb(struct mm_struct *mm,</span>
+<span class="p_add">+	struct task_struct *task)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* Initialize context-related info for a new mm_struct */</span>
+<span class="p_add">+static inline int init_new_context(struct task_struct *task,</span>
+<span class="p_add">+	struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void destroy_context(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline pgd_t *current_pgdir(void)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return pfn_to_virt(csr_read(sptbr) &amp; SPTBR_PPN);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void set_pgdir(pgd_t *pgd)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	csr_write(sptbr, virt_to_pfn(pgd) | SPTBR_MODE);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void switch_mm(struct mm_struct *prev,</span>
+<span class="p_add">+	struct mm_struct *next, struct task_struct *task)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (likely(prev != next)) {</span>
+<span class="p_add">+		set_pgdir(next-&gt;pgd);</span>
+<span class="p_add">+		local_flush_tlb_all();</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void activate_mm(struct mm_struct *prev,</span>
+<span class="p_add">+			       struct mm_struct *next)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	switch_mm(prev, next, NULL);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void deactivate_mm(struct task_struct *task,</span>
+<span class="p_add">+	struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#endif /* _ASM_RISCV_MMU_CONTEXT_H */</span>
+<span class="p_header">diff --git a/arch/riscv/include/asm/page.h b/arch/riscv/include/asm/page.h</span>
+new file mode 100644
+<span class="p_header">index 000000000000..06cfbb3aacbb</span>
+<span class="p_header">--- /dev/null</span>
+<span class="p_header">+++ b/arch/riscv/include/asm/page.h</span>
+<span class="p_chunk">@@ -0,0 +1,130 @@</span> <span class="p_context"></span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Copyright (C) 2009 Chen Liqin &lt;liqin.chen@sunplusct.com&gt;</span>
+<span class="p_add">+ * Copyright (C) 2012 Regents of the University of California</span>
+<span class="p_add">+ * Copyright (C) 2017 SiFive</span>
+<span class="p_add">+ * Copyright (C) 2017 XiaojingZhu &lt;zhuxiaoj@ict.ac.cn&gt;</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   This program is free software; you can redistribute it and/or</span>
+<span class="p_add">+ *   modify it under the terms of the GNU General Public License</span>
+<span class="p_add">+ *   as published by the Free Software Foundation, version 2.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   This program is distributed in the hope that it will be useful,</span>
+<span class="p_add">+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="p_add">+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="p_add">+ *   GNU General Public License for more details.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifndef _ASM_RISCV_PAGE_H</span>
+<span class="p_add">+#define _ASM_RISCV_PAGE_H</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;linux/pfn.h&gt;</span>
+<span class="p_add">+#include &lt;linux/const.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define PAGE_SHIFT	(12)</span>
+<span class="p_add">+#define PAGE_SIZE	(_AC(1, UL) &lt;&lt; PAGE_SHIFT)</span>
+<span class="p_add">+#define PAGE_MASK	(~(PAGE_SIZE - 1))</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * PAGE_OFFSET -- the first address of the first page of memory.</span>
+<span class="p_add">+ * When not using MMU this corresponds to the first free page in</span>
+<span class="p_add">+ * physical memory (aligned on a page boundary).</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+#define PAGE_OFFSET		_AC(CONFIG_PAGE_OFFSET, UL)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define KERN_VIRT_SIZE (-PAGE_OFFSET)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifndef __ASSEMBLY__</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define PAGE_UP(addr)	(((addr)+((PAGE_SIZE)-1))&amp;(~((PAGE_SIZE)-1)))</span>
+<span class="p_add">+#define PAGE_DOWN(addr)	((addr)&amp;(~((PAGE_SIZE)-1)))</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* align addr on a size boundary - adjust address up/down if needed */</span>
+<span class="p_add">+#define _ALIGN_UP(addr, size)	(((addr)+((size)-1))&amp;(~((size)-1)))</span>
+<span class="p_add">+#define _ALIGN_DOWN(addr, size)	((addr)&amp;(~((size)-1)))</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* align addr on a size boundary - adjust address up if needed */</span>
+<span class="p_add">+#define _ALIGN(addr, size)	_ALIGN_UP(addr, size)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define clear_page(pgaddr)			memset((pgaddr), 0, PAGE_SIZE)</span>
+<span class="p_add">+#define copy_page(to, from)			memcpy((to), (from), PAGE_SIZE)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define clear_user_page(pgaddr, vaddr, page)	memset((pgaddr), 0, PAGE_SIZE)</span>
+<span class="p_add">+#define copy_user_page(vto, vfrom, vaddr, topg) \</span>
+<span class="p_add">+			memcpy((vto), (vfrom), PAGE_SIZE)</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Use struct definitions to apply C type checking</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* Page Global Directory entry */</span>
+<span class="p_add">+typedef struct {</span>
+<span class="p_add">+	unsigned long pgd;</span>
+<span class="p_add">+} pgd_t;</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* Page Table entry */</span>
+<span class="p_add">+typedef struct {</span>
+<span class="p_add">+	unsigned long pte;</span>
+<span class="p_add">+} pte_t;</span>
+<span class="p_add">+</span>
+<span class="p_add">+typedef struct {</span>
+<span class="p_add">+	unsigned long pgprot;</span>
+<span class="p_add">+} pgprot_t;</span>
+<span class="p_add">+</span>
+<span class="p_add">+typedef struct page *pgtable_t;</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define pte_val(x)	((x).pte)</span>
+<span class="p_add">+#define pgd_val(x)	((x).pgd)</span>
+<span class="p_add">+#define pgprot_val(x)	((x).pgprot)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define __pte(x)	((pte_t) { (x) })</span>
+<span class="p_add">+#define __pgd(x)	((pgd_t) { (x) })</span>
+<span class="p_add">+#define __pgprot(x)	((pgprot_t) { (x) })</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifdef CONFIG_64BITS</span>
+<span class="p_add">+#define PTE_FMT &quot;%016lx&quot;</span>
+<span class="p_add">+#else</span>
+<span class="p_add">+#define PTE_FMT &quot;%08lx&quot;</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+<span class="p_add">+extern unsigned long va_pa_offset;</span>
+<span class="p_add">+extern unsigned long pfn_base;</span>
+<span class="p_add">+</span>
+<span class="p_add">+extern unsigned long max_low_pfn;</span>
+<span class="p_add">+extern unsigned long min_low_pfn;</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define __pa(x)		((unsigned long)(x) - va_pa_offset)</span>
+<span class="p_add">+#define __va(x)		((void *)((unsigned long) (x) + va_pa_offset))</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define phys_to_pfn(phys)	(PFN_DOWN(phys))</span>
+<span class="p_add">+#define pfn_to_phys(pfn)	(PFN_PHYS(pfn))</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define virt_to_pfn(vaddr)	(phys_to_pfn(__pa(vaddr)))</span>
+<span class="p_add">+#define pfn_to_virt(pfn)	(__va(pfn_to_phys(pfn)))</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define virt_to_page(vaddr)	(pfn_to_page(virt_to_pfn(vaddr)))</span>
+<span class="p_add">+#define page_to_virt(page)	(pfn_to_virt(page_to_pfn(page)))</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define page_to_phys(page)	(pfn_to_phys(page_to_pfn(page)))</span>
+<span class="p_add">+#define page_to_bus(page)	(page_to_phys(page))</span>
+<span class="p_add">+#define phys_to_page(paddr)	(pfn_to_page(phys_to_pfn(paddr)))</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define pfn_valid(pfn) \</span>
+<span class="p_add">+	(((pfn) &gt;= pfn_base) &amp;&amp; (((pfn)-pfn_base) &lt; max_mapnr))</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define ARCH_PFN_OFFSET		(pfn_base)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#endif /* __ASSEMBLY__ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define virt_addr_valid(vaddr)	(pfn_valid(virt_to_pfn(vaddr)))</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | \</span>
+<span class="p_add">+				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;asm-generic/memory_model.h&gt;</span>
+<span class="p_add">+#include &lt;asm-generic/getorder.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* vDSO support */</span>
+<span class="p_add">+/* We do define AT_SYSINFO_EHDR but don&#39;t use the gate mechanism */</span>
+<span class="p_add">+#define __HAVE_ARCH_GATE_AREA</span>
+<span class="p_add">+</span>
+<span class="p_add">+#endif /* _ASM_RISCV_PAGE_H */</span>
+<span class="p_header">diff --git a/arch/riscv/include/asm/pgalloc.h b/arch/riscv/include/asm/pgalloc.h</span>
+new file mode 100644
+<span class="p_header">index 000000000000..a79ed5faff3a</span>
+<span class="p_header">--- /dev/null</span>
+<span class="p_header">+++ b/arch/riscv/include/asm/pgalloc.h</span>
+<span class="p_chunk">@@ -0,0 +1,124 @@</span> <span class="p_context"></span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Copyright (C) 2009 Chen Liqin &lt;liqin.chen@sunplusct.com&gt;</span>
+<span class="p_add">+ * Copyright (C) 2012 Regents of the University of California</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   This program is free software; you can redistribute it and/or</span>
+<span class="p_add">+ *   modify it under the terms of the GNU General Public License</span>
+<span class="p_add">+ *   as published by the Free Software Foundation, version 2.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   This program is distributed in the hope that it will be useful,</span>
+<span class="p_add">+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="p_add">+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="p_add">+ *   GNU General Public License for more details.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifndef _ASM_RISCV_PGALLOC_H</span>
+<span class="p_add">+#define _ASM_RISCV_PGALLOC_H</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;linux/mm.h&gt;</span>
+<span class="p_add">+#include &lt;asm/tlb.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void pmd_populate_kernel(struct mm_struct *mm,</span>
+<span class="p_add">+	pmd_t *pmd, pte_t *pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long pfn = virt_to_pfn(pte);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	set_pmd(pmd, __pmd((pfn &lt;&lt; _PAGE_PFN_SHIFT) | _PAGE_TABLE));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void pmd_populate(struct mm_struct *mm,</span>
+<span class="p_add">+	pmd_t *pmd, pgtable_t pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long pfn = virt_to_pfn(page_address(pte));</span>
+<span class="p_add">+</span>
+<span class="p_add">+	set_pmd(pmd, __pmd((pfn &lt;&lt; _PAGE_PFN_SHIFT) | _PAGE_TABLE));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifndef __PAGETABLE_PMD_FOLDED</span>
+<span class="p_add">+static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long pfn = virt_to_pfn(pmd);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	set_pud(pud, __pud((pfn &lt;&lt; _PAGE_PFN_SHIFT) | _PAGE_TABLE));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+#endif /* __PAGETABLE_PMD_FOLDED */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define pmd_pgtable(pmd)	pmd_page(pmd)</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline pgd_t *pgd_alloc(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	pgd_t *pgd;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pgd = (pgd_t *)__get_free_page(GFP_KERNEL);</span>
+<span class="p_add">+	if (likely(pgd != NULL)) {</span>
+<span class="p_add">+		memset(pgd, 0, USER_PTRS_PER_PGD * sizeof(pgd_t));</span>
+<span class="p_add">+		/* Copy kernel mappings */</span>
+<span class="p_add">+		memcpy(pgd + USER_PTRS_PER_PGD,</span>
+<span class="p_add">+			init_mm.pgd + USER_PTRS_PER_PGD,</span>
+<span class="p_add">+			(PTRS_PER_PGD - USER_PTRS_PER_PGD) * sizeof(pgd_t));</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	return pgd;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	free_page((unsigned long)pgd);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifndef __PAGETABLE_PMD_FOLDED</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return (pmd_t *)__get_free_page(</span>
+<span class="p_add">+		GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_ZERO);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	free_page((unsigned long)pmd);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define __pmd_free_tlb(tlb, pmd, addr)  pmd_free((tlb)-&gt;mm, pmd)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#endif /* __PAGETABLE_PMD_FOLDED */</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,</span>
+<span class="p_add">+	unsigned long address)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return (pte_t *)__get_free_page(</span>
+<span class="p_add">+		GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_ZERO);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline struct page *pte_alloc_one(struct mm_struct *mm,</span>
+<span class="p_add">+	unsigned long address)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct page *pte;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pte = alloc_page(GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_ZERO);</span>
+<span class="p_add">+	if (likely(pte != NULL))</span>
+<span class="p_add">+		pgtable_page_ctor(pte);</span>
+<span class="p_add">+	return pte;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	free_page((unsigned long)pte);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void pte_free(struct mm_struct *mm, pgtable_t pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	pgtable_page_dtor(pte);</span>
+<span class="p_add">+	__free_page(pte);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define __pte_free_tlb(tlb, pte, buf)   \</span>
+<span class="p_add">+do {                                    \</span>
+<span class="p_add">+	pgtable_page_dtor(pte);         \</span>
+<span class="p_add">+	tlb_remove_page((tlb), pte);    \</span>
+<span class="p_add">+} while (0)</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void check_pgt_cache(void)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#endif /* _ASM_RISCV_PGALLOC_H */</span>
+<span class="p_header">diff --git a/arch/riscv/include/asm/pgtable-32.h b/arch/riscv/include/asm/pgtable-32.h</span>
+new file mode 100644
+<span class="p_header">index 000000000000..d61974b74182</span>
+<span class="p_header">--- /dev/null</span>
+<span class="p_header">+++ b/arch/riscv/include/asm/pgtable-32.h</span>
+<span class="p_chunk">@@ -0,0 +1,25 @@</span> <span class="p_context"></span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Copyright (C) 2012 Regents of the University of California</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   This program is free software; you can redistribute it and/or</span>
+<span class="p_add">+ *   modify it under the terms of the GNU General Public License</span>
+<span class="p_add">+ *   as published by the Free Software Foundation, version 2.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   This program is distributed in the hope that it will be useful,</span>
+<span class="p_add">+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="p_add">+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="p_add">+ *   GNU General Public License for more details.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifndef _ASM_RISCV_PGTABLE_32_H</span>
+<span class="p_add">+#define _ASM_RISCV_PGTABLE_32_H</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;asm-generic/pgtable-nopmd.h&gt;</span>
+<span class="p_add">+#include &lt;linux/const.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* Size of region mapped by a page global directory */</span>
+<span class="p_add">+#define PGDIR_SHIFT     22</span>
+<span class="p_add">+#define PGDIR_SIZE      (_AC(1, UL) &lt;&lt; PGDIR_SHIFT)</span>
+<span class="p_add">+#define PGDIR_MASK      (~(PGDIR_SIZE - 1))</span>
+<span class="p_add">+</span>
+<span class="p_add">+#endif /* _ASM_RISCV_PGTABLE_32_H */</span>
+<span class="p_header">diff --git a/arch/riscv/include/asm/pgtable-64.h b/arch/riscv/include/asm/pgtable-64.h</span>
+new file mode 100644
+<span class="p_header">index 000000000000..7aa0ea9bd8bb</span>
+<span class="p_header">--- /dev/null</span>
+<span class="p_header">+++ b/arch/riscv/include/asm/pgtable-64.h</span>
+<span class="p_chunk">@@ -0,0 +1,84 @@</span> <span class="p_context"></span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Copyright (C) 2012 Regents of the University of California</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   This program is free software; you can redistribute it and/or</span>
+<span class="p_add">+ *   modify it under the terms of the GNU General Public License</span>
+<span class="p_add">+ *   as published by the Free Software Foundation, version 2.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   This program is distributed in the hope that it will be useful,</span>
+<span class="p_add">+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="p_add">+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="p_add">+ *   GNU General Public License for more details.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifndef _ASM_RISCV_PGTABLE_64_H</span>
+<span class="p_add">+#define _ASM_RISCV_PGTABLE_64_H</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;linux/const.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define PGDIR_SHIFT     30</span>
+<span class="p_add">+/* Size of region mapped by a page global directory */</span>
+<span class="p_add">+#define PGDIR_SIZE      (_AC(1, UL) &lt;&lt; PGDIR_SHIFT)</span>
+<span class="p_add">+#define PGDIR_MASK      (~(PGDIR_SIZE - 1))</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define PMD_SHIFT       21</span>
+<span class="p_add">+/* Size of region mapped by a page middle directory */</span>
+<span class="p_add">+#define PMD_SIZE        (_AC(1, UL) &lt;&lt; PMD_SHIFT)</span>
+<span class="p_add">+#define PMD_MASK        (~(PMD_SIZE - 1))</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* Page Middle Directory entry */</span>
+<span class="p_add">+typedef struct {</span>
+<span class="p_add">+	unsigned long pmd;</span>
+<span class="p_add">+} pmd_t;</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define pmd_val(x)      ((x).pmd)</span>
+<span class="p_add">+#define __pmd(x)        ((pmd_t) { (x) })</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define PTRS_PER_PMD    (PAGE_SIZE / sizeof(pmd_t))</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline int pud_present(pud_t pud)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return (pud_val(pud) &amp; _PAGE_PRESENT);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline int pud_none(pud_t pud)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return (pud_val(pud) == 0);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline int pud_bad(pud_t pud)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return !pud_present(pud);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void set_pud(pud_t *pudp, pud_t pud)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	*pudp = pud;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void pud_clear(pud_t *pudp)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	set_pud(pudp, __pud(0));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline unsigned long pud_page_vaddr(pud_t pud)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return (unsigned long)pfn_to_virt(pud_val(pud) &gt;&gt; _PAGE_PFN_SHIFT);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define pmd_index(addr) (((addr) &gt;&gt; PMD_SHIFT) &amp; (PTRS_PER_PMD - 1))</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return (pmd_t *)pud_page_vaddr(*pud) + pmd_index(addr);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline pmd_t pfn_pmd(unsigned long pfn, pgprot_t prot)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return __pmd((pfn &lt;&lt; _PAGE_PFN_SHIFT) | pgprot_val(prot));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define pmd_ERROR(e) \</span>
+<span class="p_add">+	pr_err(&quot;%s:%d: bad pmd %016lx.\n&quot;, __FILE__, __LINE__, pmd_val(e))</span>
+<span class="p_add">+</span>
+<span class="p_add">+#endif /* _ASM_RISCV_PGTABLE_64_H */</span>
+<span class="p_header">diff --git a/arch/riscv/include/asm/pgtable-bits.h b/arch/riscv/include/asm/pgtable-bits.h</span>
+new file mode 100644
+<span class="p_header">index 000000000000..997ddbb1d370</span>
+<span class="p_header">--- /dev/null</span>
+<span class="p_header">+++ b/arch/riscv/include/asm/pgtable-bits.h</span>
+<span class="p_chunk">@@ -0,0 +1,48 @@</span> <span class="p_context"></span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Copyright (C) 2012 Regents of the University of California</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   This program is free software; you can redistribute it and/or</span>
+<span class="p_add">+ *   modify it under the terms of the GNU General Public License</span>
+<span class="p_add">+ *   as published by the Free Software Foundation, version 2.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   This program is distributed in the hope that it will be useful,</span>
+<span class="p_add">+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="p_add">+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="p_add">+ *   GNU General Public License for more details.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifndef _ASM_RISCV_PGTABLE_BITS_H</span>
+<span class="p_add">+#define _ASM_RISCV_PGTABLE_BITS_H</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * PTE format:</span>
+<span class="p_add">+ * | XLEN-1  10 | 9             8 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0</span>
+<span class="p_add">+ *       PFN      reserved for SW   D   A   G   U   X   W   R   V</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define _PAGE_ACCESSED_OFFSET 6</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define _PAGE_PRESENT   (1 &lt;&lt; 0)</span>
+<span class="p_add">+#define _PAGE_READ      (1 &lt;&lt; 1)    /* Readable */</span>
+<span class="p_add">+#define _PAGE_WRITE     (1 &lt;&lt; 2)    /* Writable */</span>
+<span class="p_add">+#define _PAGE_EXEC      (1 &lt;&lt; 3)    /* Executable */</span>
+<span class="p_add">+#define _PAGE_USER      (1 &lt;&lt; 4)    /* User */</span>
+<span class="p_add">+#define _PAGE_GLOBAL    (1 &lt;&lt; 5)    /* Global */</span>
+<span class="p_add">+#define _PAGE_ACCESSED  (1 &lt;&lt; 6)    /* Set by hardware on any access */</span>
+<span class="p_add">+#define _PAGE_DIRTY     (1 &lt;&lt; 7)    /* Set by hardware on any write */</span>
+<span class="p_add">+#define _PAGE_SOFT      (1 &lt;&lt; 8)    /* Reserved for software */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define _PAGE_SPECIAL   _PAGE_SOFT</span>
+<span class="p_add">+#define _PAGE_TABLE     _PAGE_PRESENT</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define _PAGE_PFN_SHIFT 10</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* Set of bits to preserve across pte_modify() */</span>
+<span class="p_add">+#define _PAGE_CHG_MASK  (~(unsigned long)(_PAGE_PRESENT | _PAGE_READ |	\</span>
+<span class="p_add">+					  _PAGE_WRITE | _PAGE_EXEC |	\</span>
+<span class="p_add">+					  _PAGE_USER | _PAGE_GLOBAL))</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* Advertise support for _PAGE_SPECIAL */</span>
+<span class="p_add">+#define __HAVE_ARCH_PTE_SPECIAL</span>
+<span class="p_add">+</span>
+<span class="p_add">+#endif /* _ASM_RISCV_PGTABLE_BITS_H */</span>
+<span class="p_header">diff --git a/arch/riscv/include/asm/pgtable.h b/arch/riscv/include/asm/pgtable.h</span>
+new file mode 100644
+<span class="p_header">index 000000000000..3399257780b2</span>
+<span class="p_header">--- /dev/null</span>
+<span class="p_header">+++ b/arch/riscv/include/asm/pgtable.h</span>
+<span class="p_chunk">@@ -0,0 +1,430 @@</span> <span class="p_context"></span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Copyright (C) 2012 Regents of the University of California</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   This program is free software; you can redistribute it and/or</span>
+<span class="p_add">+ *   modify it under the terms of the GNU General Public License</span>
+<span class="p_add">+ *   as published by the Free Software Foundation, version 2.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   This program is distributed in the hope that it will be useful,</span>
+<span class="p_add">+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="p_add">+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="p_add">+ *   GNU General Public License for more details.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifndef _ASM_RISCV_PGTABLE_H</span>
+<span class="p_add">+#define _ASM_RISCV_PGTABLE_H</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;linux/mmzone.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;asm/pgtable-bits.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifndef __ASSEMBLY__</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifdef CONFIG_MMU</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* Page Upper Directory not used in RISC-V */</span>
+<span class="p_add">+#include &lt;asm-generic/pgtable-nopud.h&gt;</span>
+<span class="p_add">+#include &lt;asm/page.h&gt;</span>
+<span class="p_add">+#include &lt;asm/tlbflush.h&gt;</span>
+<span class="p_add">+#include &lt;linux/mm_types.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifdef CONFIG_64BIT</span>
+<span class="p_add">+#include &lt;asm/pgtable-64.h&gt;</span>
+<span class="p_add">+#else</span>
+<span class="p_add">+#include &lt;asm/pgtable-32.h&gt;</span>
+<span class="p_add">+#endif /* CONFIG_64BIT */</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* Number of entries in the page global directory */</span>
+<span class="p_add">+#define PTRS_PER_PGD    (PAGE_SIZE / sizeof(pgd_t))</span>
+<span class="p_add">+/* Number of entries in the page table */</span>
+<span class="p_add">+#define PTRS_PER_PTE    (PAGE_SIZE / sizeof(pte_t))</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* Number of PGD entries that a user-mode program can use */</span>
+<span class="p_add">+#define USER_PTRS_PER_PGD   (TASK_SIZE / PGDIR_SIZE)</span>
+<span class="p_add">+#define FIRST_USER_ADDRESS  0</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* Page protection bits */</span>
+<span class="p_add">+#define _PAGE_BASE	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_USER)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define PAGE_NONE		__pgprot(0)</span>
+<span class="p_add">+#define PAGE_READ		__pgprot(_PAGE_BASE | _PAGE_READ)</span>
+<span class="p_add">+#define PAGE_WRITE		__pgprot(_PAGE_BASE | _PAGE_READ | _PAGE_WRITE)</span>
+<span class="p_add">+#define PAGE_EXEC		__pgprot(_PAGE_BASE | _PAGE_EXEC)</span>
+<span class="p_add">+#define PAGE_READ_EXEC		__pgprot(_PAGE_BASE | _PAGE_READ | _PAGE_EXEC)</span>
+<span class="p_add">+#define PAGE_WRITE_EXEC		__pgprot(_PAGE_BASE | _PAGE_READ |	\</span>
+<span class="p_add">+					 _PAGE_EXEC | _PAGE_WRITE)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define PAGE_COPY		PAGE_READ</span>
+<span class="p_add">+#define PAGE_COPY_EXEC		PAGE_EXEC</span>
+<span class="p_add">+#define PAGE_COPY_READ_EXEC	PAGE_READ_EXEC</span>
+<span class="p_add">+#define PAGE_SHARED		PAGE_WRITE</span>
+<span class="p_add">+#define PAGE_SHARED_EXEC	PAGE_WRITE_EXEC</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define _PAGE_KERNEL		(_PAGE_READ \</span>
+<span class="p_add">+				| _PAGE_WRITE \</span>
+<span class="p_add">+				| _PAGE_PRESENT \</span>
+<span class="p_add">+				| _PAGE_ACCESSED \</span>
+<span class="p_add">+				| _PAGE_DIRTY)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define PAGE_KERNEL		__pgprot(_PAGE_KERNEL)</span>
+<span class="p_add">+#define PAGE_KERNEL_EXEC	__pgprot(_PAGE_KERNEL | _PAGE_EXEC)</span>
+<span class="p_add">+</span>
+<span class="p_add">+extern pgd_t swapper_pg_dir[];</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* MAP_PRIVATE permissions: xwr (copy-on-write) */</span>
+<span class="p_add">+#define __P000	PAGE_NONE</span>
+<span class="p_add">+#define __P001	PAGE_READ</span>
+<span class="p_add">+#define __P010	PAGE_COPY</span>
+<span class="p_add">+#define __P011	PAGE_COPY</span>
+<span class="p_add">+#define __P100	PAGE_EXEC</span>
+<span class="p_add">+#define __P101	PAGE_READ_EXEC</span>
+<span class="p_add">+#define __P110	PAGE_COPY_EXEC</span>
+<span class="p_add">+#define __P111	PAGE_COPY_READ_EXEC</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* MAP_SHARED permissions: xwr */</span>
+<span class="p_add">+#define __S000	PAGE_NONE</span>
+<span class="p_add">+#define __S001	PAGE_READ</span>
+<span class="p_add">+#define __S010	PAGE_SHARED</span>
+<span class="p_add">+#define __S011	PAGE_SHARED</span>
+<span class="p_add">+#define __S100	PAGE_EXEC</span>
+<span class="p_add">+#define __S101	PAGE_READ_EXEC</span>
+<span class="p_add">+#define __S110	PAGE_SHARED_EXEC</span>
+<span class="p_add">+#define __S111	PAGE_SHARED_EXEC</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * ZERO_PAGE is a global shared page that is always zero,</span>
+<span class="p_add">+ * used for zero-mapped memory areas, etc.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];</span>
+<span class="p_add">+#define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline int pmd_present(pmd_t pmd)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return (pmd_val(pmd) &amp; _PAGE_PRESENT);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline int pmd_none(pmd_t pmd)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return (pmd_val(pmd) == 0);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline int pmd_bad(pmd_t pmd)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return !pmd_present(pmd);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void set_pmd(pmd_t *pmdp, pmd_t pmd)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	*pmdp = pmd;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void pmd_clear(pmd_t *pmdp)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	set_pmd(pmdp, __pmd(0));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline pgd_t pfn_pgd(unsigned long pfn, pgprot_t prot)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return __pgd((pfn &lt;&lt; _PAGE_PFN_SHIFT) | pgprot_val(prot));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define pgd_index(addr) (((addr) &gt;&gt; PGDIR_SHIFT) &amp; (PTRS_PER_PGD - 1))</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* Locate an entry in the page global directory */</span>
+<span class="p_add">+static inline pgd_t *pgd_offset(const struct mm_struct *mm, unsigned long addr)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return mm-&gt;pgd + pgd_index(addr);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+/* Locate an entry in the kernel page global directory */</span>
+<span class="p_add">+#define pgd_offset_k(addr)      pgd_offset(&amp;init_mm, (addr))</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline struct page *pmd_page(pmd_t pmd)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return pfn_to_page(pmd_val(pmd) &gt;&gt; _PAGE_PFN_SHIFT);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline unsigned long pmd_page_vaddr(pmd_t pmd)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return (unsigned long)pfn_to_virt(pmd_val(pmd) &gt;&gt; _PAGE_PFN_SHIFT);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* Yields the page frame number (PFN) of a page table entry */</span>
+<span class="p_add">+static inline unsigned long pte_pfn(pte_t pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return (pte_val(pte) &gt;&gt; _PAGE_PFN_SHIFT);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define pte_page(x)     pfn_to_page(pte_pfn(x))</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* Constructs a page table entry */</span>
+<span class="p_add">+static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return __pte((pfn &lt;&lt; _PAGE_PFN_SHIFT) | pgprot_val(prot));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline pte_t mk_pte(struct page *page, pgprot_t prot)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return pfn_pte(page_to_pfn(page), prot);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define pte_index(addr) (((addr) &gt;&gt; PAGE_SHIFT) &amp; (PTRS_PER_PTE - 1))</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline pte_t *pte_offset_kernel(pmd_t *pmd, unsigned long addr)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return (pte_t *)pmd_page_vaddr(*pmd) + pte_index(addr);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define pte_offset_map(dir, addr)	pte_offset_kernel((dir), (addr))</span>
+<span class="p_add">+#define pte_unmap(pte)			((void)(pte))</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Certain architectures need to do special things when PTEs within</span>
+<span class="p_add">+ * a page table are directly modified.  Thus, the following hook is</span>
+<span class="p_add">+ * made available.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static inline void set_pte(pte_t *ptep, pte_t pteval)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	*ptep = pteval;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void set_pte_at(struct mm_struct *mm,</span>
+<span class="p_add">+	unsigned long addr, pte_t *ptep, pte_t pteval)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	set_pte(ptep, pteval);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void pte_clear(struct mm_struct *mm,</span>
+<span class="p_add">+	unsigned long addr, pte_t *ptep)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	set_pte_at(mm, addr, ptep, __pte(0));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline int pte_present(pte_t pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return (pte_val(pte) &amp; _PAGE_PRESENT);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline int pte_none(pte_t pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return (pte_val(pte) == 0);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* static inline int pte_read(pte_t pte) */</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline int pte_write(pte_t pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return pte_val(pte) &amp; _PAGE_WRITE;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline int pte_huge(pte_t pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return pte_present(pte)</span>
+<span class="p_add">+		&amp;&amp; (pte_val(pte) &amp; (_PAGE_READ | _PAGE_WRITE | _PAGE_EXEC));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* static inline int pte_exec(pte_t pte) */</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline int pte_dirty(pte_t pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return pte_val(pte) &amp; _PAGE_DIRTY;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline int pte_young(pte_t pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return pte_val(pte) &amp; _PAGE_ACCESSED;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline int pte_special(pte_t pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return pte_val(pte) &amp; _PAGE_SPECIAL;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* static inline pte_t pte_rdprotect(pte_t pte) */</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline pte_t pte_wrprotect(pte_t pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return __pte(pte_val(pte) &amp; ~(_PAGE_WRITE));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* static inline pte_t pte_mkread(pte_t pte) */</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline pte_t pte_mkwrite(pte_t pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return __pte(pte_val(pte) | _PAGE_WRITE);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* static inline pte_t pte_mkexec(pte_t pte) */</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline pte_t pte_mkdirty(pte_t pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return __pte(pte_val(pte) | _PAGE_DIRTY);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline pte_t pte_mkclean(pte_t pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return __pte(pte_val(pte) &amp; ~(_PAGE_DIRTY));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline pte_t pte_mkyoung(pte_t pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return __pte(pte_val(pte) | _PAGE_ACCESSED);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline pte_t pte_mkold(pte_t pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return __pte(pte_val(pte) &amp; ~(_PAGE_ACCESSED));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline pte_t pte_mkspecial(pte_t pte)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return __pte(pte_val(pte) | _PAGE_SPECIAL);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* Modify page protection bits */</span>
+<span class="p_add">+static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return __pte((pte_val(pte) &amp; _PAGE_CHG_MASK) | pgprot_val(newprot));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define pgd_ERROR(e) \</span>
+<span class="p_add">+	pr_err(&quot;%s:%d: bad pgd &quot; PTE_FMT &quot;.\n&quot;, __FILE__, __LINE__, pgd_val(e))</span>
+<span class="p_add">+</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* Commit new configuration to MMU hardware */</span>
+<span class="p_add">+static inline void update_mmu_cache(struct vm_area_struct *vma,</span>
+<span class="p_add">+	unsigned long address, pte_t *ptep)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * The kernel assumes that TLBs don&#39;t cache invalid entries, but</span>
+<span class="p_add">+	 * in RISC-V, SFENCE.VMA specifies an ordering constraint, not a</span>
+<span class="p_add">+	 * cache flush; it is necessary even after writing invalid entries.</span>
+<span class="p_add">+	 * Relying on flush_tlb_fix_spurious_fault would suffice, but</span>
+<span class="p_add">+	 * the extra traps reduce performance.  So, eagerly SFENCE.VMA.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	local_flush_tlb_page(address);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define __HAVE_ARCH_PTE_SAME</span>
+<span class="p_add">+static inline int pte_same(pte_t pte_a, pte_t pte_b)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return pte_val(pte_a) == pte_val(pte_b);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS</span>
+<span class="p_add">+static inline int ptep_set_access_flags(struct vm_area_struct *vma,</span>
+<span class="p_add">+					unsigned long address, pte_t *ptep,</span>
+<span class="p_add">+					pte_t entry, int dirty)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (!pte_same(*ptep, entry))</span>
+<span class="p_add">+		set_pte_at(vma-&gt;vm_mm, address, ptep, entry);</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * update_mmu_cache will unconditionally execute, handling both</span>
+<span class="p_add">+	 * the case that the PTE changed and the spurious fault case.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	return true;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define __HAVE_ARCH_PTEP_GET_AND_CLEAR</span>
+<span class="p_add">+static inline pte_t ptep_get_and_clear(struct mm_struct *mm,</span>
+<span class="p_add">+				       unsigned long address, pte_t *ptep)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return __pte(atomic_long_xchg((atomic_long_t *)ptep, 0));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG</span>
+<span class="p_add">+static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,</span>
+<span class="p_add">+					    unsigned long address,</span>
+<span class="p_add">+					    pte_t *ptep)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (!pte_young(*ptep))</span>
+<span class="p_add">+		return 0;</span>
+<span class="p_add">+	return test_and_clear_bit(_PAGE_ACCESSED_OFFSET, &amp;pte_val(*ptep));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define __HAVE_ARCH_PTEP_SET_WRPROTECT</span>
+<span class="p_add">+static inline void ptep_set_wrprotect(struct mm_struct *mm,</span>
+<span class="p_add">+				      unsigned long address, pte_t *ptep)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	atomic_long_and(~(unsigned long)_PAGE_WRITE, (atomic_long_t *)ptep);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH</span>
+<span class="p_add">+static inline int ptep_clear_flush_young(struct vm_area_struct *vma,</span>
+<span class="p_add">+					 unsigned long address, pte_t *ptep)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * This comment is borrowed from x86, but applies equally to RISC-V:</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Clearing the accessed bit without a TLB flush</span>
+<span class="p_add">+	 * doesn&#39;t cause data corruption. [ It could cause incorrect</span>
+<span class="p_add">+	 * page aging and the (mistaken) reclaim of hot pages, but the</span>
+<span class="p_add">+	 * chance of that should be relatively low. ]</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * So as a performance optimization don&#39;t flush the TLB when</span>
+<span class="p_add">+	 * clearing the accessed bit, it will eventually be flushed by</span>
+<span class="p_add">+	 * a context switch or a VM operation anyway. [ In the rare</span>
+<span class="p_add">+	 * event of it not getting flushed for a long time the delay</span>
+<span class="p_add">+	 * shouldn&#39;t really matter because there&#39;s no real memory</span>
+<span class="p_add">+	 * pressure for swapout to react to. ]</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	return ptep_test_and_clear_young(vma, address, ptep);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Encode and decode a swap entry</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Format of swap PTE:</span>
+<span class="p_add">+ *	bit            0:	_PAGE_PRESENT (zero)</span>
+<span class="p_add">+ *	bit            1:	reserved for future use (zero)</span>
+<span class="p_add">+ *	bits      2 to 6:	swap type</span>
+<span class="p_add">+ *	bits 7 to XLEN-1:	swap offset</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+#define __SWP_TYPE_SHIFT	2</span>
+<span class="p_add">+#define __SWP_TYPE_BITS		5</span>
+<span class="p_add">+#define __SWP_TYPE_MASK		((1UL &lt;&lt; __SWP_TYPE_BITS) - 1)</span>
+<span class="p_add">+#define __SWP_OFFSET_SHIFT	(__SWP_TYPE_BITS + __SWP_TYPE_SHIFT)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define MAX_SWAPFILES_CHECK()	\</span>
+<span class="p_add">+	BUILD_BUG_ON(MAX_SWAPFILES_SHIFT &gt; __SWP_TYPE_BITS)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define __swp_type(x)	(((x).val &gt;&gt; __SWP_TYPE_SHIFT) &amp; __SWP_TYPE_MASK)</span>
+<span class="p_add">+#define __swp_offset(x)	((x).val &gt;&gt; __SWP_OFFSET_SHIFT)</span>
+<span class="p_add">+#define __swp_entry(type, offset) ((swp_entry_t) \</span>
+<span class="p_add">+	{ ((type) &lt;&lt; __SWP_TYPE_SHIFT) | ((offset) &lt;&lt; __SWP_OFFSET_SHIFT) })</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })</span>
+<span class="p_add">+#define __swp_entry_to_pte(x)	((pte_t) { (x).val })</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifdef CONFIG_FLATMEM</span>
+<span class="p_add">+#define kern_addr_valid(addr)   (1) /* FIXME */</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+<span class="p_add">+extern void paging_init(void);</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void pgtable_cache_init(void)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	/* No page table caches to initialize */</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#endif /* CONFIG_MMU */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define VMALLOC_SIZE     (KERN_VIRT_SIZE &gt;&gt; 1)</span>
+<span class="p_add">+#define VMALLOC_END      (PAGE_OFFSET - 1)</span>
+<span class="p_add">+#define VMALLOC_START    (PAGE_OFFSET - VMALLOC_SIZE)</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Task size is 0x40000000000 for RV64 or 0xb800000 for RV32.</span>
+<span class="p_add">+ * Note that PGDIR_SIZE must evenly divide TASK_SIZE.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+#ifdef CONFIG_64BIT</span>
+<span class="p_add">+#define TASK_SIZE (PGDIR_SIZE * PTRS_PER_PGD / 2)</span>
+<span class="p_add">+#else</span>
+<span class="p_add">+#define TASK_SIZE VMALLOC_START</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;asm-generic/pgtable.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+#endif /* !__ASSEMBLY__ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#endif /* _ASM_RISCV_PGTABLE_H */</span>
+<span class="p_header">diff --git a/arch/riscv/mm/fault.c b/arch/riscv/mm/fault.c</span>
+new file mode 100644
+<span class="p_header">index 000000000000..df2ca3c65048</span>
+<span class="p_header">--- /dev/null</span>
+<span class="p_header">+++ b/arch/riscv/mm/fault.c</span>
+<span class="p_chunk">@@ -0,0 +1,282 @@</span> <span class="p_context"></span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Copyright (C) 2009 Sunplus Core Technology Co., Ltd.</span>
+<span class="p_add">+ *  Lennox Wu &lt;lennox.wu@sunplusct.com&gt;</span>
+<span class="p_add">+ *  Chen Liqin &lt;liqin.chen@sunplusct.com&gt;</span>
+<span class="p_add">+ * Copyright (C) 2012 Regents of the University of California</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This program is free software; you can redistribute it and/or modify</span>
+<span class="p_add">+ * it under the terms of the GNU General Public License as published by</span>
+<span class="p_add">+ * the Free Software Foundation; either version 2 of the License, or</span>
+<span class="p_add">+ * (at your option) any later version.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This program is distributed in the hope that it will be useful,</span>
+<span class="p_add">+ * but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="p_add">+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="p_add">+ * GNU General Public License for more details.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * You should have received a copy of the GNU General Public License</span>
+<span class="p_add">+ * along with this program; if not, see the file COPYING, or write</span>
+<span class="p_add">+ * to the Free Software Foundation, Inc.,</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;linux/mm.h&gt;</span>
+<span class="p_add">+#include &lt;linux/kernel.h&gt;</span>
+<span class="p_add">+#include &lt;linux/interrupt.h&gt;</span>
+<span class="p_add">+#include &lt;linux/perf_event.h&gt;</span>
+<span class="p_add">+#include &lt;linux/signal.h&gt;</span>
+<span class="p_add">+#include &lt;linux/uaccess.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;asm/pgalloc.h&gt;</span>
+<span class="p_add">+#include &lt;asm/ptrace.h&gt;</span>
+<span class="p_add">+#include &lt;asm/uaccess.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * This routine handles page faults.  It determines the address and the</span>
+<span class="p_add">+ * problem, and then passes it off to one of the appropriate routines.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+asmlinkage void do_page_fault(struct pt_regs *regs)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct task_struct *tsk;</span>
+<span class="p_add">+	struct vm_area_struct *vma;</span>
+<span class="p_add">+	struct mm_struct *mm;</span>
+<span class="p_add">+	unsigned long addr, cause;</span>
+<span class="p_add">+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;</span>
+<span class="p_add">+	int fault, code = SEGV_MAPERR;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	cause = regs-&gt;scause;</span>
+<span class="p_add">+	addr = regs-&gt;sbadaddr;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	tsk = current;</span>
+<span class="p_add">+	mm = tsk-&gt;mm;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Fault-in kernel-space virtual memory on-demand.</span>
+<span class="p_add">+	 * The &#39;reference&#39; page table is init_mm.pgd.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * NOTE! We MUST NOT take any locks for this case. We may</span>
+<span class="p_add">+	 * be in an interrupt or a critical region, and should</span>
+<span class="p_add">+	 * only copy the information from the master page table,</span>
+<span class="p_add">+	 * nothing more.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (unlikely((addr &gt;= VMALLOC_START) &amp;&amp; (addr &lt;= VMALLOC_END)))</span>
+<span class="p_add">+		goto vmalloc_fault;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Enable interrupts if they were enabled in the parent context. */</span>
+<span class="p_add">+	if (likely(regs-&gt;sstatus &amp; SR_PIE))</span>
+<span class="p_add">+		local_irq_enable();</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * If we&#39;re in an interrupt, have no user context, or are running</span>
+<span class="p_add">+	 * in an atomic region, then we must not take the fault.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (unlikely(faulthandler_disabled() || !mm))</span>
+<span class="p_add">+		goto no_context;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (user_mode(regs))</span>
+<span class="p_add">+		flags |= FAULT_FLAG_USER;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, addr);</span>
+<span class="p_add">+</span>
+<span class="p_add">+retry:</span>
+<span class="p_add">+	down_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="p_add">+	vma = find_vma(mm, addr);</span>
+<span class="p_add">+	if (unlikely(!vma))</span>
+<span class="p_add">+		goto bad_area;</span>
+<span class="p_add">+	if (likely(vma-&gt;vm_start &lt;= addr))</span>
+<span class="p_add">+		goto good_area;</span>
+<span class="p_add">+	if (unlikely(!(vma-&gt;vm_flags &amp; VM_GROWSDOWN)))</span>
+<span class="p_add">+		goto bad_area;</span>
+<span class="p_add">+	if (unlikely(expand_stack(vma, addr)))</span>
+<span class="p_add">+		goto bad_area;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Ok, we have a good vm_area for this memory access, so</span>
+<span class="p_add">+	 * we can handle it.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+good_area:</span>
+<span class="p_add">+	code = SEGV_ACCERR;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	switch (cause) {</span>
+<span class="p_add">+	case EXC_INST_PAGE_FAULT:</span>
+<span class="p_add">+		if (!(vma-&gt;vm_flags &amp; VM_EXEC))</span>
+<span class="p_add">+			goto bad_area;</span>
+<span class="p_add">+		break;</span>
+<span class="p_add">+	case EXC_LOAD_PAGE_FAULT:</span>
+<span class="p_add">+		if (!(vma-&gt;vm_flags &amp; VM_READ))</span>
+<span class="p_add">+			goto bad_area;</span>
+<span class="p_add">+		break;</span>
+<span class="p_add">+	case EXC_STORE_PAGE_FAULT:</span>
+<span class="p_add">+		if (!(vma-&gt;vm_flags &amp; VM_WRITE))</span>
+<span class="p_add">+			goto bad_area;</span>
+<span class="p_add">+		flags |= FAULT_FLAG_WRITE;</span>
+<span class="p_add">+		break;</span>
+<span class="p_add">+	default:</span>
+<span class="p_add">+		panic(&quot;%s: unhandled cause %lu&quot;, __func__, cause);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * If for any reason at all we could not handle the fault,</span>
+<span class="p_add">+	 * make sure we exit gracefully rather than endlessly redo</span>
+<span class="p_add">+	 * the fault.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	fault = handle_mm_fault(vma, addr, flags);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * If we need to retry but a fatal signal is pending, handle the</span>
+<span class="p_add">+	 * signal first. We do not need to release the mmap_sem because it</span>
+<span class="p_add">+	 * would already be released in __lock_page_or_retry in mm/filemap.c.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if ((fault &amp; VM_FAULT_RETRY) &amp;&amp; fatal_signal_pending(tsk))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (unlikely(fault &amp; VM_FAULT_ERROR)) {</span>
+<span class="p_add">+		if (fault &amp; VM_FAULT_OOM)</span>
+<span class="p_add">+			goto out_of_memory;</span>
+<span class="p_add">+		else if (fault &amp; VM_FAULT_SIGBUS)</span>
+<span class="p_add">+			goto do_sigbus;</span>
+<span class="p_add">+		BUG();</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Major/minor page fault accounting is only done on the</span>
+<span class="p_add">+	 * initial attempt. If we go through a retry, it is extremely</span>
+<span class="p_add">+	 * likely that the page will be found in page cache at that point.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (flags &amp; FAULT_FLAG_ALLOW_RETRY) {</span>
+<span class="p_add">+		if (fault &amp; VM_FAULT_MAJOR) {</span>
+<span class="p_add">+			tsk-&gt;maj_flt++;</span>
+<span class="p_add">+			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ,</span>
+<span class="p_add">+				      1, regs, addr);</span>
+<span class="p_add">+		} else {</span>
+<span class="p_add">+			tsk-&gt;min_flt++;</span>
+<span class="p_add">+			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN,</span>
+<span class="p_add">+				      1, regs, addr);</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+		if (fault &amp; VM_FAULT_RETRY) {</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk</span>
+<span class="p_add">+			 * of starvation.</span>
+<span class="p_add">+			 */</span>
+<span class="p_add">+			flags &amp;= ~(FAULT_FLAG_ALLOW_RETRY);</span>
+<span class="p_add">+			flags |= FAULT_FLAG_TRIED;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * No need to up_read(&amp;mm-&gt;mmap_sem) as we would</span>
+<span class="p_add">+			 * have already released it in __lock_page_or_retry</span>
+<span class="p_add">+			 * in mm/filemap.c.</span>
+<span class="p_add">+			 */</span>
+<span class="p_add">+			goto retry;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="p_add">+	return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Something tried to access memory that isn&#39;t in our memory map.</span>
+<span class="p_add">+	 * Fix it, but check if it&#39;s kernel or user first.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+bad_area:</span>
+<span class="p_add">+	up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="p_add">+	/* User mode accesses just cause a SIGSEGV */</span>
+<span class="p_add">+	if (user_mode(regs)) {</span>
+<span class="p_add">+		do_trap(regs, SIGSEGV, code, addr, tsk);</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+no_context:</span>
+<span class="p_add">+	/* Are we prepared to handle this kernel fault? */</span>
+<span class="p_add">+	if (fixup_exception(regs))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Oops. The kernel tried to access some bad page. We&#39;ll have to</span>
+<span class="p_add">+	 * terminate things with extreme prejudice.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	bust_spinlocks(1);</span>
+<span class="p_add">+	pr_alert(&quot;Unable to handle kernel %s at virtual address &quot; REG_FMT &quot;\n&quot;,</span>
+<span class="p_add">+		(addr &lt; PAGE_SIZE) ? &quot;NULL pointer dereference&quot; :</span>
+<span class="p_add">+		&quot;paging request&quot;, addr);</span>
+<span class="p_add">+	die(regs, &quot;Oops&quot;);</span>
+<span class="p_add">+	do_exit(SIGKILL);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * We ran out of memory, call the OOM killer, and return the userspace</span>
+<span class="p_add">+	 * (which will retry the fault, or kill us if we got oom-killed).</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+out_of_memory:</span>
+<span class="p_add">+	up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="p_add">+	if (!user_mode(regs))</span>
+<span class="p_add">+		goto no_context;</span>
+<span class="p_add">+	pagefault_out_of_memory();</span>
+<span class="p_add">+	return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+do_sigbus:</span>
+<span class="p_add">+	up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="p_add">+	/* Kernel mode? Handle exceptions or die */</span>
+<span class="p_add">+	if (!user_mode(regs))</span>
+<span class="p_add">+		goto no_context;</span>
+<span class="p_add">+	do_trap(regs, SIGBUS, BUS_ADRERR, addr, tsk);</span>
+<span class="p_add">+	return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+vmalloc_fault:</span>
+<span class="p_add">+	{</span>
+<span class="p_add">+		pgd_t *pgd, *pgd_k;</span>
+<span class="p_add">+		pud_t *pud, *pud_k;</span>
+<span class="p_add">+		p4d_t *p4d, *p4d_k;</span>
+<span class="p_add">+		pmd_t *pmd, *pmd_k;</span>
+<span class="p_add">+		pte_t *pte_k;</span>
+<span class="p_add">+		int index;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (user_mode(regs))</span>
+<span class="p_add">+			goto bad_area;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Synchronize this task&#39;s top level page-table</span>
+<span class="p_add">+		 * with the &#39;reference&#39; page table.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * Do _not_ use &quot;tsk-&gt;active_mm-&gt;pgd&quot; here.</span>
+<span class="p_add">+		 * We might be inside an interrupt in the middle</span>
+<span class="p_add">+		 * of a task switch.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		index = pgd_index(addr);</span>
+<span class="p_add">+		pgd = (pgd_t *)pfn_to_virt(csr_read(sptbr)) + index;</span>
+<span class="p_add">+		pgd_k = init_mm.pgd + index;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (!pgd_present(*pgd_k))</span>
+<span class="p_add">+			goto no_context;</span>
+<span class="p_add">+		set_pgd(pgd, *pgd_k);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		p4d = p4d_offset(pgd, addr);</span>
+<span class="p_add">+		p4d_k = p4d_offset(pgd_k, addr);</span>
+<span class="p_add">+		if (!p4d_present(*p4d_k))</span>
+<span class="p_add">+			goto no_context;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		pud = pud_offset(p4d, addr);</span>
+<span class="p_add">+		pud_k = pud_offset(p4d_k, addr);</span>
+<span class="p_add">+		if (!pud_present(*pud_k))</span>
+<span class="p_add">+			goto no_context;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Since the vmalloc area is global, it is unnecessary</span>
+<span class="p_add">+		 * to copy individual PTEs</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		pmd = pmd_offset(pud, addr);</span>
+<span class="p_add">+		pmd_k = pmd_offset(pud_k, addr);</span>
+<span class="p_add">+		if (!pmd_present(*pmd_k))</span>
+<span class="p_add">+			goto no_context;</span>
+<span class="p_add">+		set_pmd(pmd, *pmd_k);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Make sure the actual PTE exists as well to</span>
+<span class="p_add">+		 * catch kernel vmalloc-area accesses to non-mapped</span>
+<span class="p_add">+		 * addresses. If we don&#39;t do this, this will just</span>
+<span class="p_add">+		 * silently loop forever.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		pte_k = pte_offset_kernel(pmd_k, addr);</span>
+<span class="p_add">+		if (!pte_present(*pte_k))</span>
+<span class="p_add">+			goto no_context;</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

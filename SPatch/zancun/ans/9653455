@@ -1,0 +1,858 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[4/6] kvm: nVMX: support EPT accessed/dirty bits - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [4/6] kvm: nVMX: support EPT accessed/dirty bits</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=2536">Paolo Bonzini</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>March 30, 2017, 9:55 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1490867732-16743-5-git-send-email-pbonzini@redhat.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9653455/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9653455/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9653455/">/patch/9653455/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	289AA6034C for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 30 Mar 2017 09:56:17 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 21AD328585
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 30 Mar 2017 09:56:17 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 149E22858A; Thu, 30 Mar 2017 09:56:17 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.3 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	RCVD_IN_DNSWL_HI, RCVD_IN_SORBS_SPAM,
+	T_DKIM_INVALID autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 4ADEF28585
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 30 Mar 2017 09:56:16 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S933050AbdC3Jz7 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 30 Mar 2017 05:55:59 -0400
+Received: from mail-wr0-f194.google.com ([209.85.128.194]:35900 &quot;EHLO
+	mail-wr0-f194.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S932903AbdC3Jzo (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 30 Mar 2017 05:55:44 -0400
+Received: by mail-wr0-f194.google.com with SMTP id k6so9236602wre.3;
+	Thu, 30 Mar 2017 02:55:42 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=gmail.com; s=20161025;
+	h=sender:from:to:cc:subject:date:message-id:in-reply-to:references;
+	bh=p1clj82TfhXiCbuR9V6gc10A8nOCx9PQ0VjkXMtHMWw=;
+	b=mFn28QlTwNydz/u48ypZYXJH0pdFza+Rh5wjDkwDqRt8A6fP5vY9iT5Z57Zy7d+21i
+	0B3+WGXltMMA6CfCfFQQYgUuNv8evgEshHXswlAdj8ne8UZ2s0a4J7vih3VmagAYfn0d
+	4E5ug+Rs3pBbfNr6RRLOjH9jgSkFWvMZLEW42HBqvVWa2lLQXNXnfUTDBNTSfS3KF7cg
+	mv4X4AaXEF6+fAuQ+XsIVxTu4n1Nb8ID3rD0ZZCoKk8rAWxIF9N3yK5Qxpk2FsU6IJve
+	3Nag9OM2ZnDnS75L7bIxLRM01fbU6fyMxwoamZ2+IXx2MjeuKHVjmeWJHeNzUTkWsYTh
+	EM2g==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:sender:from:to:cc:subject:date:message-id
+	:in-reply-to:references;
+	bh=p1clj82TfhXiCbuR9V6gc10A8nOCx9PQ0VjkXMtHMWw=;
+	b=OJPXKHAjRw2wRhqZXDOGcDMrk2QyMyA82ZMo9pPaN5tkG9dfWcz3S6+umwv9nb3vAq
+	PBMTtN/8YO6F5vDrQra9iZrToK5ExuPDyYTDjgt/NL9fYb14QB2RunzXnXs8iJWv6tgj
+	WvWgkKJgfQ5i50b0Gm1ZuMOr7zvhNxn0CI1rUU/BbnY6sJUn5knNVOYPZ7HH539nVcnF
+	JxFoXc9hXllZENpSQmt2NXvkgaWPdeYf7oaaG7OYNkPf7zG0DYkmRorcrjBUwyLZeFYC
+	9RM7e5rU3Ar0KhEmA7lqvs39XjLjMkcb8lbMLxGImv01X83Ho3UcSk8VPo4s+WLVdWC0
+	5joQ==
+X-Gm-Message-State: AFeK/H2Sh+L1xDubugYPt+KkTDMv2ndK1gCzTBwDmppBjHCGTFhJmFsyK8hjVnE4qcoDxQ==
+X-Received: by 10.28.125.20 with SMTP id y20mr2561665wmc.123.1490867741636; 
+	Thu, 30 Mar 2017 02:55:41 -0700 (PDT)
+Received: from 640k.lan (94-39-184-28.adsl-ull.clienti.tiscali.it.
+	[94.39.184.28]) by smtp.gmail.com with ESMTPSA id
+	w85sm2569535wmw.1.2017.03.30.02.55.40
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Thu, 30 Mar 2017 02:55:41 -0700 (PDT)
+From: Paolo Bonzini &lt;pbonzini@redhat.com&gt;
+To: linux-kernel@vger.kernel.org, kvm@vger.kernel.org
+Cc: david@redhat.com
+Subject: [PATCH 4/6] kvm: nVMX: support EPT accessed/dirty bits
+Date: Thu, 30 Mar 2017 11:55:30 +0200
+Message-Id: &lt;1490867732-16743-5-git-send-email-pbonzini@redhat.com&gt;
+X-Mailer: git-send-email 1.8.3.1
+In-Reply-To: &lt;1490867732-16743-1-git-send-email-pbonzini@redhat.com&gt;
+References: &lt;1490867732-16743-1-git-send-email-pbonzini@redhat.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=2536">Paolo Bonzini</a> - March 30, 2017, 9:55 a.m.</div>
+<pre class="content">
+Now use bit 6 of EPTP to optionally enable A/D bits for EPTP.  Another
+thing to change is that, when EPT accessed and dirty bits are not in use,
+VMX treats accesses to guest paging structures as data reads.  When they
+are in use (bit 6 of EPTP is set), they are treated as writes and the
+corresponding EPT dirty bit is set.  The MMU didn&#39;t know this detail,
+so this patch adds it.
+
+We also have to fix up the exit qualification.  It may be wrong because
+KVM sets bit 6 but the guest might not.
+
+L1 emulates EPT A/D bits using write permissions, so in principle it may
+be possible for EPT A/D bits to be used by L1 even though not available
+in hardware.  The problem is that guest page-table walks will be treated
+as reads rather than writes, so they would not cause an EPT violation.
+<span class="signed-off-by">
+Signed-off-by: Paolo Bonzini &lt;pbonzini@redhat.com&gt;</span>
+---
+ arch/x86/include/asm/kvm_host.h |  5 +++--
+ arch/x86/include/asm/vmx.h      |  2 ++
+ arch/x86/kvm/mmu.c              |  4 +++-
+ arch/x86/kvm/mmu.h              |  3 ++-
+ arch/x86/kvm/paging_tmpl.h      | 33 ++++++++++++++++-----------------
+ arch/x86/kvm/vmx.c              | 33 +++++++++++++++++++++++++++++----
+ 6 files changed, 55 insertions(+), 25 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=69351">Radim Kr?má?</a> - March 31, 2017, 4:24 p.m.</div>
+<pre class="content">
+2017-03-30 11:55+0200, Paolo Bonzini:
+<span class="quote">&gt; Now use bit 6 of EPTP to optionally enable A/D bits for EPTP.  Another</span>
+<span class="quote">&gt; thing to change is that, when EPT accessed and dirty bits are not in use,</span>
+<span class="quote">&gt; VMX treats accesses to guest paging structures as data reads.  When they</span>
+<span class="quote">&gt; are in use (bit 6 of EPTP is set), they are treated as writes and the</span>
+<span class="quote">&gt; corresponding EPT dirty bit is set.  The MMU didn&#39;t know this detail,</span>
+<span class="quote">&gt; so this patch adds it.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; We also have to fix up the exit qualification.  It may be wrong because</span>
+<span class="quote">&gt; KVM sets bit 6 but the guest might not.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; L1 emulates EPT A/D bits using write permissions, so in principle it may</span>
+<span class="quote">&gt; be possible for EPT A/D bits to be used by L1 even though not available</span>
+<span class="quote">&gt; in hardware.  The problem is that guest page-table walks will be treated</span>
+<span class="quote">&gt; as reads rather than writes, so they would not cause an EPT violation.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Paolo Bonzini &lt;pbonzini@redhat.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt; diff --git a/arch/x86/kvm/paging_tmpl.h b/arch/x86/kvm/paging_tmpl.h</span>
+<span class="quote">&gt; @@ -319,6 +310,14 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,</span>
+<span class="quote">&gt;  	ASSERT(!(is_long_mode(vcpu) &amp;&amp; !is_pae(vcpu)));</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	accessed_dirty = have_ad ? PT_GUEST_ACCESSED_MASK : 0;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * FIXME: on Intel processors, loads of the PDPTE registers for PAE paging</span>
+<span class="quote">&gt; +	 * by the MOV to CR instruction are treated as reads and do not cause the</span>
+<span class="quote">&gt; +	 * processor to set the dirty flag in tany EPT paging-structure entry.</span>
+                                              ^
+                                               typo
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	nested_access = (have_ad ? PFERR_WRITE_MASK : 0) | PFERR_USER_MASK;</span>
+<span class="quote">&gt; +</span>
+
+This special case should be fairly safe if I understand the consequences
+correctly,
+<span class="reviewed-by">
+Reviewed-by: Radim Krčmář &lt;rkrcmar@redhat.com&gt;</span>
+<span class="quote">
+&gt; diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c</span>
+<span class="quote">&gt; @@ -6211,6 +6213,18 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)</span>
+<span class="quote">&gt; +	if (is_guest_mode(vcpu)</span>
+<span class="quote">&gt; +	    &amp;&amp; !(exit_qualification &amp; EPT_VIOLATION_GVA_TRANSLATED)) {</span>
+<span class="quote">&gt; +		/*</span>
+<span class="quote">&gt; +		 * Fix up exit_qualification according to whether guest</span>
+<span class="quote">&gt; +		 * page table accesses are reads or writes.</span>
+<span class="quote">&gt; +		 */</span>
+<span class="quote">&gt; +		u64 eptp = nested_ept_get_cr3(vcpu);</span>
+<span class="quote">&gt; +		exit_qualification &amp;= ~EPT_VIOLATION_ACC_WRITE;</span>
+<span class="quote">&gt; +		if (eptp &amp; VMX_EPT_AD_ENABLE_BIT)</span>
+<span class="quote">&gt; +			exit_qualification |= EPT_VIOLATION_ACC_WRITE;</span>
+
+I think this would be better without unconditional clearing
+
+		if (!(eptp &amp; VMX_EPT_AD_ENABLE_BIT))
+			exit_qualification &amp;= ~EPT_VIOLATION_ACC_WRITE;
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=2536">Paolo Bonzini</a> - March 31, 2017, 4:26 p.m.</div>
+<pre class="content">
+On 31/03/2017 18:24, Radim Krčmář wrote:
+<span class="quote">&gt;&gt; +	if (is_guest_mode(vcpu)</span>
+<span class="quote">&gt;&gt; +	    &amp;&amp; !(exit_qualification &amp; EPT_VIOLATION_GVA_TRANSLATED)) {</span>
+<span class="quote">&gt;&gt; +		/*</span>
+<span class="quote">&gt;&gt; +		 * Fix up exit_qualification according to whether guest</span>
+<span class="quote">&gt;&gt; +		 * page table accesses are reads or writes.</span>
+<span class="quote">&gt;&gt; +		 */</span>
+<span class="quote">&gt;&gt; +		u64 eptp = nested_ept_get_cr3(vcpu);</span>
+<span class="quote">&gt;&gt; +		exit_qualification &amp;= ~EPT_VIOLATION_ACC_WRITE;</span>
+<span class="quote">&gt;&gt; +		if (eptp &amp; VMX_EPT_AD_ENABLE_BIT)</span>
+<span class="quote">&gt;&gt; +			exit_qualification |= EPT_VIOLATION_ACC_WRITE;</span>
+<span class="quote">&gt; I think this would be better without unconditional clearing</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 		if (!(eptp &amp; VMX_EPT_AD_ENABLE_BIT))</span>
+<span class="quote">&gt; 			exit_qualification &amp;= ~EPT_VIOLATION_ACC_WRITE;</span>
+
+Yeah, this is a remnant of my (failed) attempt at emulating A/D bits
+when the processor doesn&#39;t support it.  Which worked, only it&#39;s not
+compliant enough to include it in the final series.
+
+As for the two nits you found, shall I repost or are you okay with
+fixing it yourself?
+
+Paolo
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=68131">Bandan Das</a> - April 11, 2017, 11:35 p.m.</div>
+<pre class="content">
+Paolo Bonzini &lt;pbonzini@redhat.com&gt; writes:
+...
+<span class="quote">&gt;  	accessed_dirty = have_ad ? PT_GUEST_ACCESSED_MASK : 0;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * FIXME: on Intel processors, loads of the PDPTE registers for PAE paging</span>
+<span class="quote">&gt; +	 * by the MOV to CR instruction are treated as reads and do not cause the</span>
+<span class="quote">&gt; +	 * processor to set the dirty flag in tany EPT paging-structure entry.</span>
+<span class="quote">&gt; +	 */</span>
+
+Minor typo: &quot;in any EPT paging-structure entry&quot;.
+<span class="quote">
+&gt; +	nested_access = (have_ad ? PFERR_WRITE_MASK : 0) | PFERR_USER_MASK;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  	pt_access = pte_access = ACC_ALL;</span>
+<span class="quote">&gt;  	++walker-&gt;level;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; @@ -338,7 +337,7 @@ static int FNAME(walk_addr_generic)(struct guest_walker *walker,</span>
+<span class="quote">&gt;  		walker-&gt;pte_gpa[walker-&gt;level - 1] = pte_gpa;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  		real_gfn = mmu-&gt;translate_gpa(vcpu, gfn_to_gpa(table_gfn),</span>
+<span class="quote">&gt; -					      PFERR_USER_MASK|PFERR_WRITE_MASK,</span>
+<span class="quote">&gt; +					      nested_access,</span>
+<span class="quote">&gt;  					      &amp;walker-&gt;fault);</span>
+
+I can&#39;t seem to understand the significance of this change (or for that matter
+what was before this change).
+
+mmu-&gt;translate_gpa() just returns gfn_to_gpa(table_gfn), right ?
+
+Bandan
+<span class="quote">
+&gt;  		/*</span>
+<span class="quote">&gt; diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c</span>
+<span class="quote">&gt; index 1c372600a962..6aaecc78dd71 100644</span>
+<span class="quote">&gt; --- a/arch/x86/kvm/vmx.c</span>
+<span class="quote">&gt; +++ b/arch/x86/kvm/vmx.c</span>
+<span class="quote">&gt; @@ -2767,6 +2767,8 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)</span>
+<span class="quote">&gt;  		vmx-&gt;nested.nested_vmx_ept_caps |= VMX_EPT_EXTENT_GLOBAL_BIT |</span>
+<span class="quote">&gt;  			VMX_EPT_EXTENT_CONTEXT_BIT | VMX_EPT_2MB_PAGE_BIT |</span>
+<span class="quote">&gt;  			VMX_EPT_1GB_PAGE_BIT;</span>
+<span class="quote">&gt; +	       if (enable_ept_ad_bits)</span>
+<span class="quote">&gt; +		       vmx-&gt;nested.nested_vmx_ept_caps |= VMX_EPT_AD_BIT;</span>
+<span class="quote">&gt;  	} else</span>
+<span class="quote">&gt;  		vmx-&gt;nested.nested_vmx_ept_caps = 0;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; @@ -6211,6 +6213,18 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +	if (is_guest_mode(vcpu)</span>
+<span class="quote">&gt; +	    &amp;&amp; !(exit_qualification &amp; EPT_VIOLATION_GVA_TRANSLATED)) {</span>
+<span class="quote">&gt; +		/*</span>
+<span class="quote">&gt; +		 * Fix up exit_qualification according to whether guest</span>
+<span class="quote">&gt; +		 * page table accesses are reads or writes.</span>
+<span class="quote">&gt; +		 */</span>
+<span class="quote">&gt; +		u64 eptp = nested_ept_get_cr3(vcpu);</span>
+<span class="quote">&gt; +		exit_qualification &amp;= ~EPT_VIOLATION_ACC_WRITE;</span>
+<span class="quote">&gt; +		if (eptp &amp; VMX_EPT_AD_ENABLE_BIT)</span>
+<span class="quote">&gt; +			exit_qualification |= EPT_VIOLATION_ACC_WRITE;</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  	/*</span>
+<span class="quote">&gt;  	 * EPT violation happened while executing iret from NMI,</span>
+<span class="quote">&gt;  	 * &quot;blocked by NMI&quot; bit has to be set before next VM entry.</span>
+<span class="quote">&gt; @@ -9416,17 +9430,26 @@ static unsigned long nested_ept_get_cr3(struct kvm_vcpu *vcpu)</span>
+<span class="quote">&gt;  	return get_vmcs12(vcpu)-&gt;ept_pointer;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -static void nested_ept_init_mmu_context(struct kvm_vcpu *vcpu)</span>
+<span class="quote">&gt; +static int nested_ept_init_mmu_context(struct kvm_vcpu *vcpu)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; +	u64 eptp;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  	WARN_ON(mmu_is_nested(vcpu));</span>
+<span class="quote">&gt; +	eptp = nested_ept_get_cr3(vcpu);</span>
+<span class="quote">&gt; +	if ((eptp &amp; VMX_EPT_AD_ENABLE_BIT) &amp;&amp; !enable_ept_ad_bits)</span>
+<span class="quote">&gt; +		return 1;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	kvm_mmu_unload(vcpu);</span>
+<span class="quote">&gt;  	kvm_init_shadow_ept_mmu(vcpu,</span>
+<span class="quote">&gt;  			to_vmx(vcpu)-&gt;nested.nested_vmx_ept_caps &amp;</span>
+<span class="quote">&gt; -			VMX_EPT_EXECUTE_ONLY_BIT);</span>
+<span class="quote">&gt; +			VMX_EPT_EXECUTE_ONLY_BIT,</span>
+<span class="quote">&gt; +			eptp &amp; VMX_EPT_AD_ENABLE_BIT);</span>
+<span class="quote">&gt;  	vcpu-&gt;arch.mmu.set_cr3           = vmx_set_cr3;</span>
+<span class="quote">&gt;  	vcpu-&gt;arch.mmu.get_cr3           = nested_ept_get_cr3;</span>
+<span class="quote">&gt;  	vcpu-&gt;arch.mmu.inject_page_fault = nested_ept_inject_page_fault;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	vcpu-&gt;arch.walk_mmu              = &amp;vcpu-&gt;arch.nested_mmu;</span>
+<span class="quote">&gt; +	return 0;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static void nested_ept_uninit_mmu_context(struct kvm_vcpu *vcpu)</span>
+<span class="quote">&gt; @@ -10188,8 +10211,10 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	if (nested_cpu_has_ept(vmcs12)) {</span>
+<span class="quote">&gt; -		kvm_mmu_unload(vcpu);</span>
+<span class="quote">&gt; -		nested_ept_init_mmu_context(vcpu);</span>
+<span class="quote">&gt; +		if (nested_ept_init_mmu_context(vcpu)) {</span>
+<span class="quote">&gt; +			*entry_failure_code = ENTRY_FAIL_DEFAULT;</span>
+<span class="quote">&gt; +			return 1;</span>
+<span class="quote">&gt; +		}</span>
+<span class="quote">&gt;  	} else if (nested_cpu_has2(vmcs12,</span>
+<span class="quote">&gt;  				   SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)) {</span>
+<span class="quote">&gt;  		vmx_flush_tlb_ept_only(vcpu);</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=2536">Paolo Bonzini</a> - April 11, 2017, 11:54 p.m.</div>
+<pre class="content">
+----- Original Message -----
+<span class="quote">&gt; From: &quot;Bandan Das&quot; &lt;bsd@redhat.com&gt;</span>
+<span class="quote">&gt; To: &quot;Paolo Bonzini&quot; &lt;pbonzini@redhat.com&gt;</span>
+<span class="quote">&gt; Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, david@redhat.com</span>
+<span class="quote">&gt; Sent: Wednesday, April 12, 2017 7:35:16 AM</span>
+<span class="quote">&gt; Subject: Re: [PATCH 4/6] kvm: nVMX: support EPT accessed/dirty bits</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Paolo Bonzini &lt;pbonzini@redhat.com&gt; writes:</span>
+<span class="quote">&gt; ...</span>
+<span class="quote">&gt; &gt;  	accessed_dirty = have_ad ? PT_GUEST_ACCESSED_MASK : 0;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +	/*</span>
+<span class="quote">&gt; &gt; +	 * FIXME: on Intel processors, loads of the PDPTE registers for PAE</span>
+<span class="quote">&gt; &gt; paging</span>
+<span class="quote">&gt; &gt; +	 * by the MOV to CR instruction are treated as reads and do not cause the</span>
+<span class="quote">&gt; &gt; +	 * processor to set the dirty flag in tany EPT paging-structure entry.</span>
+<span class="quote">&gt; &gt; +	 */</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Minor typo: &quot;in any EPT paging-structure entry&quot;.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; +	nested_access = (have_ad ? PFERR_WRITE_MASK : 0) | PFERR_USER_MASK;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt;  	pt_access = pte_access = ACC_ALL;</span>
+<span class="quote">&gt; &gt;  	++walker-&gt;level;</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt; @@ -338,7 +337,7 @@ static int FNAME(walk_addr_generic)(struct guest_walker</span>
+<span class="quote">&gt; &gt; *walker,</span>
+<span class="quote">&gt; &gt;  		walker-&gt;pte_gpa[walker-&gt;level - 1] = pte_gpa;</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt;  		real_gfn = mmu-&gt;translate_gpa(vcpu, gfn_to_gpa(table_gfn),</span>
+<span class="quote">&gt; &gt; -					      PFERR_USER_MASK|PFERR_WRITE_MASK,</span>
+<span class="quote">&gt; &gt; +					      nested_access,</span>
+<span class="quote">&gt; &gt;  					      &amp;walker-&gt;fault);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I can&#39;t seem to understand the significance of this change (or for that</span>
+<span class="quote">&gt; matter what was before this change).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; mmu-&gt;translate_gpa() just returns gfn_to_gpa(table_gfn), right ?</span>
+
+For EPT it is, you&#39;re right it&#39;s fishy.  The &quot;nested_access&quot; should be
+computed in translate_nested_gpa, which is where kvm-&gt;arch.nested_mmu
+(non-EPT) requests to access kvm-&gt;arch.mmu (EPT).
+
+In practice we need to define a new function
+vcpu-&gt;arch.mmu.gva_to_gpa_nested that computes the nested_access
+and calls cpu-&gt;arch.mmu.gva_to_gpa.
+
+Thanks,
+
+Paolo
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=68131">Bandan Das</a> - April 12, 2017, 11:02 p.m.</div>
+<pre class="content">
+Paolo Bonzini &lt;pbonzini@redhat.com&gt; writes:
+<span class="quote">
+&gt; ----- Original Message -----</span>
+<span class="quote">&gt;&gt; From: &quot;Bandan Das&quot; &lt;bsd@redhat.com&gt;</span>
+<span class="quote">&gt;&gt; To: &quot;Paolo Bonzini&quot; &lt;pbonzini@redhat.com&gt;</span>
+<span class="quote">&gt;&gt; Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, david@redhat.com</span>
+<span class="quote">&gt;&gt; Sent: Wednesday, April 12, 2017 7:35:16 AM</span>
+<span class="quote">&gt;&gt; Subject: Re: [PATCH 4/6] kvm: nVMX: support EPT accessed/dirty bits</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; Paolo Bonzini &lt;pbonzini@redhat.com&gt; writes:</span>
+<span class="quote">&gt;&gt; ...</span>
+<span class="quote">&gt;&gt; &gt;  	accessed_dirty = have_ad ? PT_GUEST_ACCESSED_MASK : 0;</span>
+<span class="quote">&gt;&gt; &gt; +</span>
+<span class="quote">&gt;&gt; &gt; +	/*</span>
+<span class="quote">&gt;&gt; &gt; +	 * FIXME: on Intel processors, loads of the PDPTE registers for PAE</span>
+<span class="quote">&gt;&gt; &gt; paging</span>
+<span class="quote">&gt;&gt; &gt; +	 * by the MOV to CR instruction are treated as reads and do not cause the</span>
+<span class="quote">&gt;&gt; &gt; +	 * processor to set the dirty flag in tany EPT paging-structure entry.</span>
+<span class="quote">&gt;&gt; &gt; +	 */</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; Minor typo: &quot;in any EPT paging-structure entry&quot;.</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; &gt; +	nested_access = (have_ad ? PFERR_WRITE_MASK : 0) | PFERR_USER_MASK;</span>
+<span class="quote">&gt;&gt; &gt; +</span>
+<span class="quote">&gt;&gt; &gt;  	pt_access = pte_access = ACC_ALL;</span>
+<span class="quote">&gt;&gt; &gt;  	++walker-&gt;level;</span>
+<span class="quote">&gt;&gt; &gt;  </span>
+<span class="quote">&gt;&gt; &gt; @@ -338,7 +337,7 @@ static int FNAME(walk_addr_generic)(struct guest_walker</span>
+<span class="quote">&gt;&gt; &gt; *walker,</span>
+<span class="quote">&gt;&gt; &gt;  		walker-&gt;pte_gpa[walker-&gt;level - 1] = pte_gpa;</span>
+<span class="quote">&gt;&gt; &gt;  </span>
+<span class="quote">&gt;&gt; &gt;  		real_gfn = mmu-&gt;translate_gpa(vcpu, gfn_to_gpa(table_gfn),</span>
+<span class="quote">&gt;&gt; &gt; -					      PFERR_USER_MASK|PFERR_WRITE_MASK,</span>
+<span class="quote">&gt;&gt; &gt; +					      nested_access,</span>
+<span class="quote">&gt;&gt; &gt;  					      &amp;walker-&gt;fault);</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; I can&#39;t seem to understand the significance of this change (or for that</span>
+<span class="quote">&gt;&gt; matter what was before this change).</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; mmu-&gt;translate_gpa() just returns gfn_to_gpa(table_gfn), right ?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; For EPT it is, you&#39;re right it&#39;s fishy.  The &quot;nested_access&quot; should be</span>
+<span class="quote">&gt; computed in translate_nested_gpa, which is where kvm-&gt;arch.nested_mmu</span>
+<span class="quote">&gt; (non-EPT) requests to access kvm-&gt;arch.mmu (EPT).</span>
+
+Thanks for the clarification. Is it the case when L1 runs L2 without
+EPT ? I can&#39;t figure out the case where translate_nested_gpa will actually
+be called. FNAME(walk_addr_nested) calls walk_addr_generic
+with &amp;vcpu-&gt;arch.nested_mmu and init_kvm_nested_mmu() sets gva_to_gpa()
+with the appropriate &quot;_nested&quot; functions. But the gva_to_gpa() pointers
+don&#39;t seem to get invoked at all for the nested case.
+
+BTW, just noticed that setting PFERR_USER_MASK is redundant since
+translate_nested_gpa does it too.
+
+Bandan
+<span class="quote">
+&gt; In practice we need to define a new function</span>
+<span class="quote">&gt; vcpu-&gt;arch.mmu.gva_to_gpa_nested that computes the nested_access</span>
+<span class="quote">&gt; and calls cpu-&gt;arch.mmu.gva_to_gpa.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Thanks,</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Paolo</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=2536">Paolo Bonzini</a> - April 14, 2017, 5:17 a.m.</div>
+<pre class="content">
+On 13/04/2017 07:02, Bandan Das wrote:
+<span class="quote">&gt;&gt; For EPT it is, you&#39;re right it&#39;s fishy.  The &quot;nested_access&quot; should be</span>
+<span class="quote">&gt;&gt; computed in translate_nested_gpa, which is where kvm-&gt;arch.nested_mmu</span>
+<span class="quote">&gt;&gt; (non-EPT) requests to access kvm-&gt;arch.mmu (EPT).</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Thanks for the clarification. Is it the case when L1 runs L2 without</span>
+<span class="quote">&gt; EPT ? I can&#39;t figure out the case where translate_nested_gpa will actually</span>
+<span class="quote">&gt; be called.</span>
+
+It happens when L2 instruction are emulated by L0, for example when L1
+is passing through I/O ports to L2 and L2 runs an &quot;insb&quot; instruction.  I
+think this case is not covered by vmx.flat.
+
+Paolo
+<span class="quote">
+&gt; FNAME(walk_addr_nested) calls walk_addr_generic</span>
+<span class="quote">&gt; with &amp;vcpu-&gt;arch.nested_mmu and init_kvm_nested_mmu() sets gva_to_gpa()</span>
+<span class="quote">&gt; with the appropriate &quot;_nested&quot; functions. But the gva_to_gpa() pointers</span>
+<span class="quote">&gt; don&#39;t seem to get invoked at all for the nested case.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; BTW, just noticed that setting PFERR_USER_MASK is redundant since</span>
+<span class="quote">&gt; translate_nested_gpa does it too.</span>
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h</span>
+<span class="p_header">index 74ef58c8ff53..7dbb8d622683 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/kvm_host.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/kvm_host.h</span>
+<span class="p_chunk">@@ -343,9 +343,10 @@</span> <span class="p_context"> struct kvm_mmu {</span>
+ 	void (*update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
+ 			   u64 *spte, const void *pte);
+ 	hpa_t root_hpa;
+<span class="p_del">-	int root_level;</span>
+<span class="p_del">-	int shadow_root_level;</span>
+ 	union kvm_mmu_page_role base_role;
+<span class="p_add">+	u8 root_level;</span>
+<span class="p_add">+	u8 shadow_root_level;</span>
+<span class="p_add">+	u8 ept_ad;</span>
+ 	bool direct_map;
+ 
+ 	/*
+<span class="p_header">diff --git a/arch/x86/include/asm/vmx.h b/arch/x86/include/asm/vmx.h</span>
+<span class="p_header">index cc54b7026567..dffe8d68fb27 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/vmx.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/vmx.h</span>
+<span class="p_chunk">@@ -516,12 +516,14 @@</span> <span class="p_context"> struct vmx_msr_entry {</span>
+ #define EPT_VIOLATION_READABLE_BIT	3
+ #define EPT_VIOLATION_WRITABLE_BIT	4
+ #define EPT_VIOLATION_EXECUTABLE_BIT	5
+<span class="p_add">+#define EPT_VIOLATION_GVA_TRANSLATED_BIT 8</span>
+ #define EPT_VIOLATION_ACC_READ		(1 &lt;&lt; EPT_VIOLATION_ACC_READ_BIT)
+ #define EPT_VIOLATION_ACC_WRITE		(1 &lt;&lt; EPT_VIOLATION_ACC_WRITE_BIT)
+ #define EPT_VIOLATION_ACC_INSTR		(1 &lt;&lt; EPT_VIOLATION_ACC_INSTR_BIT)
+ #define EPT_VIOLATION_READABLE		(1 &lt;&lt; EPT_VIOLATION_READABLE_BIT)
+ #define EPT_VIOLATION_WRITABLE		(1 &lt;&lt; EPT_VIOLATION_WRITABLE_BIT)
+ #define EPT_VIOLATION_EXECUTABLE	(1 &lt;&lt; EPT_VIOLATION_EXECUTABLE_BIT)
+<span class="p_add">+#define EPT_VIOLATION_GVA_TRANSLATED	(1 &lt;&lt; EPT_VIOLATION_GVA_TRANSLATED_BIT)</span>
+ 
+ /*
+  * VM-instruction error numbers
+<span class="p_header">diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c</span>
+<span class="p_header">index ac7810513d0e..558676538fca 100644</span>
+<span class="p_header">--- a/arch/x86/kvm/mmu.c</span>
+<span class="p_header">+++ b/arch/x86/kvm/mmu.c</span>
+<span class="p_chunk">@@ -4340,7 +4340,8 @@</span> <span class="p_context"> void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu)</span>
+ }
+ EXPORT_SYMBOL_GPL(kvm_init_shadow_mmu);
+ 
+<span class="p_del">-void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly)</span>
+<span class="p_add">+void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,</span>
+<span class="p_add">+			     bool accessed_dirty)</span>
+ {
+ 	struct kvm_mmu *context = &amp;vcpu-&gt;arch.mmu;
+ 
+<span class="p_chunk">@@ -4349,6 +4350,7 @@</span> <span class="p_context"> void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly)</span>
+ 	context-&gt;shadow_root_level = kvm_x86_ops-&gt;get_tdp_level();
+ 
+ 	context-&gt;nx = true;
+<span class="p_add">+	context-&gt;ept_ad = accessed_dirty;</span>
+ 	context-&gt;page_fault = ept_page_fault;
+ 	context-&gt;gva_to_gpa = ept_gva_to_gpa;
+ 	context-&gt;sync_page = ept_sync_page;
+<span class="p_header">diff --git a/arch/x86/kvm/mmu.h b/arch/x86/kvm/mmu.h</span>
+<span class="p_header">index ddc56e91f2e4..d8ccb32f7308 100644</span>
+<span class="p_header">--- a/arch/x86/kvm/mmu.h</span>
+<span class="p_header">+++ b/arch/x86/kvm/mmu.h</span>
+<span class="p_chunk">@@ -74,7 +74,8 @@</span> <span class="p_context"> enum {</span>
+ 
+ int handle_mmio_page_fault(struct kvm_vcpu *vcpu, u64 addr, bool direct);
+ void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu);
+<span class="p_del">-void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly);</span>
+<span class="p_add">+void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,</span>
+<span class="p_add">+			     bool accessed_dirty);</span>
+ 
+ static inline unsigned int kvm_mmu_available_pages(struct kvm *kvm)
+ {
+<span class="p_header">diff --git a/arch/x86/kvm/paging_tmpl.h b/arch/x86/kvm/paging_tmpl.h</span>
+<span class="p_header">index 3e20f7b33892..8bf829703a00 100644</span>
+<span class="p_header">--- a/arch/x86/kvm/paging_tmpl.h</span>
+<span class="p_header">+++ b/arch/x86/kvm/paging_tmpl.h</span>
+<span class="p_chunk">@@ -23,13 +23,6 @@</span> <span class="p_context"></span>
+  * so the code in this file is compiled twice, once per pte size.
+  */
+ 
+<span class="p_del">-/*</span>
+<span class="p_del">- * This is used to catch non optimized PT_GUEST_(DIRTY|ACCESS)_SHIFT macro</span>
+<span class="p_del">- * uses for EPT without A/D paging type.</span>
+<span class="p_del">- */</span>
+<span class="p_del">-extern u64 __pure __using_nonexistent_pte_bit(void)</span>
+<span class="p_del">-	       __compiletime_error(&quot;wrong use of PT_GUEST_(DIRTY|ACCESS)_SHIFT&quot;);</span>
+<span class="p_del">-</span>
+ #if PTTYPE == 64
+ 	#define pt_element_t u64
+ 	#define guest_walker guest_walker64
+<span class="p_chunk">@@ -39,8 +32,6 @@</span> <span class="p_context"> extern u64 __pure __using_nonexistent_pte_bit(void)</span>
+ 	#define PT_LVL_OFFSET_MASK(lvl) PT64_LVL_OFFSET_MASK(lvl)
+ 	#define PT_INDEX(addr, level) PT64_INDEX(addr, level)
+ 	#define PT_LEVEL_BITS PT64_LEVEL_BITS
+<span class="p_del">-	#define PT_GUEST_ACCESSED_MASK PT_ACCESSED_MASK</span>
+<span class="p_del">-	#define PT_GUEST_DIRTY_MASK PT_DIRTY_MASK</span>
+ 	#define PT_GUEST_DIRTY_SHIFT PT_DIRTY_SHIFT
+ 	#define PT_GUEST_ACCESSED_SHIFT PT_ACCESSED_SHIFT
+ 	#define PT_HAVE_ACCESSED_DIRTY(mmu) true
+<span class="p_chunk">@@ -61,8 +52,6 @@</span> <span class="p_context"> extern u64 __pure __using_nonexistent_pte_bit(void)</span>
+ 	#define PT_INDEX(addr, level) PT32_INDEX(addr, level)
+ 	#define PT_LEVEL_BITS PT32_LEVEL_BITS
+ 	#define PT_MAX_FULL_LEVELS 2
+<span class="p_del">-	#define PT_GUEST_ACCESSED_MASK PT_ACCESSED_MASK</span>
+<span class="p_del">-	#define PT_GUEST_DIRTY_MASK PT_DIRTY_MASK</span>
+ 	#define PT_GUEST_DIRTY_SHIFT PT_DIRTY_SHIFT
+ 	#define PT_GUEST_ACCESSED_SHIFT PT_ACCESSED_SHIFT
+ 	#define PT_HAVE_ACCESSED_DIRTY(mmu) true
+<span class="p_chunk">@@ -76,17 +65,18 @@</span> <span class="p_context"> extern u64 __pure __using_nonexistent_pte_bit(void)</span>
+ 	#define PT_LVL_OFFSET_MASK(lvl) PT64_LVL_OFFSET_MASK(lvl)
+ 	#define PT_INDEX(addr, level) PT64_INDEX(addr, level)
+ 	#define PT_LEVEL_BITS PT64_LEVEL_BITS
+<span class="p_del">-	#define PT_GUEST_ACCESSED_MASK 0</span>
+<span class="p_del">-	#define PT_GUEST_DIRTY_MASK 0</span>
+<span class="p_del">-	#define PT_GUEST_DIRTY_SHIFT __using_nonexistent_pte_bit()</span>
+<span class="p_del">-	#define PT_GUEST_ACCESSED_SHIFT __using_nonexistent_pte_bit()</span>
+<span class="p_del">-	#define PT_HAVE_ACCESSED_DIRTY(mmu) false</span>
+<span class="p_add">+	#define PT_GUEST_DIRTY_SHIFT 9</span>
+<span class="p_add">+	#define PT_GUEST_ACCESSED_SHIFT 8</span>
+<span class="p_add">+	#define PT_HAVE_ACCESSED_DIRTY(mmu) ((mmu)-&gt;ept_ad)</span>
+ 	#define CMPXCHG cmpxchg64
+ 	#define PT_MAX_FULL_LEVELS 4
+ #else
+ 	#error Invalid PTTYPE value
+ #endif
+ 
+<span class="p_add">+#define PT_GUEST_DIRTY_MASK    (1 &lt;&lt; PT_GUEST_DIRTY_SHIFT)</span>
+<span class="p_add">+#define PT_GUEST_ACCESSED_MASK (1 &lt;&lt; PT_GUEST_ACCESSED_SHIFT)</span>
+<span class="p_add">+</span>
+ #define gpte_to_gfn_lvl FNAME(gpte_to_gfn_lvl)
+ #define gpte_to_gfn(pte) gpte_to_gfn_lvl((pte), PT_PAGE_TABLE_LEVEL)
+ 
+<span class="p_chunk">@@ -290,6 +280,7 @@</span> <span class="p_context"> static int FNAME(walk_addr_generic)(struct guest_walker *walker,</span>
+ 	pt_element_t __user *uninitialized_var(ptep_user);
+ 	gfn_t table_gfn;
+ 	unsigned index, pt_access, pte_access, accessed_dirty, pte_pkey;
+<span class="p_add">+	unsigned nested_access;</span>
+ 	gpa_t pte_gpa;
+ 	bool have_ad;
+ 	int offset;
+<span class="p_chunk">@@ -319,6 +310,14 @@</span> <span class="p_context"> static int FNAME(walk_addr_generic)(struct guest_walker *walker,</span>
+ 	ASSERT(!(is_long_mode(vcpu) &amp;&amp; !is_pae(vcpu)));
+ 
+ 	accessed_dirty = have_ad ? PT_GUEST_ACCESSED_MASK : 0;
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * FIXME: on Intel processors, loads of the PDPTE registers for PAE paging</span>
+<span class="p_add">+	 * by the MOV to CR instruction are treated as reads and do not cause the</span>
+<span class="p_add">+	 * processor to set the dirty flag in tany EPT paging-structure entry.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	nested_access = (have_ad ? PFERR_WRITE_MASK : 0) | PFERR_USER_MASK;</span>
+<span class="p_add">+</span>
+ 	pt_access = pte_access = ACC_ALL;
+ 	++walker-&gt;level;
+ 
+<span class="p_chunk">@@ -338,7 +337,7 @@</span> <span class="p_context"> static int FNAME(walk_addr_generic)(struct guest_walker *walker,</span>
+ 		walker-&gt;pte_gpa[walker-&gt;level - 1] = pte_gpa;
+ 
+ 		real_gfn = mmu-&gt;translate_gpa(vcpu, gfn_to_gpa(table_gfn),
+<span class="p_del">-					      PFERR_USER_MASK|PFERR_WRITE_MASK,</span>
+<span class="p_add">+					      nested_access,</span>
+ 					      &amp;walker-&gt;fault);
+ 
+ 		/*
+<span class="p_header">diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c</span>
+<span class="p_header">index 1c372600a962..6aaecc78dd71 100644</span>
+<span class="p_header">--- a/arch/x86/kvm/vmx.c</span>
+<span class="p_header">+++ b/arch/x86/kvm/vmx.c</span>
+<span class="p_chunk">@@ -2767,6 +2767,8 @@</span> <span class="p_context"> static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)</span>
+ 		vmx-&gt;nested.nested_vmx_ept_caps |= VMX_EPT_EXTENT_GLOBAL_BIT |
+ 			VMX_EPT_EXTENT_CONTEXT_BIT | VMX_EPT_2MB_PAGE_BIT |
+ 			VMX_EPT_1GB_PAGE_BIT;
+<span class="p_add">+	       if (enable_ept_ad_bits)</span>
+<span class="p_add">+		       vmx-&gt;nested.nested_vmx_ept_caps |= VMX_EPT_AD_BIT;</span>
+ 	} else
+ 		vmx-&gt;nested.nested_vmx_ept_caps = 0;
+ 
+<span class="p_chunk">@@ -6211,6 +6213,18 @@</span> <span class="p_context"> static int handle_ept_violation(struct kvm_vcpu *vcpu)</span>
+ 
+ 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
+ 
+<span class="p_add">+	if (is_guest_mode(vcpu)</span>
+<span class="p_add">+	    &amp;&amp; !(exit_qualification &amp; EPT_VIOLATION_GVA_TRANSLATED)) {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Fix up exit_qualification according to whether guest</span>
+<span class="p_add">+		 * page table accesses are reads or writes.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		u64 eptp = nested_ept_get_cr3(vcpu);</span>
+<span class="p_add">+		exit_qualification &amp;= ~EPT_VIOLATION_ACC_WRITE;</span>
+<span class="p_add">+		if (eptp &amp; VMX_EPT_AD_ENABLE_BIT)</span>
+<span class="p_add">+			exit_qualification |= EPT_VIOLATION_ACC_WRITE;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+ 	/*
+ 	 * EPT violation happened while executing iret from NMI,
+ 	 * &quot;blocked by NMI&quot; bit has to be set before next VM entry.
+<span class="p_chunk">@@ -9416,17 +9430,26 @@</span> <span class="p_context"> static unsigned long nested_ept_get_cr3(struct kvm_vcpu *vcpu)</span>
+ 	return get_vmcs12(vcpu)-&gt;ept_pointer;
+ }
+ 
+<span class="p_del">-static void nested_ept_init_mmu_context(struct kvm_vcpu *vcpu)</span>
+<span class="p_add">+static int nested_ept_init_mmu_context(struct kvm_vcpu *vcpu)</span>
+ {
+<span class="p_add">+	u64 eptp;</span>
+<span class="p_add">+</span>
+ 	WARN_ON(mmu_is_nested(vcpu));
+<span class="p_add">+	eptp = nested_ept_get_cr3(vcpu);</span>
+<span class="p_add">+	if ((eptp &amp; VMX_EPT_AD_ENABLE_BIT) &amp;&amp; !enable_ept_ad_bits)</span>
+<span class="p_add">+		return 1;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	kvm_mmu_unload(vcpu);</span>
+ 	kvm_init_shadow_ept_mmu(vcpu,
+ 			to_vmx(vcpu)-&gt;nested.nested_vmx_ept_caps &amp;
+<span class="p_del">-			VMX_EPT_EXECUTE_ONLY_BIT);</span>
+<span class="p_add">+			VMX_EPT_EXECUTE_ONLY_BIT,</span>
+<span class="p_add">+			eptp &amp; VMX_EPT_AD_ENABLE_BIT);</span>
+ 	vcpu-&gt;arch.mmu.set_cr3           = vmx_set_cr3;
+ 	vcpu-&gt;arch.mmu.get_cr3           = nested_ept_get_cr3;
+ 	vcpu-&gt;arch.mmu.inject_page_fault = nested_ept_inject_page_fault;
+ 
+ 	vcpu-&gt;arch.walk_mmu              = &amp;vcpu-&gt;arch.nested_mmu;
+<span class="p_add">+	return 0;</span>
+ }
+ 
+ static void nested_ept_uninit_mmu_context(struct kvm_vcpu *vcpu)
+<span class="p_chunk">@@ -10188,8 +10211,10 @@</span> <span class="p_context"> static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,</span>
+ 	}
+ 
+ 	if (nested_cpu_has_ept(vmcs12)) {
+<span class="p_del">-		kvm_mmu_unload(vcpu);</span>
+<span class="p_del">-		nested_ept_init_mmu_context(vcpu);</span>
+<span class="p_add">+		if (nested_ept_init_mmu_context(vcpu)) {</span>
+<span class="p_add">+			*entry_failure_code = ENTRY_FAIL_DEFAULT;</span>
+<span class="p_add">+			return 1;</span>
+<span class="p_add">+		}</span>
+ 	} else if (nested_cpu_has2(vmcs12,
+ 				   SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)) {
+ 		vmx_flush_tlb_ept_only(vcpu);
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,1555 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v3,05/11] x86/mm: Track the TLB&#39;s tlb_gen and update the flushing algorithm - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v3,05/11] x86/mm: Track the TLB&#39;s tlb_gen and update the flushing algorithm</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>June 21, 2017, 5:22 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;91f24a6145b2077f992902891f8fa59abe5c8696.1498022414.git.luto@kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9800739/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9800739/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9800739/">/patch/9800739/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	221E360234 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 21 Jun 2017 05:24:36 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 0F06F28510
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 21 Jun 2017 05:24:36 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 0058F2851A; Wed, 21 Jun 2017 05:24:35 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 4C73728510
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 21 Jun 2017 05:24:35 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753345AbdFUFY2 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 21 Jun 2017 01:24:28 -0400
+Received: from mail.kernel.org ([198.145.29.99]:55600 &quot;EHLO mail.kernel.org&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1753180AbdFUFWX (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 21 Jun 2017 01:22:23 -0400
+Received: from localhost (c-71-202-137-17.hsd1.ca.comcast.net
+	[71.202.137.17])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256
+	bits)) (No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 6823B23A13;
+	Wed, 21 Jun 2017 05:22:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6823B23A13
+Authentication-Results: mail.kernel.org;
+	dmarc=none (p=none dis=none) header.from=kernel.org
+Authentication-Results: mail.kernel.org;
+	spf=none smtp.mailfrom=luto@kernel.org
+From: Andy Lutomirski &lt;luto@kernel.org&gt;
+To: x86@kernel.org
+Cc: linux-kernel@vger.kernel.org, Borislav Petkov &lt;bp@alien8.de&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;, Mel Gorman &lt;mgorman@suse.de&gt;,
+	&quot;linux-mm@kvack.org&quot; &lt;linux-mm@kvack.org&gt;,
+	Nadav Amit &lt;nadav.amit@gmail.com&gt;, Rik van Riel &lt;riel@redhat.com&gt;,
+	Dave Hansen &lt;dave.hansen@intel.com&gt;,
+	Arjan van de Ven &lt;arjan@linux.intel.com&gt;,
+	Peter Zijlstra &lt;peterz@infradead.org&gt;, Andy Lutomirski &lt;luto@kernel.org&gt;
+Subject: [PATCH v3 05/11] x86/mm: Track the TLB&#39;s tlb_gen and update the
+	flushing algorithm
+Date: Tue, 20 Jun 2017 22:22:11 -0700
+Message-Id: &lt;91f24a6145b2077f992902891f8fa59abe5c8696.1498022414.git.luto@kernel.org&gt;
+X-Mailer: git-send-email 2.9.4
+In-Reply-To: &lt;cover.1498022414.git.luto@kernel.org&gt;
+References: &lt;cover.1498022414.git.luto@kernel.org&gt;
+In-Reply-To: &lt;cover.1498022414.git.luto@kernel.org&gt;
+References: &lt;cover.1498022414.git.luto@kernel.org&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - June 21, 2017, 5:22 a.m.</div>
+<pre class="content">
+There are two kernel features that would benefit from tracking
+how up-to-date each CPU&#39;s TLB is in the case where IPIs aren&#39;t keeping
+it up to date in real time:
+
+ - Lazy mm switching currently works by switching to init_mm when
+   it would otherwise flush.  This is wasteful: there isn&#39;t fundamentally
+   any need to update CR3 at all when going lazy or when returning from
+   lazy mode, nor is there any need to receive flush IPIs at all.  Instead,
+   we should just stop trying to keep the TLB coherent when we go lazy and,
+   when unlazying, check whether we missed any flushes.
+
+ - PCID will let us keep recent user contexts alive in the TLB.  If we
+   start doing this, we need a way to decide whether those contexts are
+   up to date.
+
+On some paravirt systems, remote TLBs can be flushed without IPIs.
+This won&#39;t update the target CPUs&#39; tlb_gens, which may cause
+unnecessary local flushes later on.  We can address this if it becomes
+a problem by carefully updating the target CPU&#39;s tlb_gen directly.
+
+By itself, this patch is a very minor optimization that avoids
+unnecessary flushes when multiple TLB flushes targetting the same CPU
+race.
+<span class="signed-off-by">
+Signed-off-by: Andy Lutomirski &lt;luto@kernel.org&gt;</span>
+---
+ arch/x86/include/asm/tlbflush.h | 37 +++++++++++++++++++
+ arch/x86/mm/tlb.c               | 79 +++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 109 insertions(+), 7 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=107">Thomas Gleixner</a> - June 21, 2017, 8:32 a.m.</div>
+<pre class="content">
+On Tue, 20 Jun 2017, Andy Lutomirski wrote:
+<span class="quote">&gt;  struct flush_tlb_info {</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * We support several kinds of flushes.</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 * - Fully flush a single mm.  flush_mm will be set, flush_end will be</span>
+
+flush_mm is the *mm member in the struct, right? You might rename that as a
+preparatory step so comments and implementation match.
+<span class="quote">
+&gt; +	 *   TLB_FLUSH_ALL, and new_tlb_gen will be the tlb_gen to which the</span>
+<span class="quote">&gt; +	 *   IPI sender is trying to catch us up.</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 * - Partially flush a single mm.  flush_mm will be set, flush_start</span>
+<span class="quote">&gt; +	 *   and flush_end will indicate the range, and new_tlb_gen will be</span>
+<span class="quote">&gt; +	 *   set such that the changes between generation new_tlb_gen-1 and</span>
+<span class="quote">&gt; +	 *   new_tlb_gen are entirely contained in the indicated range.</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 * - Fully flush all mms whose tlb_gens have been updated.  flush_mm</span>
+<span class="quote">&gt; +	 *   will be NULL, flush_end will be TLB_FLUSH_ALL, and new_tlb_gen</span>
+<span class="quote">&gt; +	 *   will be zero.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt;  	struct mm_struct *mm;</span>
+<span class="quote">&gt;  	unsigned long start;</span>
+<span class="quote">&gt;  	unsigned long end;</span>
+<span class="quote">&gt; +	u64 new_tlb_gen;</span>
+
+Nit. While at it could you please make that struct tabular aligned as we
+usually do in x86?
+<span class="quote">
+&gt;  static void flush_tlb_func_common(const struct flush_tlb_info *f,</span>
+<span class="quote">&gt;  				  bool local, enum tlb_flush_reason reason)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; +	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Our memory ordering requirement is that any TLB fills that</span>
+<span class="quote">&gt; +	 * happen after we flush the TLB are ordered after we read</span>
+<span class="quote">&gt; +	 * active_mm&#39;s tlb_gen.  We don&#39;t need any explicit barrier</span>
+<span class="quote">&gt; +	 * because all x86 flush operations are serializing and the</span>
+<span class="quote">&gt; +	 * atomic64_read operation won&#39;t be reordered by the compiler.</span>
+<span class="quote">&gt; +	 */</span>
+
+Can you please move the comment above the loaded_mm assignment? 
+<span class="quote">
+&gt; +	u64 mm_tlb_gen = atomic64_read(&amp;loaded_mm-&gt;context.tlb_gen);</span>
+<span class="quote">&gt; +	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[0].tlb_gen);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  	/* This code cannot presently handle being reentered. */</span>
+<span class="quote">&gt;  	VM_WARN_ON(!irqs_disabled());</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=</span>
+<span class="quote">&gt; +		   loaded_mm-&gt;context.ctx_id);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  	if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {</span>
+<span class="quote">&gt; +		/*</span>
+<span class="quote">&gt; +		 * leave_mm() is adequate to handle any type of flush, and</span>
+<span class="quote">&gt; +		 * we would prefer not to receive further IPIs.</span>
+
+While I know what you mean, it might be useful to have a more elaborate
+explanation why this prevents new IPIs.
+<span class="quote">
+&gt; +		 */</span>
+<span class="quote">&gt;  		leave_mm(smp_processor_id());</span>
+<span class="quote">&gt;  		return;</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	if (f-&gt;end == TLB_FLUSH_ALL) {</span>
+<span class="quote">&gt; -		local_flush_tlb();</span>
+<span class="quote">&gt; -		if (local)</span>
+<span class="quote">&gt; -			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);</span>
+<span class="quote">&gt; -		trace_tlb_flush(reason, TLB_FLUSH_ALL);</span>
+<span class="quote">&gt; -	} else {</span>
+<span class="quote">&gt; +	if (local_tlb_gen == mm_tlb_gen) {</span>
+<span class="quote">&gt; +		/*</span>
+<span class="quote">&gt; +		 * There&#39;s nothing to do: we&#39;re already up to date.  This can</span>
+<span class="quote">&gt; +		 * happen if two concurrent flushes happen -- the first IPI to</span>
+<span class="quote">&gt; +		 * be handled can catch us all the way up, leaving no work for</span>
+<span class="quote">&gt; +		 * the second IPI to be handled.</span>
+
+That not restricted to IPIs, right? A local flush / IPI combo can do that
+as well.
+
+Other than those nits;
+<span class="reviewed-by">
+Reviewed-by: Thomas Gleixner &lt;tglx@linutronix.de&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - June 21, 2017, 3:11 p.m.</div>
+<pre class="content">
+On Wed, Jun 21, 2017 at 1:32 AM, Thomas Gleixner &lt;tglx@linutronix.de&gt; wrote:
+<span class="quote">&gt; On Tue, 20 Jun 2017, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt;  struct flush_tlb_info {</span>
+<span class="quote">&gt;&gt; +     /*</span>
+<span class="quote">&gt;&gt; +      * We support several kinds of flushes.</span>
+<span class="quote">&gt;&gt; +      *</span>
+<span class="quote">&gt;&gt; +      * - Fully flush a single mm.  flush_mm will be set, flush_end will be</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; flush_mm is the *mm member in the struct, right? You might rename that as a</span>
+<span class="quote">&gt; preparatory step so comments and implementation match.</span>
+
+The comment is outdated.  Fixed now.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt;&gt; +      *   TLB_FLUSH_ALL, and new_tlb_gen will be the tlb_gen to which the</span>
+<span class="quote">&gt;&gt; +      *   IPI sender is trying to catch us up.</span>
+<span class="quote">&gt;&gt; +      *</span>
+<span class="quote">&gt;&gt; +      * - Partially flush a single mm.  flush_mm will be set, flush_start</span>
+<span class="quote">&gt;&gt; +      *   and flush_end will indicate the range, and new_tlb_gen will be</span>
+<span class="quote">&gt;&gt; +      *   set such that the changes between generation new_tlb_gen-1 and</span>
+<span class="quote">&gt;&gt; +      *   new_tlb_gen are entirely contained in the indicated range.</span>
+<span class="quote">&gt;&gt; +      *</span>
+<span class="quote">&gt;&gt; +      * - Fully flush all mms whose tlb_gens have been updated.  flush_mm</span>
+<span class="quote">&gt;&gt; +      *   will be NULL, flush_end will be TLB_FLUSH_ALL, and new_tlb_gen</span>
+<span class="quote">&gt;&gt; +      *   will be zero.</span>
+<span class="quote">&gt;&gt; +      */</span>
+<span class="quote">&gt;&gt;       struct mm_struct *mm;</span>
+<span class="quote">&gt;&gt;       unsigned long start;</span>
+<span class="quote">&gt;&gt;       unsigned long end;</span>
+<span class="quote">&gt;&gt; +     u64 new_tlb_gen;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Nit. While at it could you please make that struct tabular aligned as we</span>
+<span class="quote">&gt; usually do in x86?</span>
+
+Sure.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt;&gt;  static void flush_tlb_func_common(const struct flush_tlb_info *f,</span>
+<span class="quote">&gt;&gt;                                 bool local, enum tlb_flush_reason reason)</span>
+<span class="quote">&gt;&gt;  {</span>
+<span class="quote">&gt;&gt; +     struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +     /*</span>
+<span class="quote">&gt;&gt; +      * Our memory ordering requirement is that any TLB fills that</span>
+<span class="quote">&gt;&gt; +      * happen after we flush the TLB are ordered after we read</span>
+<span class="quote">&gt;&gt; +      * active_mm&#39;s tlb_gen.  We don&#39;t need any explicit barrier</span>
+<span class="quote">&gt;&gt; +      * because all x86 flush operations are serializing and the</span>
+<span class="quote">&gt;&gt; +      * atomic64_read operation won&#39;t be reordered by the compiler.</span>
+<span class="quote">&gt;&gt; +      */</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Can you please move the comment above the loaded_mm assignment?</span>
+
+I&#39;ll move it above the function entirely.  It&#39;s more of a general
+comment about how the function works than any particular part of the
+function.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt;&gt; +     u64 mm_tlb_gen = atomic64_read(&amp;loaded_mm-&gt;context.tlb_gen);</span>
+<span class="quote">&gt;&gt; +     u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[0].tlb_gen);</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt;       /* This code cannot presently handle being reentered. */</span>
+<span class="quote">&gt;&gt;       VM_WARN_ON(!irqs_disabled());</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; +     VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=</span>
+<span class="quote">&gt;&gt; +                loaded_mm-&gt;context.ctx_id);</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt;       if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {</span>
+<span class="quote">&gt;&gt; +             /*</span>
+<span class="quote">&gt;&gt; +              * leave_mm() is adequate to handle any type of flush, and</span>
+<span class="quote">&gt;&gt; +              * we would prefer not to receive further IPIs.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; While I know what you mean, it might be useful to have a more elaborate</span>
+<span class="quote">&gt; explanation why this prevents new IPIs.</span>
+
+Added, although it just gets deleted again later in the series.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt;&gt; +              */</span>
+<span class="quote">&gt;&gt;               leave_mm(smp_processor_id());</span>
+<span class="quote">&gt;&gt;               return;</span>
+<span class="quote">&gt;&gt;       }</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; -     if (f-&gt;end == TLB_FLUSH_ALL) {</span>
+<span class="quote">&gt;&gt; -             local_flush_tlb();</span>
+<span class="quote">&gt;&gt; -             if (local)</span>
+<span class="quote">&gt;&gt; -                     count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);</span>
+<span class="quote">&gt;&gt; -             trace_tlb_flush(reason, TLB_FLUSH_ALL);</span>
+<span class="quote">&gt;&gt; -     } else {</span>
+<span class="quote">&gt;&gt; +     if (local_tlb_gen == mm_tlb_gen) {</span>
+<span class="quote">&gt;&gt; +             /*</span>
+<span class="quote">&gt;&gt; +              * There&#39;s nothing to do: we&#39;re already up to date.  This can</span>
+<span class="quote">&gt;&gt; +              * happen if two concurrent flushes happen -- the first IPI to</span>
+<span class="quote">&gt;&gt; +              * be handled can catch us all the way up, leaving no work for</span>
+<span class="quote">&gt;&gt; +              * the second IPI to be handled.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; That not restricted to IPIs, right? A local flush / IPI combo can do that</span>
+<span class="quote">&gt; as well.</span>
+
+Indeed.  Comment fixed.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt; Other than those nits;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Reviewed-by: Thomas Gleixner &lt;tglx@linutronix.de&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7500">Borislav Petkov</a> - June 21, 2017, 6:44 p.m.</div>
+<pre class="content">
+On Tue, Jun 20, 2017 at 10:22:11PM -0700, Andy Lutomirski wrote:
+<span class="quote">&gt; There are two kernel features that would benefit from tracking</span>
+<span class="quote">&gt; how up-to-date each CPU&#39;s TLB is in the case where IPIs aren&#39;t keeping</span>
+<span class="quote">&gt; it up to date in real time:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  - Lazy mm switching currently works by switching to init_mm when</span>
+<span class="quote">&gt;    it would otherwise flush.  This is wasteful: there isn&#39;t fundamentally</span>
+<span class="quote">&gt;    any need to update CR3 at all when going lazy or when returning from</span>
+<span class="quote">&gt;    lazy mode, nor is there any need to receive flush IPIs at all.  Instead,</span>
+<span class="quote">&gt;    we should just stop trying to keep the TLB coherent when we go lazy and,</span>
+<span class="quote">&gt;    when unlazying, check whether we missed any flushes.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  - PCID will let us keep recent user contexts alive in the TLB.  If we</span>
+<span class="quote">&gt;    start doing this, we need a way to decide whether those contexts are</span>
+<span class="quote">&gt;    up to date.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; On some paravirt systems, remote TLBs can be flushed without IPIs.</span>
+<span class="quote">&gt; This won&#39;t update the target CPUs&#39; tlb_gens, which may cause</span>
+<span class="quote">&gt; unnecessary local flushes later on.  We can address this if it becomes</span>
+<span class="quote">&gt; a problem by carefully updating the target CPU&#39;s tlb_gen directly.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; By itself, this patch is a very minor optimization that avoids</span>
+<span class="quote">&gt; unnecessary flushes when multiple TLB flushes targetting the same CPU</span>
+<span class="quote">&gt; race.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Andy Lutomirski &lt;luto@kernel.org&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  arch/x86/include/asm/tlbflush.h | 37 +++++++++++++++++++</span>
+<span class="quote">&gt;  arch/x86/mm/tlb.c               | 79 +++++++++++++++++++++++++++++++++++++----</span>
+<span class="quote">&gt;  2 files changed, 109 insertions(+), 7 deletions(-)</span>
+
+...
+<span class="quote">
+&gt; diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c</span>
+<span class="quote">&gt; index 6d9d37323a43..9f5ef7a5e74a 100644</span>
+<span class="quote">&gt; --- a/arch/x86/mm/tlb.c</span>
+<span class="quote">&gt; +++ b/arch/x86/mm/tlb.c</span>
+<span class="quote">&gt; @@ -105,6 +105,9 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	this_cpu_write(cpu_tlbstate.loaded_mm, next);</span>
+<span class="quote">&gt; +	this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, next-&gt;context.ctx_id);</span>
+<span class="quote">&gt; +	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen,</span>
+<span class="quote">&gt; +		       atomic64_read(&amp;next-&gt;context.tlb_gen));</span>
+
+Just let it stick out:
+
+	this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id,  next-&gt;context.ctx_id);
+	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, atomic64_read(&amp;next-&gt;context.tlb_gen));
+
+Should be a bit better readable this way.
+<span class="quote">
+&gt;  </span>
+<span class="quote">&gt;  	WARN_ON_ONCE(cpumask_test_cpu(cpu, mm_cpumask(next)));</span>
+<span class="quote">&gt;  	cpumask_set_cpu(cpu, mm_cpumask(next));</span>
+<span class="quote">&gt; @@ -194,20 +197,73 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+<span class="quote">&gt;  static void flush_tlb_func_common(const struct flush_tlb_info *f,</span>
+<span class="quote">&gt;  				  bool local, enum tlb_flush_reason reason)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; +	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Our memory ordering requirement is that any TLB fills that</span>
+<span class="quote">&gt; +	 * happen after we flush the TLB are ordered after we read</span>
+<span class="quote">&gt; +	 * active_mm&#39;s tlb_gen.  We don&#39;t need any explicit barrier</span>
+<span class="quote">&gt; +	 * because all x86 flush operations are serializing and the</span>
+<span class="quote">&gt; +	 * atomic64_read operation won&#39;t be reordered by the compiler.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	u64 mm_tlb_gen = atomic64_read(&amp;loaded_mm-&gt;context.tlb_gen);</span>
+<span class="quote">&gt; +	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[0].tlb_gen);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  	/* This code cannot presently handle being reentered. */</span>
+<span class="quote">&gt;  	VM_WARN_ON(!irqs_disabled());</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=</span>
+<span class="quote">&gt; +		   loaded_mm-&gt;context.ctx_id);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  	if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {</span>
+<span class="quote">&gt; +		/*</span>
+<span class="quote">&gt; +		 * leave_mm() is adequate to handle any type of flush, and</span>
+<span class="quote">&gt; +		 * we would prefer not to receive further IPIs.</span>
+<span class="quote">&gt; +		 */</span>
+<span class="quote">&gt;  		leave_mm(smp_processor_id());</span>
+<span class="quote">&gt;  		return;</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	if (f-&gt;end == TLB_FLUSH_ALL) {</span>
+<span class="quote">&gt; -		local_flush_tlb();</span>
+<span class="quote">&gt; -		if (local)</span>
+<span class="quote">&gt; -			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);</span>
+<span class="quote">&gt; -		trace_tlb_flush(reason, TLB_FLUSH_ALL);</span>
+<span class="quote">&gt; -	} else {</span>
+<span class="quote">&gt; +	if (local_tlb_gen == mm_tlb_gen) {</span>
+
+	if (unlikely(... 
+
+maybe?
+
+Sounds to me like the concurrent flushes case would be the
+uncommon one...
+<span class="quote">
+&gt; +		/*</span>
+<span class="quote">&gt; +		 * There&#39;s nothing to do: we&#39;re already up to date.  This can</span>
+<span class="quote">&gt; +		 * happen if two concurrent flushes happen -- the first IPI to</span>
+<span class="quote">&gt; +		 * be handled can catch us all the way up, leaving no work for</span>
+<span class="quote">&gt; +		 * the second IPI to be handled.</span>
+<span class="quote">&gt; +		 */</span>
+<span class="quote">&gt; +		return;</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">
+
+&gt; +</span>
+<span class="quote">&gt; +	WARN_ON_ONCE(local_tlb_gen &gt; mm_tlb_gen);</span>
+<span class="quote">&gt; +	WARN_ON_ONCE(f-&gt;new_tlb_gen &gt; mm_tlb_gen);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * If we get to this point, we know that our TLB is out of date.</span>
+<span class="quote">&gt; +	 * This does not strictly imply that we need to flush (it&#39;s</span>
+<span class="quote">&gt; +	 * possible that f-&gt;new_tlb_gen &lt;= local_tlb_gen), but we&#39;re</span>
+<span class="quote">&gt; +	 * going to need to flush in the very near future, so we might</span>
+<span class="quote">&gt; +	 * as well get it over with.</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 * The only question is whether to do a full or partial flush.</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 * A partial TLB flush is safe and worthwhile if two conditions are</span>
+<span class="quote">&gt; +	 * met:</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 * 1. We wouldn&#39;t be skipping a tlb_gen.  If the requester bumped</span>
+<span class="quote">&gt; +	 *    the mm&#39;s tlb_gen from p to p+1, a partial flush is only correct</span>
+<span class="quote">&gt; +	 *    if we would be bumping the local CPU&#39;s tlb_gen from p to p+1 as</span>
+<span class="quote">&gt; +	 *    well.</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 * 2. If there are no more flushes on their way.  Partial TLB</span>
+<span class="quote">&gt; +	 *    flushes are not all that much cheaper than full TLB</span>
+<span class="quote">&gt; +	 *    flushes, so it seems unlikely that it would be a</span>
+<span class="quote">&gt; +	 *    performance win to do a partial flush if that won&#39;t bring</span>
+<span class="quote">&gt; +	 *    our TLB fully up to date.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	if (f-&gt;end != TLB_FLUSH_ALL &amp;&amp;</span>
+<span class="quote">&gt; +	    f-&gt;new_tlb_gen == local_tlb_gen + 1 &amp;&amp;</span>
+<span class="quote">&gt; +	    f-&gt;new_tlb_gen == mm_tlb_gen) {</span>
+
+I&#39;m certainly still missing something here:
+
+We have f-&gt;new_tlb_gen and mm_tlb_gen to control the flushing, i.e., we
+do once
+
+	bump_mm_tlb_gen(mm);
+
+and once
+
+	info.new_tlb_gen = bump_mm_tlb_gen(mm);
+
+and in both cases, the bumping is done on mm-&gt;context.tlb_gen.
+
+So why isn&#39;t that enough to do the flushing and we have to consult
+info.new_tlb_gen too?
+<span class="quote">
+&gt; +		/* Partial flush */</span>
+<span class="quote">&gt;  		unsigned long addr;</span>
+<span class="quote">&gt;  		unsigned long nr_pages = (f-&gt;end - f-&gt;start) &gt;&gt; PAGE_SHIFT;</span>
+
+&lt;---- newline here.
+<span class="quote">
+&gt;  		addr = f-&gt;start;</span>
+<span class="quote">&gt; @@ -218,7 +274,16 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,</span>
+<span class="quote">&gt;  		if (local)</span>
+<span class="quote">&gt;  			count_vm_tlb_events(NR_TLB_LOCAL_FLUSH_ONE, nr_pages);</span>
+<span class="quote">&gt;  		trace_tlb_flush(reason, nr_pages);</span>
+<span class="quote">&gt; +	} else {</span>
+<span class="quote">&gt; +		/* Full flush. */</span>
+<span class="quote">&gt; +		local_flush_tlb();</span>
+<span class="quote">&gt; +		if (local)</span>
+<span class="quote">&gt; +			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);</span>
+<span class="quote">&gt; +		trace_tlb_flush(reason, TLB_FLUSH_ALL);</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/* Both paths above update our state to mm_tlb_gen. */</span>
+<span class="quote">&gt; +	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, mm_tlb_gen);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static void flush_tlb_func_local(void *info, enum tlb_flush_reason reason)</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - June 22, 2017, 2:46 a.m.</div>
+<pre class="content">
+On Wed, Jun 21, 2017 at 11:44 AM, Borislav Petkov &lt;bp@alien8.de&gt; wrote:
+<span class="quote">&gt; On Tue, Jun 20, 2017 at 10:22:11PM -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; +     this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, next-&gt;context.ctx_id);</span>
+<span class="quote">&gt;&gt; +     this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen,</span>
+<span class="quote">&gt;&gt; +                    atomic64_read(&amp;next-&gt;context.tlb_gen));</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Just let it stick out:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;         this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id,  next-&gt;context.ctx_id);</span>
+<span class="quote">&gt;         this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, atomic64_read(&amp;next-&gt;context.tlb_gen));</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Should be a bit better readable this way.</span>
+
+Done
+<span class="quote">
+&gt;&gt; +     if (local_tlb_gen == mm_tlb_gen) {</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;         if (unlikely(...</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; maybe?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Sounds to me like the concurrent flushes case would be the</span>
+<span class="quote">&gt; uncommon one...</span>
+
+Agreed.
+<span class="quote">
+&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +     WARN_ON_ONCE(local_tlb_gen &gt; mm_tlb_gen);</span>
+<span class="quote">&gt;&gt; +     WARN_ON_ONCE(f-&gt;new_tlb_gen &gt; mm_tlb_gen);</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +     /*</span>
+<span class="quote">&gt;&gt; +      * If we get to this point, we know that our TLB is out of date.</span>
+<span class="quote">&gt;&gt; +      * This does not strictly imply that we need to flush (it&#39;s</span>
+<span class="quote">&gt;&gt; +      * possible that f-&gt;new_tlb_gen &lt;= local_tlb_gen), but we&#39;re</span>
+<span class="quote">&gt;&gt; +      * going to need to flush in the very near future, so we might</span>
+<span class="quote">&gt;&gt; +      * as well get it over with.</span>
+<span class="quote">&gt;&gt; +      *</span>
+<span class="quote">&gt;&gt; +      * The only question is whether to do a full or partial flush.</span>
+<span class="quote">&gt;&gt; +      *</span>
+<span class="quote">&gt;&gt; +      * A partial TLB flush is safe and worthwhile if two conditions are</span>
+<span class="quote">&gt;&gt; +      * met:</span>
+<span class="quote">&gt;&gt; +      *</span>
+<span class="quote">&gt;&gt; +      * 1. We wouldn&#39;t be skipping a tlb_gen.  If the requester bumped</span>
+<span class="quote">&gt;&gt; +      *    the mm&#39;s tlb_gen from p to p+1, a partial flush is only correct</span>
+<span class="quote">&gt;&gt; +      *    if we would be bumping the local CPU&#39;s tlb_gen from p to p+1 as</span>
+<span class="quote">&gt;&gt; +      *    well.</span>
+<span class="quote">&gt;&gt; +      *</span>
+<span class="quote">&gt;&gt; +      * 2. If there are no more flushes on their way.  Partial TLB</span>
+<span class="quote">&gt;&gt; +      *    flushes are not all that much cheaper than full TLB</span>
+<span class="quote">&gt;&gt; +      *    flushes, so it seems unlikely that it would be a</span>
+<span class="quote">&gt;&gt; +      *    performance win to do a partial flush if that won&#39;t bring</span>
+<span class="quote">&gt;&gt; +      *    our TLB fully up to date.</span>
+<span class="quote">&gt;&gt; +      */</span>
+<span class="quote">&gt;&gt; +     if (f-&gt;end != TLB_FLUSH_ALL &amp;&amp;</span>
+<span class="quote">&gt;&gt; +         f-&gt;new_tlb_gen == local_tlb_gen + 1 &amp;&amp;</span>
+<span class="quote">&gt;&gt; +         f-&gt;new_tlb_gen == mm_tlb_gen) {</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I&#39;m certainly still missing something here:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; We have f-&gt;new_tlb_gen and mm_tlb_gen to control the flushing, i.e., we</span>
+<span class="quote">&gt; do once</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;         bump_mm_tlb_gen(mm);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; and once</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;         info.new_tlb_gen = bump_mm_tlb_gen(mm);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; and in both cases, the bumping is done on mm-&gt;context.tlb_gen.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; So why isn&#39;t that enough to do the flushing and we have to consult</span>
+<span class="quote">&gt; info.new_tlb_gen too?</span>
+
+The issue is a possible race.  Suppose we start at tlb_gen == 1 and
+then two concurrent flushes happen.  The first flush is a full flush
+and sets tlb_gen to 2.  The second is a partial flush and sets tlb_gen
+to 3.  If the second flush gets propagated to a given CPU first and it
+were to do an actual partial flush (INVLPG) and set the percpu tlb_gen
+to 3, then the first flush won&#39;t do anything and we&#39;ll fail to flush
+all the pages we need to flush.
+
+My solution was to say that we&#39;re only allowed to do INVLPG if we&#39;re
+making exactly the same change to the local tlb_gen that the requester
+made to context.tlb_gen.
+
+I&#39;ll add a comment to this effect.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt;&gt; +             /* Partial flush */</span>
+<span class="quote">&gt;&gt;               unsigned long addr;</span>
+<span class="quote">&gt;&gt;               unsigned long nr_pages = (f-&gt;end - f-&gt;start) &gt;&gt; PAGE_SHIFT;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; &lt;---- newline here.</span>
+
+Yup.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7500">Borislav Petkov</a> - June 22, 2017, 7:24 a.m.</div>
+<pre class="content">
+On Wed, Jun 21, 2017 at 07:46:05PM -0700, Andy Lutomirski wrote:
+<span class="quote">&gt; &gt; I&#39;m certainly still missing something here:</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; We have f-&gt;new_tlb_gen and mm_tlb_gen to control the flushing, i.e., we</span>
+<span class="quote">&gt; &gt; do once</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt;         bump_mm_tlb_gen(mm);</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; and once</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt;         info.new_tlb_gen = bump_mm_tlb_gen(mm);</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; and in both cases, the bumping is done on mm-&gt;context.tlb_gen.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; So why isn&#39;t that enough to do the flushing and we have to consult</span>
+<span class="quote">&gt; &gt; info.new_tlb_gen too?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The issue is a possible race.  Suppose we start at tlb_gen == 1 and</span>
+<span class="quote">&gt; then two concurrent flushes happen.  The first flush is a full flush</span>
+<span class="quote">&gt; and sets tlb_gen to 2.  The second is a partial flush and sets tlb_gen</span>
+<span class="quote">&gt; to 3.  If the second flush gets propagated to a given CPU first and it</span>
+
+Maybe I&#39;m still missing something, which is likely...
+
+but if the second flush gets propagated to the CPU first, the CPU will
+have local tlb_gen 1 and thus enforce a full flush anyway because we
+will go 1 -&gt; 3 on that particular CPU. Or?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - June 22, 2017, 2:48 p.m.</div>
+<pre class="content">
+On Thu, Jun 22, 2017 at 12:24 AM, Borislav Petkov &lt;bp@alien8.de&gt; wrote:
+<span class="quote">&gt; On Wed, Jun 21, 2017 at 07:46:05PM -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; &gt; I&#39;m certainly still missing something here:</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; We have f-&gt;new_tlb_gen and mm_tlb_gen to control the flushing, i.e., we</span>
+<span class="quote">&gt;&gt; &gt; do once</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;         bump_mm_tlb_gen(mm);</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; and once</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;         info.new_tlb_gen = bump_mm_tlb_gen(mm);</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; and in both cases, the bumping is done on mm-&gt;context.tlb_gen.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; So why isn&#39;t that enough to do the flushing and we have to consult</span>
+<span class="quote">&gt;&gt; &gt; info.new_tlb_gen too?</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; The issue is a possible race.  Suppose we start at tlb_gen == 1 and</span>
+<span class="quote">&gt;&gt; then two concurrent flushes happen.  The first flush is a full flush</span>
+<span class="quote">&gt;&gt; and sets tlb_gen to 2.  The second is a partial flush and sets tlb_gen</span>
+<span class="quote">&gt;&gt; to 3.  If the second flush gets propagated to a given CPU first and it</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Maybe I&#39;m still missing something, which is likely...</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; but if the second flush gets propagated to the CPU first, the CPU will</span>
+<span class="quote">&gt; have local tlb_gen 1 and thus enforce a full flush anyway because we</span>
+<span class="quote">&gt; will go 1 -&gt; 3 on that particular CPU. Or?</span>
+<span class="quote">&gt;</span>
+
+Yes, exactly.  Which means I&#39;m probably just misunderstanding your
+original question.  Can you re-ask it?
+
+--Andy
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7500">Borislav Petkov</a> - June 22, 2017, 2:59 p.m.</div>
+<pre class="content">
+On Thu, Jun 22, 2017 at 07:48:21AM -0700, Andy Lutomirski wrote:
+<span class="quote">&gt; On Thu, Jun 22, 2017 at 12:24 AM, Borislav Petkov &lt;bp@alien8.de&gt; wrote:</span>
+<span class="quote">&gt; &gt; On Wed, Jun 21, 2017 at 07:46:05PM -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt; &gt;&gt; &gt; I&#39;m certainly still missing something here:</span>
+<span class="quote">&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt; We have f-&gt;new_tlb_gen and mm_tlb_gen to control the flushing, i.e., we</span>
+<span class="quote">&gt; &gt;&gt; &gt; do once</span>
+<span class="quote">&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt;         bump_mm_tlb_gen(mm);</span>
+<span class="quote">&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt; and once</span>
+<span class="quote">&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt;         info.new_tlb_gen = bump_mm_tlb_gen(mm);</span>
+<span class="quote">&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt; and in both cases, the bumping is done on mm-&gt;context.tlb_gen.</span>
+<span class="quote">&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt; So why isn&#39;t that enough to do the flushing and we have to consult</span>
+<span class="quote">&gt; &gt;&gt; &gt; info.new_tlb_gen too?</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; The issue is a possible race.  Suppose we start at tlb_gen == 1 and</span>
+<span class="quote">&gt; &gt;&gt; then two concurrent flushes happen.  The first flush is a full flush</span>
+<span class="quote">&gt; &gt;&gt; and sets tlb_gen to 2.  The second is a partial flush and sets tlb_gen</span>
+<span class="quote">&gt; &gt;&gt; to 3.  If the second flush gets propagated to a given CPU first and it</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Maybe I&#39;m still missing something, which is likely...</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; but if the second flush gets propagated to the CPU first, the CPU will</span>
+<span class="quote">&gt; &gt; have local tlb_gen 1 and thus enforce a full flush anyway because we</span>
+<span class="quote">&gt; &gt; will go 1 -&gt; 3 on that particular CPU. Or?</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yes, exactly.  Which means I&#39;m probably just misunderstanding your</span>
+<span class="quote">&gt; original question.  Can you re-ask it?</span>
+
+Ah, simple: we control the flushing with info.new_tlb_gen and
+mm-&gt;context.tlb_gen. I.e., this check:
+
+
+        if (f-&gt;end != TLB_FLUSH_ALL &amp;&amp;
+            f-&gt;new_tlb_gen == local_tlb_gen + 1 &amp;&amp;
+            f-&gt;new_tlb_gen == mm_tlb_gen) {
+
+why can&#39;t we write:
+
+        if (f-&gt;end != TLB_FLUSH_ALL &amp;&amp;
+	    mm_tlb_gen == local_tlb_gen + 1)
+
+?
+
+If mm_tlb_gen is + 2, then we&#39;ll do a full flush, if it is + 1, then
+partial.
+
+If the second flush, as you say is a partial one and still gets
+propagated first, the check will force a full flush anyway.
+
+When the first flush propagates after the second, we&#39;ll ignore it
+because local_tlb_gen has advanced adready due to the second flush.
+
+As a matter of fact, we could simplify the logic: if local_tlb_gen is
+only mm_tlb_gen - 1, then do the requested flush type.
+
+If mm_tlb_gen has advanced more than 1 generation, just do a full flush
+unconditionally. ... and I think we do something like that already but I
+think the logic could be simplified, unless I&#39;m missing something, that is.
+
+Thanks.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - June 22, 2017, 3:55 p.m.</div>
+<pre class="content">
+On Thu, Jun 22, 2017 at 7:59 AM, Borislav Petkov &lt;bp@alien8.de&gt; wrote:
+<span class="quote">&gt; On Thu, Jun 22, 2017 at 07:48:21AM -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; On Thu, Jun 22, 2017 at 12:24 AM, Borislav Petkov &lt;bp@alien8.de&gt; wrote:</span>
+<span class="quote">&gt;&gt; &gt; On Wed, Jun 21, 2017 at 07:46:05PM -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt; I&#39;m certainly still missing something here:</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt; We have f-&gt;new_tlb_gen and mm_tlb_gen to control the flushing, i.e., we</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt; do once</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;         bump_mm_tlb_gen(mm);</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt; and once</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;         info.new_tlb_gen = bump_mm_tlb_gen(mm);</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt; and in both cases, the bumping is done on mm-&gt;context.tlb_gen.</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt; So why isn&#39;t that enough to do the flushing and we have to consult</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt; info.new_tlb_gen too?</span>
+<span class="quote">&gt;&gt; &gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; The issue is a possible race.  Suppose we start at tlb_gen == 1 and</span>
+<span class="quote">&gt;&gt; &gt;&gt; then two concurrent flushes happen.  The first flush is a full flush</span>
+<span class="quote">&gt;&gt; &gt;&gt; and sets tlb_gen to 2.  The second is a partial flush and sets tlb_gen</span>
+<span class="quote">&gt;&gt; &gt;&gt; to 3.  If the second flush gets propagated to a given CPU first and it</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; Maybe I&#39;m still missing something, which is likely...</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; but if the second flush gets propagated to the CPU first, the CPU will</span>
+<span class="quote">&gt;&gt; &gt; have local tlb_gen 1 and thus enforce a full flush anyway because we</span>
+<span class="quote">&gt;&gt; &gt; will go 1 -&gt; 3 on that particular CPU. Or?</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Yes, exactly.  Which means I&#39;m probably just misunderstanding your</span>
+<span class="quote">&gt;&gt; original question.  Can you re-ask it?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Ah, simple: we control the flushing with info.new_tlb_gen and</span>
+<span class="quote">&gt; mm-&gt;context.tlb_gen. I.e., this check:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;         if (f-&gt;end != TLB_FLUSH_ALL &amp;&amp;</span>
+<span class="quote">&gt;             f-&gt;new_tlb_gen == local_tlb_gen + 1 &amp;&amp;</span>
+<span class="quote">&gt;             f-&gt;new_tlb_gen == mm_tlb_gen) {</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; why can&#39;t we write:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;         if (f-&gt;end != TLB_FLUSH_ALL &amp;&amp;</span>
+<span class="quote">&gt;             mm_tlb_gen == local_tlb_gen + 1)</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; ?</span>
+
+Ah, I thought you were asking about why I needed mm_tlb_gen ==
+local_tlb_gen + 1.  This is just an optimization, or at least I hope
+it is.  The idea is that, if we know that another flush is coming, it
+seems likely that it would be faster to do a full flush and increase
+local_tlb_gen all the way to mm_tlb_gen rather than doing a partial
+flush, increasing local_tlb_gen to something less than mm_tlb_gen, and
+needing to flush again very soon.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt; If mm_tlb_gen is + 2, then we&#39;ll do a full flush, if it is + 1, then</span>
+<span class="quote">&gt; partial.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; If the second flush, as you say is a partial one and still gets</span>
+<span class="quote">&gt; propagated first, the check will force a full flush anyway.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; When the first flush propagates after the second, we&#39;ll ignore it</span>
+<span class="quote">&gt; because local_tlb_gen has advanced adready due to the second flush.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; As a matter of fact, we could simplify the logic: if local_tlb_gen is</span>
+<span class="quote">&gt; only mm_tlb_gen - 1, then do the requested flush type.</span>
+
+Hmm.  I&#39;d be nervous that there are more subtle races if we do this.
+For example, suppose that a partial flush increments tlb_gen from 1 to
+2 and a full flush increments tlb_gen from 2 to 3.  Meanwhile, the CPU
+is busy switching back and forth between mms, so the partial flush
+sees the cpu set in mm_cpumask but the full flush doesn&#39;t see the cpu
+set in mm_cpumask.  The flush IPI hits after a switch_mm_irqs_off()
+call notices the change from 1 to 2.  switch_mm_irqs_off() will do a
+full flush and increment the local tlb_gen to 2, and the IPI handler
+for the partial flush will see local_tlb_gen == mm_tlb_gen - 1
+(because local_tlb_gen == 2 and mm_tlb_gen == 3) and do a partial
+flush.  The problem here is that it&#39;s not obvious to me that this
+actually ends up flushing everything that&#39;s needed.  Maybe all the
+memory ordering gets this right, but I can imagine scenarios in which
+switch_mm_irqs_off() does its flush early enough that the TLB picks up
+an entry that was supposed to get zapped by the full flush.
+
+IOW it *might* be valid, but I think it would need very careful review
+and documentation.
+
+--Andy
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7500">Borislav Petkov</a> - June 22, 2017, 5:22 p.m.</div>
+<pre class="content">
+On Thu, Jun 22, 2017 at 08:55:36AM -0700, Andy Lutomirski wrote:
+<span class="quote">&gt; &gt; Ah, simple: we control the flushing with info.new_tlb_gen and</span>
+<span class="quote">&gt; &gt; mm-&gt;context.tlb_gen. I.e., this check:</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt;         if (f-&gt;end != TLB_FLUSH_ALL &amp;&amp;</span>
+<span class="quote">&gt; &gt;             f-&gt;new_tlb_gen == local_tlb_gen + 1 &amp;&amp;</span>
+<span class="quote">&gt; &gt;             f-&gt;new_tlb_gen == mm_tlb_gen) {</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; why can&#39;t we write:</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt;         if (f-&gt;end != TLB_FLUSH_ALL &amp;&amp;</span>
+<span class="quote">&gt; &gt;             mm_tlb_gen == local_tlb_gen + 1)</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; ?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Ah, I thought you were asking about why I needed mm_tlb_gen ==</span>
+<span class="quote">&gt; local_tlb_gen + 1.  This is just an optimization, or at least I hope</span>
+<span class="quote">&gt; it is.  The idea is that, if we know that another flush is coming, it</span>
+<span class="quote">&gt; seems likely that it would be faster to do a full flush and increase</span>
+<span class="quote">&gt; local_tlb_gen all the way to mm_tlb_gen rather than doing a partial</span>
+<span class="quote">&gt; flush, increasing local_tlb_gen to something less than mm_tlb_gen, and</span>
+<span class="quote">&gt; needing to flush again very soon.</span>
+
+Thus the f-&gt;new_tlb_gen check whether it is local_tlb_gen + 1.
+
+Btw, do you see how confusing this check is: you have new_tlb_gen from
+a variable passed from the function call IPI, local_tlb_gen which is
+the CPU&#39;s own and then there&#39;s also mm_tlb_gen which we&#39;ve written into
+new_tlb_gen from:
+
+	info.new_tlb_gen = bump_mm_tlb_gen(mm);
+
+which incremented mm_tlb_gen too.
+<span class="quote">
+&gt; Hmm.  I&#39;d be nervous that there are more subtle races if we do this.</span>
+<span class="quote">&gt; For example, suppose that a partial flush increments tlb_gen from 1 to</span>
+<span class="quote">&gt; 2 and a full flush increments tlb_gen from 2 to 3.  Meanwhile, the CPU</span>
+<span class="quote">&gt; is busy switching back and forth between mms, so the partial flush</span>
+<span class="quote">&gt; sees the cpu set in mm_cpumask but the full flush doesn&#39;t see the cpu</span>
+<span class="quote">&gt; set in mm_cpumask.</span>
+
+Lemme see if I understand this correctly: you mean, the full flush will
+exit early due to the
+
+	if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm))) {
+
+test?
+<span class="quote">
+&gt; The flush IPI hits after a switch_mm_irqs_off() call notices the</span>
+<span class="quote">&gt; change from 1 to 2. switch_mm_irqs_off() will do a full flush and</span>
+<span class="quote">&gt; increment the local tlb_gen to 2, and the IPI handler for the partial</span>
+<span class="quote">&gt; flush will see local_tlb_gen == mm_tlb_gen - 1 (because local_tlb_gen</span>
+<span class="quote">&gt; == 2 and mm_tlb_gen == 3) and do a partial flush.</span>
+
+Why, the 2-&gt;3 flush has f-&gt;end == TLB_FLUSH_ALL.
+
+That&#39;s why you have this thing in addition to the tlb_gen.
+
+What we end up doing in this case, is promote the partial flush to a
+full one and thus have a partial and a full flush which are close by
+converted to two full flushes.
+<span class="quote">
+&gt; The problem here is that it&#39;s not obvious to me that this actually</span>
+<span class="quote">&gt; ends up flushing everything that&#39;s needed. Maybe all the memory</span>
+<span class="quote">&gt; ordering gets this right, but I can imagine scenarios in which</span>
+<span class="quote">&gt; switch_mm_irqs_off() does its flush early enough that the TLB picks up</span>
+<span class="quote">&gt; an entry that was supposed to get zapped by the full flush.</span>
+
+See above.
+
+And I don&#39;t think that having two full flushes back-to-back is going to
+cost a lot as the second one won&#39;t flush a whole lot.
+<span class="quote">
+&gt; IOW it *might* be valid, but I think it would need very careful review</span>
+<span class="quote">&gt; and documentation.</span>
+
+Always.
+
+Btw, I get the sense this TLB flush avoiding scheme becomes pretty
+complex for diminishing reasons.
+
+  [ Or maybe I&#39;m not seeing them - I&#39;m always open to corrections. ]
+
+Especially if intermediary levels from the pagetable walker are cached
+and reestablishing the TLB entries seldom means a full walk.
+
+You should do a full fledged benchmark to see whether this whole
+complexity is even worth it, methinks.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - June 22, 2017, 6:08 p.m.</div>
+<pre class="content">
+On Thu, Jun 22, 2017 at 10:22 AM, Borislav Petkov &lt;bp@alien8.de&gt; wrote:
+<span class="quote">&gt; On Thu, Jun 22, 2017 at 08:55:36AM -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; &gt; Ah, simple: we control the flushing with info.new_tlb_gen and</span>
+<span class="quote">&gt;&gt; &gt; mm-&gt;context.tlb_gen. I.e., this check:</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;         if (f-&gt;end != TLB_FLUSH_ALL &amp;&amp;</span>
+<span class="quote">&gt;&gt; &gt;             f-&gt;new_tlb_gen == local_tlb_gen + 1 &amp;&amp;</span>
+<span class="quote">&gt;&gt; &gt;             f-&gt;new_tlb_gen == mm_tlb_gen) {</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; why can&#39;t we write:</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;         if (f-&gt;end != TLB_FLUSH_ALL &amp;&amp;</span>
+<span class="quote">&gt;&gt; &gt;             mm_tlb_gen == local_tlb_gen + 1)</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; ?</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Ah, I thought you were asking about why I needed mm_tlb_gen ==</span>
+<span class="quote">&gt;&gt; local_tlb_gen + 1.  This is just an optimization, or at least I hope</span>
+<span class="quote">&gt;&gt; it is.  The idea is that, if we know that another flush is coming, it</span>
+<span class="quote">&gt;&gt; seems likely that it would be faster to do a full flush and increase</span>
+<span class="quote">&gt;&gt; local_tlb_gen all the way to mm_tlb_gen rather than doing a partial</span>
+<span class="quote">&gt;&gt; flush, increasing local_tlb_gen to something less than mm_tlb_gen, and</span>
+<span class="quote">&gt;&gt; needing to flush again very soon.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Thus the f-&gt;new_tlb_gen check whether it is local_tlb_gen + 1.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Btw, do you see how confusing this check is: you have new_tlb_gen from</span>
+<span class="quote">&gt; a variable passed from the function call IPI, local_tlb_gen which is</span>
+<span class="quote">&gt; the CPU&#39;s own and then there&#39;s also mm_tlb_gen which we&#39;ve written into</span>
+<span class="quote">&gt; new_tlb_gen from:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;         info.new_tlb_gen = bump_mm_tlb_gen(mm);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; which incremented mm_tlb_gen too.</span>
+
+Yes, I agree it&#39;s confusing.  There really are three numbers.  Those
+numbers are: the latest generation, the generation that this CPU has
+caught up to, and the generation that the requester of the flush we&#39;re
+currently handling has asked us to catch up to.  I don&#39;t see a way to
+reduce the complexity.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt;&gt; Hmm.  I&#39;d be nervous that there are more subtle races if we do this.</span>
+<span class="quote">&gt;&gt; For example, suppose that a partial flush increments tlb_gen from 1 to</span>
+<span class="quote">&gt;&gt; 2 and a full flush increments tlb_gen from 2 to 3.  Meanwhile, the CPU</span>
+<span class="quote">&gt;&gt; is busy switching back and forth between mms, so the partial flush</span>
+<span class="quote">&gt;&gt; sees the cpu set in mm_cpumask but the full flush doesn&#39;t see the cpu</span>
+<span class="quote">&gt;&gt; set in mm_cpumask.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Lemme see if I understand this correctly: you mean, the full flush will</span>
+<span class="quote">&gt; exit early due to the</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;         if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm))) {</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; test?</span>
+
+Yes, or at least that&#39;s what I&#39;m imagining.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt;&gt; The flush IPI hits after a switch_mm_irqs_off() call notices the</span>
+<span class="quote">&gt;&gt; change from 1 to 2. switch_mm_irqs_off() will do a full flush and</span>
+<span class="quote">&gt;&gt; increment the local tlb_gen to 2, and the IPI handler for the partial</span>
+<span class="quote">&gt;&gt; flush will see local_tlb_gen == mm_tlb_gen - 1 (because local_tlb_gen</span>
+<span class="quote">&gt;&gt; == 2 and mm_tlb_gen == 3) and do a partial flush.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Why, the 2-&gt;3 flush has f-&gt;end == TLB_FLUSH_ALL.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; That&#39;s why you have this thing in addition to the tlb_gen.</span>
+
+Yes.  The idea is that we only do remote partial flushes when it&#39;s
+100% obvious that it&#39;s safe.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt; What we end up doing in this case, is promote the partial flush to a</span>
+<span class="quote">&gt; full one and thus have a partial and a full flush which are close by</span>
+<span class="quote">&gt; converted to two full flushes.</span>
+
+It could be converted to two full flushes or to just one, I think,
+depending on what order everything happens in.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt;&gt; The problem here is that it&#39;s not obvious to me that this actually</span>
+<span class="quote">&gt;&gt; ends up flushing everything that&#39;s needed. Maybe all the memory</span>
+<span class="quote">&gt;&gt; ordering gets this right, but I can imagine scenarios in which</span>
+<span class="quote">&gt;&gt; switch_mm_irqs_off() does its flush early enough that the TLB picks up</span>
+<span class="quote">&gt;&gt; an entry that was supposed to get zapped by the full flush.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; See above.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; And I don&#39;t think that having two full flushes back-to-back is going to</span>
+<span class="quote">&gt; cost a lot as the second one won&#39;t flush a whole lot.</span>
+
+From limited benchmarking on new Intel chips, a full flush is very
+expensive no matter what.  I think this is silly because I suspect
+that the PCID circuitry could internally simulate a full flush at very
+little cost, but it seems that it doesn&#39;t.  I haven&#39;t tried to
+benchmark INVLPG.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt;&gt; IOW it *might* be valid, but I think it would need very careful review</span>
+<span class="quote">&gt;&gt; and documentation.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Always.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Btw, I get the sense this TLB flush avoiding scheme becomes pretty</span>
+<span class="quote">&gt; complex for diminishing reasons.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;   [ Or maybe I&#39;m not seeing them - I&#39;m always open to corrections. ]</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Especially if intermediary levels from the pagetable walker are cached</span>
+<span class="quote">&gt; and reestablishing the TLB entries seldom means a full walk.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; You should do a full fledged benchmark to see whether this whole</span>
+<span class="quote">&gt; complexity is even worth it, methinks.</span>
+
+I agree that, by itself, this patch is waaaaaay too complex to be
+justifiable.  The thing is that, after quite a few false starts, I
+couldn&#39;t find a clean way to get PCID and improved laziness without
+this thing as a prerequisite.  Both of those features depend on having
+a heuristic for when a flush can be avoided, and that heuristic must
+*never* say that a flush can be skipped when it can&#39;t be skipped.
+This patch gives a way to do that.
+
+I tried a few other approaches:
+
+ - Keeping a cpumask of which CPUs are up to date.  Someone at Intel
+tried this once and I inherited that code, but I scrapped it all after
+it had both performance and correctness issues.  I tried the approach
+again from scratch and paulmck poked all kinds of holes in it.
+
+ - Using a lock to make sure that only one flush can be in progress on
+a given mm at a given time.  The performance is just fine -- flushes
+can&#39;t usefully happen in parallel anyway.  The problem is that the
+batched unmap code in the core mm (which is apparently a huge win on
+some workloads) can introduce arbitrarily long delays between
+initiating a flush and actually requesting that the IPIs be sent.  I
+could have worked around this with fancy data structures, but getting
+them right so they wouldn&#39;t deadlock if called during reclaim and
+preventing lock ordering issues would have been really nasty.
+
+ - Poking remote cpus&#39; data structures even when they&#39;re lazy.  This
+wouldn&#39;t scale on systems with many cpus, since a given mm can easily
+be lazy on every single other cpu all at once.
+
+ - Ditching remote partial flushes entirely.  But those were recently
+re-optimized by some Intel folks (Dave and others, IIRC) and came with
+nice benchmarks showing that they were useful on some workloads.
+(munmapping a small range, presumably.)
+
+But this approach of using three separate tlb_gen values seems to
+cover all the bases, and I don&#39;t think it&#39;s *that* bad.
+
+--Andy
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7500">Borislav Petkov</a> - June 23, 2017, 8:42 a.m.</div>
+<pre class="content">
+On Thu, Jun 22, 2017 at 11:08:38AM -0700, Andy Lutomirski wrote:
+<span class="quote">&gt; Yes, I agree it&#39;s confusing.  There really are three numbers.  Those</span>
+<span class="quote">&gt; numbers are: the latest generation, the generation that this CPU has</span>
+<span class="quote">&gt; caught up to, and the generation that the requester of the flush we&#39;re</span>
+<span class="quote">&gt; currently handling has asked us to catch up to.  I don&#39;t see a way to</span>
+<span class="quote">&gt; reduce the complexity.</span>
+
+Yeah, can you pls put that clarification what what is, over it. It
+explains it nicely what the check is supposed to do.
+<span class="quote">
+&gt; &gt;&gt; The flush IPI hits after a switch_mm_irqs_off() call notices the</span>
+<span class="quote">&gt; &gt;&gt; change from 1 to 2. switch_mm_irqs_off() will do a full flush and</span>
+<span class="quote">&gt; &gt;&gt; increment the local tlb_gen to 2, and the IPI handler for the partial</span>
+<span class="quote">&gt; &gt;&gt; flush will see local_tlb_gen == mm_tlb_gen - 1 (because local_tlb_gen</span>
+<span class="quote">&gt; &gt;&gt; == 2 and mm_tlb_gen == 3) and do a partial flush.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Why, the 2-&gt;3 flush has f-&gt;end == TLB_FLUSH_ALL.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; That&#39;s why you have this thing in addition to the tlb_gen.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yes.  The idea is that we only do remote partial flushes when it&#39;s</span>
+<span class="quote">&gt; 100% obvious that it&#39;s safe.</span>
+
+So why wouldn&#39;t my simplified suggestion work then?
+
+	if (f-&gt;end != TLB_FLUSH_ALL &amp;&amp;
+	     mm_tlb_gen == local_tlb_gen + 1)
+
+1-&gt;2 is a partial flush - gets promoted to a full one
+2-&gt;3 is a full flush - it will get executed as one due to the f-&gt;end setting to
+TLB_FLUSH_ALL.
+<span class="quote">
+&gt; It could be converted to two full flushes or to just one, I think,</span>
+<span class="quote">&gt; depending on what order everything happens in.</span>
+
+Right. One flush at the right time would be optimal.
+<span class="quote">
+&gt; But this approach of using three separate tlb_gen values seems to</span>
+<span class="quote">&gt; cover all the bases, and I don&#39;t think it&#39;s *that* bad.</span>
+
+Sure.
+
+As I said in IRC, let&#39;s document that complexity then so that when we
+stumble over it in the future, we at least know why it was done this
+way.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - June 23, 2017, 3:46 p.m.</div>
+<pre class="content">
+On Fri, Jun 23, 2017 at 1:42 AM, Borislav Petkov &lt;bp@alien8.de&gt; wrote:
+<span class="quote">&gt; On Thu, Jun 22, 2017 at 11:08:38AM -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; Yes, I agree it&#39;s confusing.  There really are three numbers.  Those</span>
+<span class="quote">&gt;&gt; numbers are: the latest generation, the generation that this CPU has</span>
+<span class="quote">&gt;&gt; caught up to, and the generation that the requester of the flush we&#39;re</span>
+<span class="quote">&gt;&gt; currently handling has asked us to catch up to.  I don&#39;t see a way to</span>
+<span class="quote">&gt;&gt; reduce the complexity.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Yeah, can you pls put that clarification what what is, over it. It</span>
+<span class="quote">&gt; explains it nicely what the check is supposed to do.</span>
+
+Done.  I&#39;ve tried to improve a bunch of the comments in this function.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; The flush IPI hits after a switch_mm_irqs_off() call notices the</span>
+<span class="quote">&gt;&gt; &gt;&gt; change from 1 to 2. switch_mm_irqs_off() will do a full flush and</span>
+<span class="quote">&gt;&gt; &gt;&gt; increment the local tlb_gen to 2, and the IPI handler for the partial</span>
+<span class="quote">&gt;&gt; &gt;&gt; flush will see local_tlb_gen == mm_tlb_gen - 1 (because local_tlb_gen</span>
+<span class="quote">&gt;&gt; &gt;&gt; == 2 and mm_tlb_gen == 3) and do a partial flush.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; Why, the 2-&gt;3 flush has f-&gt;end == TLB_FLUSH_ALL.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; That&#39;s why you have this thing in addition to the tlb_gen.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Yes.  The idea is that we only do remote partial flushes when it&#39;s</span>
+<span class="quote">&gt;&gt; 100% obvious that it&#39;s safe.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; So why wouldn&#39;t my simplified suggestion work then?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;         if (f-&gt;end != TLB_FLUSH_ALL &amp;&amp;</span>
+<span class="quote">&gt;              mm_tlb_gen == local_tlb_gen + 1)</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; 1-&gt;2 is a partial flush - gets promoted to a full one</span>
+<span class="quote">&gt; 2-&gt;3 is a full flush - it will get executed as one due to the f-&gt;end setting to</span>
+<span class="quote">&gt; TLB_FLUSH_ALL.</span>
+
+This could still fail in some cases, I think.  Suppose 1-&gt;2 is a
+partial flush and 2-&gt;3 is a full flush.  We could have this order of
+events:
+
+ - CPU 1: Partial flush.  Increase context.tlb_gen to 2 and send IPI.
+ - CPU 0: switch_mm(), observe mm_tlb_gen == 2, set local_tlb_gen to 2.
+ - CPU 2: Full flush.  Increase context.tlb_gen to 3 and send IPI.
+ - CPU 0: Receive partial flush IPI.  mm_tlb_gen == 2 and
+local_tlb_gen == 3.  Do __flush_tlb_single() and set local_tlb_gen to
+3.
+
+Our invariant is now broken: CPU 0&#39;s percpu tlb_gen is now ahead of
+its actual TLB state.
+
+ - CPU 0: Receive full flush IPI and skip the flush.  Oops.
+
+I think my condition makes it clear that the invariants we need hold
+no matter it.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt;&gt; It could be converted to two full flushes or to just one, I think,</span>
+<span class="quote">&gt;&gt; depending on what order everything happens in.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Right. One flush at the right time would be optimal.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; But this approach of using three separate tlb_gen values seems to</span>
+<span class="quote">&gt;&gt; cover all the bases, and I don&#39;t think it&#39;s *that* bad.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Sure.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; As I said in IRC, let&#39;s document that complexity then so that when we</span>
+<span class="quote">&gt; stumble over it in the future, we at least know why it was done this</span>
+<span class="quote">&gt; way.</span>
+
+I&#39;ve given it a try.  Hopefully v4 is more clear.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">index 1eb946c0507e..4f6c30d6ec39 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -82,6 +82,11 @@</span> <span class="p_context"> static inline u64 bump_mm_tlb_gen(struct mm_struct *mm)</span>
+ #define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
+ #endif
+ 
+<span class="p_add">+struct tlb_context {</span>
+<span class="p_add">+	u64 ctx_id;</span>
+<span class="p_add">+	u64 tlb_gen;</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+ struct tlb_state {
+ 	/*
+ 	 * cpu_tlbstate.loaded_mm should match CR3 whenever interrupts
+<span class="p_chunk">@@ -97,6 +102,21 @@</span> <span class="p_context"> struct tlb_state {</span>
+ 	 * disabling interrupts when modifying either one.
+ 	 */
+ 	unsigned long cr4;
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * This is a list of all contexts that might exist in the TLB.</span>
+<span class="p_add">+	 * Since we don&#39;t yet use PCID, there is only one context.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * For each context, ctx_id indicates which mm the TLB&#39;s user</span>
+<span class="p_add">+	 * entries came from.  As an invariant, the TLB will never</span>
+<span class="p_add">+	 * contain entries that are out-of-date as when that mm reached</span>
+<span class="p_add">+	 * the tlb_gen in the list.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * To be clear, this means that it&#39;s legal for the TLB code to</span>
+<span class="p_add">+	 * flush the TLB without updating tlb_gen.  This can happen</span>
+<span class="p_add">+	 * (for now, at least) due to paravirt remote flushes.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	struct tlb_context ctxs[1];</span>
+ };
+ DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate);
+ 
+<span class="p_chunk">@@ -248,9 +268,26 @@</span> <span class="p_context"> static inline void __flush_tlb_one(unsigned long addr)</span>
+  * and page-granular flushes are available only on i486 and up.
+  */
+ struct flush_tlb_info {
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * We support several kinds of flushes.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * - Fully flush a single mm.  flush_mm will be set, flush_end will be</span>
+<span class="p_add">+	 *   TLB_FLUSH_ALL, and new_tlb_gen will be the tlb_gen to which the</span>
+<span class="p_add">+	 *   IPI sender is trying to catch us up.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * - Partially flush a single mm.  flush_mm will be set, flush_start</span>
+<span class="p_add">+	 *   and flush_end will indicate the range, and new_tlb_gen will be</span>
+<span class="p_add">+	 *   set such that the changes between generation new_tlb_gen-1 and</span>
+<span class="p_add">+	 *   new_tlb_gen are entirely contained in the indicated range.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * - Fully flush all mms whose tlb_gens have been updated.  flush_mm</span>
+<span class="p_add">+	 *   will be NULL, flush_end will be TLB_FLUSH_ALL, and new_tlb_gen</span>
+<span class="p_add">+	 *   will be zero.</span>
+<span class="p_add">+	 */</span>
+ 	struct mm_struct *mm;
+ 	unsigned long start;
+ 	unsigned long end;
+<span class="p_add">+	u64 new_tlb_gen;</span>
+ };
+ 
+ #define local_flush_tlb() __flush_tlb()
+<span class="p_header">diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c</span>
+<span class="p_header">index 6d9d37323a43..9f5ef7a5e74a 100644</span>
+<span class="p_header">--- a/arch/x86/mm/tlb.c</span>
+<span class="p_header">+++ b/arch/x86/mm/tlb.c</span>
+<span class="p_chunk">@@ -105,6 +105,9 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ 	}
+ 
+ 	this_cpu_write(cpu_tlbstate.loaded_mm, next);
+<span class="p_add">+	this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, next-&gt;context.ctx_id);</span>
+<span class="p_add">+	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen,</span>
+<span class="p_add">+		       atomic64_read(&amp;next-&gt;context.tlb_gen));</span>
+ 
+ 	WARN_ON_ONCE(cpumask_test_cpu(cpu, mm_cpumask(next)));
+ 	cpumask_set_cpu(cpu, mm_cpumask(next));
+<span class="p_chunk">@@ -194,20 +197,73 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ static void flush_tlb_func_common(const struct flush_tlb_info *f,
+ 				  bool local, enum tlb_flush_reason reason)
+ {
+<span class="p_add">+	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Our memory ordering requirement is that any TLB fills that</span>
+<span class="p_add">+	 * happen after we flush the TLB are ordered after we read</span>
+<span class="p_add">+	 * active_mm&#39;s tlb_gen.  We don&#39;t need any explicit barrier</span>
+<span class="p_add">+	 * because all x86 flush operations are serializing and the</span>
+<span class="p_add">+	 * atomic64_read operation won&#39;t be reordered by the compiler.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	u64 mm_tlb_gen = atomic64_read(&amp;loaded_mm-&gt;context.tlb_gen);</span>
+<span class="p_add">+	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[0].tlb_gen);</span>
+<span class="p_add">+</span>
+ 	/* This code cannot presently handle being reentered. */
+ 	VM_WARN_ON(!irqs_disabled());
+ 
+<span class="p_add">+	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=</span>
+<span class="p_add">+		   loaded_mm-&gt;context.ctx_id);</span>
+<span class="p_add">+</span>
+ 	if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * leave_mm() is adequate to handle any type of flush, and</span>
+<span class="p_add">+		 * we would prefer not to receive further IPIs.</span>
+<span class="p_add">+		 */</span>
+ 		leave_mm(smp_processor_id());
+ 		return;
+ 	}
+ 
+<span class="p_del">-	if (f-&gt;end == TLB_FLUSH_ALL) {</span>
+<span class="p_del">-		local_flush_tlb();</span>
+<span class="p_del">-		if (local)</span>
+<span class="p_del">-			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);</span>
+<span class="p_del">-		trace_tlb_flush(reason, TLB_FLUSH_ALL);</span>
+<span class="p_del">-	} else {</span>
+<span class="p_add">+	if (local_tlb_gen == mm_tlb_gen) {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * There&#39;s nothing to do: we&#39;re already up to date.  This can</span>
+<span class="p_add">+		 * happen if two concurrent flushes happen -- the first IPI to</span>
+<span class="p_add">+		 * be handled can catch us all the way up, leaving no work for</span>
+<span class="p_add">+		 * the second IPI to be handled.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	WARN_ON_ONCE(local_tlb_gen &gt; mm_tlb_gen);</span>
+<span class="p_add">+	WARN_ON_ONCE(f-&gt;new_tlb_gen &gt; mm_tlb_gen);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * If we get to this point, we know that our TLB is out of date.</span>
+<span class="p_add">+	 * This does not strictly imply that we need to flush (it&#39;s</span>
+<span class="p_add">+	 * possible that f-&gt;new_tlb_gen &lt;= local_tlb_gen), but we&#39;re</span>
+<span class="p_add">+	 * going to need to flush in the very near future, so we might</span>
+<span class="p_add">+	 * as well get it over with.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * The only question is whether to do a full or partial flush.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * A partial TLB flush is safe and worthwhile if two conditions are</span>
+<span class="p_add">+	 * met:</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * 1. We wouldn&#39;t be skipping a tlb_gen.  If the requester bumped</span>
+<span class="p_add">+	 *    the mm&#39;s tlb_gen from p to p+1, a partial flush is only correct</span>
+<span class="p_add">+	 *    if we would be bumping the local CPU&#39;s tlb_gen from p to p+1 as</span>
+<span class="p_add">+	 *    well.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * 2. If there are no more flushes on their way.  Partial TLB</span>
+<span class="p_add">+	 *    flushes are not all that much cheaper than full TLB</span>
+<span class="p_add">+	 *    flushes, so it seems unlikely that it would be a</span>
+<span class="p_add">+	 *    performance win to do a partial flush if that won&#39;t bring</span>
+<span class="p_add">+	 *    our TLB fully up to date.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (f-&gt;end != TLB_FLUSH_ALL &amp;&amp;</span>
+<span class="p_add">+	    f-&gt;new_tlb_gen == local_tlb_gen + 1 &amp;&amp;</span>
+<span class="p_add">+	    f-&gt;new_tlb_gen == mm_tlb_gen) {</span>
+<span class="p_add">+		/* Partial flush */</span>
+ 		unsigned long addr;
+ 		unsigned long nr_pages = (f-&gt;end - f-&gt;start) &gt;&gt; PAGE_SHIFT;
+ 		addr = f-&gt;start;
+<span class="p_chunk">@@ -218,7 +274,16 @@</span> <span class="p_context"> static void flush_tlb_func_common(const struct flush_tlb_info *f,</span>
+ 		if (local)
+ 			count_vm_tlb_events(NR_TLB_LOCAL_FLUSH_ONE, nr_pages);
+ 		trace_tlb_flush(reason, nr_pages);
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		/* Full flush. */</span>
+<span class="p_add">+		local_flush_tlb();</span>
+<span class="p_add">+		if (local)</span>
+<span class="p_add">+			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);</span>
+<span class="p_add">+		trace_tlb_flush(reason, TLB_FLUSH_ALL);</span>
+ 	}
+<span class="p_add">+</span>
+<span class="p_add">+	/* Both paths above update our state to mm_tlb_gen. */</span>
+<span class="p_add">+	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, mm_tlb_gen);</span>
+ }
+ 
+ static void flush_tlb_func_local(void *info, enum tlb_flush_reason reason)
+<span class="p_chunk">@@ -289,7 +354,7 @@</span> <span class="p_context"> void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,</span>
+ 	cpu = get_cpu();
+ 
+ 	/* This is also a barrier that synchronizes with switch_mm(). */
+<span class="p_del">-	bump_mm_tlb_gen(mm);</span>
+<span class="p_add">+	info.new_tlb_gen = bump_mm_tlb_gen(mm);</span>
+ 
+ 	/* Should we flush just the requested range? */
+ 	if ((end != TLB_FLUSH_ALL) &amp;&amp;
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

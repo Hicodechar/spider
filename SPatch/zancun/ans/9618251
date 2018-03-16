@@ -1,0 +1,415 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>x86-32: fix tlb flushing when lguest clears PGE - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    x86-32: fix tlb flushing when lguest clears PGE</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=123431">Daniel Borkmann</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>March 11, 2017, 12:31 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;25c41ad9eca164be4db9ad84f768965b7eb19d9e.1489191673.git.daniel@iogearbox.net&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9618251/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9618251/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9618251/">/patch/9618251/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	8E0AE60417 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 11 Mar 2017 00:32:27 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 7D74E287AA
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 11 Mar 2017 00:32:27 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 6EADC287AF; Sat, 11 Mar 2017 00:32:27 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 833BB287AA
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 11 Mar 2017 00:32:26 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S932909AbdCKAcZ (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Fri, 10 Mar 2017 19:32:25 -0500
+Received: from www62.your-server.de ([213.133.104.62]:43352 &quot;EHLO
+	www62.your-server.de&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1750922AbdCKAcP (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Fri, 10 Mar 2017 19:32:15 -0500
+Received: from [188.62.51.164] (helo=localhost)
+	by www62.your-server.de with esmtpsa
+	(TLSv1.2:DHE-RSA-AES128-GCM-SHA256:128) (Exim 4.85_2)
+	(envelope-from &lt;daniel@iogearbox.net&gt;)
+	id 1cmUwd-000535-2o; Sat, 11 Mar 2017 01:31:39 +0100
+From: Daniel Borkmann &lt;daniel@iogearbox.net&gt;
+To: bp@suse.de
+Cc: fengguang.wu@intel.com, netdev@vger.kernel.org,
+	linux-kernel@vger.kernel.org, lkp@01.org, x86@kernel.org,
+	Daniel Borkmann &lt;daniel@iogearbox.net&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Thomas Gleixner &lt;tglx@linutronix.de&gt;, Kees Cook &lt;keescook@chromium.org&gt;,
+	Laura Abbott &lt;labbott@redhat.com&gt;, Ingo Molnar &lt;mingo@kernel.org&gt;,
+	&quot;H. Peter Anvin&quot; &lt;hpa@zytor.com&gt;, Rusty Russell &lt;rusty@rustcorp.com.au&gt;,
+	Alexei Starovoitov &lt;ast@kernel.org&gt;,
+	&quot;David S. Miller&quot; &lt;davem@davemloft.net&gt;
+Subject: [PATCH] x86-32: fix tlb flushing when lguest clears PGE
+Date: Sat, 11 Mar 2017 01:31:19 +0100
+Message-Id: &lt;25c41ad9eca164be4db9ad84f768965b7eb19d9e.1489191673.git.daniel@iogearbox.net&gt;
+X-Mailer: git-send-email 1.9.3
+X-Authenticated-Sender: daniel@iogearbox.net
+X-Virus-Scanned: Clear (ClamAV 0.99.2/23192/Fri Mar 10 22:10:36 2017)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=123431">Daniel Borkmann</a> - March 11, 2017, 12:31 a.m.</div>
+<pre class="content">
+Fengguang reported [1] random corruptions from various locations on
+x86-32 after commits d2852a224050 (&quot;arch: add ARCH_HAS_SET_MEMORY
+config&quot;) and 9d876e79df6a (&quot;bpf: fix unlocking of jited image when
+module ronx not set&quot;) that uses the former. While x86-32 doesn&#39;t
+have a JIT like x86_64, the bpf_prog_lock_ro() and bpf_prog_unlock_ro()
+got enabled due to ARCH_HAS_SET_MEMORY, whereas Fengguang&#39;s test
+kernel doesn&#39;t have module support built in and therefore never
+had the DEBUG_SET_MODULE_RONX setting enabled.
+
+After investigating the crashes further, it turned out that using
+set_memory_ro() and set_memory_rw() didn&#39;t have the desired effect,
+for example, setting the pages as read-only on x86-32 would still
+let probe_kernel_write() succeed without error. This behavior would
+manifest itself in situations where the vmalloc&#39;ed buffer was accessed
+prior to set_memory_*() such as in case of bpf_prog_alloc(). In
+cases where it wasn&#39;t, the page attribute changes seemed to have
+taken effect, leading to the conclusion that a TLB invalidate
+didn&#39;t happen. Moreover, it turned out that this issue reproduced
+with qemu in &quot;-cpu kvm64&quot; mode, but not for &quot;-cpu host&quot;. When the
+issue occurs, change_page_attr_set_clr() did trigger a TLB flush
+as expected via __flush_tlb_all() through cpa_flush_range(), though.
+
+There are 3 variants for issuing a TLB flush: invpcid_flush_all()
+(depends on CPU feature bits X86_FEATURE_INVPCID, X86_FEATURE_PGE),
+cr4 based flush (depends on X86_FEATURE_PGE), and cr3 based flush.
+For &quot;-cpu host&quot; case in my setup, the flush used invpcid_flush_all()
+variant, whereas for &quot;-cpu kvm64&quot;, the flush was cr4 based. Switching
+the kvm64 case to cr3 manually worked fine, and further investigating
+the cr4 one turned out that X86_CR4_PGE bit was not set in cr4
+register, meaning the __native_flush_tlb_global_irq_disabled() wrote
+cr4 twice with the same value instead of clearing X86_CR4_PGE in the
+first write to trigger the flush.
+
+It turned out that X86_CR4_PGE was cleared from cr4 during init
+from lguest_arch_host_init() via adjust_pge(). The X86_FEATURE_PGE
+bit is also cleared from there due to concerns of using PGE in
+guest kernel that can lead to hard to trace bugs (see bff672e630a0
+(&quot;lguest: documentation V: Host&quot;) in init()). The CPU feature bits
+are cleared in dynamic boot_cpu_data, but they never propagated to
+__flush_tlb_all() as it uses static_cpu_has() instead of boot_cpu_has()
+for testing which variant of TLB flushing to use, meaning they still
+used the old setting of the host kernel.
+
+Clearing via setup_clear_cpu_cap(X86_FEATURE_PGE) so this would
+propagate to static_cpu_has() checks is too late at this point as
+sections have been patched already, so for now, it seems reasonable
+to switch back to boot_cpu_has(X86_FEATURE_PGE) as it was prior to
+commit c109bf95992b (&quot;x86/cpufeature: Remove cpu_has_pge&quot;). This
+lets the TLB flush trigger via cr3 as originally intended, properly
+makes the new page attributes visible and thus fixes the crashes
+seen by Fengguang.
+
+  [1] https://lkml.org/lkml/2017/3/1/344
+
+Fixes: c109bf95992b (&quot;x86/cpufeature: Remove cpu_has_pge&quot;)
+Reported-by: Fengguang Wu &lt;fengguang.wu@intel.com&gt;
+<span class="signed-off-by">Signed-off-by: Daniel Borkmann &lt;daniel@iogearbox.net&gt;</span>
+Cc: Borislav Petkov &lt;bp@suse.de&gt;
+Cc: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+Cc: Thomas Gleixner &lt;tglx@linutronix.de&gt;
+Cc: Kees Cook &lt;keescook@chromium.org&gt;
+Cc: Laura Abbott &lt;labbott@redhat.com&gt;
+Cc: Ingo Molnar &lt;mingo@kernel.org&gt;
+Cc: H. Peter Anvin &lt;hpa@zytor.com&gt;
+Cc: Rusty Russell &lt;rusty@rustcorp.com.au&gt;
+Cc: Alexei Starovoitov &lt;ast@kernel.org&gt;
+Cc: David S. Miller &lt;davem@davemloft.net&gt;
+---
+ arch/x86/include/asm/tlbflush.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=38541">Kees Cook</a> - March 13, 2017, 2:02 a.m.</div>
+<pre class="content">
+Are there nominations for most comprehensive changelog of the year? :)
+This is awesome.
+
+-Kees
+
+On Fri, Mar 10, 2017 at 6:31 PM, Daniel Borkmann &lt;daniel@iogearbox.net&gt; wrote:
+<span class="quote">&gt; Fengguang reported [1] random corruptions from various locations on</span>
+<span class="quote">&gt; x86-32 after commits d2852a224050 (&quot;arch: add ARCH_HAS_SET_MEMORY</span>
+<span class="quote">&gt; config&quot;) and 9d876e79df6a (&quot;bpf: fix unlocking of jited image when</span>
+<span class="quote">&gt; module ronx not set&quot;) that uses the former. While x86-32 doesn&#39;t</span>
+<span class="quote">&gt; have a JIT like x86_64, the bpf_prog_lock_ro() and bpf_prog_unlock_ro()</span>
+<span class="quote">&gt; got enabled due to ARCH_HAS_SET_MEMORY, whereas Fengguang&#39;s test</span>
+<span class="quote">&gt; kernel doesn&#39;t have module support built in and therefore never</span>
+<span class="quote">&gt; had the DEBUG_SET_MODULE_RONX setting enabled.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; After investigating the crashes further, it turned out that using</span>
+<span class="quote">&gt; set_memory_ro() and set_memory_rw() didn&#39;t have the desired effect,</span>
+<span class="quote">&gt; for example, setting the pages as read-only on x86-32 would still</span>
+<span class="quote">&gt; let probe_kernel_write() succeed without error. This behavior would</span>
+<span class="quote">&gt; manifest itself in situations where the vmalloc&#39;ed buffer was accessed</span>
+<span class="quote">&gt; prior to set_memory_*() such as in case of bpf_prog_alloc(). In</span>
+<span class="quote">&gt; cases where it wasn&#39;t, the page attribute changes seemed to have</span>
+<span class="quote">&gt; taken effect, leading to the conclusion that a TLB invalidate</span>
+<span class="quote">&gt; didn&#39;t happen. Moreover, it turned out that this issue reproduced</span>
+<span class="quote">&gt; with qemu in &quot;-cpu kvm64&quot; mode, but not for &quot;-cpu host&quot;. When the</span>
+<span class="quote">&gt; issue occurs, change_page_attr_set_clr() did trigger a TLB flush</span>
+<span class="quote">&gt; as expected via __flush_tlb_all() through cpa_flush_range(), though.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; There are 3 variants for issuing a TLB flush: invpcid_flush_all()</span>
+<span class="quote">&gt; (depends on CPU feature bits X86_FEATURE_INVPCID, X86_FEATURE_PGE),</span>
+<span class="quote">&gt; cr4 based flush (depends on X86_FEATURE_PGE), and cr3 based flush.</span>
+<span class="quote">&gt; For &quot;-cpu host&quot; case in my setup, the flush used invpcid_flush_all()</span>
+<span class="quote">&gt; variant, whereas for &quot;-cpu kvm64&quot;, the flush was cr4 based. Switching</span>
+<span class="quote">&gt; the kvm64 case to cr3 manually worked fine, and further investigating</span>
+<span class="quote">&gt; the cr4 one turned out that X86_CR4_PGE bit was not set in cr4</span>
+<span class="quote">&gt; register, meaning the __native_flush_tlb_global_irq_disabled() wrote</span>
+<span class="quote">&gt; cr4 twice with the same value instead of clearing X86_CR4_PGE in the</span>
+<span class="quote">&gt; first write to trigger the flush.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; It turned out that X86_CR4_PGE was cleared from cr4 during init</span>
+<span class="quote">&gt; from lguest_arch_host_init() via adjust_pge(). The X86_FEATURE_PGE</span>
+<span class="quote">&gt; bit is also cleared from there due to concerns of using PGE in</span>
+<span class="quote">&gt; guest kernel that can lead to hard to trace bugs (see bff672e630a0</span>
+<span class="quote">&gt; (&quot;lguest: documentation V: Host&quot;) in init()). The CPU feature bits</span>
+<span class="quote">&gt; are cleared in dynamic boot_cpu_data, but they never propagated to</span>
+<span class="quote">&gt; __flush_tlb_all() as it uses static_cpu_has() instead of boot_cpu_has()</span>
+<span class="quote">&gt; for testing which variant of TLB flushing to use, meaning they still</span>
+<span class="quote">&gt; used the old setting of the host kernel.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Clearing via setup_clear_cpu_cap(X86_FEATURE_PGE) so this would</span>
+<span class="quote">&gt; propagate to static_cpu_has() checks is too late at this point as</span>
+<span class="quote">&gt; sections have been patched already, so for now, it seems reasonable</span>
+<span class="quote">&gt; to switch back to boot_cpu_has(X86_FEATURE_PGE) as it was prior to</span>
+<span class="quote">&gt; commit c109bf95992b (&quot;x86/cpufeature: Remove cpu_has_pge&quot;). This</span>
+<span class="quote">&gt; lets the TLB flush trigger via cr3 as originally intended, properly</span>
+<span class="quote">&gt; makes the new page attributes visible and thus fixes the crashes</span>
+<span class="quote">&gt; seen by Fengguang.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;   [1] https://lkml.org/lkml/2017/3/1/344</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Fixes: c109bf95992b (&quot;x86/cpufeature: Remove cpu_has_pge&quot;)</span>
+<span class="quote">&gt; Reported-by: Fengguang Wu &lt;fengguang.wu@intel.com&gt;</span>
+<span class="quote">&gt; Signed-off-by: Daniel Borkmann &lt;daniel@iogearbox.net&gt;</span>
+<span class="quote">&gt; Cc: Borislav Petkov &lt;bp@suse.de&gt;</span>
+<span class="quote">&gt; Cc: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;</span>
+<span class="quote">&gt; Cc: Thomas Gleixner &lt;tglx@linutronix.de&gt;</span>
+<span class="quote">&gt; Cc: Kees Cook &lt;keescook@chromium.org&gt;</span>
+<span class="quote">&gt; Cc: Laura Abbott &lt;labbott@redhat.com&gt;</span>
+<span class="quote">&gt; Cc: Ingo Molnar &lt;mingo@kernel.org&gt;</span>
+<span class="quote">&gt; Cc: H. Peter Anvin &lt;hpa@zytor.com&gt;</span>
+<span class="quote">&gt; Cc: Rusty Russell &lt;rusty@rustcorp.com.au&gt;</span>
+<span class="quote">&gt; Cc: Alexei Starovoitov &lt;ast@kernel.org&gt;</span>
+<span class="quote">&gt; Cc: David S. Miller &lt;davem@davemloft.net&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  arch/x86/include/asm/tlbflush.h | 2 +-</span>
+<span class="quote">&gt;  1 file changed, 1 insertion(+), 1 deletion(-)</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h</span>
+<span class="quote">&gt; index 6fa8594..fc5abff 100644</span>
+<span class="quote">&gt; --- a/arch/x86/include/asm/tlbflush.h</span>
+<span class="quote">&gt; +++ b/arch/x86/include/asm/tlbflush.h</span>
+<span class="quote">&gt; @@ -188,7 +188,7 @@ static inline void __native_flush_tlb_single(unsigned long addr)</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;  static inline void __flush_tlb_all(void)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; -       if (static_cpu_has(X86_FEATURE_PGE))</span>
+<span class="quote">&gt; +       if (boot_cpu_has(X86_FEATURE_PGE))</span>
+<span class="quote">&gt;                 __flush_tlb_global();</span>
+<span class="quote">&gt;         else</span>
+<span class="quote">&gt;                 __flush_tlb();</span>
+<span class="quote">&gt; --</span>
+<span class="quote">&gt; 1.9.3</span>
+<span class="quote">&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41621">Rustad, Mark D</a> - March 13, 2017, 6:48 p.m.</div>
+<pre class="content">
+On Mar 12, 2017, at 7:02 PM, Kees Cook &lt;keescook@chromium.org&gt; wrote:
+<span class="quote">
+&gt; Are there nominations for most comprehensive changelog of the year? :)</span>
+<span class="quote">&gt; This is awesome.</span>
+
+Especially for a one-liner! Truly comprehensive and completely relevant.
+
+--
+Mark Rustad, Networking Division, Intel Corporation
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">index 6fa8594..fc5abff 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -188,7 +188,7 @@</span> <span class="p_context"> static inline void __native_flush_tlb_single(unsigned long addr)</span>
+ 
+ static inline void __flush_tlb_all(void)
+ {
+<span class="p_del">-	if (static_cpu_has(X86_FEATURE_PGE))</span>
+<span class="p_add">+	if (boot_cpu_has(X86_FEATURE_PGE))</span>
+ 		__flush_tlb_global();
+ 	else
+ 		__flush_tlb();
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

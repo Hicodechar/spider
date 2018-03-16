@@ -1,0 +1,940 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[12/27] mm, vmscan: Make shrink_node decisions more node-centric - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [12/27] mm, vmscan: Make shrink_node decisions more node-centric</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=138281">Mel Gorman</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>June 21, 2016, 2:15 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1466518566-30034-13-git-send-email-mgorman@techsingularity.net&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9190713/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9190713/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9190713/">/patch/9190713/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	B3D37601C0 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 21 Jun 2016 14:27:54 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id A3B6928173
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 21 Jun 2016 14:27:54 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 9841C2818B; Tue, 21 Jun 2016 14:27:54 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 77BD528173
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 21 Jun 2016 14:27:53 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752257AbcFUO1r (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 21 Jun 2016 10:27:47 -0400
+Received: from outbound-smtp03.blacknight.com ([81.17.249.16]:37688 &quot;EHLO
+	outbound-smtp03.blacknight.com&quot; rhost-flags-OK-OK-OK-OK)
+	by vger.kernel.org with ESMTP id S1751235AbcFUO1q (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 21 Jun 2016 10:27:46 -0400
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie
+	[81.17.254.10])
+	by outbound-smtp03.blacknight.com (Postfix) with ESMTPS id 99ADC98B24
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Tue, 21 Jun 2016 14:18:19 +0000 (UTC)
+Received: (qmail 16305 invoked from network); 21 Jun 2016 14:18:19 -0000
+Received: from unknown (HELO stampy.163woodhaven.lan)
+	(mgorman@techsingularity.net@[37.228.231.136])
+	by 81.17.254.9 with ESMTPA; 21 Jun 2016 14:18:19 -0000
+From: Mel Gorman &lt;mgorman@techsingularity.net&gt;
+To: Andrew Morton &lt;akpm@linux-foundation.org&gt;, Linux-MM &lt;linux-mm@kvack.org&gt;
+Cc: Rik van Riel &lt;riel@surriel.com&gt;, Vlastimil Babka &lt;vbabka@suse.cz&gt;,
+	Johannes Weiner &lt;hannes@cmpxchg.org&gt;,
+	LKML &lt;linux-kernel@vger.kernel.org&gt;,
+	Mel Gorman &lt;mgorman@techsingularity.net&gt;
+Subject: [PATCH 12/27] mm,
+	vmscan: Make shrink_node decisions more node-centric
+Date: Tue, 21 Jun 2016 15:15:51 +0100
+Message-Id: &lt;1466518566-30034-13-git-send-email-mgorman@techsingularity.net&gt;
+X-Mailer: git-send-email 2.6.4
+In-Reply-To: &lt;1466518566-30034-1-git-send-email-mgorman@techsingularity.net&gt;
+References: &lt;1466518566-30034-1-git-send-email-mgorman@techsingularity.net&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=138281">Mel Gorman</a> - June 21, 2016, 2:15 p.m.</div>
+<pre class="content">
+Earlier patches focused on having direct reclaim and kswapd use data that
+is node-centric for reclaiming but shrink_node() itself still uses too much
+zone information. This patch removes unnecessary zone-based information
+with the most important decision being whether to continue reclaim or
+not. Some memcg APIs are adjusted as a result even though memcg itself
+still uses some zone information.
+<span class="signed-off-by">
+Signed-off-by: Mel Gorman &lt;mgorman@techsingularity.net&gt;</span>
+---
+ include/linux/memcontrol.h |  9 +++----
+ include/linux/mmzone.h     |  4 ++--
+ include/linux/swap.h       |  2 +-
+ mm/memcontrol.c            | 17 +++++++-------
+ mm/page_alloc.c            |  2 +-
+ mm/vmscan.c                | 58 ++++++++++++++++++++++++++--------------------
+ mm/workingset.c            |  6 ++---
+ 7 files changed, 54 insertions(+), 44 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - June 22, 2016, 1:20 p.m.</div>
+<pre class="content">
+On Tue 21-06-16 15:15:51, Mel Gorman wrote:
+<span class="quote">&gt; Earlier patches focused on having direct reclaim and kswapd use data that</span>
+<span class="quote">&gt; is node-centric for reclaiming but shrink_node() itself still uses too much</span>
+<span class="quote">&gt; zone information. This patch removes unnecessary zone-based information</span>
+<span class="quote">&gt; with the most important decision being whether to continue reclaim or</span>
+<span class="quote">&gt; not. Some memcg APIs are adjusted as a result even though memcg itself</span>
+<span class="quote">&gt; still uses some zone information.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Mel Gorman &lt;mgorman@techsingularity.net&gt;</span>
+<span class="acked-by">
+Acked-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">
+&gt; ---</span>
+<span class="quote">&gt;  include/linux/memcontrol.h |  9 +++----</span>
+<span class="quote">&gt;  include/linux/mmzone.h     |  4 ++--</span>
+<span class="quote">&gt;  include/linux/swap.h       |  2 +-</span>
+<span class="quote">&gt;  mm/memcontrol.c            | 17 +++++++-------</span>
+<span class="quote">&gt;  mm/page_alloc.c            |  2 +-</span>
+<span class="quote">&gt;  mm/vmscan.c                | 58 ++++++++++++++++++++++++++--------------------</span>
+<span class="quote">&gt;  mm/workingset.c            |  6 ++---</span>
+<span class="quote">&gt;  7 files changed, 54 insertions(+), 44 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h</span>
+<span class="quote">&gt; index cda436c79d8c..a13328851fea 100644</span>
+<span class="quote">&gt; --- a/include/linux/memcontrol.h</span>
+<span class="quote">&gt; +++ b/include/linux/memcontrol.h</span>
+<span class="quote">&gt; @@ -306,7 +306,8 @@ void mem_cgroup_uncharge_list(struct list_head *page_list);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  void mem_cgroup_migrate(struct page *oldpage, struct page *newpage);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -struct lruvec *mem_cgroup_zone_lruvec(struct zone *, struct mem_cgroup *);</span>
+<span class="quote">&gt; +struct lruvec *mem_cgroup_lruvec(struct pglist_data *, struct zone *zone,</span>
+<span class="quote">&gt; +				 struct mem_cgroup *);</span>
+<span class="quote">&gt;  struct lruvec *mem_cgroup_page_lruvec(struct page *, struct pglist_data *);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);</span>
+<span class="quote">&gt; @@ -573,10 +574,10 @@ static inline void mem_cgroup_migrate(struct page *old, struct page *new)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -static inline struct lruvec *mem_cgroup_zone_lruvec(struct zone *zone,</span>
+<span class="quote">&gt; -						    struct mem_cgroup *memcg)</span>
+<span class="quote">&gt; +static inline struct lruvec *mem_cgroup_lruvec(struct pglist_data *pgdat,</span>
+<span class="quote">&gt; +				struct zone *zone, struct mem_cgroup *memcg)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; -	return zone_lruvec(zone);</span>
+<span class="quote">&gt; +	return node_lruvec(pgdat);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static inline struct lruvec *mem_cgroup_page_lruvec(struct page *page,</span>
+<span class="quote">&gt; diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h</span>
+<span class="quote">&gt; index 890d1858aa22..6991eded0ffd 100644</span>
+<span class="quote">&gt; --- a/include/linux/mmzone.h</span>
+<span class="quote">&gt; +++ b/include/linux/mmzone.h</span>
+<span class="quote">&gt; @@ -737,9 +737,9 @@ static inline spinlock_t *zone_lru_lock(struct zone *zone)</span>
+<span class="quote">&gt;  	return &amp;zone-&gt;zone_pgdat-&gt;lru_lock;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -static inline struct lruvec *zone_lruvec(struct zone *zone)</span>
+<span class="quote">&gt; +static inline struct lruvec *node_lruvec(struct pglist_data *pgdat)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; -	return &amp;zone-&gt;zone_pgdat-&gt;lruvec;</span>
+<span class="quote">&gt; +	return &amp;pgdat-&gt;lruvec;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static inline unsigned long pgdat_end_pfn(pg_data_t *pgdat)</span>
+<span class="quote">&gt; diff --git a/include/linux/swap.h b/include/linux/swap.h</span>
+<span class="quote">&gt; index 916e2eddecd6..0ad616d7c381 100644</span>
+<span class="quote">&gt; --- a/include/linux/swap.h</span>
+<span class="quote">&gt; +++ b/include/linux/swap.h</span>
+<span class="quote">&gt; @@ -316,7 +316,7 @@ extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,</span>
+<span class="quote">&gt;  						  unsigned long nr_pages,</span>
+<span class="quote">&gt;  						  gfp_t gfp_mask,</span>
+<span class="quote">&gt;  						  bool may_swap);</span>
+<span class="quote">&gt; -extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,</span>
+<span class="quote">&gt; +extern unsigned long mem_cgroup_shrink_node(struct mem_cgroup *mem,</span>
+<span class="quote">&gt;  						gfp_t gfp_mask, bool noswap,</span>
+<span class="quote">&gt;  						struct zone *zone,</span>
+<span class="quote">&gt;  						unsigned long *nr_scanned);</span>
+<span class="quote">&gt; diff --git a/mm/memcontrol.c b/mm/memcontrol.c</span>
+<span class="quote">&gt; index 864a4e3a82c1..aac5fae56ea4 100644</span>
+<span class="quote">&gt; --- a/mm/memcontrol.c</span>
+<span class="quote">&gt; +++ b/mm/memcontrol.c</span>
+<span class="quote">&gt; @@ -944,22 +944,23 @@ static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)</span>
+<span class="quote">&gt;  	     iter = mem_cgroup_iter(NULL, iter, NULL))</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  /**</span>
+<span class="quote">&gt; - * mem_cgroup_zone_lruvec - get the lru list vector for a zone and memcg</span>
+<span class="quote">&gt; + * mem_cgroup_lruvec - get the lru list vector for a node or a memcg zone</span>
+<span class="quote">&gt; + * @node: node of the wanted lruvec</span>
+<span class="quote">&gt;   * @zone: zone of the wanted lruvec</span>
+<span class="quote">&gt;   * @memcg: memcg of the wanted lruvec</span>
+<span class="quote">&gt;   *</span>
+<span class="quote">&gt; - * Returns the lru list vector holding pages for the given @zone and</span>
+<span class="quote">&gt; - * @mem.  This can be the global zone lruvec, if the memory controller</span>
+<span class="quote">&gt; + * Returns the lru list vector holding pages for a given @node or a given</span>
+<span class="quote">&gt; + * @memcg and @zone. This can be the node lruvec, if the memory controller</span>
+<span class="quote">&gt;   * is disabled.</span>
+<span class="quote">&gt;   */</span>
+<span class="quote">&gt; -struct lruvec *mem_cgroup_zone_lruvec(struct zone *zone,</span>
+<span class="quote">&gt; -				      struct mem_cgroup *memcg)</span>
+<span class="quote">&gt; +struct lruvec *mem_cgroup_lruvec(struct pglist_data *pgdat,</span>
+<span class="quote">&gt; +				 struct zone *zone, struct mem_cgroup *memcg)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	struct mem_cgroup_per_zone *mz;</span>
+<span class="quote">&gt;  	struct lruvec *lruvec;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	if (mem_cgroup_disabled()) {</span>
+<span class="quote">&gt; -		lruvec = zone_lruvec(zone);</span>
+<span class="quote">&gt; +		lruvec = node_lruvec(pgdat);</span>
+<span class="quote">&gt;  		goto out;</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; @@ -1474,8 +1475,8 @@ static int mem_cgroup_soft_reclaim(struct mem_cgroup *root_memcg,</span>
+<span class="quote">&gt;  			}</span>
+<span class="quote">&gt;  			continue;</span>
+<span class="quote">&gt;  		}</span>
+<span class="quote">&gt; -		total += mem_cgroup_shrink_node_zone(victim, gfp_mask, false,</span>
+<span class="quote">&gt; -						     zone, &amp;nr_scanned);</span>
+<span class="quote">&gt; +		total += mem_cgroup_shrink_node(victim, gfp_mask, false,</span>
+<span class="quote">&gt; +					zone, &amp;nr_scanned);</span>
+<span class="quote">&gt;  		*total_scanned += nr_scanned;</span>
+<span class="quote">&gt;  		if (!soft_limit_excess(root_memcg))</span>
+<span class="quote">&gt;  			break;</span>
+<span class="quote">&gt; diff --git a/mm/page_alloc.c b/mm/page_alloc.c</span>
+<span class="quote">&gt; index e128af8de05f..d62b147fd426 100644</span>
+<span class="quote">&gt; --- a/mm/page_alloc.c</span>
+<span class="quote">&gt; +++ b/mm/page_alloc.c</span>
+<span class="quote">&gt; @@ -5897,6 +5897,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)</span>
+<span class="quote">&gt;  #endif</span>
+<span class="quote">&gt;  	pgdat_page_ext_init(pgdat);</span>
+<span class="quote">&gt;  	spin_lock_init(&amp;pgdat-&gt;lru_lock);</span>
+<span class="quote">&gt; +	lruvec_init(node_lruvec(pgdat));</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	for (j = 0; j &lt; MAX_NR_ZONES; j++) {</span>
+<span class="quote">&gt;  		struct zone *zone = pgdat-&gt;node_zones + j;</span>
+<span class="quote">&gt; @@ -5959,7 +5960,6 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)</span>
+<span class="quote">&gt;  		/* For bootup, initialized properly in watermark setup */</span>
+<span class="quote">&gt;  		mod_zone_page_state(zone, NR_ALLOC_BATCH, zone-&gt;managed_pages);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -		lruvec_init(zone_lruvec(zone));</span>
+<span class="quote">&gt;  		if (!size)</span>
+<span class="quote">&gt;  			continue;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; diff --git a/mm/vmscan.c b/mm/vmscan.c</span>
+<span class="quote">&gt; index d42a86e603e8..3774ebf19f63 100644</span>
+<span class="quote">&gt; --- a/mm/vmscan.c</span>
+<span class="quote">&gt; +++ b/mm/vmscan.c</span>
+<span class="quote">&gt; @@ -2220,10 +2220,11 @@ static inline void init_tlb_ubc(void)</span>
+<span class="quote">&gt;  /*</span>
+<span class="quote">&gt;   * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.</span>
+<span class="quote">&gt;   */</span>
+<span class="quote">&gt; -static void shrink_zone_memcg(struct zone *zone, struct mem_cgroup *memcg,</span>
+<span class="quote">&gt; +static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memcg,</span>
+<span class="quote">&gt;  			      struct scan_control *sc, unsigned long *lru_pages)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; -	struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone, memcg);</span>
+<span class="quote">&gt; +	struct zone *zone = &amp;pgdat-&gt;node_zones[sc-&gt;reclaim_idx];</span>
+<span class="quote">&gt; +	struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, zone, memcg);</span>
+<span class="quote">&gt;  	unsigned long nr[NR_LRU_LISTS];</span>
+<span class="quote">&gt;  	unsigned long targets[NR_LRU_LISTS];</span>
+<span class="quote">&gt;  	unsigned long nr_to_scan;</span>
+<span class="quote">&gt; @@ -2356,13 +2357,14 @@ static bool in_reclaim_compaction(struct scan_control *sc)</span>
+<span class="quote">&gt;   * calls try_to_compact_zone() that it will have enough free pages to succeed.</span>
+<span class="quote">&gt;   * It will give up earlier than that if there is difficulty reclaiming pages.</span>
+<span class="quote">&gt;   */</span>
+<span class="quote">&gt; -static inline bool should_continue_reclaim(struct zone *zone,</span>
+<span class="quote">&gt; +static inline bool should_continue_reclaim(struct pglist_data *pgdat,</span>
+<span class="quote">&gt;  					unsigned long nr_reclaimed,</span>
+<span class="quote">&gt;  					unsigned long nr_scanned,</span>
+<span class="quote">&gt;  					struct scan_control *sc)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	unsigned long pages_for_compaction;</span>
+<span class="quote">&gt;  	unsigned long inactive_lru_pages;</span>
+<span class="quote">&gt; +	int z;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/* If not in reclaim/compaction mode, stop */</span>
+<span class="quote">&gt;  	if (!in_reclaim_compaction(sc))</span>
+<span class="quote">&gt; @@ -2396,21 +2398,27 @@ static inline bool should_continue_reclaim(struct zone *zone,</span>
+<span class="quote">&gt;  	 * inactive lists are large enough, continue reclaiming</span>
+<span class="quote">&gt;  	 */</span>
+<span class="quote">&gt;  	pages_for_compaction = (2UL &lt;&lt; sc-&gt;order);</span>
+<span class="quote">&gt; -	inactive_lru_pages = node_page_state(zone-&gt;zone_pgdat, NR_INACTIVE_FILE);</span>
+<span class="quote">&gt; +	inactive_lru_pages = node_page_state(pgdat, NR_INACTIVE_FILE);</span>
+<span class="quote">&gt;  	if (get_nr_swap_pages() &gt; 0)</span>
+<span class="quote">&gt; -		inactive_lru_pages += node_page_state(zone-&gt;zone_pgdat, NR_INACTIVE_ANON);</span>
+<span class="quote">&gt; +		inactive_lru_pages += node_page_state(pgdat, NR_INACTIVE_ANON);</span>
+<span class="quote">&gt;  	if (sc-&gt;nr_reclaimed &lt; pages_for_compaction &amp;&amp;</span>
+<span class="quote">&gt;  			inactive_lru_pages &gt; pages_for_compaction)</span>
+<span class="quote">&gt;  		return true;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/* If compaction would go ahead or the allocation would succeed, stop */</span>
+<span class="quote">&gt; -	switch (compaction_suitable(zone, sc-&gt;order, 0, 0)) {</span>
+<span class="quote">&gt; -	case COMPACT_PARTIAL:</span>
+<span class="quote">&gt; -	case COMPACT_CONTINUE:</span>
+<span class="quote">&gt; -		return false;</span>
+<span class="quote">&gt; -	default:</span>
+<span class="quote">&gt; -		return true;</span>
+<span class="quote">&gt; +	for (z = 0; z &lt;= sc-&gt;reclaim_idx; z++) {</span>
+<span class="quote">&gt; +		struct zone *zone = &amp;pgdat-&gt;node_zones[z];</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +		switch (compaction_suitable(zone, sc-&gt;order, 0, sc-&gt;reclaim_idx)) {</span>
+<span class="quote">&gt; +		case COMPACT_PARTIAL:</span>
+<span class="quote">&gt; +		case COMPACT_CONTINUE:</span>
+<span class="quote">&gt; +			return false;</span>
+<span class="quote">&gt; +		default:</span>
+<span class="quote">&gt; +			/* check next zone */</span>
+<span class="quote">&gt; +			;</span>
+<span class="quote">&gt; +		}</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt; +	return true;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc,</span>
+<span class="quote">&gt; @@ -2419,15 +2427,14 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc,</span>
+<span class="quote">&gt;  	struct reclaim_state *reclaim_state = current-&gt;reclaim_state;</span>
+<span class="quote">&gt;  	unsigned long nr_reclaimed, nr_scanned;</span>
+<span class="quote">&gt;  	bool reclaimable = false;</span>
+<span class="quote">&gt; -	struct zone *zone = &amp;pgdat-&gt;node_zones[classzone_idx];</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	do {</span>
+<span class="quote">&gt;  		struct mem_cgroup *root = sc-&gt;target_mem_cgroup;</span>
+<span class="quote">&gt;  		struct mem_cgroup_reclaim_cookie reclaim = {</span>
+<span class="quote">&gt; -			.zone = zone,</span>
+<span class="quote">&gt; +			.zone = &amp;pgdat-&gt;node_zones[classzone_idx],</span>
+<span class="quote">&gt;  			.priority = sc-&gt;priority,</span>
+<span class="quote">&gt;  		};</span>
+<span class="quote">&gt; -		unsigned long zone_lru_pages = 0;</span>
+<span class="quote">&gt; +		unsigned long node_lru_pages = 0;</span>
+<span class="quote">&gt;  		struct mem_cgroup *memcg;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  		nr_reclaimed = sc-&gt;nr_reclaimed;</span>
+<span class="quote">&gt; @@ -2448,11 +2455,11 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc,</span>
+<span class="quote">&gt;  			reclaimed = sc-&gt;nr_reclaimed;</span>
+<span class="quote">&gt;  			scanned = sc-&gt;nr_scanned;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -			shrink_zone_memcg(zone, memcg, sc, &amp;lru_pages);</span>
+<span class="quote">&gt; -			zone_lru_pages += lru_pages;</span>
+<span class="quote">&gt; +			shrink_node_memcg(pgdat, memcg, sc, &amp;lru_pages);</span>
+<span class="quote">&gt; +			node_lru_pages += lru_pages;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  			if (!global_reclaim(sc) &amp;&amp; sc-&gt;reclaim_idx == classzone_idx)</span>
+<span class="quote">&gt; -				shrink_slab(sc-&gt;gfp_mask, zone_to_nid(zone),</span>
+<span class="quote">&gt; +				shrink_slab(sc-&gt;gfp_mask, pgdat-&gt;node_id,</span>
+<span class="quote">&gt;  					    memcg, sc-&gt;nr_scanned - scanned,</span>
+<span class="quote">&gt;  					    lru_pages);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; @@ -2464,7 +2471,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc,</span>
+<span class="quote">&gt;  			/*</span>
+<span class="quote">&gt;  			 * Direct reclaim and kswapd have to scan all memory</span>
+<span class="quote">&gt;  			 * cgroups to fulfill the overall scan target for the</span>
+<span class="quote">&gt; -			 * zone.</span>
+<span class="quote">&gt; +			 * node.</span>
+<span class="quote">&gt;  			 *</span>
+<span class="quote">&gt;  			 * Limit reclaim, on the other hand, only cares about</span>
+<span class="quote">&gt;  			 * nr_to_reclaim pages to be reclaimed and it will</span>
+<span class="quote">&gt; @@ -2483,9 +2490,9 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc,</span>
+<span class="quote">&gt;  		 * the eligible LRU pages were scanned.</span>
+<span class="quote">&gt;  		 */</span>
+<span class="quote">&gt;  		if (global_reclaim(sc) &amp;&amp; sc-&gt;reclaim_idx == classzone_idx)</span>
+<span class="quote">&gt; -			shrink_slab(sc-&gt;gfp_mask, zone_to_nid(zone), NULL,</span>
+<span class="quote">&gt; +			shrink_slab(sc-&gt;gfp_mask, pgdat-&gt;node_id, NULL,</span>
+<span class="quote">&gt;  				    sc-&gt;nr_scanned - nr_scanned,</span>
+<span class="quote">&gt; -				    zone_lru_pages);</span>
+<span class="quote">&gt; +				    node_lru_pages);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  		if (reclaim_state) {</span>
+<span class="quote">&gt;  			sc-&gt;nr_reclaimed += reclaim_state-&gt;reclaimed_slab;</span>
+<span class="quote">&gt; @@ -2500,7 +2507,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc,</span>
+<span class="quote">&gt;  		if (sc-&gt;nr_reclaimed - nr_reclaimed)</span>
+<span class="quote">&gt;  			reclaimable = true;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	} while (should_continue_reclaim(zone, sc-&gt;nr_reclaimed - nr_reclaimed,</span>
+<span class="quote">&gt; +	} while (should_continue_reclaim(pgdat, sc-&gt;nr_reclaimed - nr_reclaimed,</span>
+<span class="quote">&gt;  					 sc-&gt;nr_scanned - nr_scanned, sc));</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	return reclaimable;</span>
+<span class="quote">&gt; @@ -2896,7 +2903,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  #ifdef CONFIG_MEMCG</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *memcg,</span>
+<span class="quote">&gt; +unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,</span>
+<span class="quote">&gt;  						gfp_t gfp_mask, bool noswap,</span>
+<span class="quote">&gt;  						struct zone *zone,</span>
+<span class="quote">&gt;  						unsigned long *nr_scanned)</span>
+<span class="quote">&gt; @@ -2906,6 +2913,7 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *memcg,</span>
+<span class="quote">&gt;  		.target_mem_cgroup = memcg,</span>
+<span class="quote">&gt;  		.may_writepage = !laptop_mode,</span>
+<span class="quote">&gt;  		.may_unmap = 1,</span>
+<span class="quote">&gt; +		.reclaim_idx = zone_idx(zone),</span>
+<span class="quote">&gt;  		.may_swap = !noswap,</span>
+<span class="quote">&gt;  	};</span>
+<span class="quote">&gt;  	unsigned long lru_pages;</span>
+<span class="quote">&gt; @@ -2920,11 +2928,11 @@ unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *memcg,</span>
+<span class="quote">&gt;  	/*</span>
+<span class="quote">&gt;  	 * NOTE: Although we can get the priority field, using it</span>
+<span class="quote">&gt;  	 * here is not a good idea, since it limits the pages we can scan.</span>
+<span class="quote">&gt; -	 * if we don&#39;t reclaim here, the shrink_zone from balance_pgdat</span>
+<span class="quote">&gt; +	 * if we don&#39;t reclaim here, the shrink_node from balance_pgdat</span>
+<span class="quote">&gt;  	 * will pick up pages from other mem cgroup&#39;s as well. We hack</span>
+<span class="quote">&gt;  	 * the priority and make it zero.</span>
+<span class="quote">&gt;  	 */</span>
+<span class="quote">&gt; -	shrink_zone_memcg(zone, memcg, &amp;sc, &amp;lru_pages);</span>
+<span class="quote">&gt; +	shrink_node_memcg(zone-&gt;zone_pgdat, memcg, &amp;sc, &amp;lru_pages);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; @@ -2982,7 +2990,7 @@ static void age_active_anon(struct pglist_data *pgdat,</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	memcg = mem_cgroup_iter(NULL, NULL, NULL);</span>
+<span class="quote">&gt;  	do {</span>
+<span class="quote">&gt; -		struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone, memcg);</span>
+<span class="quote">&gt; +		struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, zone, memcg);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  		if (inactive_list_is_low(lruvec, false))</span>
+<span class="quote">&gt;  			shrink_active_list(SWAP_CLUSTER_MAX, lruvec,</span>
+<span class="quote">&gt; diff --git a/mm/workingset.c b/mm/workingset.c</span>
+<span class="quote">&gt; index c0820e06aaff..2d81ca11317d 100644</span>
+<span class="quote">&gt; --- a/mm/workingset.c</span>
+<span class="quote">&gt; +++ b/mm/workingset.c</span>
+<span class="quote">&gt; @@ -218,7 +218,7 @@ void *workingset_eviction(struct address_space *mapping, struct page *page)</span>
+<span class="quote">&gt;  	VM_BUG_ON_PAGE(page_count(page), page);</span>
+<span class="quote">&gt;  	VM_BUG_ON_PAGE(!PageLocked(page), page);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	lruvec = mem_cgroup_zone_lruvec(zone, memcg);</span>
+<span class="quote">&gt; +	lruvec = mem_cgroup_lruvec(zone-&gt;zone_pgdat, zone, memcg);</span>
+<span class="quote">&gt;  	eviction = atomic_long_inc_return(&amp;lruvec-&gt;inactive_age);</span>
+<span class="quote">&gt;  	return pack_shadow(memcgid, zone, eviction);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt; @@ -267,7 +267,7 @@ bool workingset_refault(void *shadow)</span>
+<span class="quote">&gt;  		rcu_read_unlock();</span>
+<span class="quote">&gt;  		return false;</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt; -	lruvec = mem_cgroup_zone_lruvec(zone, memcg);</span>
+<span class="quote">&gt; +	lruvec = mem_cgroup_lruvec(zone-&gt;zone_pgdat, zone, memcg);</span>
+<span class="quote">&gt;  	refault = atomic_long_read(&amp;lruvec-&gt;inactive_age);</span>
+<span class="quote">&gt;  	active_file = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE);</span>
+<span class="quote">&gt;  	rcu_read_unlock();</span>
+<span class="quote">&gt; @@ -317,7 +317,7 @@ void workingset_activation(struct page *page)</span>
+<span class="quote">&gt;  	 */</span>
+<span class="quote">&gt;  	if (!mem_cgroup_disabled() &amp;&amp; !page_memcg(page))</span>
+<span class="quote">&gt;  		goto out;</span>
+<span class="quote">&gt; -	lruvec = mem_cgroup_zone_lruvec(page_zone(page), page_memcg(page));</span>
+<span class="quote">&gt; +	lruvec = mem_cgroup_lruvec(page_pgdat(page), page_zone(page), page_memcg(page));</span>
+<span class="quote">&gt;  	atomic_long_inc(&amp;lruvec-&gt;inactive_age);</span>
+<span class="quote">&gt;  out:</span>
+<span class="quote">&gt;  	unlock_page_memcg(page);</span>
+<span class="quote">&gt; -- </span>
+<span class="quote">&gt; 2.6.4</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; --</span>
+<span class="quote">&gt; To unsubscribe, send a message with &#39;unsubscribe linux-mm&#39; in</span>
+<span class="quote">&gt; the body to majordomo@kvack.org.  For more info on Linux MM,</span>
+<span class="quote">&gt; see: http://www.linux-mm.org/ .</span>
+<span class="quote">&gt; Don&#39;t email: &lt;a href=mailto:&quot;dont@kvack.org&quot;&gt; email@kvack.org &lt;/a&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=72672">Vlastimil Babka</a> - June 22, 2016, 3:42 p.m.</div>
+<pre class="content">
+On 06/21/2016 04:15 PM, Mel Gorman wrote:
+<span class="quote">&gt; Earlier patches focused on having direct reclaim and kswapd use data that</span>
+<span class="quote">&gt; is node-centric for reclaiming but shrink_node() itself still uses too much</span>
+<span class="quote">&gt; zone information. This patch removes unnecessary zone-based information</span>
+<span class="quote">&gt; with the most important decision being whether to continue reclaim or</span>
+<span class="quote">&gt; not. Some memcg APIs are adjusted as a result even though memcg itself</span>
+<span class="quote">&gt; still uses some zone information.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Signed-off-by: Mel Gorman &lt;mgorman@techsingularity.net&gt;</span>
+<span class="acked-by">
+Acked-by: Vlastimil Babka &lt;vbabka@suse.cz&gt;</span>
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h</span>
+<span class="p_header">index cda436c79d8c..a13328851fea 100644</span>
+<span class="p_header">--- a/include/linux/memcontrol.h</span>
+<span class="p_header">+++ b/include/linux/memcontrol.h</span>
+<span class="p_chunk">@@ -306,7 +306,8 @@</span> <span class="p_context"> void mem_cgroup_uncharge_list(struct list_head *page_list);</span>
+ 
+ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage);
+ 
+<span class="p_del">-struct lruvec *mem_cgroup_zone_lruvec(struct zone *, struct mem_cgroup *);</span>
+<span class="p_add">+struct lruvec *mem_cgroup_lruvec(struct pglist_data *, struct zone *zone,</span>
+<span class="p_add">+				 struct mem_cgroup *);</span>
+ struct lruvec *mem_cgroup_page_lruvec(struct page *, struct pglist_data *);
+ 
+ bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);
+<span class="p_chunk">@@ -573,10 +574,10 @@</span> <span class="p_context"> static inline void mem_cgroup_migrate(struct page *old, struct page *new)</span>
+ {
+ }
+ 
+<span class="p_del">-static inline struct lruvec *mem_cgroup_zone_lruvec(struct zone *zone,</span>
+<span class="p_del">-						    struct mem_cgroup *memcg)</span>
+<span class="p_add">+static inline struct lruvec *mem_cgroup_lruvec(struct pglist_data *pgdat,</span>
+<span class="p_add">+				struct zone *zone, struct mem_cgroup *memcg)</span>
+ {
+<span class="p_del">-	return zone_lruvec(zone);</span>
+<span class="p_add">+	return node_lruvec(pgdat);</span>
+ }
+ 
+ static inline struct lruvec *mem_cgroup_page_lruvec(struct page *page,
+<span class="p_header">diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h</span>
+<span class="p_header">index 890d1858aa22..6991eded0ffd 100644</span>
+<span class="p_header">--- a/include/linux/mmzone.h</span>
+<span class="p_header">+++ b/include/linux/mmzone.h</span>
+<span class="p_chunk">@@ -737,9 +737,9 @@</span> <span class="p_context"> static inline spinlock_t *zone_lru_lock(struct zone *zone)</span>
+ 	return &amp;zone-&gt;zone_pgdat-&gt;lru_lock;
+ }
+ 
+<span class="p_del">-static inline struct lruvec *zone_lruvec(struct zone *zone)</span>
+<span class="p_add">+static inline struct lruvec *node_lruvec(struct pglist_data *pgdat)</span>
+ {
+<span class="p_del">-	return &amp;zone-&gt;zone_pgdat-&gt;lruvec;</span>
+<span class="p_add">+	return &amp;pgdat-&gt;lruvec;</span>
+ }
+ 
+ static inline unsigned long pgdat_end_pfn(pg_data_t *pgdat)
+<span class="p_header">diff --git a/include/linux/swap.h b/include/linux/swap.h</span>
+<span class="p_header">index 916e2eddecd6..0ad616d7c381 100644</span>
+<span class="p_header">--- a/include/linux/swap.h</span>
+<span class="p_header">+++ b/include/linux/swap.h</span>
+<span class="p_chunk">@@ -316,7 +316,7 @@</span> <span class="p_context"> extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,</span>
+ 						  unsigned long nr_pages,
+ 						  gfp_t gfp_mask,
+ 						  bool may_swap);
+<span class="p_del">-extern unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *mem,</span>
+<span class="p_add">+extern unsigned long mem_cgroup_shrink_node(struct mem_cgroup *mem,</span>
+ 						gfp_t gfp_mask, bool noswap,
+ 						struct zone *zone,
+ 						unsigned long *nr_scanned);
+<span class="p_header">diff --git a/mm/memcontrol.c b/mm/memcontrol.c</span>
+<span class="p_header">index 864a4e3a82c1..aac5fae56ea4 100644</span>
+<span class="p_header">--- a/mm/memcontrol.c</span>
+<span class="p_header">+++ b/mm/memcontrol.c</span>
+<span class="p_chunk">@@ -944,22 +944,23 @@</span> <span class="p_context"> static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)</span>
+ 	     iter = mem_cgroup_iter(NULL, iter, NULL))
+ 
+ /**
+<span class="p_del">- * mem_cgroup_zone_lruvec - get the lru list vector for a zone and memcg</span>
+<span class="p_add">+ * mem_cgroup_lruvec - get the lru list vector for a node or a memcg zone</span>
+<span class="p_add">+ * @node: node of the wanted lruvec</span>
+  * @zone: zone of the wanted lruvec
+  * @memcg: memcg of the wanted lruvec
+  *
+<span class="p_del">- * Returns the lru list vector holding pages for the given @zone and</span>
+<span class="p_del">- * @mem.  This can be the global zone lruvec, if the memory controller</span>
+<span class="p_add">+ * Returns the lru list vector holding pages for a given @node or a given</span>
+<span class="p_add">+ * @memcg and @zone. This can be the node lruvec, if the memory controller</span>
+  * is disabled.
+  */
+<span class="p_del">-struct lruvec *mem_cgroup_zone_lruvec(struct zone *zone,</span>
+<span class="p_del">-				      struct mem_cgroup *memcg)</span>
+<span class="p_add">+struct lruvec *mem_cgroup_lruvec(struct pglist_data *pgdat,</span>
+<span class="p_add">+				 struct zone *zone, struct mem_cgroup *memcg)</span>
+ {
+ 	struct mem_cgroup_per_zone *mz;
+ 	struct lruvec *lruvec;
+ 
+ 	if (mem_cgroup_disabled()) {
+<span class="p_del">-		lruvec = zone_lruvec(zone);</span>
+<span class="p_add">+		lruvec = node_lruvec(pgdat);</span>
+ 		goto out;
+ 	}
+ 
+<span class="p_chunk">@@ -1474,8 +1475,8 @@</span> <span class="p_context"> static int mem_cgroup_soft_reclaim(struct mem_cgroup *root_memcg,</span>
+ 			}
+ 			continue;
+ 		}
+<span class="p_del">-		total += mem_cgroup_shrink_node_zone(victim, gfp_mask, false,</span>
+<span class="p_del">-						     zone, &amp;nr_scanned);</span>
+<span class="p_add">+		total += mem_cgroup_shrink_node(victim, gfp_mask, false,</span>
+<span class="p_add">+					zone, &amp;nr_scanned);</span>
+ 		*total_scanned += nr_scanned;
+ 		if (!soft_limit_excess(root_memcg))
+ 			break;
+<span class="p_header">diff --git a/mm/page_alloc.c b/mm/page_alloc.c</span>
+<span class="p_header">index e128af8de05f..d62b147fd426 100644</span>
+<span class="p_header">--- a/mm/page_alloc.c</span>
+<span class="p_header">+++ b/mm/page_alloc.c</span>
+<span class="p_chunk">@@ -5897,6 +5897,7 @@</span> <span class="p_context"> static void __paginginit free_area_init_core(struct pglist_data *pgdat)</span>
+ #endif
+ 	pgdat_page_ext_init(pgdat);
+ 	spin_lock_init(&amp;pgdat-&gt;lru_lock);
+<span class="p_add">+	lruvec_init(node_lruvec(pgdat));</span>
+ 
+ 	for (j = 0; j &lt; MAX_NR_ZONES; j++) {
+ 		struct zone *zone = pgdat-&gt;node_zones + j;
+<span class="p_chunk">@@ -5959,7 +5960,6 @@</span> <span class="p_context"> static void __paginginit free_area_init_core(struct pglist_data *pgdat)</span>
+ 		/* For bootup, initialized properly in watermark setup */
+ 		mod_zone_page_state(zone, NR_ALLOC_BATCH, zone-&gt;managed_pages);
+ 
+<span class="p_del">-		lruvec_init(zone_lruvec(zone));</span>
+ 		if (!size)
+ 			continue;
+ 
+<span class="p_header">diff --git a/mm/vmscan.c b/mm/vmscan.c</span>
+<span class="p_header">index d42a86e603e8..3774ebf19f63 100644</span>
+<span class="p_header">--- a/mm/vmscan.c</span>
+<span class="p_header">+++ b/mm/vmscan.c</span>
+<span class="p_chunk">@@ -2220,10 +2220,11 @@</span> <span class="p_context"> static inline void init_tlb_ubc(void)</span>
+ /*
+  * This is a basic per-zone page freer.  Used by both kswapd and direct reclaim.
+  */
+<span class="p_del">-static void shrink_zone_memcg(struct zone *zone, struct mem_cgroup *memcg,</span>
+<span class="p_add">+static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memcg,</span>
+ 			      struct scan_control *sc, unsigned long *lru_pages)
+ {
+<span class="p_del">-	struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone, memcg);</span>
+<span class="p_add">+	struct zone *zone = &amp;pgdat-&gt;node_zones[sc-&gt;reclaim_idx];</span>
+<span class="p_add">+	struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, zone, memcg);</span>
+ 	unsigned long nr[NR_LRU_LISTS];
+ 	unsigned long targets[NR_LRU_LISTS];
+ 	unsigned long nr_to_scan;
+<span class="p_chunk">@@ -2356,13 +2357,14 @@</span> <span class="p_context"> static bool in_reclaim_compaction(struct scan_control *sc)</span>
+  * calls try_to_compact_zone() that it will have enough free pages to succeed.
+  * It will give up earlier than that if there is difficulty reclaiming pages.
+  */
+<span class="p_del">-static inline bool should_continue_reclaim(struct zone *zone,</span>
+<span class="p_add">+static inline bool should_continue_reclaim(struct pglist_data *pgdat,</span>
+ 					unsigned long nr_reclaimed,
+ 					unsigned long nr_scanned,
+ 					struct scan_control *sc)
+ {
+ 	unsigned long pages_for_compaction;
+ 	unsigned long inactive_lru_pages;
+<span class="p_add">+	int z;</span>
+ 
+ 	/* If not in reclaim/compaction mode, stop */
+ 	if (!in_reclaim_compaction(sc))
+<span class="p_chunk">@@ -2396,21 +2398,27 @@</span> <span class="p_context"> static inline bool should_continue_reclaim(struct zone *zone,</span>
+ 	 * inactive lists are large enough, continue reclaiming
+ 	 */
+ 	pages_for_compaction = (2UL &lt;&lt; sc-&gt;order);
+<span class="p_del">-	inactive_lru_pages = node_page_state(zone-&gt;zone_pgdat, NR_INACTIVE_FILE);</span>
+<span class="p_add">+	inactive_lru_pages = node_page_state(pgdat, NR_INACTIVE_FILE);</span>
+ 	if (get_nr_swap_pages() &gt; 0)
+<span class="p_del">-		inactive_lru_pages += node_page_state(zone-&gt;zone_pgdat, NR_INACTIVE_ANON);</span>
+<span class="p_add">+		inactive_lru_pages += node_page_state(pgdat, NR_INACTIVE_ANON);</span>
+ 	if (sc-&gt;nr_reclaimed &lt; pages_for_compaction &amp;&amp;
+ 			inactive_lru_pages &gt; pages_for_compaction)
+ 		return true;
+ 
+ 	/* If compaction would go ahead or the allocation would succeed, stop */
+<span class="p_del">-	switch (compaction_suitable(zone, sc-&gt;order, 0, 0)) {</span>
+<span class="p_del">-	case COMPACT_PARTIAL:</span>
+<span class="p_del">-	case COMPACT_CONTINUE:</span>
+<span class="p_del">-		return false;</span>
+<span class="p_del">-	default:</span>
+<span class="p_del">-		return true;</span>
+<span class="p_add">+	for (z = 0; z &lt;= sc-&gt;reclaim_idx; z++) {</span>
+<span class="p_add">+		struct zone *zone = &amp;pgdat-&gt;node_zones[z];</span>
+<span class="p_add">+</span>
+<span class="p_add">+		switch (compaction_suitable(zone, sc-&gt;order, 0, sc-&gt;reclaim_idx)) {</span>
+<span class="p_add">+		case COMPACT_PARTIAL:</span>
+<span class="p_add">+		case COMPACT_CONTINUE:</span>
+<span class="p_add">+			return false;</span>
+<span class="p_add">+		default:</span>
+<span class="p_add">+			/* check next zone */</span>
+<span class="p_add">+			;</span>
+<span class="p_add">+		}</span>
+ 	}
+<span class="p_add">+	return true;</span>
+ }
+ 
+ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc,
+<span class="p_chunk">@@ -2419,15 +2427,14 @@</span> <span class="p_context"> static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc,</span>
+ 	struct reclaim_state *reclaim_state = current-&gt;reclaim_state;
+ 	unsigned long nr_reclaimed, nr_scanned;
+ 	bool reclaimable = false;
+<span class="p_del">-	struct zone *zone = &amp;pgdat-&gt;node_zones[classzone_idx];</span>
+ 
+ 	do {
+ 		struct mem_cgroup *root = sc-&gt;target_mem_cgroup;
+ 		struct mem_cgroup_reclaim_cookie reclaim = {
+<span class="p_del">-			.zone = zone,</span>
+<span class="p_add">+			.zone = &amp;pgdat-&gt;node_zones[classzone_idx],</span>
+ 			.priority = sc-&gt;priority,
+ 		};
+<span class="p_del">-		unsigned long zone_lru_pages = 0;</span>
+<span class="p_add">+		unsigned long node_lru_pages = 0;</span>
+ 		struct mem_cgroup *memcg;
+ 
+ 		nr_reclaimed = sc-&gt;nr_reclaimed;
+<span class="p_chunk">@@ -2448,11 +2455,11 @@</span> <span class="p_context"> static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc,</span>
+ 			reclaimed = sc-&gt;nr_reclaimed;
+ 			scanned = sc-&gt;nr_scanned;
+ 
+<span class="p_del">-			shrink_zone_memcg(zone, memcg, sc, &amp;lru_pages);</span>
+<span class="p_del">-			zone_lru_pages += lru_pages;</span>
+<span class="p_add">+			shrink_node_memcg(pgdat, memcg, sc, &amp;lru_pages);</span>
+<span class="p_add">+			node_lru_pages += lru_pages;</span>
+ 
+ 			if (!global_reclaim(sc) &amp;&amp; sc-&gt;reclaim_idx == classzone_idx)
+<span class="p_del">-				shrink_slab(sc-&gt;gfp_mask, zone_to_nid(zone),</span>
+<span class="p_add">+				shrink_slab(sc-&gt;gfp_mask, pgdat-&gt;node_id,</span>
+ 					    memcg, sc-&gt;nr_scanned - scanned,
+ 					    lru_pages);
+ 
+<span class="p_chunk">@@ -2464,7 +2471,7 @@</span> <span class="p_context"> static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc,</span>
+ 			/*
+ 			 * Direct reclaim and kswapd have to scan all memory
+ 			 * cgroups to fulfill the overall scan target for the
+<span class="p_del">-			 * zone.</span>
+<span class="p_add">+			 * node.</span>
+ 			 *
+ 			 * Limit reclaim, on the other hand, only cares about
+ 			 * nr_to_reclaim pages to be reclaimed and it will
+<span class="p_chunk">@@ -2483,9 +2490,9 @@</span> <span class="p_context"> static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc,</span>
+ 		 * the eligible LRU pages were scanned.
+ 		 */
+ 		if (global_reclaim(sc) &amp;&amp; sc-&gt;reclaim_idx == classzone_idx)
+<span class="p_del">-			shrink_slab(sc-&gt;gfp_mask, zone_to_nid(zone), NULL,</span>
+<span class="p_add">+			shrink_slab(sc-&gt;gfp_mask, pgdat-&gt;node_id, NULL,</span>
+ 				    sc-&gt;nr_scanned - nr_scanned,
+<span class="p_del">-				    zone_lru_pages);</span>
+<span class="p_add">+				    node_lru_pages);</span>
+ 
+ 		if (reclaim_state) {
+ 			sc-&gt;nr_reclaimed += reclaim_state-&gt;reclaimed_slab;
+<span class="p_chunk">@@ -2500,7 +2507,7 @@</span> <span class="p_context"> static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc,</span>
+ 		if (sc-&gt;nr_reclaimed - nr_reclaimed)
+ 			reclaimable = true;
+ 
+<span class="p_del">-	} while (should_continue_reclaim(zone, sc-&gt;nr_reclaimed - nr_reclaimed,</span>
+<span class="p_add">+	} while (should_continue_reclaim(pgdat, sc-&gt;nr_reclaimed - nr_reclaimed,</span>
+ 					 sc-&gt;nr_scanned - nr_scanned, sc));
+ 
+ 	return reclaimable;
+<span class="p_chunk">@@ -2896,7 +2903,7 @@</span> <span class="p_context"> unsigned long try_to_free_pages(struct zonelist *zonelist, int order,</span>
+ 
+ #ifdef CONFIG_MEMCG
+ 
+<span class="p_del">-unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *memcg,</span>
+<span class="p_add">+unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,</span>
+ 						gfp_t gfp_mask, bool noswap,
+ 						struct zone *zone,
+ 						unsigned long *nr_scanned)
+<span class="p_chunk">@@ -2906,6 +2913,7 @@</span> <span class="p_context"> unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *memcg,</span>
+ 		.target_mem_cgroup = memcg,
+ 		.may_writepage = !laptop_mode,
+ 		.may_unmap = 1,
+<span class="p_add">+		.reclaim_idx = zone_idx(zone),</span>
+ 		.may_swap = !noswap,
+ 	};
+ 	unsigned long lru_pages;
+<span class="p_chunk">@@ -2920,11 +2928,11 @@</span> <span class="p_context"> unsigned long mem_cgroup_shrink_node_zone(struct mem_cgroup *memcg,</span>
+ 	/*
+ 	 * NOTE: Although we can get the priority field, using it
+ 	 * here is not a good idea, since it limits the pages we can scan.
+<span class="p_del">-	 * if we don&#39;t reclaim here, the shrink_zone from balance_pgdat</span>
+<span class="p_add">+	 * if we don&#39;t reclaim here, the shrink_node from balance_pgdat</span>
+ 	 * will pick up pages from other mem cgroup&#39;s as well. We hack
+ 	 * the priority and make it zero.
+ 	 */
+<span class="p_del">-	shrink_zone_memcg(zone, memcg, &amp;sc, &amp;lru_pages);</span>
+<span class="p_add">+	shrink_node_memcg(zone-&gt;zone_pgdat, memcg, &amp;sc, &amp;lru_pages);</span>
+ 
+ 	trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);
+ 
+<span class="p_chunk">@@ -2982,7 +2990,7 @@</span> <span class="p_context"> static void age_active_anon(struct pglist_data *pgdat,</span>
+ 
+ 	memcg = mem_cgroup_iter(NULL, NULL, NULL);
+ 	do {
+<span class="p_del">-		struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone, memcg);</span>
+<span class="p_add">+		struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, zone, memcg);</span>
+ 
+ 		if (inactive_list_is_low(lruvec, false))
+ 			shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
+<span class="p_header">diff --git a/mm/workingset.c b/mm/workingset.c</span>
+<span class="p_header">index c0820e06aaff..2d81ca11317d 100644</span>
+<span class="p_header">--- a/mm/workingset.c</span>
+<span class="p_header">+++ b/mm/workingset.c</span>
+<span class="p_chunk">@@ -218,7 +218,7 @@</span> <span class="p_context"> void *workingset_eviction(struct address_space *mapping, struct page *page)</span>
+ 	VM_BUG_ON_PAGE(page_count(page), page);
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 
+<span class="p_del">-	lruvec = mem_cgroup_zone_lruvec(zone, memcg);</span>
+<span class="p_add">+	lruvec = mem_cgroup_lruvec(zone-&gt;zone_pgdat, zone, memcg);</span>
+ 	eviction = atomic_long_inc_return(&amp;lruvec-&gt;inactive_age);
+ 	return pack_shadow(memcgid, zone, eviction);
+ }
+<span class="p_chunk">@@ -267,7 +267,7 @@</span> <span class="p_context"> bool workingset_refault(void *shadow)</span>
+ 		rcu_read_unlock();
+ 		return false;
+ 	}
+<span class="p_del">-	lruvec = mem_cgroup_zone_lruvec(zone, memcg);</span>
+<span class="p_add">+	lruvec = mem_cgroup_lruvec(zone-&gt;zone_pgdat, zone, memcg);</span>
+ 	refault = atomic_long_read(&amp;lruvec-&gt;inactive_age);
+ 	active_file = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE);
+ 	rcu_read_unlock();
+<span class="p_chunk">@@ -317,7 +317,7 @@</span> <span class="p_context"> void workingset_activation(struct page *page)</span>
+ 	 */
+ 	if (!mem_cgroup_disabled() &amp;&amp; !page_memcg(page))
+ 		goto out;
+<span class="p_del">-	lruvec = mem_cgroup_zone_lruvec(page_zone(page), page_memcg(page));</span>
+<span class="p_add">+	lruvec = mem_cgroup_lruvec(page_pgdat(page), page_zone(page), page_memcg(page));</span>
+ 	atomic_long_inc(&amp;lruvec-&gt;inactive_age);
+ out:
+ 	unlock_page_memcg(page);
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

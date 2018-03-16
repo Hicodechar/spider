@@ -1,0 +1,430 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,2/3] xen/swiotlb: Fold static unmap and sync calls into calling functions - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,2/3] xen/swiotlb: Fold static unmap and sync calls into calling functions</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=145631">Alexander Duyck</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Dec. 13, 2015, 9:28 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20151213212823.5410.12367.stgit@localhost.localdomain&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7839771/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7839771/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7839771/">/patch/7839771/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork1.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork1.web.kernel.org (Postfix) with ESMTP id 060BD9F1C2
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sun, 13 Dec 2015 21:28:43 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 01EA6203E1
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sun, 13 Dec 2015 21:28:42 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id DE265203DF
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sun, 13 Dec 2015 21:28:40 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S932135AbbLMV2b (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Sun, 13 Dec 2015 16:28:31 -0500
+Received: from mail-pf0-f169.google.com ([209.85.192.169]:34351 &quot;EHLO
+	mail-pf0-f169.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S932118AbbLMV21 (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Sun, 13 Dec 2015 16:28:27 -0500
+Received: by pfbo64 with SMTP id o64so15976309pfb.1
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Sun, 13 Dec 2015 13:28:26 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=mirantis.com; s=google;
+	h=subject:from:to:cc:date:message-id:in-reply-to:references
+	:user-agent:mime-version:content-type:content-transfer-encoding;
+	bh=Hhg2RNtZicAmt2sgFIgx5mct3eFMpGk/7cBWXUr/1dg=;
+	b=TKktcOHZU7UGDOlTS3pZUOqWsbWVQd6qhPV/KfBt742hfwETQ3qylsiXL7CmQxj1hQ
+	enM4ApIPEJ3IjQxvR1y6yhcwBsNKdtpJf0PfiTiieb5267kWlb7B1yXFsIcsuf7xGbt+
+	TQ2NmX71imKdlgMzCfeoW7kaGLzX2rlqwpg+0=
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20130820;
+	h=x-gm-message-state:subject:from:to:cc:date:message-id:in-reply-to
+	:references:user-agent:mime-version:content-type
+	:content-transfer-encoding;
+	bh=Hhg2RNtZicAmt2sgFIgx5mct3eFMpGk/7cBWXUr/1dg=;
+	b=mf78Btl60ISWtbxmZqTaqc404HXS8ke5RaeEiMwPl0QfQ8lbS2c8rjIw/9nSvTRBXK
+	MxKHP+g5qmaaorzwykGVhurMWOGmkF/ViL4eLSh46EG7ispLeJp+7L3S/rf1PJz/SxMC
+	TmeIRgeMOFWIZEmNaCx2tzOfRTN9Etfs2md6duTvaBxCpv/SJDFEsdXW1BmwbXHmIhsD
+	Ts5zoW/292ckH9aTqmbcIHfTFILkUOSakh/sbi69NVlgazzrZuuw5hAT2Sm8I9ahjNXV
+	K3XpMeh+W5sblrcaG3jCYjMGvdvyUg3xzimWb5fNHyv/3BU1HQ+Rn/nBFlXXoGGFbmZu
+	EJVw==
+X-Gm-Message-State: ALoCoQkeimnYRsmr372veAK9eetqqdehpMKzB08vZ9rlqhnRijBvzLBV74Ar4jE+1aMudhVO7pNn/czEj4uUS5qKOOzp7Nv/Cg==
+X-Received: by 10.98.80.20 with SMTP id e20mr30794435pfb.23.1450042106328;
+	Sun, 13 Dec 2015 13:28:26 -0800 (PST)
+Received: from localhost.localdomain
+	(static-50-53-21-5.bvtn.or.frontiernet.net. [50.53.21.5])
+	by smtp.gmail.com with ESMTPSA id
+	p26sm37783988pfi.94.2015.12.13.13.28.25
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Sun, 13 Dec 2015 13:28:25 -0800 (PST)
+Subject: [RFC PATCH 2/3] xen/swiotlb: Fold static unmap and sync calls into
+	calling functions
+From: Alexander Duyck &lt;aduyck@mirantis.com&gt;
+To: kvm@vger.kernel.org, linux-pci@vger.kernel.org, x86@kernel.org,
+	linux-kernel@vger.kernel.org, alexander.duyck@gmail.com,
+	qemu-devel@nongnu.org
+Cc: tianyu.lan@intel.com, yang.zhang.wz@gmail.com, mst@redhat.com,
+	konrad.wilk@oracle.com, dgilbert@redhat.com, agraf@suse.de,
+	alex.williamson@redhat.com
+Date: Sun, 13 Dec 2015 13:28:24 -0800
+Message-ID: &lt;20151213212823.5410.12367.stgit@localhost.localdomain&gt;
+In-Reply-To: &lt;20151213212557.5410.48577.stgit@localhost.localdomain&gt;
+References: &lt;20151213212557.5410.48577.stgit@localhost.localdomain&gt;
+User-Agent: StGit/0.17.1-dirty
+MIME-Version: 1.0
+Content-Type: text/plain; charset=&quot;utf-8&quot;
+Content-Transfer-Encoding: 7bit
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.8 required=5.0 tests=BAYES_00,DKIM_SIGNED,
+	RCVD_IN_DNSWL_HI,T_DKIM_INVALID,T_RP_MATCHES_RCVD,UNPARSEABLE_RELAY
+	autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=145631">Alexander Duyck</a> - Dec. 13, 2015, 9:28 p.m.</div>
+<pre class="content">
+This change essentially does two things.  First it folds the swiotlb_unmap
+and swiotlb_sync calls into their callers.  The goal behind this is three
+fold.  First this helps to reduce execution time and improves performance
+since we aren&#39;t having to call into as many functions.  Second it allows us
+to split up some of the sync functionality as there is the dma_mark_clean
+portion of the sync call that is only really needed for dma_sync_for_cpu
+since we don&#39;t actually want to mark the page as clean if we are syncing
+for the device.
+
+The second change is to move dma_mark_clean inside the if statement instead
+of using a return in the case of sync and unmap.  By doing this we make it
+so that we can also add a dma_mark_dirty function later.
+<span class="signed-off-by">
+Signed-off-by: Alexander Duyck &lt;aduyck@mirantis.com&gt;</span>
+---
+ drivers/xen/swiotlb-xen.c |   90 ++++++++++++++++++---------------------------
+ 1 file changed, 36 insertions(+), 54 deletions(-)
+
+
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/drivers/xen/swiotlb-xen.c b/drivers/xen/swiotlb-xen.c</span>
+<span class="p_header">index 7399782c0998..2154c70e47da 100644</span>
+<span class="p_header">--- a/drivers/xen/swiotlb-xen.c</span>
+<span class="p_header">+++ b/drivers/xen/swiotlb-xen.c</span>
+<span class="p_chunk">@@ -432,9 +432,9 @@</span> <span class="p_context"> EXPORT_SYMBOL_GPL(xen_swiotlb_map_page);</span>
+  * After this call, reads by the cpu to the buffer are guaranteed to see
+  * whatever the device wrote there.
+  */
+<span class="p_del">-static void xen_unmap_single(struct device *hwdev, dma_addr_t dev_addr,</span>
+<span class="p_del">-			     size_t size, enum dma_data_direction dir,</span>
+<span class="p_del">-				 struct dma_attrs *attrs)</span>
+<span class="p_add">+void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,</span>
+<span class="p_add">+			    size_t size, enum dma_data_direction dir,</span>
+<span class="p_add">+			    struct dma_attrs *attrs)</span>
+ {
+ 	phys_addr_t paddr = xen_bus_to_phys(dev_addr);
+ 
+<span class="p_chunk">@@ -448,23 +448,14 @@</span> <span class="p_context"> static void xen_unmap_single(struct device *hwdev, dma_addr_t dev_addr,</span>
+ 		return;
+ 	}
+ 
+<span class="p_del">-	if (dir != DMA_FROM_DEVICE)</span>
+<span class="p_del">-		return;</span>
+<span class="p_del">-</span>
+ 	/*
+ 	 * phys_to_virt doesn&#39;t work with hihgmem page but we could
+ 	 * call dma_mark_clean() with hihgmem page here. However, we
+ 	 * are fine since dma_mark_clean() is null on POWERPC. We can
+ 	 * make dma_mark_clean() take a physical address if necessary.
+ 	 */
+<span class="p_del">-	dma_mark_clean(phys_to_virt(paddr), size);</span>
+<span class="p_del">-}</span>
+<span class="p_del">-</span>
+<span class="p_del">-void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,</span>
+<span class="p_del">-			    size_t size, enum dma_data_direction dir,</span>
+<span class="p_del">-			    struct dma_attrs *attrs)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	xen_unmap_single(hwdev, dev_addr, size, dir, attrs);</span>
+<span class="p_add">+	if (dir == DMA_FROM_DEVICE)</span>
+<span class="p_add">+		dma_mark_clean(phys_to_virt(paddr), size);</span>
+ }
+ EXPORT_SYMBOL_GPL(xen_swiotlb_unmap_page);
+ 
+<span class="p_chunk">@@ -478,36 +469,22 @@</span> <span class="p_context"> EXPORT_SYMBOL_GPL(xen_swiotlb_unmap_page);</span>
+  * address back to the card, you must first perform a
+  * xen_swiotlb_dma_sync_for_device, and then the device again owns the buffer
+  */
+<span class="p_del">-static void</span>
+<span class="p_del">-xen_swiotlb_sync_single(struct device *hwdev, dma_addr_t dev_addr,</span>
+<span class="p_del">-			size_t size, enum dma_data_direction dir,</span>
+<span class="p_del">-			enum dma_sync_target target)</span>
+<span class="p_add">+void</span>
+<span class="p_add">+xen_swiotlb_sync_single_for_cpu(struct device *hwdev, dma_addr_t dev_addr,</span>
+<span class="p_add">+				size_t size, enum dma_data_direction dir)</span>
+ {
+ 	phys_addr_t paddr = xen_bus_to_phys(dev_addr);
+ 
+ 	BUG_ON(dir == DMA_NONE);
+ 
+<span class="p_del">-	if (target == SYNC_FOR_CPU)</span>
+<span class="p_del">-		xen_dma_sync_single_for_cpu(hwdev, dev_addr, size, dir);</span>
+<span class="p_add">+	xen_dma_sync_single_for_cpu(hwdev, dev_addr, size, dir);</span>
+ 
+ 	/* NOTE: We use dev_addr here, not paddr! */
+ 	if (is_xen_swiotlb_buffer(dev_addr))
+<span class="p_del">-		swiotlb_tbl_sync_single(hwdev, paddr, size, dir, target);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	if (target == SYNC_FOR_DEVICE)</span>
+<span class="p_del">-		xen_dma_sync_single_for_device(hwdev, dev_addr, size, dir);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	if (dir != DMA_FROM_DEVICE)</span>
+<span class="p_del">-		return;</span>
+<span class="p_add">+		swiotlb_tbl_sync_single(hwdev, paddr, size, dir, SYNC_FOR_CPU);</span>
+ 
+<span class="p_del">-	dma_mark_clean(phys_to_virt(paddr), size);</span>
+<span class="p_del">-}</span>
+<span class="p_del">-</span>
+<span class="p_del">-void</span>
+<span class="p_del">-xen_swiotlb_sync_single_for_cpu(struct device *hwdev, dma_addr_t dev_addr,</span>
+<span class="p_del">-				size_t size, enum dma_data_direction dir)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	xen_swiotlb_sync_single(hwdev, dev_addr, size, dir, SYNC_FOR_CPU);</span>
+<span class="p_add">+	if (dir == DMA_FROM_DEVICE)</span>
+<span class="p_add">+		dma_mark_clean(phys_to_virt(paddr), size);</span>
+ }
+ EXPORT_SYMBOL_GPL(xen_swiotlb_sync_single_for_cpu);
+ 
+<span class="p_chunk">@@ -515,7 +492,16 @@</span> <span class="p_context"> void</span>
+ xen_swiotlb_sync_single_for_device(struct device *hwdev, dma_addr_t dev_addr,
+ 				   size_t size, enum dma_data_direction dir)
+ {
+<span class="p_del">-	xen_swiotlb_sync_single(hwdev, dev_addr, size, dir, SYNC_FOR_DEVICE);</span>
+<span class="p_add">+	phys_addr_t paddr = xen_bus_to_phys(dev_addr);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	BUG_ON(dir == DMA_NONE);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* NOTE: We use dev_addr here, not paddr! */</span>
+<span class="p_add">+	if (is_xen_swiotlb_buffer(dev_addr))</span>
+<span class="p_add">+		swiotlb_tbl_sync_single(hwdev, paddr, size, dir,</span>
+<span class="p_add">+					SYNC_FOR_DEVICE);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	xen_dma_sync_single_for_device(hwdev, dev_addr, size, dir);</span>
+ }
+ EXPORT_SYMBOL_GPL(xen_swiotlb_sync_single_for_device);
+ 
+<span class="p_chunk">@@ -604,10 +590,9 @@</span> <span class="p_context"> xen_swiotlb_unmap_sg_attrs(struct device *hwdev, struct scatterlist *sgl,</span>
+ 	struct scatterlist *sg;
+ 	int i;
+ 
+<span class="p_del">-	BUG_ON(dir == DMA_NONE);</span>
+<span class="p_del">-</span>
+ 	for_each_sg(sgl, sg, nelems, i)
+<span class="p_del">-		xen_unmap_single(hwdev, sg-&gt;dma_address, sg_dma_len(sg), dir, attrs);</span>
+<span class="p_add">+		xen_swiotlb_unmap_page(hwdev, sg-&gt;dma_address, sg_dma_len(sg),</span>
+<span class="p_add">+				       dir, attrs);</span>
+ 
+ }
+ EXPORT_SYMBOL_GPL(xen_swiotlb_unmap_sg_attrs);
+<span class="p_chunk">@@ -619,32 +604,29 @@</span> <span class="p_context"> EXPORT_SYMBOL_GPL(xen_swiotlb_unmap_sg_attrs);</span>
+  * The same as swiotlb_sync_single_* but for a scatter-gather list, same rules
+  * and usage.
+  */
+<span class="p_del">-static void</span>
+<span class="p_del">-xen_swiotlb_sync_sg(struct device *hwdev, struct scatterlist *sgl,</span>
+<span class="p_del">-		    int nelems, enum dma_data_direction dir,</span>
+<span class="p_del">-		    enum dma_sync_target target)</span>
+<span class="p_add">+void</span>
+<span class="p_add">+xen_swiotlb_sync_sg_for_cpu(struct device *hwdev, struct scatterlist *sgl,</span>
+<span class="p_add">+			    int nelems, enum dma_data_direction dir)</span>
+ {
+ 	struct scatterlist *sg;
+ 	int i;
+ 
+ 	for_each_sg(sgl, sg, nelems, i)
+<span class="p_del">-		xen_swiotlb_sync_single(hwdev, sg-&gt;dma_address,</span>
+<span class="p_del">-					sg_dma_len(sg), dir, target);</span>
+<span class="p_del">-}</span>
+<span class="p_del">-</span>
+<span class="p_del">-void</span>
+<span class="p_del">-xen_swiotlb_sync_sg_for_cpu(struct device *hwdev, struct scatterlist *sg,</span>
+<span class="p_del">-			    int nelems, enum dma_data_direction dir)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	xen_swiotlb_sync_sg(hwdev, sg, nelems, dir, SYNC_FOR_CPU);</span>
+<span class="p_add">+		xen_swiotlb_sync_single_for_cpu(hwdev, sg-&gt;dma_address,</span>
+<span class="p_add">+						sg_dma_len(sg), dir);</span>
+ }
+ EXPORT_SYMBOL_GPL(xen_swiotlb_sync_sg_for_cpu);
+ 
+ void
+<span class="p_del">-xen_swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,</span>
+<span class="p_add">+xen_swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sgl,</span>
+ 			       int nelems, enum dma_data_direction dir)
+ {
+<span class="p_del">-	xen_swiotlb_sync_sg(hwdev, sg, nelems, dir, SYNC_FOR_DEVICE);</span>
+<span class="p_add">+	struct scatterlist *sg;</span>
+<span class="p_add">+	int i;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for_each_sg(sgl, sg, nelems, i)</span>
+<span class="p_add">+		xen_swiotlb_sync_single_for_device(hwdev, sg-&gt;dma_address,</span>
+<span class="p_add">+						   sg_dma_len(sg), dir);</span>
+ }
+ EXPORT_SYMBOL_GPL(xen_swiotlb_sync_sg_for_device);
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

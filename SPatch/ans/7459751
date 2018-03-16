@@ -1,0 +1,1686 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v11,02/15] mmu_notifier: keep track of active invalidation ranges v5 - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v11,02/15] mmu_notifier: keep track of active invalidation ranges v5</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=2554">Jerome Glisse</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Oct. 21, 2015, 8:59 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1445461210-2605-3-git-send-email-jglisse@redhat.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7459751/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7459751/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7459751/">/patch/7459751/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork1.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork1.web.kernel.org (Postfix) with ESMTP id E5E209F1C3
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 21 Oct 2015 20:09:34 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id C9311208FC
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 21 Oct 2015 20:09:31 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 60AC32089C
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 21 Oct 2015 20:09:28 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S932443AbbJUUJZ (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 21 Oct 2015 16:09:25 -0400
+Received: from mx1.redhat.com ([209.132.183.28]:58783 &quot;EHLO mx1.redhat.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1756083AbbJUUEf (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 21 Oct 2015 16:04:35 -0400
+Received: from int-mx13.intmail.prod.int.phx2.redhat.com
+	(int-mx13.intmail.prod.int.phx2.redhat.com [10.5.11.26])
+	by mx1.redhat.com (Postfix) with ESMTPS id 58BB464;
+	Wed, 21 Oct 2015 20:04:35 +0000 (UTC)
+Received: from xgl-cortex.ml2.eng.bos.redhat.com
+	(xgl-cortex.ml2.eng.bos.redhat.com [10.19.160.80])
+	by int-mx13.intmail.prod.int.phx2.redhat.com (8.14.4/8.14.4) with
+	ESMTP id t9LK4Oau020797; Wed, 21 Oct 2015 16:04:31 -0400
+From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= &lt;jglisse@redhat.com&gt;
+To: akpm@linux-foundation.org, &lt;linux-kernel@vger.kernel.org&gt;,
+	linux-mm@kvack.org
+Cc: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;, &lt;joro@8bytes.org&gt;,
+	Mel Gorman &lt;mgorman@suse.de&gt;, &quot;H. Peter Anvin&quot; &lt;hpa@zytor.com&gt;,
+	Peter Zijlstra &lt;peterz@infradead.org&gt;,
+	Andrea Arcangeli &lt;aarcange@redhat.com&gt;,
+	Johannes Weiner &lt;jweiner@redhat.com&gt;,
+	Larry Woodman &lt;lwoodman@redhat.com&gt;, Rik van Riel &lt;riel@redhat.com&gt;,
+	Dave Airlie &lt;airlied@redhat.com&gt;, Brendan Conoboy &lt;blc@redhat.com&gt;,
+	Joe Donohue &lt;jdonohue@redhat.com&gt;, Christophe Harle &lt;charle@nvidia.com&gt;,
+	Duncan Poole &lt;dpoole@nvidia.com&gt;, Sherry Cheung &lt;SCheung@nvidia.com&gt;,
+	Subhash Gutti &lt;sgutti@nvidia.com&gt;, John Hubbard &lt;jhubbard@nvidia.com&gt;,
+	Mark Hairgrove &lt;mhairgrove@nvidia.com&gt;,
+	Lucien Dunning &lt;ldunning@nvidia.com&gt;,
+	Cameron Buschardt &lt;cabuschardt@nvidia.com&gt;,
+	Arvind Gopalakrishnan &lt;arvindg@nvidia.com&gt;,
+	Haggai Eran &lt;haggaie@mellanox.com&gt;,
+	Shachar Raindel &lt;raindel@mellanox.com&gt;, Liran Liss &lt;liranl@mellanox.com&gt;,
+	Roland Dreier &lt;roland@purestorage.com&gt;, Ben Sander &lt;ben.sander@amd.com&gt;,
+	Greg Stoner &lt;Greg.Stoner@amd.com&gt;, John Bridgman &lt;John.Bridgman@amd.com&gt;,
+	Michael Mantor &lt;Michael.Mantor@amd.com&gt;,
+	Paul Blinzer &lt;Paul.Blinzer@amd.com&gt;,
+	Leonid Shamis &lt;Leonid.Shamis@amd.com&gt;,
+	Laurent Morichetti &lt;Laurent.Morichetti@amd.com&gt;,
+	Alexander Deucher &lt;Alexander.Deucher@amd.com&gt;,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= &lt;jglisse@redhat.com&gt;
+Subject: [PATCH v11 02/15] mmu_notifier: keep track of active invalidation
+	ranges v5
+Date: Wed, 21 Oct 2015 16:59:57 -0400
+Message-Id: &lt;1445461210-2605-3-git-send-email-jglisse@redhat.com&gt;
+In-Reply-To: &lt;1445461210-2605-1-git-send-email-jglisse@redhat.com&gt;
+References: &lt;1445461210-2605-1-git-send-email-jglisse@redhat.com&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.68 on 10.5.11.26
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=2554">Jerome Glisse</a> - Oct. 21, 2015, 8:59 p.m.</div>
+<pre class="content">
+The invalidate_range_start() and invalidate_range_end() can be
+considered as forming an &quot;atomic&quot; section for the cpu page table
+update point of view. Between this two function the cpu page
+table content is unreliable for the address range being
+invalidated.
+
+This patch use a structure define at all place doing range
+invalidation. This structure is added to a list for the duration
+of the update ie added with invalid_range_start() and removed
+with invalidate_range_end().
+
+Helpers allow querying if a range is valid and wait for it if
+necessary.
+
+For proper synchronization, user must block any new range
+invalidation from inside their invalidate_range_start() callback.
+Otherwise there is no guarantee that a new range invalidation will
+not be added after the call to the helper function to query for
+existing range.
+
+Changed since v1:
+  - Fix a possible deadlock in mmu_notifier_range_wait_active()
+
+Changed since v2:
+  - Add the range to invalid range list before calling -&gt;range_start().
+  - Del the range from invalid range list after calling -&gt;range_end().
+  - Remove useless list initialization.
+
+Changed since v3:
+  - Improved commit message.
+  - Added comment to explain how helpers function are suppose to be use.
+  - English syntax fixes.
+
+Changed since v4:
+  - Syntax fixes.
+  - Rename from range_*_valid to range_*active|inactive.
+<span class="signed-off-by">
+Signed-off-by: Jérôme Glisse &lt;jglisse@redhat.com&gt;</span>
+<span class="reviewed-by">Reviewed-by: Rik van Riel &lt;riel@redhat.com&gt;</span>
+<span class="reviewed-by">Reviewed-by: Haggai Eran &lt;haggaie@mellanox.com&gt;</span>
+---
+ drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c  |  13 ++--
+ drivers/gpu/drm/i915/i915_gem_userptr.c |  10 +--
+ drivers/gpu/drm/radeon/radeon_mn.c      |  16 ++--
+ drivers/infiniband/core/umem_odp.c      |  20 ++---
+ drivers/misc/sgi-gru/grutlbpurge.c      |  15 ++--
+ drivers/xen/gntdev.c                    |  15 ++--
+ fs/proc/task_mmu.c                      |  11 ++-
+ include/linux/mmu_notifier.h            |  55 +++++++-------
+ kernel/events/uprobes.c                 |  13 ++--
+ mm/huge_memory.c                        |  72 ++++++++----------
+ mm/hugetlb.c                            |  55 +++++++-------
+ mm/ksm.c                                |  28 +++----
+ mm/memory.c                             |  72 ++++++++++--------
+ mm/migrate.c                            |  36 ++++-----
+ mm/mmu_notifier.c                       | 128 +++++++++++++++++++++++++++++---
+ mm/mprotect.c                           |  18 +++--
+ mm/mremap.c                             |  14 ++--
+ virt/kvm/kvm_main.c                     |  14 ++--
+ 18 files changed, 350 insertions(+), 255 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c</span>
+<span class="p_header">index 7ca805c..7c9eb1b 100644</span>
+<span class="p_header">--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c</span>
+<span class="p_header">+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c</span>
+<span class="p_chunk">@@ -119,27 +119,24 @@</span> <span class="p_context"> static void amdgpu_mn_release(struct mmu_notifier *mn,</span>
+  * unmap them by move them into system domain again.
+  */
+ static void amdgpu_mn_invalidate_range_start(struct mmu_notifier *mn,
+<span class="p_del">-					     struct mm_struct *mm,</span>
+<span class="p_del">-					     unsigned long start,</span>
+<span class="p_del">-					     unsigned long end,</span>
+<span class="p_del">-					     enum mmu_event event)</span>
+<span class="p_add">+					struct mm_struct *mm,</span>
+<span class="p_add">+					const struct mmu_notifier_range *range)</span>
+ {
+ 	struct amdgpu_mn *rmn = container_of(mn, struct amdgpu_mn, mn);
+ 	struct interval_tree_node *it;
+<span class="p_del">-</span>
+ 	/* notification is exclusive, but interval is inclusive */
+<span class="p_del">-	end -= 1;</span>
+<span class="p_add">+	unsigned long end = range-&gt;end - 1;</span>
+ 
+ 	mutex_lock(&amp;rmn-&gt;lock);
+ 
+<span class="p_del">-	it = interval_tree_iter_first(&amp;rmn-&gt;objects, start, end);</span>
+<span class="p_add">+	it = interval_tree_iter_first(&amp;rmn-&gt;objects, range-&gt;start, end);</span>
+ 	while (it) {
+ 		struct amdgpu_mn_node *node;
+ 		struct amdgpu_bo *bo;
+ 		long r;
+ 
+ 		node = container_of(it, struct amdgpu_mn_node, it);
+<span class="p_del">-		it = interval_tree_iter_next(it, start, end);</span>
+<span class="p_add">+		it = interval_tree_iter_next(it, range-&gt;start, end);</span>
+ 
+ 		list_for_each_entry(bo, &amp;node-&gt;bos, mn_list) {
+ 
+<span class="p_header">diff --git a/drivers/gpu/drm/i915/i915_gem_userptr.c b/drivers/gpu/drm/i915/i915_gem_userptr.c</span>
+<span class="p_header">index adc5480..40ae9c1 100644</span>
+<span class="p_header">--- a/drivers/gpu/drm/i915/i915_gem_userptr.c</span>
+<span class="p_header">+++ b/drivers/gpu/drm/i915/i915_gem_userptr.c</span>
+<span class="p_chunk">@@ -130,17 +130,17 @@</span> <span class="p_context"> restart:</span>
+ }
+ 
+ static void i915_gem_userptr_mn_invalidate_range_start(struct mmu_notifier *_mn,
+<span class="p_del">-						       struct mm_struct *mm,</span>
+<span class="p_del">-						       unsigned long start,</span>
+<span class="p_del">-						       unsigned long end,</span>
+<span class="p_del">-						       enum mmu_event event)</span>
+<span class="p_add">+					struct mm_struct *mm,</span>
+<span class="p_add">+					const struct mmu_notifier_range *range)</span>
+ {
+ 	struct i915_mmu_notifier *mn = container_of(_mn, struct i915_mmu_notifier, mn);
+ 	struct interval_tree_node *it = NULL;
+<span class="p_add">+	unsigned long start = range-&gt;start;</span>
+ 	unsigned long next = start;
+<span class="p_add">+	/* interval ranges are inclusive, but invalidate range is exclusive */</span>
+<span class="p_add">+	unsigned long end = range-&gt;end - 1;</span>
+ 	unsigned long serial = 0;
+ 
+<span class="p_del">-	end--; /* interval ranges are inclusive, but invalidate range is exclusive */</span>
+ 	while (next &lt; end) {
+ 		struct drm_i915_gem_object *obj = NULL;
+ 
+<span class="p_header">diff --git a/drivers/gpu/drm/radeon/radeon_mn.c b/drivers/gpu/drm/radeon/radeon_mn.c</span>
+<span class="p_header">index 3a9615b..5276f01 100644</span>
+<span class="p_header">--- a/drivers/gpu/drm/radeon/radeon_mn.c</span>
+<span class="p_header">+++ b/drivers/gpu/drm/radeon/radeon_mn.c</span>
+<span class="p_chunk">@@ -112,34 +112,30 @@</span> <span class="p_context"> static void radeon_mn_release(struct mmu_notifier *mn,</span>
+  *
+  * @mn: our notifier
+  * @mn: the mm this callback is about
+<span class="p_del">- * @start: start of updated range</span>
+<span class="p_del">- * @end: end of updated range</span>
+<span class="p_add">+ * @range: Address range information.</span>
+  *
+  * We block for all BOs between start and end to be idle and
+  * unmap them by move them into system domain again.
+  */
+ static void radeon_mn_invalidate_range_start(struct mmu_notifier *mn,
+<span class="p_del">-					     struct mm_struct *mm,</span>
+<span class="p_del">-					     unsigned long start,</span>
+<span class="p_del">-					     unsigned long end,</span>
+<span class="p_del">-					     enum mmu_event event)</span>
+<span class="p_add">+					struct mm_struct *mm,</span>
+<span class="p_add">+					const struct mmu_notifier_range *range)</span>
+ {
+ 	struct radeon_mn *rmn = container_of(mn, struct radeon_mn, mn);
+ 	struct interval_tree_node *it;
+<span class="p_del">-</span>
+ 	/* notification is exclusive, but interval is inclusive */
+<span class="p_del">-	end -= 1;</span>
+<span class="p_add">+	unsigned long end = range-&gt;end - 1;</span>
+ 
+ 	mutex_lock(&amp;rmn-&gt;lock);
+ 
+<span class="p_del">-	it = interval_tree_iter_first(&amp;rmn-&gt;objects, start, end);</span>
+<span class="p_add">+	it = interval_tree_iter_first(&amp;rmn-&gt;objects, range-&gt;start, end);</span>
+ 	while (it) {
+ 		struct radeon_mn_node *node;
+ 		struct radeon_bo *bo;
+ 		long r;
+ 
+ 		node = container_of(it, struct radeon_mn_node, it);
+<span class="p_del">-		it = interval_tree_iter_next(it, start, end);</span>
+<span class="p_add">+		it = interval_tree_iter_next(it, range-&gt;start, end);</span>
+ 
+ 		list_for_each_entry(bo, &amp;node-&gt;bos, mn_list) {
+ 
+<span class="p_header">diff --git a/drivers/infiniband/core/umem_odp.c b/drivers/infiniband/core/umem_odp.c</span>
+<span class="p_header">index 6ed69fa..58d9a00 100644</span>
+<span class="p_header">--- a/drivers/infiniband/core/umem_odp.c</span>
+<span class="p_header">+++ b/drivers/infiniband/core/umem_odp.c</span>
+<span class="p_chunk">@@ -191,10 +191,8 @@</span> <span class="p_context"> static int invalidate_range_start_trampoline(struct ib_umem *item, u64 start,</span>
+ }
+ 
+ static void ib_umem_notifier_invalidate_range_start(struct mmu_notifier *mn,
+<span class="p_del">-						    struct mm_struct *mm,</span>
+<span class="p_del">-						    unsigned long start,</span>
+<span class="p_del">-						    unsigned long end,</span>
+<span class="p_del">-						    enum mmu_event event)</span>
+<span class="p_add">+					struct mm_struct *mm,</span>
+<span class="p_add">+					const struct mmu_notifier_range *range)</span>
+ {
+ 	struct ib_ucontext *context = container_of(mn, struct ib_ucontext, mn);
+ 
+<span class="p_chunk">@@ -203,8 +201,8 @@</span> <span class="p_context"> static void ib_umem_notifier_invalidate_range_start(struct mmu_notifier *mn,</span>
+ 
+ 	ib_ucontext_notifier_start_account(context);
+ 	down_read(&amp;context-&gt;umem_rwsem);
+<span class="p_del">-	rbt_ib_umem_for_each_in_range(&amp;context-&gt;umem_tree, start,</span>
+<span class="p_del">-				      end,</span>
+<span class="p_add">+	rbt_ib_umem_for_each_in_range(&amp;context-&gt;umem_tree, range-&gt;start,</span>
+<span class="p_add">+				      range-&gt;end,</span>
+ 				      invalidate_range_start_trampoline, NULL);
+ 	up_read(&amp;context-&gt;umem_rwsem);
+ }
+<span class="p_chunk">@@ -217,10 +215,8 @@</span> <span class="p_context"> static int invalidate_range_end_trampoline(struct ib_umem *item, u64 start,</span>
+ }
+ 
+ static void ib_umem_notifier_invalidate_range_end(struct mmu_notifier *mn,
+<span class="p_del">-						  struct mm_struct *mm,</span>
+<span class="p_del">-						  unsigned long start,</span>
+<span class="p_del">-						  unsigned long end,</span>
+<span class="p_del">-						  enum mmu_event event)</span>
+<span class="p_add">+					struct mm_struct *mm,</span>
+<span class="p_add">+					const struct mmu_notifier_range *range)</span>
+ {
+ 	struct ib_ucontext *context = container_of(mn, struct ib_ucontext, mn);
+ 
+<span class="p_chunk">@@ -228,8 +224,8 @@</span> <span class="p_context"> static void ib_umem_notifier_invalidate_range_end(struct mmu_notifier *mn,</span>
+ 		return;
+ 
+ 	down_read(&amp;context-&gt;umem_rwsem);
+<span class="p_del">-	rbt_ib_umem_for_each_in_range(&amp;context-&gt;umem_tree, start,</span>
+<span class="p_del">-				      end,</span>
+<span class="p_add">+	rbt_ib_umem_for_each_in_range(&amp;context-&gt;umem_tree, range-&gt;start,</span>
+<span class="p_add">+				      range-&gt;end,</span>
+ 				      invalidate_range_end_trampoline, NULL);
+ 	up_read(&amp;context-&gt;umem_rwsem);
+ 	ib_ucontext_notifier_end_account(context);
+<span class="p_header">diff --git a/drivers/misc/sgi-gru/grutlbpurge.c b/drivers/misc/sgi-gru/grutlbpurge.c</span>
+<span class="p_header">index e67fed1..44b41b7 100644</span>
+<span class="p_header">--- a/drivers/misc/sgi-gru/grutlbpurge.c</span>
+<span class="p_header">+++ b/drivers/misc/sgi-gru/grutlbpurge.c</span>
+<span class="p_chunk">@@ -221,8 +221,7 @@</span> <span class="p_context"> void gru_flush_all_tlb(struct gru_state *gru)</span>
+  */
+ static void gru_invalidate_range_start(struct mmu_notifier *mn,
+ 				       struct mm_struct *mm,
+<span class="p_del">-				       unsigned long start, unsigned long end,</span>
+<span class="p_del">-				       enum mmu_event event)</span>
+<span class="p_add">+				       const struct mmu_notifier_range *range)</span>
+ {
+ 	struct gru_mm_struct *gms = container_of(mn, struct gru_mm_struct,
+ 						 ms_notifier);
+<span class="p_chunk">@@ -230,14 +229,13 @@</span> <span class="p_context"> static void gru_invalidate_range_start(struct mmu_notifier *mn,</span>
+ 	STAT(mmu_invalidate_range);
+ 	atomic_inc(&amp;gms-&gt;ms_range_active);
+ 	gru_dbg(grudev, &quot;gms %p, start 0x%lx, end 0x%lx, act %d\n&quot;, gms,
+<span class="p_del">-		start, end, atomic_read(&amp;gms-&gt;ms_range_active));</span>
+<span class="p_del">-	gru_flush_tlb_range(gms, start, end - start);</span>
+<span class="p_add">+		range-&gt;start, range-&gt;end, atomic_read(&amp;gms-&gt;ms_range_active));</span>
+<span class="p_add">+	gru_flush_tlb_range(gms, range-&gt;start, range-&gt;end - range-&gt;start);</span>
+ }
+ 
+ static void gru_invalidate_range_end(struct mmu_notifier *mn,
+<span class="p_del">-				     struct mm_struct *mm, unsigned long start,</span>
+<span class="p_del">-				     unsigned long end,</span>
+<span class="p_del">-				     enum mmu_event event)</span>
+<span class="p_add">+				     struct mm_struct *mm,</span>
+<span class="p_add">+				     const struct mmu_notifier_range *range)</span>
+ {
+ 	struct gru_mm_struct *gms = container_of(mn, struct gru_mm_struct,
+ 						 ms_notifier);
+<span class="p_chunk">@@ -246,7 +244,8 @@</span> <span class="p_context"> static void gru_invalidate_range_end(struct mmu_notifier *mn,</span>
+ 	(void)atomic_dec_and_test(&amp;gms-&gt;ms_range_active);
+ 
+ 	wake_up_all(&amp;gms-&gt;ms_wait_queue);
+<span class="p_del">-	gru_dbg(grudev, &quot;gms %p, start 0x%lx, end 0x%lx\n&quot;, gms, start, end);</span>
+<span class="p_add">+	gru_dbg(grudev, &quot;gms %p, start 0x%lx, end 0x%lx\n&quot;, gms,</span>
+<span class="p_add">+		range-&gt;start, range-&gt;end);</span>
+ }
+ 
+ static void gru_invalidate_page(struct mmu_notifier *mn, struct mm_struct *mm,
+<span class="p_header">diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c</span>
+<span class="p_header">index 60491fc..71c526c 100644</span>
+<span class="p_header">--- a/drivers/xen/gntdev.c</span>
+<span class="p_header">+++ b/drivers/xen/gntdev.c</span>
+<span class="p_chunk">@@ -467,19 +467,17 @@</span> <span class="p_context"> static void unmap_if_in_range(struct grant_map *map,</span>
+ 
+ static void mn_invl_range_start(struct mmu_notifier *mn,
+ 				struct mm_struct *mm,
+<span class="p_del">-				unsigned long start,</span>
+<span class="p_del">-				unsigned long end,</span>
+<span class="p_del">-				enum mmu_event event)</span>
+<span class="p_add">+				const struct mmu_notifier_range *range)</span>
+ {
+ 	struct gntdev_priv *priv = container_of(mn, struct gntdev_priv, mn);
+ 	struct grant_map *map;
+ 
+ 	mutex_lock(&amp;priv-&gt;lock);
+ 	list_for_each_entry(map, &amp;priv-&gt;maps, next) {
+<span class="p_del">-		unmap_if_in_range(map, start, end);</span>
+<span class="p_add">+		unmap_if_in_range(map, range-&gt;start, range-&gt;end);</span>
+ 	}
+ 	list_for_each_entry(map, &amp;priv-&gt;freeable_maps, next) {
+<span class="p_del">-		unmap_if_in_range(map, start, end);</span>
+<span class="p_add">+		unmap_if_in_range(map, range-&gt;start, range-&gt;end);</span>
+ 	}
+ 	mutex_unlock(&amp;priv-&gt;lock);
+ }
+<span class="p_chunk">@@ -489,7 +487,12 @@</span> <span class="p_context"> static void mn_invl_page(struct mmu_notifier *mn,</span>
+ 			 unsigned long address,
+ 			 enum mmu_event event)
+ {
+<span class="p_del">-	mn_invl_range_start(mn, mm, address, address + PAGE_SIZE, event);</span>
+<span class="p_add">+	struct mmu_notifier_range range;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	range.start = address;</span>
+<span class="p_add">+	range.end = address + PAGE_SIZE;</span>
+<span class="p_add">+	range.event = event;</span>
+<span class="p_add">+	mn_invl_range_start(mn, mm, &amp;range);</span>
+ }
+ 
+ static void mn_release(struct mmu_notifier *mn,
+<span class="p_header">diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c</span>
+<span class="p_header">index a3b15d4..65ef71f 100644</span>
+<span class="p_header">--- a/fs/proc/task_mmu.c</span>
+<span class="p_header">+++ b/fs/proc/task_mmu.c</span>
+<span class="p_chunk">@@ -903,6 +903,11 @@</span> <span class="p_context"> static ssize_t clear_refs_write(struct file *file, const char __user *buf,</span>
+ 			.mm = mm,
+ 			.private = &amp;cp,
+ 		};
+<span class="p_add">+		struct mmu_notifier_range range = {</span>
+<span class="p_add">+			.start = 0,</span>
+<span class="p_add">+			.end = ~0UL,</span>
+<span class="p_add">+			.event = MMU_CLEAR_SOFT_DIRTY,</span>
+<span class="p_add">+		};</span>
+ 
+ 		if (type == CLEAR_REFS_MM_HIWATER_RSS) {
+ 			/*
+<span class="p_chunk">@@ -929,13 +934,11 @@</span> <span class="p_context"> static ssize_t clear_refs_write(struct file *file, const char __user *buf,</span>
+ 				downgrade_write(&amp;mm-&gt;mmap_sem);
+ 				break;
+ 			}
+<span class="p_del">-			mmu_notifier_invalidate_range_start(mm, 0, -1,</span>
+<span class="p_del">-							MMU_CLEAR_SOFT_DIRTY);</span>
+<span class="p_add">+			mmu_notifier_invalidate_range_start(mm, &amp;range);</span>
+ 		}
+ 		walk_page_range(0, ~0UL, &amp;clear_refs_walk);
+ 		if (type == CLEAR_REFS_SOFT_DIRTY)
+<span class="p_del">-			mmu_notifier_invalidate_range_end(mm, 0, -1,</span>
+<span class="p_del">-							MMU_CLEAR_SOFT_DIRTY);</span>
+<span class="p_add">+			mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+ 		flush_tlb_mm(mm);
+ 		up_read(&amp;mm-&gt;mmap_sem);
+ out_mm:
+<span class="p_header">diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h</span>
+<span class="p_header">index e92c52e..4ac1930 100644</span>
+<span class="p_header">--- a/include/linux/mmu_notifier.h</span>
+<span class="p_header">+++ b/include/linux/mmu_notifier.h</span>
+<span class="p_chunk">@@ -70,6 +70,13 @@</span> <span class="p_context"> enum mmu_event {</span>
+ 	MMU_KSM_WRITE_PROTECT,
+ };
+ 
+<span class="p_add">+struct mmu_notifier_range {</span>
+<span class="p_add">+	struct list_head list;</span>
+<span class="p_add">+	unsigned long start;</span>
+<span class="p_add">+	unsigned long end;</span>
+<span class="p_add">+	enum mmu_event event;</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+ #ifdef CONFIG_MMU_NOTIFIER
+ 
+ /*
+<span class="p_chunk">@@ -83,6 +90,12 @@</span> <span class="p_context"> struct mmu_notifier_mm {</span>
+ 	struct hlist_head list;
+ 	/* to serialize the list modifications and hlist_unhashed */
+ 	spinlock_t lock;
+<span class="p_add">+	/* List of all active range invalidations. */</span>
+<span class="p_add">+	struct list_head ranges;</span>
+<span class="p_add">+	/* Number of active range invalidations. */</span>
+<span class="p_add">+	int nranges;</span>
+<span class="p_add">+	/* For threads waiting on range invalidations. */</span>
+<span class="p_add">+	wait_queue_head_t wait_queue;</span>
+ };
+ 
+ struct mmu_notifier_ops {
+<span class="p_chunk">@@ -213,14 +226,10 @@</span> <span class="p_context"> struct mmu_notifier_ops {</span>
+ 	 */
+ 	void (*invalidate_range_start)(struct mmu_notifier *mn,
+ 				       struct mm_struct *mm,
+<span class="p_del">-				       unsigned long start,</span>
+<span class="p_del">-				       unsigned long end,</span>
+<span class="p_del">-				       enum mmu_event event);</span>
+<span class="p_add">+				       const struct mmu_notifier_range *range);</span>
+ 	void (*invalidate_range_end)(struct mmu_notifier *mn,
+ 				     struct mm_struct *mm,
+<span class="p_del">-				     unsigned long start,</span>
+<span class="p_del">-				     unsigned long end,</span>
+<span class="p_del">-				     enum mmu_event event);</span>
+<span class="p_add">+				     const struct mmu_notifier_range *range);</span>
+ 
+ 	/*
+ 	 * invalidate_range() is either called between
+<span class="p_chunk">@@ -293,15 +302,17 @@</span> <span class="p_context"> extern void __mmu_notifier_invalidate_page(struct mm_struct *mm,</span>
+ 					  unsigned long address,
+ 					  enum mmu_event event);
+ extern void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+<span class="p_del">-						  unsigned long start,</span>
+<span class="p_del">-						  unsigned long end,</span>
+<span class="p_del">-						  enum mmu_event event);</span>
+<span class="p_add">+					struct mmu_notifier_range *range);</span>
+ extern void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
+<span class="p_del">-						unsigned long start,</span>
+<span class="p_del">-						unsigned long end,</span>
+<span class="p_del">-						enum mmu_event event);</span>
+<span class="p_add">+					struct mmu_notifier_range *range);</span>
+ extern void __mmu_notifier_invalidate_range(struct mm_struct *mm,
+ 				  unsigned long start, unsigned long end);
+<span class="p_add">+extern bool mmu_notifier_range_inactive(struct mm_struct *mm,</span>
+<span class="p_add">+					unsigned long start,</span>
+<span class="p_add">+					unsigned long end);</span>
+<span class="p_add">+extern void mmu_notifier_range_wait_active(struct mm_struct *mm,</span>
+<span class="p_add">+					  unsigned long start,</span>
+<span class="p_add">+					  unsigned long end);</span>
+ 
+ static inline void mmu_notifier_release(struct mm_struct *mm)
+ {
+<span class="p_chunk">@@ -353,21 +364,17 @@</span> <span class="p_context"> static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,</span>
+ }
+ 
+ static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+<span class="p_del">-						       unsigned long start,</span>
+<span class="p_del">-						       unsigned long end,</span>
+<span class="p_del">-						       enum mmu_event event)</span>
+<span class="p_add">+					struct mmu_notifier_range *range)</span>
+ {
+ 	if (mm_has_notifiers(mm))
+<span class="p_del">-		__mmu_notifier_invalidate_range_start(mm, start, end, event);</span>
+<span class="p_add">+		__mmu_notifier_invalidate_range_start(mm, range);</span>
+ }
+ 
+ static inline void mmu_notifier_invalidate_range_end(struct mm_struct *mm,
+<span class="p_del">-						     unsigned long start,</span>
+<span class="p_del">-						     unsigned long end,</span>
+<span class="p_del">-						     enum mmu_event event)</span>
+<span class="p_add">+					struct mmu_notifier_range *range)</span>
+ {
+ 	if (mm_has_notifiers(mm))
+<span class="p_del">-		__mmu_notifier_invalidate_range_end(mm, start, end, event);</span>
+<span class="p_add">+		__mmu_notifier_invalidate_range_end(mm, range);</span>
+ }
+ 
+ static inline void mmu_notifier_invalidate_range(struct mm_struct *mm,
+<span class="p_chunk">@@ -531,16 +538,12 @@</span> <span class="p_context"> static inline void mmu_notifier_invalidate_page(struct mm_struct *mm,</span>
+ }
+ 
+ static inline void mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+<span class="p_del">-						       unsigned long start,</span>
+<span class="p_del">-						       unsigned long end,</span>
+<span class="p_del">-						       enum mmu_event event)</span>
+<span class="p_add">+					struct mmu_notifier_range *range)</span>
+ {
+ }
+ 
+ static inline void mmu_notifier_invalidate_range_end(struct mm_struct *mm,
+<span class="p_del">-						     unsigned long start,</span>
+<span class="p_del">-						     unsigned long end,</span>
+<span class="p_del">-						     enum mmu_event event)</span>
+<span class="p_add">+					struct mmu_notifier_range *range)</span>
+ {
+ }
+ 
+<span class="p_header">diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c</span>
+<span class="p_header">index eafa177..60d3d3c 100644</span>
+<span class="p_header">--- a/kernel/events/uprobes.c</span>
+<span class="p_header">+++ b/kernel/events/uprobes.c</span>
+<span class="p_chunk">@@ -156,9 +156,7 @@</span> <span class="p_context"> static int __replace_page(struct vm_area_struct *vma, unsigned long addr,</span>
+ 	spinlock_t *ptl;
+ 	pte_t *ptep;
+ 	int err;
+<span class="p_del">-	/* For mmu_notifiers */</span>
+<span class="p_del">-	const unsigned long mmun_start = addr;</span>
+<span class="p_del">-	const unsigned long mmun_end   = addr + PAGE_SIZE;</span>
+<span class="p_add">+	struct mmu_notifier_range range;</span>
+ 	struct mem_cgroup *memcg;
+ 
+ 	err = mem_cgroup_try_charge(kpage, vma-&gt;vm_mm, GFP_KERNEL, &amp;memcg);
+<span class="p_chunk">@@ -168,8 +166,10 @@</span> <span class="p_context"> static int __replace_page(struct vm_area_struct *vma, unsigned long addr,</span>
+ 	/* For try_to_free_swap() and munlock_vma_page() below */
+ 	lock_page(page);
+ 
+<span class="p_del">-	mmu_notifier_invalidate_range_start(mm, mmun_start,</span>
+<span class="p_del">-					    mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+	range.start = addr;</span>
+<span class="p_add">+	range.end = addr + PAGE_SIZE;</span>
+<span class="p_add">+	range.event = MMU_MIGRATE;</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_start(mm, &amp;range);</span>
+ 	err = -EAGAIN;
+ 	ptep = page_check_address(page, mm, addr, &amp;ptl, 0);
+ 	if (!ptep)
+<span class="p_chunk">@@ -203,8 +203,7 @@</span> <span class="p_context"> static int __replace_page(struct vm_area_struct *vma, unsigned long addr,</span>
+ 	err = 0;
+  unlock:
+ 	mem_cgroup_cancel_charge(kpage, memcg);
+<span class="p_del">-	mmu_notifier_invalidate_range_end(mm, mmun_start,</span>
+<span class="p_del">-					  mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+ 	unlock_page(page);
+ 	return err;
+ }
+<span class="p_header">diff --git a/mm/huge_memory.c b/mm/huge_memory.c</span>
+<span class="p_header">index 2e1e746..e73c84c 100644</span>
+<span class="p_header">--- a/mm/huge_memory.c</span>
+<span class="p_header">+++ b/mm/huge_memory.c</span>
+<span class="p_chunk">@@ -1052,8 +1052,7 @@</span> <span class="p_context"> static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,</span>
+ 	pmd_t _pmd;
+ 	int ret = 0, i;
+ 	struct page **pages;
+<span class="p_del">-	unsigned long mmun_start;	/* For mmu_notifiers */</span>
+<span class="p_del">-	unsigned long mmun_end;		/* For mmu_notifiers */</span>
+<span class="p_add">+	struct mmu_notifier_range range;</span>
+ 
+ 	pages = kmalloc(sizeof(struct page *) * HPAGE_PMD_NR,
+ 			GFP_KERNEL);
+<span class="p_chunk">@@ -1091,10 +1090,10 @@</span> <span class="p_context"> static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,</span>
+ 		cond_resched();
+ 	}
+ 
+<span class="p_del">-	mmun_start = haddr;</span>
+<span class="p_del">-	mmun_end   = haddr + HPAGE_PMD_SIZE;</span>
+<span class="p_del">-	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end,</span>
+<span class="p_del">-					    MMU_MIGRATE);</span>
+<span class="p_add">+	range.start = haddr;</span>
+<span class="p_add">+	range.end = haddr + HPAGE_PMD_SIZE;</span>
+<span class="p_add">+	range.event = MMU_MIGRATE;</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_start(mm, &amp;range);</span>
+ 
+ 	ptl = pmd_lock(mm, pmd);
+ 	if (unlikely(!pmd_same(*pmd, orig_pmd)))
+<span class="p_chunk">@@ -1128,8 +1127,7 @@</span> <span class="p_context"> static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,</span>
+ 	page_remove_rmap(page);
+ 	spin_unlock(ptl);
+ 
+<span class="p_del">-	mmu_notifier_invalidate_range_end(mm, mmun_start,</span>
+<span class="p_del">-					  mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+ 
+ 	ret |= VM_FAULT_WRITE;
+ 	put_page(page);
+<span class="p_chunk">@@ -1139,8 +1137,7 @@</span> <span class="p_context"> out:</span>
+ 
+ out_free_pages:
+ 	spin_unlock(ptl);
+<span class="p_del">-	mmu_notifier_invalidate_range_end(mm, mmun_start,</span>
+<span class="p_del">-					  mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+ 	for (i = 0; i &lt; HPAGE_PMD_NR; i++) {
+ 		memcg = (void *)page_private(pages[i]);
+ 		set_page_private(pages[i], 0);
+<span class="p_chunk">@@ -1159,9 +1156,8 @@</span> <span class="p_context"> int do_huge_pmd_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,</span>
+ 	struct page *page = NULL, *new_page;
+ 	struct mem_cgroup *memcg;
+ 	unsigned long haddr;
+<span class="p_del">-	unsigned long mmun_start;	/* For mmu_notifiers */</span>
+<span class="p_del">-	unsigned long mmun_end;		/* For mmu_notifiers */</span>
+ 	gfp_t huge_gfp;			/* for allocation and charge */
+<span class="p_add">+	struct mmu_notifier_range range;</span>
+ 
+ 	ptl = pmd_lockptr(mm, pmd);
+ 	VM_BUG_ON_VMA(!vma-&gt;anon_vma, vma);
+<span class="p_chunk">@@ -1230,10 +1226,10 @@</span> <span class="p_context"> alloc:</span>
+ 		copy_user_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
+ 	__SetPageUptodate(new_page);
+ 
+<span class="p_del">-	mmun_start = haddr;</span>
+<span class="p_del">-	mmun_end   = haddr + HPAGE_PMD_SIZE;</span>
+<span class="p_del">-	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end,</span>
+<span class="p_del">-					    MMU_MIGRATE);</span>
+<span class="p_add">+	range.start = haddr;</span>
+<span class="p_add">+	range.end = haddr + HPAGE_PMD_SIZE;</span>
+<span class="p_add">+	range.event = MMU_MIGRATE;</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_start(mm, &amp;range);</span>
+ 
+ 	spin_lock(ptl);
+ 	if (page)
+<span class="p_chunk">@@ -1265,8 +1261,7 @@</span> <span class="p_context"> alloc:</span>
+ 	}
+ 	spin_unlock(ptl);
+ out_mn:
+<span class="p_del">-	mmu_notifier_invalidate_range_end(mm, mmun_start,</span>
+<span class="p_del">-					  mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+ out:
+ 	return ret;
+ out_unlock:
+<span class="p_chunk">@@ -1681,12 +1676,12 @@</span> <span class="p_context"> static int __split_huge_page_splitting(struct page *page,</span>
+ 	spinlock_t *ptl;
+ 	pmd_t *pmd;
+ 	int ret = 0;
+<span class="p_del">-	/* For mmu_notifiers */</span>
+<span class="p_del">-	const unsigned long mmun_start = address;</span>
+<span class="p_del">-	const unsigned long mmun_end   = address + HPAGE_PMD_SIZE;</span>
+<span class="p_add">+	struct mmu_notifier_range range;</span>
+ 
+<span class="p_del">-	mmu_notifier_invalidate_range_start(mm, mmun_start,</span>
+<span class="p_del">-					    mmun_end, MMU_HUGE_PAGE_SPLIT);</span>
+<span class="p_add">+	range.start = address;</span>
+<span class="p_add">+	range.end = address + HPAGE_PMD_SIZE;</span>
+<span class="p_add">+	range.event = MMU_HUGE_PAGE_SPLIT;</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_start(mm, &amp;range);</span>
+ 	pmd = page_check_address_pmd(page, mm, address,
+ 			PAGE_CHECK_ADDRESS_PMD_NOTSPLITTING_FLAG, &amp;ptl);
+ 	if (pmd) {
+<span class="p_chunk">@@ -1702,8 +1697,7 @@</span> <span class="p_context"> static int __split_huge_page_splitting(struct page *page,</span>
+ 		ret = 1;
+ 		spin_unlock(ptl);
+ 	}
+<span class="p_del">-	mmu_notifier_invalidate_range_end(mm, mmun_start,</span>
+<span class="p_del">-					  mmun_end, MMU_HUGE_PAGE_SPLIT);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+ 
+ 	return ret;
+ }
+<span class="p_chunk">@@ -2525,8 +2519,7 @@</span> <span class="p_context"> static void collapse_huge_page(struct mm_struct *mm,</span>
+ 	int isolated;
+ 	unsigned long hstart, hend;
+ 	struct mem_cgroup *memcg;
+<span class="p_del">-	unsigned long mmun_start;	/* For mmu_notifiers */</span>
+<span class="p_del">-	unsigned long mmun_end;		/* For mmu_notifiers */</span>
+<span class="p_add">+	struct mmu_notifier_range range;</span>
+ 	gfp_t gfp;
+ 
+ 	VM_BUG_ON(address &amp; ~HPAGE_PMD_MASK);
+<span class="p_chunk">@@ -2571,10 +2564,10 @@</span> <span class="p_context"> static void collapse_huge_page(struct mm_struct *mm,</span>
+ 	pte = pte_offset_map(pmd, address);
+ 	pte_ptl = pte_lockptr(mm, pmd);
+ 
+<span class="p_del">-	mmun_start = address;</span>
+<span class="p_del">-	mmun_end   = address + HPAGE_PMD_SIZE;</span>
+<span class="p_del">-	mmu_notifier_invalidate_range_start(mm, mmun_start,</span>
+<span class="p_del">-					    mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+	range.start = address;</span>
+<span class="p_add">+	range.end = address + HPAGE_PMD_SIZE;</span>
+<span class="p_add">+	range.event = MMU_MIGRATE;</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_start(mm, &amp;range);</span>
+ 	pmd_ptl = pmd_lock(mm, pmd); /* probably unnecessary */
+ 	/*
+ 	 * After this gup_fast can&#39;t run anymore. This also removes
+<span class="p_chunk">@@ -2584,8 +2577,7 @@</span> <span class="p_context"> static void collapse_huge_page(struct mm_struct *mm,</span>
+ 	 */
+ 	_pmd = pmdp_collapse_flush(vma, address, pmd);
+ 	spin_unlock(pmd_ptl);
+<span class="p_del">-	mmu_notifier_invalidate_range_end(mm, mmun_start,</span>
+<span class="p_del">-					  mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+ 
+ 	spin_lock(pte_ptl);
+ 	isolated = __collapse_huge_page_isolate(vma, address, pte);
+<span class="p_chunk">@@ -2976,16 +2968,15 @@</span> <span class="p_context"> void __split_huge_page_pmd(struct vm_area_struct *vma, unsigned long address,</span>
+ 	struct page *page = NULL;
+ 	struct mm_struct *mm = vma-&gt;vm_mm;
+ 	unsigned long haddr = address &amp; HPAGE_PMD_MASK;
+<span class="p_del">-	unsigned long mmun_start;	/* For mmu_notifiers */</span>
+<span class="p_del">-	unsigned long mmun_end;		/* For mmu_notifiers */</span>
+<span class="p_add">+	struct mmu_notifier_range range;</span>
+ 
+ 	BUG_ON(vma-&gt;vm_start &gt; haddr || vma-&gt;vm_end &lt; haddr + HPAGE_PMD_SIZE);
+ 
+<span class="p_del">-	mmun_start = haddr;</span>
+<span class="p_del">-	mmun_end   = haddr + HPAGE_PMD_SIZE;</span>
+<span class="p_add">+	range.start = haddr;</span>
+<span class="p_add">+	range.end = haddr + HPAGE_PMD_SIZE;</span>
+<span class="p_add">+	range.event = MMU_MIGRATE;</span>
+ again:
+<span class="p_del">-	mmu_notifier_invalidate_range_start(mm, mmun_start,</span>
+<span class="p_del">-					    mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_start(mm, &amp;range);</span>
+ 	ptl = pmd_lock(mm, pmd);
+ 	if (unlikely(!pmd_trans_huge(*pmd)))
+ 		goto unlock;
+<span class="p_chunk">@@ -3002,8 +2993,7 @@</span> <span class="p_context"> again:</span>
+ 	}
+  unlock:
+ 	spin_unlock(ptl);
+<span class="p_del">-	mmu_notifier_invalidate_range_end(mm, mmun_start,</span>
+<span class="p_del">-					  mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+ 
+ 	if (!page)
+ 		return;
+<span class="p_header">diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="p_header">index 62c3ad8..dae64fd 100644</span>
+<span class="p_header">--- a/mm/hugetlb.c</span>
+<span class="p_header">+++ b/mm/hugetlb.c</span>
+<span class="p_chunk">@@ -2968,17 +2968,16 @@</span> <span class="p_context"> int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,</span>
+ 	int cow;
+ 	struct hstate *h = hstate_vma(vma);
+ 	unsigned long sz = huge_page_size(h);
+<span class="p_del">-	unsigned long mmun_start;	/* For mmu_notifiers */</span>
+<span class="p_del">-	unsigned long mmun_end;		/* For mmu_notifiers */</span>
+<span class="p_add">+	struct mmu_notifier_range range;</span>
+ 	int ret = 0;
+ 
+ 	cow = (vma-&gt;vm_flags &amp; (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
+ 
+<span class="p_del">-	mmun_start = vma-&gt;vm_start;</span>
+<span class="p_del">-	mmun_end = vma-&gt;vm_end;</span>
+<span class="p_add">+	range.start = vma-&gt;vm_start;</span>
+<span class="p_add">+	range.end = vma-&gt;vm_end;</span>
+<span class="p_add">+	range.event = MMU_MIGRATE;</span>
+ 	if (cow)
+<span class="p_del">-		mmu_notifier_invalidate_range_start(src, mmun_start,</span>
+<span class="p_del">-						    mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+		mmu_notifier_invalidate_range_start(src, &amp;range);</span>
+ 
+ 	for (addr = vma-&gt;vm_start; addr &lt; vma-&gt;vm_end; addr += sz) {
+ 		spinlock_t *src_ptl, *dst_ptl;
+<span class="p_chunk">@@ -3018,8 +3017,8 @@</span> <span class="p_context"> int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,</span>
+ 		} else {
+ 			if (cow) {
+ 				huge_ptep_set_wrprotect(src, addr, src_pte);
+<span class="p_del">-				mmu_notifier_invalidate_range(src, mmun_start,</span>
+<span class="p_del">-								   mmun_end);</span>
+<span class="p_add">+				mmu_notifier_invalidate_range(src, range.start,</span>
+<span class="p_add">+								   range.end);</span>
+ 			}
+ 			entry = huge_ptep_get(src_pte);
+ 			ptepage = pte_page(entry);
+<span class="p_chunk">@@ -3032,8 +3031,7 @@</span> <span class="p_context"> int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,</span>
+ 	}
+ 
+ 	if (cow)
+<span class="p_del">-		mmu_notifier_invalidate_range_end(src, mmun_start,</span>
+<span class="p_del">-						  mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+		mmu_notifier_invalidate_range_end(src, &amp;range);</span>
+ 
+ 	return ret;
+ }
+<span class="p_chunk">@@ -3051,16 +3049,17 @@</span> <span class="p_context"> void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,</span>
+ 	struct page *page;
+ 	struct hstate *h = hstate_vma(vma);
+ 	unsigned long sz = huge_page_size(h);
+<span class="p_del">-	const unsigned long mmun_start = start;	/* For mmu_notifiers */</span>
+<span class="p_del">-	const unsigned long mmun_end   = end;	/* For mmu_notifiers */</span>
+<span class="p_add">+	struct mmu_notifier_range range;</span>
+ 
+ 	WARN_ON(!is_vm_hugetlb_page(vma));
+ 	BUG_ON(start &amp; ~huge_page_mask(h));
+ 	BUG_ON(end &amp; ~huge_page_mask(h));
+ 
+<span class="p_add">+	range.start = start;</span>
+<span class="p_add">+	range.end = end;</span>
+<span class="p_add">+	range.event = MMU_MIGRATE;</span>
+ 	tlb_start_vma(tlb, vma);
+<span class="p_del">-	mmu_notifier_invalidate_range_start(mm, mmun_start,</span>
+<span class="p_del">-					    mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_start(mm, &amp;range);</span>
+ 	address = start;
+ again:
+ 	for (; address &lt; end; address += sz) {
+<span class="p_chunk">@@ -3134,8 +3133,7 @@</span> <span class="p_context"> unlock:</span>
+ 		if (address &lt; end &amp;&amp; !ref_page)
+ 			goto again;
+ 	}
+<span class="p_del">-	mmu_notifier_invalidate_range_end(mm, mmun_start,</span>
+<span class="p_del">-					  mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+ 	tlb_end_vma(tlb, vma);
+ }
+ 
+<span class="p_chunk">@@ -3240,8 +3238,7 @@</span> <span class="p_context"> static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,</span>
+ 	struct hstate *h = hstate_vma(vma);
+ 	struct page *old_page, *new_page;
+ 	int ret = 0, outside_reserve = 0;
+<span class="p_del">-	unsigned long mmun_start;	/* For mmu_notifiers */</span>
+<span class="p_del">-	unsigned long mmun_end;		/* For mmu_notifiers */</span>
+<span class="p_add">+	struct mmu_notifier_range range;</span>
+ 
+ 	old_page = pte_page(pte);
+ 
+<span class="p_chunk">@@ -3320,10 +3317,11 @@</span> <span class="p_context"> retry_avoidcopy:</span>
+ 	__SetPageUptodate(new_page);
+ 	set_page_huge_active(new_page);
+ 
+<span class="p_del">-	mmun_start = address &amp; huge_page_mask(h);</span>
+<span class="p_del">-	mmun_end = mmun_start + huge_page_size(h);</span>
+<span class="p_del">-	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end,</span>
+<span class="p_del">-					    MMU_MIGRATE);</span>
+<span class="p_add">+	range.start = address &amp; huge_page_mask(h);</span>
+<span class="p_add">+	range.end = range.start + huge_page_size(h);</span>
+<span class="p_add">+	range.event = MMU_MIGRATE;</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_start(mm, &amp;range);</span>
+<span class="p_add">+</span>
+ 	/*
+ 	 * Retake the page table lock to check for racing updates
+ 	 * before the page tables are altered
+<span class="p_chunk">@@ -3335,7 +3333,7 @@</span> <span class="p_context"> retry_avoidcopy:</span>
+ 
+ 		/* Break COW */
+ 		huge_ptep_clear_flush(vma, address, ptep);
+<span class="p_del">-		mmu_notifier_invalidate_range(mm, mmun_start, mmun_end);</span>
+<span class="p_add">+		mmu_notifier_invalidate_range(mm, range.start, range.end);</span>
+ 		set_huge_pte_at(mm, address, ptep,
+ 				make_huge_pte(vma, new_page, 1));
+ 		page_remove_rmap(old_page);
+<span class="p_chunk">@@ -3344,8 +3342,7 @@</span> <span class="p_context"> retry_avoidcopy:</span>
+ 		new_page = old_page;
+ 	}
+ 	spin_unlock(ptl);
+<span class="p_del">-	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end,</span>
+<span class="p_del">-					  MMU_MIGRATE);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+ out_release_all:
+ 	page_cache_release(new_page);
+ out_release_old:
+<span class="p_chunk">@@ -3823,11 +3820,15 @@</span> <span class="p_context"> unsigned long hugetlb_change_protection(struct vm_area_struct *vma,</span>
+ 	pte_t pte;
+ 	struct hstate *h = hstate_vma(vma);
+ 	unsigned long pages = 0;
+<span class="p_add">+	struct mmu_notifier_range range;</span>
+ 
+ 	BUG_ON(address &gt;= end);
+ 	flush_cache_range(vma, address, end);
+ 
+<span class="p_del">-	mmu_notifier_invalidate_range_start(mm, start, end, MMU_MPROT);</span>
+<span class="p_add">+	range.start = start;</span>
+<span class="p_add">+	range.end = end;</span>
+<span class="p_add">+	range.event = MMU_MPROT;</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_start(mm, &amp;range);</span>
+ 	i_mmap_lock_write(vma-&gt;vm_file-&gt;f_mapping);
+ 	for (; address &lt; end; address += huge_page_size(h)) {
+ 		spinlock_t *ptl;
+<span class="p_chunk">@@ -3877,7 +3878,7 @@</span> <span class="p_context"> unsigned long hugetlb_change_protection(struct vm_area_struct *vma,</span>
+ 	flush_tlb_range(vma, start, end);
+ 	mmu_notifier_invalidate_range(mm, start, end);
+ 	i_mmap_unlock_write(vma-&gt;vm_file-&gt;f_mapping);
+<span class="p_del">-	mmu_notifier_invalidate_range_end(mm, start, end, MMU_MPROT);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+ 
+ 	return pages &lt;&lt; h-&gt;order;
+ }
+<span class="p_header">diff --git a/mm/ksm.c b/mm/ksm.c</span>
+<span class="p_header">index eb1b2b5..e384a97 100644</span>
+<span class="p_header">--- a/mm/ksm.c</span>
+<span class="p_header">+++ b/mm/ksm.c</span>
+<span class="p_chunk">@@ -855,14 +855,13 @@</span> <span class="p_context"> static inline int pages_identical(struct page *page1, struct page *page2)</span>
+ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
+ 			      pte_t *orig_pte)
+ {
+<span class="p_add">+	struct mmu_notifier_range range;</span>
+ 	struct mm_struct *mm = vma-&gt;vm_mm;
+ 	unsigned long addr;
+ 	pte_t *ptep;
+ 	spinlock_t *ptl;
+ 	int swapped;
+ 	int err = -EFAULT;
+<span class="p_del">-	unsigned long mmun_start;	/* For mmu_notifiers */</span>
+<span class="p_del">-	unsigned long mmun_end;		/* For mmu_notifiers */</span>
+ 
+ 	addr = page_address_in_vma(page, vma);
+ 	if (addr == -EFAULT)
+<span class="p_chunk">@@ -870,10 +869,10 @@</span> <span class="p_context"> static int write_protect_page(struct vm_area_struct *vma, struct page *page,</span>
+ 
+ 	BUG_ON(PageTransCompound(page));
+ 
+<span class="p_del">-	mmun_start = addr;</span>
+<span class="p_del">-	mmun_end   = addr + PAGE_SIZE;</span>
+<span class="p_del">-	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end,</span>
+<span class="p_del">-					    MMU_KSM_WRITE_PROTECT);</span>
+<span class="p_add">+	range.start = addr;</span>
+<span class="p_add">+	range.end = addr + PAGE_SIZE;</span>
+<span class="p_add">+	range.event = MMU_KSM_WRITE_PROTECT;</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_start(mm, &amp;range);</span>
+ 
+ 	ptep = page_check_address(page, mm, addr, &amp;ptl, 0);
+ 	if (!ptep)
+<span class="p_chunk">@@ -913,8 +912,7 @@</span> <span class="p_context"> static int write_protect_page(struct vm_area_struct *vma, struct page *page,</span>
+ out_unlock:
+ 	pte_unmap_unlock(ptep, ptl);
+ out_mn:
+<span class="p_del">-	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end,</span>
+<span class="p_del">-					  MMU_KSM_WRITE_PROTECT);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+ out:
+ 	return err;
+ }
+<span class="p_chunk">@@ -937,8 +935,7 @@</span> <span class="p_context"> static int replace_page(struct vm_area_struct *vma, struct page *page,</span>
+ 	spinlock_t *ptl;
+ 	unsigned long addr;
+ 	int err = -EFAULT;
+<span class="p_del">-	unsigned long mmun_start;	/* For mmu_notifiers */</span>
+<span class="p_del">-	unsigned long mmun_end;		/* For mmu_notifiers */</span>
+<span class="p_add">+	struct mmu_notifier_range range;</span>
+ 
+ 	addr = page_address_in_vma(page, vma);
+ 	if (addr == -EFAULT)
+<span class="p_chunk">@@ -948,10 +945,10 @@</span> <span class="p_context"> static int replace_page(struct vm_area_struct *vma, struct page *page,</span>
+ 	if (!pmd)
+ 		goto out;
+ 
+<span class="p_del">-	mmun_start = addr;</span>
+<span class="p_del">-	mmun_end   = addr + PAGE_SIZE;</span>
+<span class="p_del">-	mmu_notifier_invalidate_range_start(mm, mmun_start, mmun_end,</span>
+<span class="p_del">-					    MMU_MIGRATE);</span>
+<span class="p_add">+	range.start = addr;</span>
+<span class="p_add">+	range.end = addr + PAGE_SIZE;</span>
+<span class="p_add">+	range.event = MMU_MIGRATE;</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_start(mm, &amp;range);</span>
+ 
+ 	ptep = pte_offset_map_lock(mm, pmd, addr, &amp;ptl);
+ 	if (!pte_same(*ptep, orig_pte)) {
+<span class="p_chunk">@@ -976,8 +973,7 @@</span> <span class="p_context"> static int replace_page(struct vm_area_struct *vma, struct page *page,</span>
+ 	pte_unmap_unlock(ptep, ptl);
+ 	err = 0;
+ out_mn:
+<span class="p_del">-	mmu_notifier_invalidate_range_end(mm, mmun_start, mmun_end,</span>
+<span class="p_del">-					  MMU_MIGRATE);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+ out:
+ 	return err;
+ }
+<span class="p_header">diff --git a/mm/memory.c b/mm/memory.c</span>
+<span class="p_header">index 8281b4b..77bbbf3 100644</span>
+<span class="p_header">--- a/mm/memory.c</span>
+<span class="p_header">+++ b/mm/memory.c</span>
+<span class="p_chunk">@@ -1010,8 +1010,7 @@</span> <span class="p_context"> int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,</span>
+ 	unsigned long next;
+ 	unsigned long addr = vma-&gt;vm_start;
+ 	unsigned long end = vma-&gt;vm_end;
+<span class="p_del">-	unsigned long mmun_start;	/* For mmu_notifiers */</span>
+<span class="p_del">-	unsigned long mmun_end;		/* For mmu_notifiers */</span>
+<span class="p_add">+	struct mmu_notifier_range range;</span>
+ 	bool is_cow;
+ 	int ret;
+ 
+<span class="p_chunk">@@ -1045,11 +1044,11 @@</span> <span class="p_context"> int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,</span>
+ 	 * is_cow_mapping() returns true.
+ 	 */
+ 	is_cow = is_cow_mapping(vma-&gt;vm_flags);
+<span class="p_del">-	mmun_start = addr;</span>
+<span class="p_del">-	mmun_end   = end;</span>
+<span class="p_add">+	range.start = addr;</span>
+<span class="p_add">+	range.end = end;</span>
+<span class="p_add">+	range.event = MMU_FORK;</span>
+ 	if (is_cow)
+<span class="p_del">-		mmu_notifier_invalidate_range_start(src_mm, mmun_start,</span>
+<span class="p_del">-						    mmun_end, MMU_FORK);</span>
+<span class="p_add">+		mmu_notifier_invalidate_range_start(src_mm, &amp;range);</span>
+ 
+ 	ret = 0;
+ 	dst_pgd = pgd_offset(dst_mm, addr);
+<span class="p_chunk">@@ -1066,8 +1065,7 @@</span> <span class="p_context"> int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,</span>
+ 	} while (dst_pgd++, src_pgd++, addr = next, addr != end);
+ 
+ 	if (is_cow)
+<span class="p_del">-		mmu_notifier_invalidate_range_end(src_mm, mmun_start,</span>
+<span class="p_del">-						  mmun_end, MMU_FORK);</span>
+<span class="p_add">+		mmu_notifier_invalidate_range_end(src_mm, &amp;range);</span>
+ 	return ret;
+ }
+ 
+<span class="p_chunk">@@ -1336,13 +1334,16 @@</span> <span class="p_context"> void unmap_vmas(struct mmu_gather *tlb,</span>
+ 		unsigned long end_addr)
+ {
+ 	struct mm_struct *mm = vma-&gt;vm_mm;
+<span class="p_add">+	struct mmu_notifier_range range = {</span>
+<span class="p_add">+		.start = start_addr,</span>
+<span class="p_add">+		.end = end_addr,</span>
+<span class="p_add">+		.event = MMU_MUNMAP,</span>
+<span class="p_add">+	};</span>
+ 
+<span class="p_del">-	mmu_notifier_invalidate_range_start(mm, start_addr,</span>
+<span class="p_del">-					    end_addr, MMU_MUNMAP);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_start(mm, &amp;range);</span>
+ 	for ( ; vma &amp;&amp; vma-&gt;vm_start &lt; end_addr; vma = vma-&gt;vm_next)
+ 		unmap_single_vma(tlb, vma, start_addr, end_addr, NULL);
+<span class="p_del">-	mmu_notifier_invalidate_range_end(mm, start_addr,</span>
+<span class="p_del">-					  end_addr, MMU_MUNMAP);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+ }
+ 
+ /**
+<span class="p_chunk">@@ -1359,16 +1360,20 @@</span> <span class="p_context"> void zap_page_range(struct vm_area_struct *vma, unsigned long start,</span>
+ {
+ 	struct mm_struct *mm = vma-&gt;vm_mm;
+ 	struct mmu_gather tlb;
+<span class="p_del">-	unsigned long end = start + size;</span>
+<span class="p_add">+	struct mmu_notifier_range range = {</span>
+<span class="p_add">+		.start = start,</span>
+<span class="p_add">+		.end = start + size,</span>
+<span class="p_add">+		.event = MMU_MIGRATE,</span>
+<span class="p_add">+	};</span>
+ 
+ 	lru_add_drain();
+<span class="p_del">-	tlb_gather_mmu(&amp;tlb, mm, start, end);</span>
+<span class="p_add">+	tlb_gather_mmu(&amp;tlb, mm, start, range.end);</span>
+ 	update_hiwater_rss(mm);
+<span class="p_del">-	mmu_notifier_invalidate_range_start(mm, start, end, MMU_MIGRATE);</span>
+<span class="p_del">-	for ( ; vma &amp;&amp; vma-&gt;vm_start &lt; end; vma = vma-&gt;vm_next)</span>
+<span class="p_del">-		unmap_single_vma(&amp;tlb, vma, start, end, details);</span>
+<span class="p_del">-	mmu_notifier_invalidate_range_end(mm, start, end, MMU_MIGRATE);</span>
+<span class="p_del">-	tlb_finish_mmu(&amp;tlb, start, end);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_start(mm, &amp;range);</span>
+<span class="p_add">+	for ( ; vma &amp;&amp; vma-&gt;vm_start &lt; range.end; vma = vma-&gt;vm_next)</span>
+<span class="p_add">+		unmap_single_vma(&amp;tlb, vma, start, range.end, details);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+<span class="p_add">+	tlb_finish_mmu(&amp;tlb, start, range.end);</span>
+ }
+ 
+ /**
+<span class="p_chunk">@@ -1385,15 +1390,19 @@</span> <span class="p_context"> static void zap_page_range_single(struct vm_area_struct *vma, unsigned long addr</span>
+ {
+ 	struct mm_struct *mm = vma-&gt;vm_mm;
+ 	struct mmu_gather tlb;
+<span class="p_del">-	unsigned long end = address + size;</span>
+<span class="p_add">+	struct mmu_notifier_range range = {</span>
+<span class="p_add">+		.start = address,</span>
+<span class="p_add">+		.end = address + size,</span>
+<span class="p_add">+		.event = MMU_MUNMAP,</span>
+<span class="p_add">+	};</span>
+ 
+ 	lru_add_drain();
+<span class="p_del">-	tlb_gather_mmu(&amp;tlb, mm, address, end);</span>
+<span class="p_add">+	tlb_gather_mmu(&amp;tlb, mm, address, range.end);</span>
+ 	update_hiwater_rss(mm);
+<span class="p_del">-	mmu_notifier_invalidate_range_start(mm, address, end, MMU_MUNMAP);</span>
+<span class="p_del">-	unmap_single_vma(&amp;tlb, vma, address, end, details);</span>
+<span class="p_del">-	mmu_notifier_invalidate_range_end(mm, address, end, MMU_MUNMAP);</span>
+<span class="p_del">-	tlb_finish_mmu(&amp;tlb, address, end);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_start(mm, &amp;range);</span>
+<span class="p_add">+	unmap_single_vma(&amp;tlb, vma, address, range.end, details);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+<span class="p_add">+	tlb_finish_mmu(&amp;tlb, address, range.end);</span>
+ }
+ 
+ /**
+<span class="p_chunk">@@ -2001,6 +2010,7 @@</span> <span class="p_context"> static inline int wp_page_reuse(struct mm_struct *mm,</span>
+ 	__releases(ptl)
+ {
+ 	pte_t entry;
+<span class="p_add">+</span>
+ 	/*
+ 	 * Clear the pages cpupid information as the existing
+ 	 * information potentially belongs to a now completely
+<span class="p_chunk">@@ -2068,9 +2078,8 @@</span> <span class="p_context"> static int wp_page_copy(struct mm_struct *mm, struct vm_area_struct *vma,</span>
+ 	spinlock_t *ptl = NULL;
+ 	pte_t entry;
+ 	int page_copied = 0;
+<span class="p_del">-	const unsigned long mmun_start = address &amp; PAGE_MASK;	/* For mmu_notifiers */</span>
+<span class="p_del">-	const unsigned long mmun_end = mmun_start + PAGE_SIZE;	/* For mmu_notifiers */</span>
+ 	struct mem_cgroup *memcg;
+<span class="p_add">+	struct mmu_notifier_range range;</span>
+ 
+ 	if (unlikely(anon_vma_prepare(vma)))
+ 		goto oom;
+<span class="p_chunk">@@ -2091,8 +2100,10 @@</span> <span class="p_context"> static int wp_page_copy(struct mm_struct *mm, struct vm_area_struct *vma,</span>
+ 
+ 	__SetPageUptodate(new_page);
+ 
+<span class="p_del">-	mmu_notifier_invalidate_range_start(mm, mmun_start,</span>
+<span class="p_del">-					    mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+	range.start = address &amp; PAGE_MASK;</span>
+<span class="p_add">+	range.end = range.start + PAGE_SIZE;</span>
+<span class="p_add">+	range.event = MMU_MIGRATE;</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_start(mm, &amp;range);</span>
+ 
+ 	/*
+ 	 * Re-check the pte - we dropped the lock
+<span class="p_chunk">@@ -2164,8 +2175,7 @@</span> <span class="p_context"> static int wp_page_copy(struct mm_struct *mm, struct vm_area_struct *vma,</span>
+ 		page_cache_release(new_page);
+ 
+ 	pte_unmap_unlock(page_table, ptl);
+<span class="p_del">-	mmu_notifier_invalidate_range_end(mm, mmun_start,</span>
+<span class="p_del">-					  mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+ 	if (old_page) {
+ 		/*
+ 		 * Don&#39;t let another task, with possibly unlocked vma,
+<span class="p_header">diff --git a/mm/migrate.c b/mm/migrate.c</span>
+<span class="p_header">index d49a3af..144a19c 100644</span>
+<span class="p_header">--- a/mm/migrate.c</span>
+<span class="p_header">+++ b/mm/migrate.c</span>
+<span class="p_chunk">@@ -1736,10 +1736,13 @@</span> <span class="p_context"> int migrate_misplaced_transhuge_page(struct mm_struct *mm,</span>
+ 	int isolated = 0;
+ 	struct page *new_page = NULL;
+ 	int page_lru = page_is_file_cache(page);
+<span class="p_del">-	unsigned long mmun_start = address &amp; HPAGE_PMD_MASK;</span>
+<span class="p_del">-	unsigned long mmun_end = mmun_start + HPAGE_PMD_SIZE;</span>
+<span class="p_add">+	struct mmu_notifier_range range;</span>
+ 	pmd_t orig_entry;
+ 
+<span class="p_add">+	range.start = address &amp; HPAGE_PMD_MASK;</span>
+<span class="p_add">+	range.end = range.start + HPAGE_PMD_SIZE;</span>
+<span class="p_add">+	range.event = MMU_MIGRATE;</span>
+<span class="p_add">+</span>
+ 	/*
+ 	 * Rate-limit the amount of data that is being migrated to a node.
+ 	 * Optimal placement is no good if the memory bus is saturated and
+<span class="p_chunk">@@ -1761,7 +1764,7 @@</span> <span class="p_context"> int migrate_misplaced_transhuge_page(struct mm_struct *mm,</span>
+ 	}
+ 
+ 	if (mm_tlb_flush_pending(mm))
+<span class="p_del">-		flush_tlb_range(vma, mmun_start, mmun_end);</span>
+<span class="p_add">+		flush_tlb_range(vma, range.start, range.end);</span>
+ 
+ 	/* Prepare a page as a migration target */
+ 	__set_page_locked(new_page);
+<span class="p_chunk">@@ -1774,14 +1777,12 @@</span> <span class="p_context"> int migrate_misplaced_transhuge_page(struct mm_struct *mm,</span>
+ 	WARN_ON(PageLRU(new_page));
+ 
+ 	/* Recheck the target PMD */
+<span class="p_del">-	mmu_notifier_invalidate_range_start(mm, mmun_start,</span>
+<span class="p_del">-					    mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_start(mm, &amp;range);</span>
+ 	ptl = pmd_lock(mm, pmd);
+ 	if (unlikely(!pmd_same(*pmd, entry) || page_count(page) != 2)) {
+ fail_putback:
+ 		spin_unlock(ptl);
+<span class="p_del">-		mmu_notifier_invalidate_range_end(mm, mmun_start,</span>
+<span class="p_del">-						  mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+		mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+ 
+ 		/* Reverse changes made by migrate_page_copy() */
+ 		if (TestClearPageActive(new_page))
+<span class="p_chunk">@@ -1814,17 +1815,17 @@</span> <span class="p_context"> fail_putback:</span>
+ 	 * The SetPageUptodate on the new page and page_add_new_anon_rmap
+ 	 * guarantee the copy is visible before the pagetable update.
+ 	 */
+<span class="p_del">-	flush_cache_range(vma, mmun_start, mmun_end);</span>
+<span class="p_del">-	page_add_anon_rmap(new_page, vma, mmun_start);</span>
+<span class="p_del">-	pmdp_huge_clear_flush_notify(vma, mmun_start, pmd);</span>
+<span class="p_del">-	set_pmd_at(mm, mmun_start, pmd, entry);</span>
+<span class="p_del">-	flush_tlb_range(vma, mmun_start, mmun_end);</span>
+<span class="p_add">+	flush_cache_range(vma, range.start, range.end);</span>
+<span class="p_add">+	page_add_anon_rmap(new_page, vma, range.start);</span>
+<span class="p_add">+	pmdp_huge_clear_flush_notify(vma, range.start, pmd);</span>
+<span class="p_add">+	set_pmd_at(mm, range.start, pmd, entry);</span>
+<span class="p_add">+	flush_tlb_range(vma, range.start, range.end);</span>
+ 	update_mmu_cache_pmd(vma, address, &amp;entry);
+ 
+ 	if (page_count(page) != 2) {
+<span class="p_del">-		set_pmd_at(mm, mmun_start, pmd, orig_entry);</span>
+<span class="p_del">-		flush_tlb_range(vma, mmun_start, mmun_end);</span>
+<span class="p_del">-		mmu_notifier_invalidate_range(mm, mmun_start, mmun_end);</span>
+<span class="p_add">+		set_pmd_at(mm, range.start, pmd, orig_entry);</span>
+<span class="p_add">+		flush_tlb_range(vma, range.start, range.end);</span>
+<span class="p_add">+		mmu_notifier_invalidate_range(mm, range.start, range.end);</span>
+ 		update_mmu_cache_pmd(vma, address, &amp;entry);
+ 		page_remove_rmap(new_page);
+ 		goto fail_putback;
+<span class="p_chunk">@@ -1835,8 +1836,7 @@</span> <span class="p_context"> fail_putback:</span>
+ 	page_remove_rmap(page);
+ 
+ 	spin_unlock(ptl);
+<span class="p_del">-	mmu_notifier_invalidate_range_end(mm, mmun_start,</span>
+<span class="p_del">-					  mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+ 
+ 	/* Take an &quot;isolate&quot; reference and put new page on the LRU. */
+ 	get_page(new_page);
+<span class="p_chunk">@@ -1861,7 +1861,7 @@</span> <span class="p_context"> out_dropref:</span>
+ 	ptl = pmd_lock(mm, pmd);
+ 	if (pmd_same(*pmd, entry)) {
+ 		entry = pmd_modify(entry, vma-&gt;vm_page_prot);
+<span class="p_del">-		set_pmd_at(mm, mmun_start, pmd, entry);</span>
+<span class="p_add">+		set_pmd_at(mm, range.start, pmd, entry);</span>
+ 		update_mmu_cache_pmd(vma, address, &amp;entry);
+ 	}
+ 	spin_unlock(ptl);
+<span class="p_header">diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c</span>
+<span class="p_header">index b806bdb..c43c851 100644</span>
+<span class="p_header">--- a/mm/mmu_notifier.c</span>
+<span class="p_header">+++ b/mm/mmu_notifier.c</span>
+<span class="p_chunk">@@ -191,28 +191,28 @@</span> <span class="p_context"> void __mmu_notifier_invalidate_page(struct mm_struct *mm,</span>
+ }
+ 
+ void __mmu_notifier_invalidate_range_start(struct mm_struct *mm,
+<span class="p_del">-					   unsigned long start,</span>
+<span class="p_del">-					   unsigned long end,</span>
+<span class="p_del">-					   enum mmu_event event)</span>
+<span class="p_add">+					   struct mmu_notifier_range *range)</span>
+ 
+ {
+ 	struct mmu_notifier *mn;
+ 	int id;
+ 
+<span class="p_add">+	spin_lock(&amp;mm-&gt;mmu_notifier_mm-&gt;lock);</span>
+<span class="p_add">+	list_add_tail(&amp;range-&gt;list, &amp;mm-&gt;mmu_notifier_mm-&gt;ranges);</span>
+<span class="p_add">+	mm-&gt;mmu_notifier_mm-&gt;nranges++;</span>
+<span class="p_add">+	spin_unlock(&amp;mm-&gt;mmu_notifier_mm-&gt;lock);</span>
+<span class="p_add">+</span>
+ 	id = srcu_read_lock(&amp;srcu);
+ 	hlist_for_each_entry_rcu(mn, &amp;mm-&gt;mmu_notifier_mm-&gt;list, hlist) {
+ 		if (mn-&gt;ops-&gt;invalidate_range_start)
+<span class="p_del">-			mn-&gt;ops-&gt;invalidate_range_start(mn, mm, start,</span>
+<span class="p_del">-							end, event);</span>
+<span class="p_add">+			mn-&gt;ops-&gt;invalidate_range_start(mn, mm, range);</span>
+ 	}
+ 	srcu_read_unlock(&amp;srcu, id);
+ }
+ EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_start);
+ 
+ void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,
+<span class="p_del">-					 unsigned long start,</span>
+<span class="p_del">-					 unsigned long end,</span>
+<span class="p_del">-					 enum mmu_event event)</span>
+<span class="p_add">+					 struct mmu_notifier_range *range)</span>
+ {
+ 	struct mmu_notifier *mn;
+ 	int id;
+<span class="p_chunk">@@ -228,12 +228,23 @@</span> <span class="p_context"> void __mmu_notifier_invalidate_range_end(struct mm_struct *mm,</span>
+ 		 * (besides the pointer check).
+ 		 */
+ 		if (mn-&gt;ops-&gt;invalidate_range)
+<span class="p_del">-			mn-&gt;ops-&gt;invalidate_range(mn, mm, start, end);</span>
+<span class="p_add">+			mn-&gt;ops-&gt;invalidate_range(mn, mm,</span>
+<span class="p_add">+						  range-&gt;start, range-&gt;end);</span>
+ 		if (mn-&gt;ops-&gt;invalidate_range_end)
+<span class="p_del">-			mn-&gt;ops-&gt;invalidate_range_end(mn, mm, start,</span>
+<span class="p_del">-						      end, event);</span>
+<span class="p_add">+			mn-&gt;ops-&gt;invalidate_range_end(mn, mm, range);</span>
+ 	}
+ 	srcu_read_unlock(&amp;srcu, id);
+<span class="p_add">+</span>
+<span class="p_add">+	spin_lock(&amp;mm-&gt;mmu_notifier_mm-&gt;lock);</span>
+<span class="p_add">+	list_del_init(&amp;range-&gt;list);</span>
+<span class="p_add">+	mm-&gt;mmu_notifier_mm-&gt;nranges--;</span>
+<span class="p_add">+	spin_unlock(&amp;mm-&gt;mmu_notifier_mm-&gt;lock);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Wakeup after callback so they can do their job before any of the</span>
+<span class="p_add">+	 * waiters resume.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	wake_up(&amp;mm-&gt;mmu_notifier_mm-&gt;wait_queue);</span>
+ }
+ EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_end);
+ 
+<span class="p_chunk">@@ -252,6 +263,98 @@</span> <span class="p_context"> void __mmu_notifier_invalidate_range(struct mm_struct *mm,</span>
+ }
+ EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range);
+ 
+<span class="p_add">+/* mmu_notifier_range_inactive_locked() - test if range overlaps with active</span>
+<span class="p_add">+ * invalidation.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * @mm: The mm struct.</span>
+<span class="p_add">+ * @start: Start address of the range (inclusive).</span>
+<span class="p_add">+ * @end: End address of the range (exclusive).</span>
+<span class="p_add">+ * Returns: false if overlaps with an active invalidation, true otherwise.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This function tests whether any active invalidation range conflicts with a</span>
+<span class="p_add">+ * given range ([start, end[), active invalidations are added to a list inside</span>
+<span class="p_add">+ * __mmu_notifier_invalidate_range_start() and removed from that list inside</span>
+<span class="p_add">+ * __mmu_notifier_invalidate_range_end().</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static bool mmu_notifier_range_inactive_locked(struct mm_struct *mm,</span>
+<span class="p_add">+					       unsigned long start,</span>
+<span class="p_add">+					       unsigned long end)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct mmu_notifier_range *range;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	list_for_each_entry(range, &amp;mm-&gt;mmu_notifier_mm-&gt;ranges, list) {</span>
+<span class="p_add">+		if (range-&gt;end &gt; start &amp;&amp; range-&gt;start &lt; end)</span>
+<span class="p_add">+			return false;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	return true;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* mmu_notifier_range_inactive() - test if range overlaps with active</span>
+<span class="p_add">+ * invalidation.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * @mm: The mm struct.</span>
+<span class="p_add">+ * @start: Start address of the range (inclusive).</span>
+<span class="p_add">+ * @end: End address of the range (exclusive).</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Same as mmu_notifier_range_inactive_locked() but take the mmu_notifier lock.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+bool mmu_notifier_range_inactive(struct mm_struct *mm,</span>
+<span class="p_add">+				 unsigned long start,</span>
+<span class="p_add">+				 unsigned long end)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	bool valid;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	spin_lock(&amp;mm-&gt;mmu_notifier_mm-&gt;lock);</span>
+<span class="p_add">+	valid = mmu_notifier_range_inactive_locked(mm, start, end);</span>
+<span class="p_add">+	spin_unlock(&amp;mm-&gt;mmu_notifier_mm-&gt;lock);</span>
+<span class="p_add">+	return valid;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL_GPL(mmu_notifier_range_inactive);</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* mmu_notifier_range_wait_active() - wait for a range to have no conflict with</span>
+<span class="p_add">+ * active invalidation.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * @mm: The mm struct.</span>
+<span class="p_add">+ * @start: Start address of the range (inclusive).</span>
+<span class="p_add">+ * @end: End address of the range (exclusive).</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This function wait for any active range invalidation that conflict with the</span>
+<span class="p_add">+ * given range, to end.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Note by the time this function return a new range invalidation that conflict</span>
+<span class="p_add">+ * might have started. So you need to atomically block new range and query</span>
+<span class="p_add">+ * again if range is still valid with mmu_notifier_range_inactive(). So call</span>
+<span class="p_add">+ * sequence should be :</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * again:</span>
+<span class="p_add">+ * mmu_notifier_range_wait_active()</span>
+<span class="p_add">+ * // Stop new invalidation using common lock with your range_start callback.</span>
+<span class="p_add">+ * lock_block_new_invalidation()</span>
+<span class="p_add">+ * if (!mmu_notifier_range_inactive()) {</span>
+<span class="p_add">+ *     unlock_block_new_invalidation();</span>
+<span class="p_add">+ *     goto again;</span>
+<span class="p_add">+ * }</span>
+<span class="p_add">+ * // Here you can safely access CPU page table for the range, knowing that you</span>
+<span class="p_add">+ * // will see valid entry and no one can change them.</span>
+<span class="p_add">+ * unlock_block_new_invalidation()</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+void mmu_notifier_range_wait_active(struct mm_struct *mm,</span>
+<span class="p_add">+				    unsigned long start,</span>
+<span class="p_add">+				    unsigned long end)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	spin_lock(&amp;mm-&gt;mmu_notifier_mm-&gt;lock);</span>
+<span class="p_add">+	while (!mmu_notifier_range_inactive_locked(mm, start, end)) {</span>
+<span class="p_add">+		int nranges = mm-&gt;mmu_notifier_mm-&gt;nranges;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		spin_unlock(&amp;mm-&gt;mmu_notifier_mm-&gt;lock);</span>
+<span class="p_add">+		wait_event(mm-&gt;mmu_notifier_mm-&gt;wait_queue,</span>
+<span class="p_add">+			   nranges != mm-&gt;mmu_notifier_mm-&gt;nranges);</span>
+<span class="p_add">+		spin_lock(&amp;mm-&gt;mmu_notifier_mm-&gt;lock);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	spin_unlock(&amp;mm-&gt;mmu_notifier_mm-&gt;lock);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL_GPL(mmu_notifier_range_wait_active);</span>
+<span class="p_add">+</span>
+ static int do_mmu_notifier_register(struct mmu_notifier *mn,
+ 				    struct mm_struct *mm,
+ 				    int take_mmap_sem)
+<span class="p_chunk">@@ -281,6 +384,9 @@</span> <span class="p_context"> static int do_mmu_notifier_register(struct mmu_notifier *mn,</span>
+ 	if (!mm_has_notifiers(mm)) {
+ 		INIT_HLIST_HEAD(&amp;mmu_notifier_mm-&gt;list);
+ 		spin_lock_init(&amp;mmu_notifier_mm-&gt;lock);
+<span class="p_add">+		INIT_LIST_HEAD(&amp;mmu_notifier_mm-&gt;ranges);</span>
+<span class="p_add">+		mmu_notifier_mm-&gt;nranges = 0;</span>
+<span class="p_add">+		init_waitqueue_head(&amp;mmu_notifier_mm-&gt;wait_queue);</span>
+ 
+ 		mm-&gt;mmu_notifier_mm = mmu_notifier_mm;
+ 		mmu_notifier_mm = NULL;
+<span class="p_header">diff --git a/mm/mprotect.c b/mm/mprotect.c</span>
+<span class="p_header">index f63b022..d1b6f87 100644</span>
+<span class="p_header">--- a/mm/mprotect.c</span>
+<span class="p_header">+++ b/mm/mprotect.c</span>
+<span class="p_chunk">@@ -142,7 +142,9 @@</span> <span class="p_context"> static inline unsigned long change_pmd_range(struct vm_area_struct *vma,</span>
+ 	unsigned long next;
+ 	unsigned long pages = 0;
+ 	unsigned long nr_huge_updates = 0;
+<span class="p_del">-	unsigned long mni_start = 0;</span>
+<span class="p_add">+	struct mmu_notifier_range range = {</span>
+<span class="p_add">+		.start = 0,</span>
+<span class="p_add">+	};</span>
+ 
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+<span class="p_chunk">@@ -153,10 +155,11 @@</span> <span class="p_context"> static inline unsigned long change_pmd_range(struct vm_area_struct *vma,</span>
+ 			continue;
+ 
+ 		/* invoke the mmu notifier if the pmd is populated */
+<span class="p_del">-		if (!mni_start) {</span>
+<span class="p_del">-			mni_start = addr;</span>
+<span class="p_del">-			mmu_notifier_invalidate_range_start(mm, mni_start,</span>
+<span class="p_del">-							    end, MMU_MPROT);</span>
+<span class="p_add">+		if (!range.start) {</span>
+<span class="p_add">+			range.start = addr;</span>
+<span class="p_add">+			range.end = end;</span>
+<span class="p_add">+			range.event = MMU_MPROT;</span>
+<span class="p_add">+			mmu_notifier_invalidate_range_start(mm, &amp;range);</span>
+ 		}
+ 
+ 		if (pmd_trans_huge(*pmd)) {
+<span class="p_chunk">@@ -183,9 +186,8 @@</span> <span class="p_context"> static inline unsigned long change_pmd_range(struct vm_area_struct *vma,</span>
+ 		pages += this_pages;
+ 	} while (pmd++, addr = next, addr != end);
+ 
+<span class="p_del">-	if (mni_start)</span>
+<span class="p_del">-		mmu_notifier_invalidate_range_end(mm, mni_start, end,</span>
+<span class="p_del">-						  MMU_MPROT);</span>
+<span class="p_add">+	if (range.start)</span>
+<span class="p_add">+		mmu_notifier_invalidate_range_end(mm, &amp;range);</span>
+ 
+ 	if (nr_huge_updates)
+ 		count_vm_numa_events(NUMA_HUGE_PTE_UPDATES, nr_huge_updates);
+<span class="p_header">diff --git a/mm/mremap.c b/mm/mremap.c</span>
+<span class="p_header">index eea73a3..eb1a43f 100644</span>
+<span class="p_header">--- a/mm/mremap.c</span>
+<span class="p_header">+++ b/mm/mremap.c</span>
+<span class="p_chunk">@@ -166,18 +166,17 @@</span> <span class="p_context"> unsigned long move_page_tables(struct vm_area_struct *vma,</span>
+ 		bool need_rmap_locks)
+ {
+ 	unsigned long extent, next, old_end;
+<span class="p_add">+	struct mmu_notifier_range range;</span>
+ 	pmd_t *old_pmd, *new_pmd;
+ 	bool need_flush = false;
+<span class="p_del">-	unsigned long mmun_start;	/* For mmu_notifiers */</span>
+<span class="p_del">-	unsigned long mmun_end;		/* For mmu_notifiers */</span>
+ 
+ 	old_end = old_addr + len;
+ 	flush_cache_range(vma, old_addr, old_end);
+ 
+<span class="p_del">-	mmun_start = old_addr;</span>
+<span class="p_del">-	mmun_end   = old_end;</span>
+<span class="p_del">-	mmu_notifier_invalidate_range_start(vma-&gt;vm_mm, mmun_start,</span>
+<span class="p_del">-					    mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+	range.start = old_addr;</span>
+<span class="p_add">+	range.end = old_end;</span>
+<span class="p_add">+	range.event = MMU_MIGRATE;</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_start(vma-&gt;vm_mm, &amp;range);</span>
+ 
+ 	for (; old_addr &lt; old_end; old_addr += extent, new_addr += extent) {
+ 		cond_resched();
+<span class="p_chunk">@@ -229,8 +228,7 @@</span> <span class="p_context"> unsigned long move_page_tables(struct vm_area_struct *vma,</span>
+ 	if (likely(need_flush))
+ 		flush_tlb_range(vma, old_end-len, old_addr);
+ 
+<span class="p_del">-	mmu_notifier_invalidate_range_end(vma-&gt;vm_mm, mmun_start,</span>
+<span class="p_del">-					  mmun_end, MMU_MIGRATE);</span>
+<span class="p_add">+	mmu_notifier_invalidate_range_end(vma-&gt;vm_mm, &amp;range);</span>
+ 
+ 	return len + old_addr - old_end;	/* how much done */
+ }
+<span class="p_header">diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c</span>
+<span class="p_header">index 9f6acd0..fa2418f3 100644</span>
+<span class="p_header">--- a/virt/kvm/kvm_main.c</span>
+<span class="p_header">+++ b/virt/kvm/kvm_main.c</span>
+<span class="p_chunk">@@ -327,10 +327,8 @@</span> <span class="p_context"> static void kvm_mmu_notifier_change_pte(struct mmu_notifier *mn,</span>
+ }
+ 
+ static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
+<span class="p_del">-						    struct mm_struct *mm,</span>
+<span class="p_del">-						    unsigned long start,</span>
+<span class="p_del">-						    unsigned long end,</span>
+<span class="p_del">-						    enum mmu_event event)</span>
+<span class="p_add">+					struct mm_struct *mm,</span>
+<span class="p_add">+					const struct mmu_notifier_range *range)</span>
+ {
+ 	struct kvm *kvm = mmu_notifier_to_kvm(mn);
+ 	int need_tlb_flush = 0, idx;
+<span class="p_chunk">@@ -343,7 +341,7 @@</span> <span class="p_context"> static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,</span>
+ 	 * count is also read inside the mmu_lock critical section.
+ 	 */
+ 	kvm-&gt;mmu_notifier_count++;
+<span class="p_del">-	need_tlb_flush = kvm_unmap_hva_range(kvm, start, end);</span>
+<span class="p_add">+	need_tlb_flush = kvm_unmap_hva_range(kvm, range-&gt;start, range-&gt;end);</span>
+ 	need_tlb_flush |= kvm-&gt;tlbs_dirty;
+ 	/* we&#39;ve to flush the tlb before the pages can be freed */
+ 	if (need_tlb_flush)
+<span class="p_chunk">@@ -354,10 +352,8 @@</span> <span class="p_context"> static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,</span>
+ }
+ 
+ static void kvm_mmu_notifier_invalidate_range_end(struct mmu_notifier *mn,
+<span class="p_del">-						  struct mm_struct *mm,</span>
+<span class="p_del">-						  unsigned long start,</span>
+<span class="p_del">-						  unsigned long end,</span>
+<span class="p_del">-						  enum mmu_event event)</span>
+<span class="p_add">+					struct mm_struct *mm,</span>
+<span class="p_add">+					const struct mmu_notifier_range *range)</span>
+ {
+ 	struct kvm *kvm = mmu_notifier_to_kvm(mn);
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,417 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[V2,3/3] x86/efi: Use efi_switch_mm() rather than manually twiddling with %cr3 - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [V2,3/3] x86/efi: Use efi_switch_mm() rather than manually twiddling with %cr3</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=144541">Sai Praneeth Prakhya</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Aug. 28, 2017, 11:37 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1503963432-32055-4-git-send-email-sai.praneeth.prakhya@intel.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9926455/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9926455/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9926455/">/patch/9926455/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	635D860380 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 28 Aug 2017 23:43:10 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 5612B287CD
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 28 Aug 2017 23:43:10 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 4AB97287EB; Mon, 28 Aug 2017 23:43:10 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id A71F4287CD
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 28 Aug 2017 23:43:09 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751463AbdH1XnH (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 28 Aug 2017 19:43:07 -0400
+Received: from mga03.intel.com ([134.134.136.65]:52826 &quot;EHLO mga03.intel.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1751275AbdH1Xmj (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 28 Aug 2017 19:42:39 -0400
+Received: from orsmga004.jf.intel.com ([10.7.209.38])
+	by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384;
+	28 Aug 2017 16:42:39 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i=&quot;5.41,442,1498546800&quot;; d=&quot;scan&#39;208&quot;;a=&quot;123458655&quot;
+Received: from saipraneeth.sc.intel.com ([143.183.140.145])
+	by orsmga004.jf.intel.com with ESMTP; 28 Aug 2017 16:42:39 -0700
+From: Sai Praneeth Prakhya &lt;sai.praneeth.prakhya@intel.com&gt;
+To: linux-efi@vger.kernel.org, linux-kernel@vger.kernel.org,
+	matt@codeblueprint.co.uk, ard.biesheuvel@linaro.org
+Cc: jlee@suse.com, bp@alien8.de, tony.luck@intel.com, luto@kernel.org,
+	mst@redhat.com, ricardo.neri@intel.com, ravi.v.shankar@intel.com,
+	Sai Praneeth &lt;sai.praneeth.prakhya@intel.com&gt;
+Subject: [PATCH V2 3/3] x86/efi: Use efi_switch_mm() rather than manually
+	twiddling with %cr3
+Date: Mon, 28 Aug 2017 16:37:12 -0700
+Message-Id: &lt;1503963432-32055-4-git-send-email-sai.praneeth.prakhya@intel.com&gt;
+X-Mailer: git-send-email 2.1.4
+In-Reply-To: &lt;1503963432-32055-1-git-send-email-sai.praneeth.prakhya@intel.com&gt;
+References: &lt;1503963432-32055-1-git-send-email-sai.praneeth.prakhya@intel.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=144541">Sai Praneeth Prakhya</a> - Aug. 28, 2017, 11:37 p.m.</div>
+<pre class="content">
+<span class="from">From: Sai Praneeth &lt;sai.praneeth.prakhya@intel.com&gt;</span>
+
+Use helper function (efi_switch_mm()) to switch to/from efi_mm. We
+switch to efi_mm before calling
+1. efi_set_virtual_address_map() and
+2. Invoking any efi_runtime_service()
+
+Likewise, we need to switch back to previous mm (mm context stolen by
+efi_mm) after the above calls return successfully. We can use
+efi_switch_mm() helper function only with x86_64 kernel and
+&quot;efi=old_map&quot; disabled because, x86_32 and efi=old_map doesn&#39;t use
+efi_pgd, rather they use swapper_pg_dir.
+<span class="signed-off-by">
+Signed-off-by: Sai Praneeth Prakhya &lt;sai.praneeth.prakhya@intel.com&gt;</span>
+Cc: Lee, Chun-Yi &lt;jlee@suse.com&gt;
+Cc: Borislav Petkov &lt;bp@alien8.de&gt;
+Cc: Tony Luck &lt;tony.luck@intel.com&gt;
+Cc: Andy Lutomirski &lt;luto@kernel.org&gt;
+Cc: Michael S. Tsirkin &lt;mst@redhat.com&gt;
+Cc: Ricardo Neri &lt;ricardo.neri@intel.com&gt;
+Cc: Matt Fleming &lt;matt@codeblueprint.co.uk&gt;
+Cc: Ard Biesheuvel &lt;ard.biesheuvel@linaro.org&gt;
+Cc: Ravi Shankar &lt;ravi.v.shankar@intel.com&gt;
+---
+ arch/x86/include/asm/efi.h           | 29 ++++++++++++++---------------
+ arch/x86/platform/efi/efi_64.c       | 36 +++++++++++++++++++++---------------
+ arch/x86/platform/efi/efi_thunk_64.S |  2 +-
+ 3 files changed, 36 insertions(+), 31 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/include/asm/efi.h b/arch/x86/include/asm/efi.h</span>
+<span class="p_header">index 2f77bcefe6b4..23b2137a95e5 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/efi.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/efi.h</span>
+<span class="p_chunk">@@ -1,10 +1,14 @@</span> <span class="p_context"></span>
+ #ifndef _ASM_X86_EFI_H
+ #define _ASM_X86_EFI_H
+ 
+<span class="p_add">+#include &lt;linux/sched/mm.h&gt;</span>
+<span class="p_add">+#include &lt;linux/sched/task.h&gt;</span>
+<span class="p_add">+</span>
+ #include &lt;asm/fpu/api.h&gt;
+ #include &lt;asm/pgtable.h&gt;
+ #include &lt;asm/processor-flags.h&gt;
+ #include &lt;asm/tlb.h&gt;
+<span class="p_add">+#include &lt;asm/mmu_context.h&gt;</span>
+ 
+ /*
+  * We map the EFI regions needed for runtime services non-contiguously,
+<span class="p_chunk">@@ -57,14 +61,13 @@</span> <span class="p_context"> extern u64 asmlinkage efi_call(void *fp, ...);</span>
+ #define efi_call_phys(f, args...)		efi_call((f), args)
+ 
+ /*
+<span class="p_del">- * Scratch space used for switching the pagetable in the EFI stub</span>
+<span class="p_add">+ * struct efi_scratch - Scratch space used while switching to/from efi_mm</span>
+<span class="p_add">+ * @phys_stack: stack used during EFI Mixed Mode</span>
+<span class="p_add">+ * @prev_mm:    store/restore stolen mm_struct while switching to/from efi_mm</span>
+  */
+ struct efi_scratch {
+<span class="p_del">-	u64	r15;</span>
+<span class="p_del">-	u64	prev_cr3;</span>
+<span class="p_del">-	pgd_t	*efi_pgt;</span>
+<span class="p_del">-	bool	use_pgd;</span>
+<span class="p_del">-	u64	phys_stack;</span>
+<span class="p_add">+	u64			phys_stack;</span>
+<span class="p_add">+	struct mm_struct	*prev_mm;</span>
+ } __packed;
+ 
+ #define arch_efi_call_virt_setup()					\
+<span class="p_chunk">@@ -73,11 +76,8 @@</span> <span class="p_context"> struct efi_scratch {</span>
+ 	preempt_disable();						\
+ 	__kernel_fpu_begin();						\
+ 									\
+<span class="p_del">-	if (efi_scratch.use_pgd) {					\</span>
+<span class="p_del">-		efi_scratch.prev_cr3 = read_cr3();			\</span>
+<span class="p_del">-		write_cr3((unsigned long)efi_scratch.efi_pgt);		\</span>
+<span class="p_del">-		__flush_tlb_all();					\</span>
+<span class="p_del">-	}								\</span>
+<span class="p_add">+	if (!efi_enabled(EFI_OLD_MEMMAP))				\</span>
+<span class="p_add">+		efi_switch_mm(&amp;efi_mm);					\</span>
+ })
+ 
+ #define arch_efi_call_virt(p, f, args...)				\
+<span class="p_chunk">@@ -85,10 +85,8 @@</span> <span class="p_context"> struct efi_scratch {</span>
+ 
+ #define arch_efi_call_virt_teardown()					\
+ ({									\
+<span class="p_del">-	if (efi_scratch.use_pgd) {					\</span>
+<span class="p_del">-		write_cr3(efi_scratch.prev_cr3);			\</span>
+<span class="p_del">-		__flush_tlb_all();					\</span>
+<span class="p_del">-	}								\</span>
+<span class="p_add">+	if (!efi_enabled(EFI_OLD_MEMMAP))				\</span>
+<span class="p_add">+		efi_switch_mm(efi_scratch.prev_mm);			\</span>
+ 									\
+ 	__kernel_fpu_end();						\
+ 	preempt_enable();						\
+<span class="p_chunk">@@ -130,6 +128,7 @@</span> <span class="p_context"> extern void __init efi_dump_pagetable(void);</span>
+ extern void __init efi_apply_memmap_quirks(void);
+ extern int __init efi_reuse_config(u64 tables, int nr_tables);
+ extern void efi_delete_dummy_variable(void);
+<span class="p_add">+extern void efi_switch_mm(struct mm_struct *mm);</span>
+ 
+ struct efi_setup_data {
+ 	u64 fw_vendor;
+<span class="p_header">diff --git a/arch/x86/platform/efi/efi_64.c b/arch/x86/platform/efi/efi_64.c</span>
+<span class="p_header">index 0bb98c35e178..e0545f56d703 100644</span>
+<span class="p_header">--- a/arch/x86/platform/efi/efi_64.c</span>
+<span class="p_header">+++ b/arch/x86/platform/efi/efi_64.c</span>
+<span class="p_chunk">@@ -80,9 +80,8 @@</span> <span class="p_context"> pgd_t * __init efi_call_phys_prolog(void)</span>
+ 	int n_pgds, i, j;
+ 
+ 	if (!efi_enabled(EFI_OLD_MEMMAP)) {
+<span class="p_del">-		save_pgd = (pgd_t *)read_cr3();</span>
+<span class="p_del">-		write_cr3((unsigned long)efi_scratch.efi_pgt);</span>
+<span class="p_del">-		goto out;</span>
+<span class="p_add">+		efi_switch_mm(&amp;efi_mm);</span>
+<span class="p_add">+		return NULL;</span>
+ 	}
+ 
+ 	early_code_mapping_set_exec(1);
+<span class="p_chunk">@@ -152,8 +151,7 @@</span> <span class="p_context"> void __init efi_call_phys_epilog(pgd_t *save_pgd)</span>
+ 	pud_t *pud;
+ 
+ 	if (!efi_enabled(EFI_OLD_MEMMAP)) {
+<span class="p_del">-		write_cr3((unsigned long)save_pgd);</span>
+<span class="p_del">-		__flush_tlb_all();</span>
+<span class="p_add">+		efi_switch_mm(efi_scratch.prev_mm);</span>
+ 		return;
+ 	}
+ 
+<span class="p_chunk">@@ -336,8 +334,6 @@</span> <span class="p_context"> int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)</span>
+ 	if (efi_enabled(EFI_OLD_MEMMAP))
+ 		return 0;
+ 
+<span class="p_del">-	efi_scratch.efi_pgt = (pgd_t *)__pa(pgd);</span>
+<span class="p_del">-</span>
+ 	/*
+ 	 * It can happen that the physical address of new_memmap lands in memory
+ 	 * which is not mapped in the EFI page table. Therefore we need to go
+<span class="p_chunk">@@ -350,8 +346,6 @@</span> <span class="p_context"> int __init efi_setup_page_tables(unsigned long pa_memmap, unsigned num_pages)</span>
+ 		return 1;
+ 	}
+ 
+<span class="p_del">-	efi_scratch.use_pgd = true;</span>
+<span class="p_del">-</span>
+ 	/*
+ 	 * Certain firmware versions are way too sentimential and still believe
+ 	 * they are exclusive and unquestionable owners of the first physical page,
+<span class="p_chunk">@@ -596,6 +590,22 @@</span> <span class="p_context"> void __init efi_dump_pagetable(void)</span>
+ #endif
+ }
+ 
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Makes the calling thread switch to/from efi_mm context. Can be used</span>
+<span class="p_add">+ * for SetVirtualAddressMap() i.e. current-&gt;active_mm == init_mm as well</span>
+<span class="p_add">+ * as during efi runtime calls i.e current-&gt;active_mm == current_mm.</span>
+<span class="p_add">+ * We are not mm_dropping()/mm_grabbing() any mm, because we are not</span>
+<span class="p_add">+ * losing/creating any references.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+void efi_switch_mm(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	task_lock(current);</span>
+<span class="p_add">+	efi_scratch.prev_mm = current-&gt;active_mm;</span>
+<span class="p_add">+	current-&gt;active_mm = mm;</span>
+<span class="p_add">+	switch_mm(efi_scratch.prev_mm, mm, NULL);</span>
+<span class="p_add">+	task_unlock(current);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ #ifdef CONFIG_EFI_MIXED
+ extern efi_status_t efi64_thunk(u32, ...);
+ 
+<span class="p_chunk">@@ -649,17 +659,13 @@</span> <span class="p_context"> efi_status_t efi_thunk_set_virtual_address_map(</span>
+ 	efi_sync_low_kernel_mappings();
+ 	local_irq_save(flags);
+ 
+<span class="p_del">-	efi_scratch.prev_cr3 = read_cr3();</span>
+<span class="p_del">-	write_cr3((unsigned long)efi_scratch.efi_pgt);</span>
+<span class="p_del">-	__flush_tlb_all();</span>
+<span class="p_add">+	efi_switch_mm(&amp;efi_mm);</span>
+ 
+ 	func = (u32)(unsigned long)phys_set_virtual_address_map;
+ 	status = efi64_thunk(func, memory_map_size, descriptor_size,
+ 			     descriptor_version, virtual_map);
+ 
+<span class="p_del">-	write_cr3(efi_scratch.prev_cr3);</span>
+<span class="p_del">-	__flush_tlb_all();</span>
+<span class="p_del">-	local_irq_restore(flags);</span>
+<span class="p_add">+	efi_switch_mm(efi_scratch.prev_mm);</span>
+ 
+ 	return status;
+ }
+<span class="p_header">diff --git a/arch/x86/platform/efi/efi_thunk_64.S b/arch/x86/platform/efi/efi_thunk_64.S</span>
+<span class="p_header">index ff85d28c50f2..5cdc72ebbc82 100644</span>
+<span class="p_header">--- a/arch/x86/platform/efi/efi_thunk_64.S</span>
+<span class="p_header">+++ b/arch/x86/platform/efi/efi_thunk_64.S</span>
+<span class="p_chunk">@@ -32,7 +32,7 @@</span> <span class="p_context"> ENTRY(efi64_thunk)</span>
+ 	 * Switch to 1:1 mapped 32-bit stack pointer.
+ 	 */
+ 	movq	%rsp, efi_saved_sp(%rip)
+<span class="p_del">-	movq	efi_scratch+25(%rip), %rsp</span>
+<span class="p_add">+	movq	efi_scratch(%rip), %rsp</span>
+ 
+ 	/*
+ 	 * Calculate the physical address of the kernel text.
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

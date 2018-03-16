@@ -1,0 +1,359 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>mm/rmap: try_to_unmap_one() do not call mmu_notifier under ptl v2 - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    mm/rmap: try_to_unmap_one() do not call mmu_notifier under ptl v2</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=2554">Jerome Glisse</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Aug. 9, 2017, 8:43 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170809204333.27485-1-jglisse@redhat.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9892115/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9892115/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9892115/">/patch/9892115/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	6BB4F60384 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  9 Aug 2017 20:43:55 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 5D5ED28880
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  9 Aug 2017 20:43:55 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 51823288AC; Wed,  9 Aug 2017 20:43:55 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 9CB6428880
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  9 Aug 2017 20:43:54 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753711AbdHIUnw (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 9 Aug 2017 16:43:52 -0400
+Received: from mx1.redhat.com ([209.132.183.28]:41316 &quot;EHLO mx1.redhat.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1753669AbdHIUnf (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 9 Aug 2017 16:43:35 -0400
+Received: from smtp.corp.redhat.com
+	(int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 8DAE613D812;
+	Wed,  9 Aug 2017 20:43:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mx1.redhat.com 8DAE613D812
+Authentication-Results: ext-mx06.extmail.prod.ext.phx2.redhat.com;
+	dmarc=none (p=none dis=none) header.from=redhat.com
+Authentication-Results: ext-mx06.extmail.prod.ext.phx2.redhat.com;
+	spf=fail smtp.mailfrom=jglisse@redhat.com
+Received: from localhost.localdomain.com (ovpn-123-241.rdu2.redhat.com
+	[10.10.123.241])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id C1E8D5B83E;
+	Wed,  9 Aug 2017 20:43:34 +0000 (UTC)
+From: jglisse@redhat.com
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= &lt;jglisse@redhat.com&gt;,
+	&quot;Kirill A . Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Subject: [PATCH] mm/rmap: try_to_unmap_one() do not call mmu_notifier under
+	ptl v2
+Date: Wed,  9 Aug 2017 16:43:33 -0400
+Message-Id: &lt;20170809204333.27485-1-jglisse@redhat.com&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16
+	(mx1.redhat.com [10.5.110.30]);
+	Wed, 09 Aug 2017 20:43:35 +0000 (UTC)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=2554">Jerome Glisse</a> - Aug. 9, 2017, 8:43 p.m.</div>
+<pre class="content">
+<span class="from">From: Jérôme Glisse &lt;jglisse@redhat.com&gt;</span>
+
+MMU notifiers can sleep, but in try_to_unmap_one() we call
+mmu_notifier_invalidate_page() under page table lock.
+
+Let&#39;s instead use mmu_notifier_invalidate_range() outside
+page_vma_mapped_walk() loop.
+
+Changed since v1:
+  - s/end/address + (1UL &lt;&lt; compound_order(page))
+  - rebase on top of mmotm
+<span class="signed-off-by">
+Signed-off-by: Jérôme Glisse &lt;jglisse@redhat.com&gt;</span>
+Cc: Kirill A. Shutemov &lt;kirill.shutemov@linux.intel.com&gt;
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Fixes: c7ab0d2fdc84 (&quot;mm: convert try_to_unmap_one() to use page_vma_mapped_walk()&quot;)
+---
+ mm/rmap.c | 31 +++++++++++++++++--------------
+ 1 file changed, 17 insertions(+), 14 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/rmap.c b/mm/rmap.c</span>
+<span class="p_header">index 2c55e7b8f8f4..37d18dccf17e 100644</span>
+<span class="p_header">--- a/mm/rmap.c</span>
+<span class="p_header">+++ b/mm/rmap.c</span>
+<span class="p_chunk">@@ -1323,7 +1323,7 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 	};
+ 	pte_t pteval;
+ 	struct page *subpage;
+<span class="p_del">-	bool ret = true;</span>
+<span class="p_add">+	bool ret = true, invalidation_needed = false;</span>
+ 	enum ttu_flags flags = (enum ttu_flags)arg;
+ 
+ 	/* munlock has nothing to gain from examining un-locked vmas */
+<span class="p_chunk">@@ -1376,11 +1376,9 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 		VM_BUG_ON_PAGE(!pvmw.pte, page);
+ 
+ 		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
+<span class="p_del">-		address = pvmw.address;</span>
+<span class="p_del">-</span>
+ 
+ 		if (!(flags &amp; TTU_IGNORE_ACCESS)) {
+<span class="p_del">-			if (ptep_clear_flush_young_notify(vma, address,</span>
+<span class="p_add">+			if (ptep_clear_flush_young_notify(vma, pvmw.address,</span>
+ 						pvmw.pte)) {
+ 				ret = false;
+ 				page_vma_mapped_walk_done(&amp;pvmw);
+<span class="p_chunk">@@ -1389,7 +1387,7 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 		}
+ 
+ 		/* Nuke the page table entry. */
+<span class="p_del">-		flush_cache_page(vma, address, pte_pfn(*pvmw.pte));</span>
+<span class="p_add">+		flush_cache_page(vma, pvmw.address, pte_pfn(*pvmw.pte));</span>
+ 		if (should_defer_flush(mm, flags)) {
+ 			/*
+ 			 * We clear the PTE but do not flush so potentially
+<span class="p_chunk">@@ -1399,11 +1397,12 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 			 * transition on a cached TLB entry is written through
+ 			 * and traps if the PTE is unmapped.
+ 			 */
+<span class="p_del">-			pteval = ptep_get_and_clear(mm, address, pvmw.pte);</span>
+<span class="p_add">+			pteval = ptep_get_and_clear(mm, pvmw.address,</span>
+<span class="p_add">+						    pvmw.pte);</span>
+ 
+ 			set_tlb_ubc_flush_pending(mm, pte_dirty(pteval));
+ 		} else {
+<span class="p_del">-			pteval = ptep_clear_flush(vma, address, pvmw.pte);</span>
+<span class="p_add">+			pteval = ptep_clear_flush(vma, pvmw.address, pvmw.pte);</span>
+ 		}
+ 
+ 		/* Move the dirty bit to the page. Now the pte is gone. */
+<span class="p_chunk">@@ -1418,12 +1417,12 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 			if (PageHuge(page)) {
+ 				int nr = 1 &lt;&lt; compound_order(page);
+ 				hugetlb_count_sub(nr, mm);
+<span class="p_del">-				set_huge_swap_pte_at(mm, address,</span>
+<span class="p_add">+				set_huge_swap_pte_at(mm, pvmw.address,</span>
+ 						     pvmw.pte, pteval,
+ 						     vma_mmu_pagesize(vma));
+ 			} else {
+ 				dec_mm_counter(mm, mm_counter(page));
+<span class="p_del">-				set_pte_at(mm, address, pvmw.pte, pteval);</span>
+<span class="p_add">+				set_pte_at(mm, pvmw.address, pvmw.pte, pteval);</span>
+ 			}
+ 
+ 		} else if (pte_unused(pteval)) {
+<span class="p_chunk">@@ -1447,7 +1446,7 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 			swp_pte = swp_entry_to_pte(entry);
+ 			if (pte_soft_dirty(pteval))
+ 				swp_pte = pte_swp_mksoft_dirty(swp_pte);
+<span class="p_del">-			set_pte_at(mm, address, pvmw.pte, swp_pte);</span>
+<span class="p_add">+			set_pte_at(mm, pvmw.address, pvmw.pte, swp_pte);</span>
+ 		} else if (PageAnon(page)) {
+ 			swp_entry_t entry = { .val = page_private(subpage) };
+ 			pte_t swp_pte;
+<span class="p_chunk">@@ -1473,7 +1472,7 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 				 * If the page was redirtied, it cannot be
+ 				 * discarded. Remap the page to page table.
+ 				 */
+<span class="p_del">-				set_pte_at(mm, address, pvmw.pte, pteval);</span>
+<span class="p_add">+				set_pte_at(mm, pvmw.address, pvmw.pte, pteval);</span>
+ 				SetPageSwapBacked(page);
+ 				ret = false;
+ 				page_vma_mapped_walk_done(&amp;pvmw);
+<span class="p_chunk">@@ -1481,7 +1480,7 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 			}
+ 
+ 			if (swap_duplicate(entry) &lt; 0) {
+<span class="p_del">-				set_pte_at(mm, address, pvmw.pte, pteval);</span>
+<span class="p_add">+				set_pte_at(mm, pvmw.address, pvmw.pte, pteval);</span>
+ 				ret = false;
+ 				page_vma_mapped_walk_done(&amp;pvmw);
+ 				break;
+<span class="p_chunk">@@ -1497,14 +1496,18 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 			swp_pte = swp_entry_to_pte(entry);
+ 			if (pte_soft_dirty(pteval))
+ 				swp_pte = pte_swp_mksoft_dirty(swp_pte);
+<span class="p_del">-			set_pte_at(mm, address, pvmw.pte, swp_pte);</span>
+<span class="p_add">+			set_pte_at(mm, pvmw.address, pvmw.pte, swp_pte);</span>
+ 		} else
+ 			dec_mm_counter(mm, mm_counter_file(page));
+ discard:
+ 		page_remove_rmap(subpage, PageHuge(page));
+ 		put_page(page);
+<span class="p_del">-		mmu_notifier_invalidate_page(mm, address);</span>
+<span class="p_add">+		invalidation_needed = true;</span>
+ 	}
+<span class="p_add">+</span>
+<span class="p_add">+	if (invalidation_needed)</span>
+<span class="p_add">+		mmu_notifier_invalidate_range(mm, address,</span>
+<span class="p_add">+				address + (1UL &lt;&lt; compound_order(page)));</span>
+ 	return ret;
+ }
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

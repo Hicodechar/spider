@@ -1,0 +1,347 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>x86/mm: Add barriers and document switch_mm()-vs-flush synchronization follow-up - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    x86/mm: Add barriers and document switch_mm()-vs-flush synchronization follow-up</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=31402">Rafael Aquini</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Aug. 2, 2016, 3:34 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;88fb045963d1e51cd14c05c9c4d283a1ccd29c80.1470151425.git.aquini@redhat.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9258327/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9258327/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9258327/">/patch/9258327/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	8FB5260865 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  2 Aug 2016 15:42:21 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 820AC2856F
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  2 Aug 2016 15:42:21 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 76AC528570; Tue,  2 Aug 2016 15:42:21 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id BB67B28573
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  2 Aug 2016 15:42:18 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S967674AbcHBPmO (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 2 Aug 2016 11:42:14 -0400
+Received: from mx1.redhat.com ([209.132.183.28]:38652 &quot;EHLO mx1.redhat.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S967610AbcHBPlm (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 2 Aug 2016 11:41:42 -0400
+Received: from int-mx13.intmail.prod.int.phx2.redhat.com
+	(int-mx13.intmail.prod.int.phx2.redhat.com [10.5.11.26])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256
+	bits)) (No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 3BF8A85376;
+	Tue,  2 Aug 2016 15:35:04 +0000 (UTC)
+Received: from t510.redhat.com (ovpn-116-7.phx2.redhat.com [10.3.116.7])
+	by int-mx13.intmail.prod.int.phx2.redhat.com (8.14.4/8.14.4) with
+	ESMTP id u72FZ134013499; Tue, 2 Aug 2016 11:35:02 -0400
+From: Rafael Aquini &lt;aquini@redhat.com&gt;
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, x86@kernel.org, luto@kernel.org,
+	aarcange@redhat.com, lwoodman@redhat.com, riel@redhat.com,
+	mgorman@suse.de, akpm@linux-foundation.org
+Subject: [PATCH] x86/mm: Add barriers and document switch_mm()-vs-flush
+	synchronization follow-up
+Date: Tue,  2 Aug 2016 11:34:49 -0400
+Message-Id: &lt;88fb045963d1e51cd14c05c9c4d283a1ccd29c80.1470151425.git.aquini@redhat.com&gt;
+X-Scanned-By: MIMEDefang 2.68 on 10.5.11.26
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16
+	(mx1.redhat.com [10.5.110.25]);
+	Tue, 02 Aug 2016 15:35:04 +0000 (UTC)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=31402">Rafael Aquini</a> - Aug. 2, 2016, 3:34 p.m.</div>
+<pre class="content">
+While backporting 71b3c126e611 (&quot;x86/mm: Add barriers and document switch_mm()-vs-flush synchronization&quot;)
+we stumbled across a possibly missing barrier at flush_tlb_page().
+
+Following the reasoning presented while introducing the synchronization
+barrier at flush_tlb_mm_range(), for the current-&gt;active_mm != mm checkpoint:
+
+        if (current-&gt;active_mm != mm) {
+                /* Synchronize with switch_mm. */
+                smp_mb();
+
+                goto out;
+        }
+
+it suggests the same barrier should be introduced for the similar
+outcome at flush_tlb_page(). This patch add that mentioned missing
+barrier and documents its case.
+
+Suggested-by: Andrea Arcangeli &lt;aarcange@redhat.com&gt;
+<span class="signed-off-by">Signed-off-by: Rafael Aquini &lt;aquini@redhat.com&gt;</span>
+---
+ arch/x86/mm/tlb.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=55071">Nadav Amit</a> - Aug. 2, 2016, 10:27 p.m.</div>
+<pre class="content">
+Rafael Aquini &lt;aquini@redhat.com&gt; wrote:
+<span class="quote">
+&gt; While backporting 71b3c126e611 (&quot;x86/mm: Add barriers and document switch_mm()-vs-flush synchronization&quot;)</span>
+<span class="quote">&gt; we stumbled across a possibly missing barrier at flush_tlb_page().</span>
+
+I too noticed it and submitted a similar patch that never got a response [1].
+
+Regards,
+Nadav
+
+[1] https://lkml.org/lkml/2016/7/15/598
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41531">Andy Lutomirski</a> - Aug. 2, 2016, 10:34 p.m.</div>
+<pre class="content">
+On Tue, Aug 2, 2016 at 3:27 PM, Nadav Amit &lt;nadav.amit@gmail.com&gt; wrote:
+<span class="quote">&gt; Rafael Aquini &lt;aquini@redhat.com&gt; wrote:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; While backporting 71b3c126e611 (&quot;x86/mm: Add barriers and document switch_mm()-vs-flush synchronization&quot;)</span>
+<span class="quote">&gt;&gt; we stumbled across a possibly missing barrier at flush_tlb_page().</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I too noticed it and submitted a similar patch that never got a response [1].</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Regards,</span>
+<span class="quote">&gt; Nadav</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; [1] https://lkml.org/lkml/2016/7/15/598</span>
+<span class="quote">&gt;</span>
+
+Yeah, sorry, I&#39;ve been busy.  I&#39;ll try to get to this soon.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=31402">Rafael Aquini</a> - Aug. 2, 2016, 11:12 p.m.</div>
+<pre class="content">
+On Tue, Aug 02, 2016 at 03:27:06PM -0700, Nadav Amit wrote:
+<span class="quote">&gt; Rafael Aquini &lt;aquini@redhat.com&gt; wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; While backporting 71b3c126e611 (&quot;x86/mm: Add barriers and document switch_mm()-vs-flush synchronization&quot;)</span>
+<span class="quote">&gt; &gt; we stumbled across a possibly missing barrier at flush_tlb_page().</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I too noticed it and submitted a similar patch that never got a response [1].</span>
+<span class="quote">&gt;</span>
+
+As far as I understood Andy&#39;s rationale for the original patch you need
+a full memory barrier there in flush_tlb_page to get that cache-eviction
+race sorted out.
+
+Regards,
+-- Rafael
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=55071">Nadav Amit</a> - Aug. 3, 2016, 12:46 a.m.</div>
+<pre class="content">
+Rafael Aquini &lt;aquini@redhat.com&gt; wrote:
+<span class="quote">
+&gt; On Tue, Aug 02, 2016 at 03:27:06PM -0700, Nadav Amit wrote:</span>
+<span class="quote">&gt;&gt; Rafael Aquini &lt;aquini@redhat.com&gt; wrote:</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt;&gt; While backporting 71b3c126e611 (&quot;x86/mm: Add barriers and document switch_mm()-vs-flush synchronization&quot;)</span>
+<span class="quote">&gt;&gt;&gt; we stumbled across a possibly missing barrier at flush_tlb_page().</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; I too noticed it and submitted a similar patch that never got a response [1].</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; As far as I understood Andy&#39;s rationale for the original patch you need</span>
+<span class="quote">&gt; a full memory barrier there in flush_tlb_page to get that cache-eviction</span>
+<span class="quote">&gt; race sorted out.</span>
+
+I am completely ok with your fix (except for the missing barrier in
+set_tlb_ubc_flush_pending() ). However, I think mine should suffice. As far as
+I saw, an atomic operation preceded every invocation of flush_tlb_page(). I
+was afraid someone would send me to measure the patch performance impact so I
+looked for one with the least impact.
+
+See Intel SDM 8.2.2 &quot;Memory Ordering in P6 and More Recent Processor Families&quot;
+for the reasoning behind smp_mb__after_atomic() . The result of an atomic
+operation followed by smp_mb__after_atomic should be identical to smp_mb().
+
+Regards,
+Nadav
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c</span>
+<span class="p_header">index 4dbe656..3b4addc 100644</span>
+<span class="p_header">--- a/arch/x86/mm/tlb.c</span>
+<span class="p_header">+++ b/arch/x86/mm/tlb.c</span>
+<span class="p_chunk">@@ -375,6 +375,12 @@</span> <span class="p_context"> void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)</span>
+ 			/* Synchronize with switch_mm. */
+ 			smp_mb();
+ 		}
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * current-&gt;active_mm != mm</span>
+<span class="p_add">+		 * Synchronize with switch_mm.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		smp_mb();</span>
+ 	}
+ 
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) &lt; nr_cpu_ids)
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

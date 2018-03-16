@@ -1,0 +1,766 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[1/2] mm, oom: introduce oom reaper - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [1/2] mm, oom: introduce oom reaper</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=28">Tetsuo Handa</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Feb. 3, 2016, 10:31 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;201602031931.CGJ56248.HMOQFOFLtJVFSO@I-love.SAKURA.ne.jp&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/8200261/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/8200261/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/8200261/">/patch/8200261/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id 9916FBEEE5
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  3 Feb 2016 10:32:00 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 2594520263
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  3 Feb 2016 10:31:59 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 33FEE2025B
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  3 Feb 2016 10:31:57 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753885AbcBCKbw (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 3 Feb 2016 05:31:52 -0500
+Received: from www262.sakura.ne.jp ([202.181.97.72]:46555 &quot;EHLO
+	www262.sakura.ne.jp&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752192AbcBCKbp (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 3 Feb 2016 05:31:45 -0500
+Received: from fsav406.sakura.ne.jp (fsav406.sakura.ne.jp [133.242.250.105])
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id
+	u13AVhhw026133; Wed, 3 Feb 2016 19:31:43 +0900 (JST)
+	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
+Received: from www262.sakura.ne.jp (202.181.97.72) by fsav406.sakura.ne.jp
+	(F-Secure/fsigk_smtp/522/fsav406.sakura.ne.jp); 
+	Wed, 03 Feb 2016 19:31:43 +0900 (JST)
+X-Virus-Status: clean(F-Secure/fsigk_smtp/522/fsav406.sakura.ne.jp)
+Received: from AQUA (softbank126072091035.bbtec.net [126.72.91.35])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.14.5/8.14.5) with ESMTP id u13AVg5s026130; 
+	Wed, 3 Feb 2016 19:31:42 +0900 (JST)
+	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
+To: rientjes@google.com, mhocko@kernel.org, hannes@cmpxchg.org
+Cc: akpm@linux-foundation.org, mgorman@suse.de,
+	torvalds@linux-foundation.org, oleg@redhat.com, hughd@google.com,
+	andrea@kernel.org, riel@redhat.com, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 1/2] mm, oom: introduce oom reaper
+From: Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;
+References: &lt;alpine.DEB.2.10.1601271651530.17979@chino.kir.corp.google.com&gt;
+	&lt;20160128214247.GD621@dhcp22.suse.cz&gt;
+	&lt;alpine.DEB.2.10.1602011843250.31751@chino.kir.corp.google.com&gt;
+	&lt;20160202085758.GE19910@dhcp22.suse.cz&gt;
+	&lt;alpine.DEB.2.10.1602021437140.9118@chino.kir.corp.google.com&gt;
+In-Reply-To: &lt;alpine.DEB.2.10.1602021437140.9118@chino.kir.corp.google.com&gt;
+Message-Id: &lt;201602031931.CGJ56248.HMOQFOFLtJVFSO@I-love.SAKURA.ne.jp&gt;
+X-Mailer: Winbiff [Version 2.51 PL2]
+X-Accept-Language: ja,en,zh
+Date: Wed, 3 Feb 2016 19:31:42 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-7.3 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=28">Tetsuo Handa</a> - Feb. 3, 2016, 10:31 a.m.</div>
+<pre class="content">
+David Rientjes wrote:
+<span class="quote">&gt; On Tue, 2 Feb 2016, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; &gt; I&#39;m baffled by any reference to &quot;memcg oom heavy loads&quot;, I don&#39;t </span>
+<span class="quote">&gt; &gt; &gt; understand this paragraph, sorry.  If a memcg is oom, we shouldn&#39;t be</span>
+<span class="quote">&gt; &gt; &gt; disrupting the global runqueue by running oom_reaper at a high priority.  </span>
+<span class="quote">&gt; &gt; &gt; The disruption itself is not only in first wakeup but also in how long the </span>
+<span class="quote">&gt; &gt; &gt; reaper can run and when it is rescheduled: for a lot of memory this is </span>
+<span class="quote">&gt; &gt; &gt; potentially long.  The reaper is best-effort, as the changelog indicates, </span>
+<span class="quote">&gt; &gt; &gt; and we shouldn&#39;t have a reliance on this high priority: oom kill exiting </span>
+<span class="quote">&gt; &gt; &gt; can&#39;t possibly be expected to be immediate.  This high priority should be </span>
+<span class="quote">&gt; &gt; &gt; removed so memcg oom conditions are isolated and don&#39;t affect other loads.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; If this is a concern then I would be tempted to simply disable oom</span>
+<span class="quote">&gt; &gt; reaper for memcg oom altogether. For me it is much more important that</span>
+<span class="quote">&gt; &gt; the reaper, even though a best effort, is guaranteed to schedule if</span>
+<span class="quote">&gt; &gt; something goes terribly wrong on the machine.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I don&#39;t believe the higher priority guarantees it is able to schedule any </span>
+<span class="quote">&gt; more than it was guaranteed to schedule before.  It will run, but it won&#39;t </span>
+<span class="quote">&gt; preempt other innocent processes in disjoint memcgs or cpusets.  It&#39;s not </span>
+<span class="quote">&gt; only a memcg issue, but it also impacts disjoint cpuset mems and mempolicy </span>
+<span class="quote">&gt; nodemasks.  I think it would be disappointing to leave those out.  I think </span>
+<span class="quote">&gt; the higher priority should simply be removed in terms of fairness.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Other than these issues, I don&#39;t see any reason why a refreshed series </span>
+<span class="quote">&gt; wouldn&#39;t be immediately acked.  Thanks very much for continuing to work on </span>
+<span class="quote">&gt; this!</span>
+<span class="quote">&gt; </span>
+
+Excuse me, but I came to think that we should try to wake up the OOM reaper at
+
+    if (test_tsk_thread_flag(task, TIF_MEMDIE)) {
+        if (!is_sysrq_oom(oc))
+            return OOM_SCAN_ABORT;
+    }
+
+in oom_scan_process_thread() rather than at oom_kill_process() or at
+mark_oom_victim(). Waking up the OOM reaper there will try to reap
+task-&gt;mm, and give up eventually which will in turn naturally allow the
+OOM killer to choose next OOM victim. The key point is PATCH 2/5 shown
+below. What do you think?
+
+PATCH 1/5 is (I think) a bug fix.
+PATCH 2/5 is for waking up the OOM reaper from victim selection loop.
+PATCH 3/5 is for helping the OOM killer to choose next OOM victim.
+PATCH 4/5 is for handling corner cases.
+PATCH 5/5 is for changing the OOM reaper to use default priority.
+
+ include/linux/oom.h |    3
+ mm/oom_kill.c       |  173 ++++++++++++++++++++++++++++++++++++++++------------
+ 2 files changed, 136 insertions(+), 40 deletions(-)
+
+----------------------------------------
+<span class="quote">&gt;From e1c0a78fbfd0a76f367efac269cbcf22c7df9292 Mon Sep 17 00:00:00 2001</span>
+<span class="from">From: Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;</span>
+Date: Wed, 3 Feb 2016 14:18:19 +0900
+Subject: [PATCH 1/5] mm,oom: Fix incorrect oom_task_origin check.
+
+Currently, the OOM killer unconditionally selects p if oom_task_origin(p)
+is true, but p should not be OOM-killed if p is marked as OOM-unkillable.
+
+This patch does not fix a race condition where p is selected when p was
+by chance between set_current_oom_origin() and actually start operations
+that might trigger an OOM event when an OOM event is triggered for some
+reason other than operations by p.
+<span class="signed-off-by">
+Signed-off-by: Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;</span>
+---
+ include/linux/oom.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/include/linux/oom.h b/include/linux/oom.h</span>
+<span class="p_header">index 45993b8..59481e6 100644</span>
+<span class="p_header">--- a/include/linux/oom.h</span>
+<span class="p_header">+++ b/include/linux/oom.h</span>
+<span class="p_chunk">@@ -67,7 +67,8 @@</span> <span class="p_context"> static inline void clear_current_oom_origin(void)</span>
+ 
+ static inline bool oom_task_origin(const struct task_struct *p)
+ {
+<span class="p_del">-	return !!(p-&gt;signal-&gt;oom_flags &amp; OOM_FLAG_ORIGIN);</span>
+<span class="p_add">+	return (p-&gt;signal-&gt;oom_flags &amp; OOM_FLAG_ORIGIN) &amp;&amp;</span>
+<span class="p_add">+		p-&gt;signal-&gt;oom_score_adj != OOM_SCORE_ADJ_MIN;</span>
+ }
+ 
+ extern void mark_oom_victim(struct task_struct *tsk);
+<span class="p_del">-- </span>
+1.8.3.1
+
+&gt;From 76cf60d33e4e1daa475e4c1e39087415a309c6e9 Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;
+Date: Wed, 3 Feb 2016 14:20:07 +0900
+Subject: [PATCH 2/5] mm,oom: Change timing of waking up the OOM reaper
+
+Currently, the OOM reaper kernel thread is woken up when we set TIF_MEMDIE
+on a task. But it is not easy to build a reliable OOM-reap queuing chain.
+
+Since the OOM livelock problem occurs when we find TIF_MEMDIE on a task
+which cannot terminate, waking up the OOM reaper when we found TIF_MEMDIE
+on a task can simplify handling of the chain. Also, we don&#39;t need to wake
+up the OOM reaper if the victim can smoothly terminate. Therefore, this
+patch replaces wake_oom_reaper() called from oom_kill_process() with
+try_oom_reap() called from oom_scan_process_thread().
+
+Signed-off-by: Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;
+<span class="p_del">---</span>
+ mm/oom_kill.c | 99 +++++++++++++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 79 insertions(+), 20 deletions(-)
+
+<span class="p_header">diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="p_header">index b51bcce..07c6389 100644</span>
+<span class="p_header">--- a/mm/oom_kill.c</span>
+<span class="p_header">+++ b/mm/oom_kill.c</span>
+<span class="p_chunk">@@ -268,6 +268,8 @@</span> <span class="p_context"> static enum oom_constraint constrained_alloc(struct oom_control *oc,</span>
+ }
+ #endif
+ 
+<span class="p_add">+static bool try_oom_reap(struct task_struct *tsk);</span>
+<span class="p_add">+</span>
+ enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,
+ 			struct task_struct *task, unsigned long totalpages)
+ {
+<span class="p_chunk">@@ -279,7 +281,7 @@</span> <span class="p_context"> enum oom_scan_t oom_scan_process_thread(struct oom_control *oc,</span>
+ 	 * Don&#39;t allow any other task to have access to the reserves.
+ 	 */
+ 	if (test_tsk_thread_flag(task, TIF_MEMDIE)) {
+<span class="p_del">-		if (!is_sysrq_oom(oc))</span>
+<span class="p_add">+		if (!is_sysrq_oom(oc) &amp;&amp; try_oom_reap(task))</span>
+ 			return OOM_SCAN_ABORT;
+ 	}
+ 	if (!task-&gt;mm)
+<span class="p_chunk">@@ -420,6 +422,40 @@</span> <span class="p_context"> static struct task_struct *oom_reaper_th;</span>
+ static struct task_struct *task_to_reap;
+ static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);
+ 
+<span class="p_add">+static bool mm_is_reapable(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct task_struct *g;</span>
+<span class="p_add">+	struct task_struct *p;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Since it is possible that p voluntarily called do_exit() or</span>
+<span class="p_add">+	 * somebody other than the OOM killer sent SIGKILL on p, this mm used</span>
+<span class="p_add">+	 * by p-&gt;signal-&gt;oom_score_adj == OOM_SCORE_ADJ_MIN is reapable if p</span>
+<span class="p_add">+	 * has pending SIGKILL or already reached do_exit().</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * On the other hand, it is possible that mark_oom_victim(p) is called</span>
+<span class="p_add">+	 * without sending SIGKILL to all tasks using this mm. In this case,</span>
+<span class="p_add">+	 * the OOM reaper cannot reap this mm unless p is the only task using</span>
+<span class="p_add">+	 * this mm.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Therefore, determine whether this mm is reapable by testing whether</span>
+<span class="p_add">+	 * all tasks using this mm are dying or already exiting rather than</span>
+<span class="p_add">+	 * depending on p-&gt;signal-&gt;oom_score_adj value which is updated by the</span>
+<span class="p_add">+	 * OOM reaper.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	rcu_read_lock();</span>
+<span class="p_add">+	for_each_process_thread(g, p) {</span>
+<span class="p_add">+		if (mm != READ_ONCE(p-&gt;mm) ||</span>
+<span class="p_add">+		    fatal_signal_pending(p) || (p-&gt;flags &amp; PF_EXITING))</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+		mm = NULL;</span>
+<span class="p_add">+		goto out;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+ out:</span>
+<span class="p_add">+	rcu_read_unlock();</span>
+<span class="p_add">+	return mm != NULL;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ static bool __oom_reap_task(struct task_struct *tsk)
+ {
+ 	struct mmu_gather tlb;
+<span class="p_chunk">@@ -448,7 +484,7 @@</span> <span class="p_context"> static bool __oom_reap_task(struct task_struct *tsk)</span>
+ 
+ 	task_unlock(p);
+ 
+<span class="p_del">-	if (!down_read_trylock(&amp;mm-&gt;mmap_sem)) {</span>
+<span class="p_add">+	if (!mm_is_reapable(mm) || !down_read_trylock(&amp;mm-&gt;mmap_sem)) {</span>
+ 		ret = false;
+ 		goto out;
+ 	}
+<span class="p_chunk">@@ -500,7 +536,7 @@</span> <span class="p_context"> static void oom_reap_task(struct task_struct *tsk)</span>
+ 	while (attempts++ &lt; 10 &amp;&amp; !__oom_reap_task(tsk))
+ 		schedule_timeout_idle(HZ/10);
+ 
+<span class="p_del">-	/* Drop a reference taken by wake_oom_reaper */</span>
+<span class="p_add">+	/* Drop a reference taken by try_oom_reap */</span>
+ 	put_task_struct(tsk);
+ }
+ 
+<span class="p_chunk">@@ -512,18 +548,44 @@</span> <span class="p_context"> static int oom_reaper(void *unused)</span>
+ 		wait_event_freezable(oom_reaper_wait,
+ 				     (tsk = READ_ONCE(task_to_reap)));
+ 		oom_reap_task(tsk);
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * The OOM killer might be about to call try_oom_reap() after</span>
+<span class="p_add">+		 * seeing TIF_MEMDIE.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		smp_wmb();</span>
+ 		WRITE_ONCE(task_to_reap, NULL);
+ 	}
+ 
+ 	return 0;
+ }
+ 
+<span class="p_del">-static void wake_oom_reaper(struct task_struct *tsk)</span>
+<span class="p_add">+static bool try_oom_reap(struct task_struct *tsk)</span>
+ {
+ 	struct task_struct *old_tsk;
+ 
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * We will livelock if we unconditionally return true.</span>
+<span class="p_add">+	 * We will kill all tasks if we unconditionally return false.</span>
+<span class="p_add">+	 */</span>
+ 	if (!oom_reaper_th)
+<span class="p_del">-		return;</span>
+<span class="p_add">+		return true;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Wait for the OOM reaper to reap this task and mark this task</span>
+<span class="p_add">+	 * as OOM-unkillable and clear TIF_MEMDIE. Since the OOM reaper</span>
+<span class="p_add">+	 * has high scheduling priority, we can unconditionally wait for</span>
+<span class="p_add">+	 * completion.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (task_to_reap)</span>
+<span class="p_add">+		return true;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * The OOM reaper might be about to clear task_to_reap after</span>
+<span class="p_add">+	 * clearing TIF_MEMDIE.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	smp_rmb();</span>
+<span class="p_add">+	if (!test_tsk_thread_flag(tsk, TIF_MEMDIE))</span>
+<span class="p_add">+		return false;</span>
+ 
+ 	get_task_struct(tsk);
+ 
+<span class="p_chunk">@@ -537,6 +599,7 @@</span> <span class="p_context"> static void wake_oom_reaper(struct task_struct *tsk)</span>
+ 		wake_up(&amp;oom_reaper_wait);
+ 	else
+ 		put_task_struct(tsk);
+<span class="p_add">+	return true;</span>
+ }
+ 
+ static int __init oom_init(void)
+<span class="p_chunk">@@ -559,8 +622,13 @@</span> <span class="p_context"> static int __init oom_init(void)</span>
+ }
+ subsys_initcall(oom_init)
+ #else
+<span class="p_del">-static void wake_oom_reaper(struct task_struct *mm)</span>
+<span class="p_add">+static bool try_oom_reap(struct task_struct *tsk)</span>
+ {
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * We will livelock if we unconditionally return true.</span>
+<span class="p_add">+	 * We will kill all tasks if we unconditionally return false.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	return true;</span>
+ }
+ #endif
+ 
+<span class="p_chunk">@@ -592,7 +660,8 @@</span> <span class="p_context"> void mark_oom_victim(struct task_struct *tsk)</span>
+  */
+ void exit_oom_victim(struct task_struct *tsk)
+ {
+<span class="p_del">-	clear_tsk_thread_flag(tsk, TIF_MEMDIE);</span>
+<span class="p_add">+	if (!test_and_clear_tsk_thread_flag(tsk, TIF_MEMDIE))</span>
+<span class="p_add">+		return;</span>
+ 
+ 	if (!atomic_dec_return(&amp;oom_victims))
+ 		wake_up_all(&amp;oom_victims_wait);
+<span class="p_chunk">@@ -669,7 +738,6 @@</span> <span class="p_context"> void oom_kill_process(struct oom_control *oc, struct task_struct *p,</span>
+ 	unsigned int victim_points = 0;
+ 	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+ 					      DEFAULT_RATELIMIT_BURST);
+<span class="p_del">-	bool can_oom_reap = true;</span>
+ 
+ 	/*
+ 	 * If the task is already exiting, don&#39;t alarm the sysadmin or kill
+<span class="p_chunk">@@ -762,23 +830,14 @@</span> <span class="p_context"> void oom_kill_process(struct oom_control *oc, struct task_struct *p,</span>
+ 			continue;
+ 		if (is_global_init(p))
+ 			continue;
+<span class="p_del">-		if (unlikely(p-&gt;flags &amp; PF_KTHREAD) ||</span>
+<span class="p_del">-		    p-&gt;signal-&gt;oom_score_adj == OOM_SCORE_ADJ_MIN) {</span>
+<span class="p_del">-			/*</span>
+<span class="p_del">-			 * We cannot use oom_reaper for the mm shared by this</span>
+<span class="p_del">-			 * process because it wouldn&#39;t get killed and so the</span>
+<span class="p_del">-			 * memory might be still used.</span>
+<span class="p_del">-			 */</span>
+<span class="p_del">-			can_oom_reap = false;</span>
+<span class="p_add">+		if (unlikely(p-&gt;flags &amp; PF_KTHREAD))</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+		if (p-&gt;signal-&gt;oom_score_adj == OOM_SCORE_ADJ_MIN)</span>
+ 			continue;
+<span class="p_del">-		}</span>
+ 		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
+ 	}
+ 	rcu_read_unlock();
+ 
+<span class="p_del">-	if (can_oom_reap)</span>
+<span class="p_del">-		wake_oom_reaper(victim);</span>
+<span class="p_del">-</span>
+ 	mmdrop(mm);
+ 	put_task_struct(victim);
+ }
+<span class="p_del">-- </span>
+1.8.3.1
+
+&gt;From 8c6024b963d5b4e8d38a3416e14b458e1e073607 Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;
+Date: Wed, 3 Feb 2016 14:42:28 +0900
+Subject: [PATCH 3/5] mm,oom: Always update OOM score and clear TIF_MEMDIE
+ after OOM reap.
+
+This patch updates victim&#39;s oom_score_adj and clear TIF_MEMDIE
+even if the OOM reaper failed to reap victim&#39;s memory. This is
+needed for handling corner cases where TIF_MEMDIE is set on a victim
+without sending SIGKILL to all tasks sharing the same memory.
+
+Signed-off-by: Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;
+<span class="p_del">---</span>
+ mm/oom_kill.c | 50 ++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 40 insertions(+), 10 deletions(-)
+
+<span class="p_header">diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="p_header">index 07c6389..a0ae8dc 100644</span>
+<span class="p_header">--- a/mm/oom_kill.c</span>
+<span class="p_header">+++ b/mm/oom_kill.c</span>
+<span class="p_chunk">@@ -413,6 +413,44 @@</span> <span class="p_context"> static DECLARE_WAIT_QUEUE_HEAD(oom_victims_wait);</span>
+ 
+ bool oom_killer_disabled __read_mostly;
+ 
+<span class="p_add">+static void update_victim_score(struct task_struct *tsk, bool reap_success)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * If we succeeded to reap a mm, mark that task using it as</span>
+<span class="p_add">+	 * OOM-unkillable and clear TIF_MEMDIE, for the task shouldn&#39;t be</span>
+<span class="p_add">+	 * sitting on a reasonably reclaimable memory anymore.</span>
+<span class="p_add">+	 * OOM killer can continue by selecting other victim if unmapping</span>
+<span class="p_add">+	 * hasn&#39;t led to any improvements. This also means that selecting</span>
+<span class="p_add">+	 * this task doesn&#39;t make any sense.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (reap_success)</span>
+<span class="p_add">+		tsk-&gt;signal-&gt;oom_score_adj = OOM_SCORE_ADJ_MIN;</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * If we failed to reap a mm, mark that task using it as almost</span>
+<span class="p_add">+	 * OOM-unkillable and clear TIF_MEMDIE. This will help future</span>
+<span class="p_add">+	 * select_bad_process() try to select other OOM-killable tasks</span>
+<span class="p_add">+	 * before selecting that task again.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	else if (tsk-&gt;signal-&gt;oom_score_adj &gt; OOM_SCORE_ADJ_MIN + 1)</span>
+<span class="p_add">+		tsk-&gt;signal-&gt;oom_score_adj = OOM_SCORE_ADJ_MIN + 1;</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * But if that task got TIF_MEMDIE when that task is already marked as</span>
+<span class="p_add">+	 * almost OOM-unkillable, mark that task completely OOM-unkillable.</span>
+<span class="p_add">+	 * Otherwise, we cannot make progress when all OOM-killable tasks are</span>
+<span class="p_add">+	 * marked as almost OOM-unkillable.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Note that the reason we fail to reap a mm might be that there are</span>
+<span class="p_add">+	 * tasks using this mm without neither pending SIGKILL nor PF_EXITING</span>
+<span class="p_add">+	 * which means that we set TIF_MEMDIE on a task without sending SIGKILL</span>
+<span class="p_add">+	 * to tasks sharing this mm. In this case, we will call panic() without</span>
+<span class="p_add">+	 * sending SIGKILL to tasks sharing this mm when all OOM-killable tasks</span>
+<span class="p_add">+	 * are marked as completely OOM-unkillable.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	else</span>
+<span class="p_add">+		tsk-&gt;signal-&gt;oom_score_adj = OOM_SCORE_ADJ_MIN;</span>
+<span class="p_add">+	exit_oom_victim(tsk);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ #ifdef CONFIG_MMU
+ /*
+  * OOM Reaper kernel thread which tries to reap the memory used by the OOM
+<span class="p_chunk">@@ -513,16 +551,6 @@</span> <span class="p_context"> static bool __oom_reap_task(struct task_struct *tsk)</span>
+ 	}
+ 	tlb_finish_mmu(&amp;tlb, 0, -1);
+ 	up_read(&amp;mm-&gt;mmap_sem);
+<span class="p_del">-</span>
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * Clear TIF_MEMDIE because the task shouldn&#39;t be sitting on a</span>
+<span class="p_del">-	 * reasonably reclaimable memory anymore. OOM killer can continue</span>
+<span class="p_del">-	 * by selecting other victim if unmapping hasn&#39;t led to any</span>
+<span class="p_del">-	 * improvements. This also means that selecting this task doesn&#39;t</span>
+<span class="p_del">-	 * make any sense.</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	tsk-&gt;signal-&gt;oom_score_adj = OOM_SCORE_ADJ_MIN;</span>
+<span class="p_del">-	exit_oom_victim(tsk);</span>
+ out:
+ 	mmput(mm);
+ 	return ret;
+<span class="p_chunk">@@ -536,6 +564,8 @@</span> <span class="p_context"> static void oom_reap_task(struct task_struct *tsk)</span>
+ 	while (attempts++ &lt; 10 &amp;&amp; !__oom_reap_task(tsk))
+ 		schedule_timeout_idle(HZ/10);
+ 
+<span class="p_add">+	update_victim_score(tsk, attempts &lt; 10);</span>
+<span class="p_add">+</span>
+ 	/* Drop a reference taken by try_oom_reap */
+ 	put_task_struct(tsk);
+ }
+<span class="p_del">-- </span>
+1.8.3.1
+
+&gt;From d6254acc565af7456fb21c0bb7568452fb227f3c Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;
+Date: Wed, 3 Feb 2016 14:44:47 +0900
+Subject: [PATCH 4/5] mm,oom: Add timeout counter for handling corner cases.
+
+Currently, we can hit OOM livelock if the OOM reaper kernel thread is
+not available. This patch adds a simple timeout based next victim
+selection logic in case the OOM reaper kernel thread is unavailable.
+
+Future patch will add hooks for allowing global access to memory
+reserves before this timeout counter expires.
+
+Signed-off-by: Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;
+<span class="p_del">---</span>
+ mm/oom_kill.c | 26 +++++++++++++++++++-------
+ 1 file changed, 19 insertions(+), 7 deletions(-)
+
+<span class="p_header">diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="p_header">index a0ae8dc..e4e955b 100644</span>
+<span class="p_header">--- a/mm/oom_kill.c</span>
+<span class="p_header">+++ b/mm/oom_kill.c</span>
+<span class="p_chunk">@@ -451,6 +451,11 @@</span> <span class="p_context"> static void update_victim_score(struct task_struct *tsk, bool reap_success)</span>
+ 	exit_oom_victim(tsk);
+ }
+ 
+<span class="p_add">+static void oomkiller_reset(unsigned long arg)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static DEFINE_TIMER(oomkiller_victim_wait_timer, oomkiller_reset, 0, 0);</span>
+<span class="p_add">+</span>
+ #ifdef CONFIG_MMU
+ /*
+  * OOM Reaper kernel thread which tries to reap the memory used by the OOM
+<span class="p_chunk">@@ -596,9 +601,14 @@</span> <span class="p_context"> static bool try_oom_reap(struct task_struct *tsk)</span>
+ 	/*
+ 	 * We will livelock if we unconditionally return true.
+ 	 * We will kill all tasks if we unconditionally return false.
+<span class="p_add">+	 * Thus, use a simple timeout counter if the OOM reaper is unavailable.</span>
+ 	 */
+<span class="p_del">-	if (!oom_reaper_th)</span>
+<span class="p_del">-		return true;</span>
+<span class="p_add">+	if (!oom_reaper_th) {</span>
+<span class="p_add">+		if (timer_pending(&amp;oomkiller_victim_wait_timer))</span>
+<span class="p_add">+			return true;</span>
+<span class="p_add">+		update_victim_score(tsk, false);</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+	}</span>
+ 
+ 	/*
+ 	 * Wait for the OOM reaper to reap this task and mark this task
+<span class="p_chunk">@@ -654,11 +664,11 @@</span> <span class="p_context"> subsys_initcall(oom_init)</span>
+ #else
+ static bool try_oom_reap(struct task_struct *tsk)
+ {
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * We will livelock if we unconditionally return true.</span>
+<span class="p_del">-	 * We will kill all tasks if we unconditionally return false.</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	return true;</span>
+<span class="p_add">+	/* Use a simple timeout counter, for the OOM reaper is unavailable. */</span>
+<span class="p_add">+	if (timer_pending(&amp;oomkiller_victim_wait_timer))</span>
+<span class="p_add">+		return true;</span>
+<span class="p_add">+	update_victim_score(tsk, false);</span>
+<span class="p_add">+	return false;</span>
+ }
+ #endif
+
+<span class="p_chunk">@@ -683,6 +693,8 @@</span> <span class="p_context"> void mark_oom_victim(struct task_struct *tsk)</span>
+ 	 */
+ 	__thaw_task(tsk);
+ 	atomic_inc(&amp;oom_victims);
+<span class="p_add">+	/* Make sure that we won&#39;t wait for this task forever. */</span>
+<span class="p_add">+	mod_timer(&amp;oomkiller_victim_wait_timer, jiffies + 5 * HZ);</span>
+ }
+ 
+ /**
+<span class="p_del">-- </span>
+1.8.3.1
+
+&gt;From 6156462d2db03bfc9fe76ca5a3f0ebcc5a88a12e Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;
+Date: Wed, 3 Feb 2016 14:45:29 +0900
+Subject: [PATCH 5/5] mm,oom: Use normal scheduling priority for the OOM reaper
+
+Currently, the OOM reaper kernel thread has high scheduling priority
+in order to make sure that OOM-reap operation occurs immediately.
+
+This patch changes the scheduling priority to normal, and fallback to
+a simple timeout based next victim selection logic if the OOM reaper
+fails to get enough CPU resource.
+
+Signed-off-by: Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;
+<span class="p_del">---</span>
+ mm/oom_kill.c | 16 +++++-----------
+ 1 file changed, 5 insertions(+), 11 deletions(-)
+
+<span class="p_header">diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="p_header">index e4e955b..b55159f 100644</span>
+<span class="p_header">--- a/mm/oom_kill.c</span>
+<span class="p_header">+++ b/mm/oom_kill.c</span>
+<span class="p_chunk">@@ -604,6 +604,7 @@</span> <span class="p_context"> static bool try_oom_reap(struct task_struct *tsk)</span>
+ 	 * Thus, use a simple timeout counter if the OOM reaper is unavailable.
+ 	 */
+ 	if (!oom_reaper_th) {
+<span class="p_add">+check_timeout:</span>
+ 		if (timer_pending(&amp;oomkiller_victim_wait_timer))
+ 			return true;
+ 		update_victim_score(tsk, false);
+<span class="p_chunk">@@ -613,11 +614,12 @@</span> <span class="p_context"> static bool try_oom_reap(struct task_struct *tsk)</span>
+ 	/*
+ 	 * Wait for the OOM reaper to reap this task and mark this task
+ 	 * as OOM-unkillable and clear TIF_MEMDIE. Since the OOM reaper
+<span class="p_del">-	 * has high scheduling priority, we can unconditionally wait for</span>
+<span class="p_del">-	 * completion.</span>
+<span class="p_add">+	 * has normal scheduling priority, we can&#39;t wait for completion</span>
+<span class="p_add">+	 * forever. Thus, use a simple timeout counter in case the OOM</span>
+<span class="p_add">+	 * reaper fails to get enough CPU resource.</span>
+ 	 */
+ 	if (task_to_reap)
+<span class="p_del">-		return true;</span>
+<span class="p_add">+		goto check_timeout;</span>
+ 
+ 	/*
+ 	 * The OOM reaper might be about to clear task_to_reap after
+<span class="p_chunk">@@ -649,14 +651,6 @@</span> <span class="p_context"> static int __init oom_init(void)</span>
+ 		pr_err(&quot;Unable to start OOM reaper %ld. Continuing regardless\n&quot;,
+ 				PTR_ERR(oom_reaper_th));
+ 		oom_reaper_th = NULL;
+<span class="p_del">-	} else {</span>
+<span class="p_del">-		struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };</span>
+<span class="p_del">-</span>
+<span class="p_del">-		/*</span>
+<span class="p_del">-		 * Make sure our oom reaper thread will get scheduled when</span>
+<span class="p_del">-		 * ASAP and that it won&#39;t get preempted by malicious userspace.</span>
+<span class="p_del">-		 */</span>
+<span class="p_del">-		sched_setscheduler(oom_reaper_th, SCHED_FIFO, &amp;param);</span>
+ 	}
+ 	return 0;
+ }
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

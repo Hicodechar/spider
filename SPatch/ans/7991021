@@ -1,0 +1,618 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,05/13] x86/mm: Add barriers and document switch_mm-vs-flush synchronization - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,05/13] x86/mm: Add barriers and document switch_mm-vs-flush synchronization</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Jan. 8, 2016, 11:15 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;95a853538da28c64dfc877c60549ec79ed7a5d69.1452294700.git.luto@kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7991021/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7991021/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7991021/">/patch/7991021/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id 9764BBEEE5
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  8 Jan 2016 23:18:21 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id DF43E201BC
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  8 Jan 2016 23:18:20 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 10B3C201C7
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  8 Jan 2016 23:18:20 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1756757AbcAHXSQ (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Fri, 8 Jan 2016 18:18:16 -0500
+Received: from mail.kernel.org ([198.145.29.136]:49668 &quot;EHLO mail.kernel.org&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1756029AbcAHXPo (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Fri, 8 Jan 2016 18:15:44 -0500
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id E1F84201C0;
+	Fri,  8 Jan 2016 23:15:42 +0000 (UTC)
+Received: from localhost (50-76-60-73-ip-static.hfc.comcastbusiness.net
+	[50.76.60.73])
+	(using TLSv1.2 with cipher AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 73AB9201EF;
+	Fri,  8 Jan 2016 23:15:41 +0000 (UTC)
+From: Andy Lutomirski &lt;luto@kernel.org&gt;
+To: x86@kernel.org, linux-kernel@vger.kernel.org
+Cc: Borislav Petkov &lt;bp@alien8.de&gt;, Brian Gerst &lt;brgerst@gmail.com&gt;,
+	Dave Hansen &lt;dave.hansen@linux.intel.com&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Oleg Nesterov &lt;oleg@redhat.com&gt;,
+	&quot;linux-mm@kvack.org&quot; &lt;linux-mm@kvack.org&gt;,
+	Andy Lutomirski &lt;luto@kernel.org&gt;, stable@vger.kernel.org
+Subject: [RFC 05/13] x86/mm: Add barriers and document switch_mm-vs-flush
+	synchronization
+Date: Fri,  8 Jan 2016 15:15:23 -0800
+Message-Id: &lt;95a853538da28c64dfc877c60549ec79ed7a5d69.1452294700.git.luto@kernel.org&gt;
+X-Mailer: git-send-email 2.5.0
+In-Reply-To: &lt;cover.1452294700.git.luto@kernel.org&gt;
+References: &lt;cover.1452294700.git.luto@kernel.org&gt;
+In-Reply-To: &lt;cover.1452294700.git.luto@kernel.org&gt;
+References: &lt;cover.1452294700.git.luto@kernel.org&gt;
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - Jan. 8, 2016, 11:15 p.m.</div>
+<pre class="content">
+When switch_mm activates a new pgd, it also sets a bit that tells
+other CPUs that the pgd is in use so that tlb flush IPIs will be
+sent.  In order for that to work correctly, the bit needs to be
+visible prior to loading the pgd and therefore starting to fill the
+local TLB.
+
+Document all the barriers that make this work correctly and add a
+couple that were missing.
+
+Cc: stable@vger.kernel.org
+<span class="signed-off-by">Signed-off-by: Andy Lutomirski &lt;luto@kernel.org&gt;</span>
+---
+ arch/x86/include/asm/mmu_context.h | 33 ++++++++++++++++++++++++++++++++-
+ arch/x86/mm/tlb.c                  | 29 ++++++++++++++++++++++++++---
+ 2 files changed, 58 insertions(+), 4 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=55071">Nadav Amit</a> - June 3, 2016, 5:42 p.m.</div>
+<pre class="content">
+Following this patch, if (current-&gt;active_mm != mm), flush_tlb_page() still
+doesn’t call smp_mb() before checking mm_cpumask(mm).
+
+In contrast, flush_tlb_mm_range() does call smp_mb().
+
+Is there a reason for this discrepancy?
+
+Thanks,
+Nadav
+
+Andy Lutomirski &lt;luto@kernel.org&gt; wrote:
+<span class="quote">
+&gt; When switch_mm activates a new pgd, it also sets a bit that tells</span>
+<span class="quote">&gt; other CPUs that the pgd is in use so that tlb flush IPIs will be</span>
+<span class="quote">&gt; sent.  In order for that to work correctly, the bit needs to be</span>
+<span class="quote">&gt; visible prior to loading the pgd and therefore starting to fill the</span>
+<span class="quote">&gt; local TLB.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Document all the barriers that make this work correctly and add a</span>
+<span class="quote">&gt; couple that were missing.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Cc: stable@vger.kernel.org</span>
+<span class="quote">&gt; Signed-off-by: Andy Lutomirski &lt;luto@kernel.org&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt; arch/x86/include/asm/mmu_context.h | 33 ++++++++++++++++++++++++++++++++-</span>
+<span class="quote">&gt; arch/x86/mm/tlb.c                  | 29 ++++++++++++++++++++++++++---</span>
+<span class="quote">&gt; 2 files changed, 58 insertions(+), 4 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h</span>
+<span class="quote">&gt; index 379cd3658799..1edc9cd198b8 100644</span>
+<span class="quote">&gt; --- a/arch/x86/include/asm/mmu_context.h</span>
+<span class="quote">&gt; +++ b/arch/x86/include/asm/mmu_context.h</span>
+<span class="quote">&gt; @@ -116,8 +116,34 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,</span>
+<span class="quote">&gt; #endif</span>
+<span class="quote">&gt; 		cpumask_set_cpu(cpu, mm_cpumask(next));</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; -		/* Re-load page tables */</span>
+<span class="quote">&gt; +		/*</span>
+<span class="quote">&gt; +		 * Re-load page tables.</span>
+<span class="quote">&gt; +		 *</span>
+<span class="quote">&gt; +		 * This logic has an ordering constraint:</span>
+<span class="quote">&gt; +		 *</span>
+<span class="quote">&gt; +		 *  CPU 0: Write to a PTE for &#39;next&#39;</span>
+<span class="quote">&gt; +		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.</span>
+<span class="quote">&gt; +		 *  CPU 1: set bit 1 in next&#39;s mm_cpumask</span>
+<span class="quote">&gt; +		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)</span>
+<span class="quote">&gt; +		 *</span>
+<span class="quote">&gt; +		 * We need to prevent an outcome in which CPU 1 observes</span>
+<span class="quote">&gt; +		 * the new PTE value and CPU 0 observes bit 1 clear in</span>
+<span class="quote">&gt; +		 * mm_cpumask.  (If that occurs, then the IPI will never</span>
+<span class="quote">&gt; +		 * be sent, and CPU 0&#39;s TLB will contain a stale entry.)</span>
+<span class="quote">&gt; +		 *</span>
+<span class="quote">&gt; +		 * The bad outcome can occur if either CPU&#39;s load is</span>
+<span class="quote">&gt; +		 * reordered before that CPU&#39;s store, so both CPUs much</span>
+<span class="quote">&gt; +		 * execute full barriers to prevent this from happening.</span>
+<span class="quote">&gt; +		 *</span>
+<span class="quote">&gt; +		 * Thus, switch_mm needs a full barrier between the</span>
+<span class="quote">&gt; +		 * store to mm_cpumask and any operation that could load</span>
+<span class="quote">&gt; +		 * from next-&gt;pgd.  This barrier synchronizes with</span>
+<span class="quote">&gt; +		 * remote TLB flushers.  Fortunately, load_cr3 is</span>
+<span class="quote">&gt; +		 * serializing and thus acts as a full barrier.</span>
+<span class="quote">&gt; +		 *</span>
+<span class="quote">&gt; +		 */</span>
+<span class="quote">&gt; 		load_cr3(next-&gt;pgd);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; 		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 		/* Stop flush ipis for the previous mm */</span>
+<span class="quote">&gt; @@ -156,10 +182,15 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,</span>
+<span class="quote">&gt; 			 * schedule, protecting us from simultaneous changes.</span>
+<span class="quote">&gt; 			 */</span>
+<span class="quote">&gt; 			cpumask_set_cpu(cpu, mm_cpumask(next));</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; 			/*</span>
+<span class="quote">&gt; 			 * We were in lazy tlb mode and leave_mm disabled</span>
+<span class="quote">&gt; 			 * tlb flush IPI delivery. We must reload CR3</span>
+<span class="quote">&gt; 			 * to make sure to use no freed page tables.</span>
+<span class="quote">&gt; +			 *</span>
+<span class="quote">&gt; +			 * As above, this is a barrier that forces</span>
+<span class="quote">&gt; +			 * TLB repopulation to be ordered after the</span>
+<span class="quote">&gt; +			 * store to mm_cpumask.</span>
+<span class="quote">&gt; 			 */</span>
+<span class="quote">&gt; 			load_cr3(next-&gt;pgd);</span>
+<span class="quote">&gt; 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);</span>
+<span class="quote">&gt; diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c</span>
+<span class="quote">&gt; index 8ddb5d0d66fb..8f4cc3dfac32 100644</span>
+<span class="quote">&gt; --- a/arch/x86/mm/tlb.c</span>
+<span class="quote">&gt; +++ b/arch/x86/mm/tlb.c</span>
+<span class="quote">&gt; @@ -161,7 +161,10 @@ void flush_tlb_current_task(void)</span>
+<span class="quote">&gt; 	preempt_disable();</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/* This is an implicit full barrier that synchronizes with switch_mm. */</span>
+<span class="quote">&gt; 	local_flush_tlb();</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; 	trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);</span>
+<span class="quote">&gt; 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) &lt; nr_cpu_ids)</span>
+<span class="quote">&gt; 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);</span>
+<span class="quote">&gt; @@ -188,17 +191,29 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,</span>
+<span class="quote">&gt; 	unsigned long base_pages_to_flush = TLB_FLUSH_ALL;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 	preempt_disable();</span>
+<span class="quote">&gt; -	if (current-&gt;active_mm != mm)</span>
+<span class="quote">&gt; +	if (current-&gt;active_mm != mm) {</span>
+<span class="quote">&gt; +		/* Synchronize with switch_mm. */</span>
+<span class="quote">&gt; +		smp_mb();</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; 		goto out;</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 	if (!current-&gt;mm) {</span>
+<span class="quote">&gt; 		leave_mm(smp_processor_id());</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +		/* Synchronize with switch_mm. */</span>
+<span class="quote">&gt; +		smp_mb();</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; 		goto out;</span>
+<span class="quote">&gt; 	}</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 	if ((end != TLB_FLUSH_ALL) &amp;&amp; !(vmflag &amp; VM_HUGETLB))</span>
+<span class="quote">&gt; 		base_pages_to_flush = (end - start) &gt;&gt; PAGE_SHIFT;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Both branches below are implicit full barriers (MOV to CR or</span>
+<span class="quote">&gt; +	 * INVLPG) that synchronize with switch_mm.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; 	if (base_pages_to_flush &gt; tlb_single_page_flush_ceiling) {</span>
+<span class="quote">&gt; 		base_pages_to_flush = TLB_FLUSH_ALL;</span>
+<span class="quote">&gt; 		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);</span>
+<span class="quote">&gt; @@ -228,10 +243,18 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)</span>
+<span class="quote">&gt; 	preempt_disable();</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 	if (current-&gt;active_mm == mm) {</span>
+<span class="quote">&gt; -		if (current-&gt;mm)</span>
+<span class="quote">&gt; +		if (current-&gt;mm) {</span>
+<span class="quote">&gt; +			/*</span>
+<span class="quote">&gt; +			 * Implicit full barrier (INVLPG) that synchronizes</span>
+<span class="quote">&gt; +			 * with switch_mm.</span>
+<span class="quote">&gt; +			 */</span>
+<span class="quote">&gt; 			__flush_tlb_one(start);</span>
+<span class="quote">&gt; -		else</span>
+<span class="quote">&gt; +		} else {</span>
+<span class="quote">&gt; 			leave_mm(smp_processor_id());</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +			/* Synchronize with switch_mm. */</span>
+<span class="quote">&gt; +			smp_mb();</span>
+<span class="quote">&gt; +		}</span>
+<span class="quote">&gt; 	}</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) &lt; nr_cpu_ids)</span>
+<span class="quote">&gt; -- </span>
+<span class="quote">&gt; 2.5.0</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; --</span>
+<span class="quote">&gt; To unsubscribe, send a message with &#39;unsubscribe linux-mm&#39; in</span>
+<span class="quote">&gt; the body to majordomo@kvack.org.  For more info on Linux MM,</span>
+<span class="quote">&gt; see: http://www.linux-mm.org/ .</span>
+<span class="quote">&gt; Don&#39;t email: &lt;a href=mailto:&quot;dont@kvack.org&quot;&gt; email@kvack.org &lt;/a&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41531">Andy Lutomirski</a> - June 9, 2016, 5:24 p.m.</div>
+<pre class="content">
+On Fri, Jun 3, 2016 at 10:42 AM, Nadav Amit &lt;nadav.amit@gmail.com&gt; wrote:
+<span class="quote">&gt; Following this patch, if (current-&gt;active_mm != mm), flush_tlb_page() still</span>
+<span class="quote">&gt; doesn’t call smp_mb() before checking mm_cpumask(mm).</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; In contrast, flush_tlb_mm_range() does call smp_mb().</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Is there a reason for this discrepancy?</span>
+
+Not that I can remember.  Is the remote flush case likely to be racy?
+
+--Andy
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=55071">Nadav Amit</a> - June 9, 2016, 7:45 p.m.</div>
+<pre class="content">
+Andy Lutomirski &lt;luto@amacapital.net&gt; wrote:
+<span class="quote">
+&gt; On Fri, Jun 3, 2016 at 10:42 AM, Nadav Amit &lt;nadav.amit@gmail.com&gt; wrote:</span>
+<span class="quote">&gt;&gt; Following this patch, if (current-&gt;active_mm != mm), flush_tlb_page() still</span>
+<span class="quote">&gt;&gt; doesn’t call smp_mb() before checking mm_cpumask(mm).</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; In contrast, flush_tlb_mm_range() does call smp_mb().</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; Is there a reason for this discrepancy?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Not that I can remember.  Is the remote flush case likely to be racy?</span>
+
+You replied separately on another email that included a patch to fix
+this case. It turns out smp_mb is not needed on flush_tlb_page, since
+the PTE is always updated using an atomic operation. Yet, a compiler 
+barrier is still needed, so I added smp_mb__after_atomic instead.
+
+Nadav
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=104371">Wanpeng Li</a> - Sept. 6, 2016, 1:22 a.m.</div>
+<pre class="content">
+Hi Andy,
+2016-01-09 7:15 GMT+08:00 Andy Lutomirski &lt;luto@kernel.org&gt;:
+<span class="quote">&gt; When switch_mm activates a new pgd, it also sets a bit that tells</span>
+<span class="quote">&gt; other CPUs that the pgd is in use so that tlb flush IPIs will be</span>
+<span class="quote">&gt; sent.  In order for that to work correctly, the bit needs to be</span>
+<span class="quote">&gt; visible prior to loading the pgd and therefore starting to fill the</span>
+<span class="quote">&gt; local TLB.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Document all the barriers that make this work correctly and add a</span>
+<span class="quote">&gt; couple that were missing.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Cc: stable@vger.kernel.org</span>
+<span class="quote">&gt; Signed-off-by: Andy Lutomirski &lt;luto@kernel.org&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  arch/x86/include/asm/mmu_context.h | 33 ++++++++++++++++++++++++++++++++-</span>
+<span class="quote">&gt;  arch/x86/mm/tlb.c                  | 29 ++++++++++++++++++++++++++---</span>
+<span class="quote">&gt;  2 files changed, 58 insertions(+), 4 deletions(-)</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h</span>
+<span class="quote">&gt; index 379cd3658799..1edc9cd198b8 100644</span>
+<span class="quote">&gt; --- a/arch/x86/include/asm/mmu_context.h</span>
+<span class="quote">&gt; +++ b/arch/x86/include/asm/mmu_context.h</span>
+<span class="quote">&gt; @@ -116,8 +116,34 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,</span>
+<span class="quote">&gt;  #endif</span>
+<span class="quote">&gt;                 cpumask_set_cpu(cpu, mm_cpumask(next));</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; -               /* Re-load page tables */</span>
+<span class="quote">&gt; +               /*</span>
+<span class="quote">&gt; +                * Re-load page tables.</span>
+<span class="quote">&gt; +                *</span>
+<span class="quote">&gt; +                * This logic has an ordering constraint:</span>
+<span class="quote">&gt; +                *</span>
+<span class="quote">&gt; +                *  CPU 0: Write to a PTE for &#39;next&#39;</span>
+<span class="quote">&gt; +                *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.</span>
+<span class="quote">&gt; +                *  CPU 1: set bit 1 in next&#39;s mm_cpumask</span>
+<span class="quote">&gt; +                *  CPU 1: load from the PTE that CPU 0 writes (implicit)</span>
+<span class="quote">&gt; +                *</span>
+<span class="quote">&gt; +                * We need to prevent an outcome in which CPU 1 observes</span>
+<span class="quote">&gt; +                * the new PTE value and CPU 0 observes bit 1 clear in</span>
+<span class="quote">&gt; +                * mm_cpumask.  (If that occurs, then the IPI will never</span>
+<span class="quote">&gt; +                * be sent, and CPU 0&#39;s TLB will contain a stale entry.)</span>
+
+I misunderstand this comments, CPU0 write to a PTE for &#39;next&#39;, and
+CPU0 observes bit 1 clear in mm_cpumask, so CPU0 won&#39;t kick IPI to
+CPU1, why CPU0&#39;s TLB will contain a stale entry instead of CPU1?
+
+Regards,
+Wanpeng Li
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_header">index 379cd3658799..1edc9cd198b8 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_chunk">@@ -116,8 +116,34 @@</span> <span class="p_context"> static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,</span>
+ #endif
+ 		cpumask_set_cpu(cpu, mm_cpumask(next));
+ 
+<span class="p_del">-		/* Re-load page tables */</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Re-load page tables.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * This logic has an ordering constraint:</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 *  CPU 0: Write to a PTE for &#39;next&#39;</span>
+<span class="p_add">+		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.</span>
+<span class="p_add">+		 *  CPU 1: set bit 1 in next&#39;s mm_cpumask</span>
+<span class="p_add">+		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * We need to prevent an outcome in which CPU 1 observes</span>
+<span class="p_add">+		 * the new PTE value and CPU 0 observes bit 1 clear in</span>
+<span class="p_add">+		 * mm_cpumask.  (If that occurs, then the IPI will never</span>
+<span class="p_add">+		 * be sent, and CPU 0&#39;s TLB will contain a stale entry.)</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * The bad outcome can occur if either CPU&#39;s load is</span>
+<span class="p_add">+		 * reordered before that CPU&#39;s store, so both CPUs much</span>
+<span class="p_add">+		 * execute full barriers to prevent this from happening.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * Thus, switch_mm needs a full barrier between the</span>
+<span class="p_add">+		 * store to mm_cpumask and any operation that could load</span>
+<span class="p_add">+		 * from next-&gt;pgd.  This barrier synchronizes with</span>
+<span class="p_add">+		 * remote TLB flushers.  Fortunately, load_cr3 is</span>
+<span class="p_add">+		 * serializing and thus acts as a full barrier.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 */</span>
+ 		load_cr3(next-&gt;pgd);
+<span class="p_add">+</span>
+ 		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
+ 
+ 		/* Stop flush ipis for the previous mm */
+<span class="p_chunk">@@ -156,10 +182,15 @@</span> <span class="p_context"> static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,</span>
+ 			 * schedule, protecting us from simultaneous changes.
+ 			 */
+ 			cpumask_set_cpu(cpu, mm_cpumask(next));
+<span class="p_add">+</span>
+ 			/*
+ 			 * We were in lazy tlb mode and leave_mm disabled
+ 			 * tlb flush IPI delivery. We must reload CR3
+ 			 * to make sure to use no freed page tables.
+<span class="p_add">+			 *</span>
+<span class="p_add">+			 * As above, this is a barrier that forces</span>
+<span class="p_add">+			 * TLB repopulation to be ordered after the</span>
+<span class="p_add">+			 * store to mm_cpumask.</span>
+ 			 */
+ 			load_cr3(next-&gt;pgd);
+ 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
+<span class="p_header">diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c</span>
+<span class="p_header">index 8ddb5d0d66fb..8f4cc3dfac32 100644</span>
+<span class="p_header">--- a/arch/x86/mm/tlb.c</span>
+<span class="p_header">+++ b/arch/x86/mm/tlb.c</span>
+<span class="p_chunk">@@ -161,7 +161,10 @@</span> <span class="p_context"> void flush_tlb_current_task(void)</span>
+ 	preempt_disable();
+ 
+ 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+<span class="p_add">+</span>
+<span class="p_add">+	/* This is an implicit full barrier that synchronizes with switch_mm. */</span>
+ 	local_flush_tlb();
+<span class="p_add">+</span>
+ 	trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) &lt; nr_cpu_ids)
+ 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
+<span class="p_chunk">@@ -188,17 +191,29 @@</span> <span class="p_context"> void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,</span>
+ 	unsigned long base_pages_to_flush = TLB_FLUSH_ALL;
+ 
+ 	preempt_disable();
+<span class="p_del">-	if (current-&gt;active_mm != mm)</span>
+<span class="p_add">+	if (current-&gt;active_mm != mm) {</span>
+<span class="p_add">+		/* Synchronize with switch_mm. */</span>
+<span class="p_add">+		smp_mb();</span>
+<span class="p_add">+</span>
+ 		goto out;
+<span class="p_add">+	}</span>
+ 
+ 	if (!current-&gt;mm) {
+ 		leave_mm(smp_processor_id());
+<span class="p_add">+</span>
+<span class="p_add">+		/* Synchronize with switch_mm. */</span>
+<span class="p_add">+		smp_mb();</span>
+<span class="p_add">+</span>
+ 		goto out;
+ 	}
+ 
+ 	if ((end != TLB_FLUSH_ALL) &amp;&amp; !(vmflag &amp; VM_HUGETLB))
+ 		base_pages_to_flush = (end - start) &gt;&gt; PAGE_SHIFT;
+ 
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Both branches below are implicit full barriers (MOV to CR or</span>
+<span class="p_add">+	 * INVLPG) that synchronize with switch_mm.</span>
+<span class="p_add">+	 */</span>
+ 	if (base_pages_to_flush &gt; tlb_single_page_flush_ceiling) {
+ 		base_pages_to_flush = TLB_FLUSH_ALL;
+ 		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+<span class="p_chunk">@@ -228,10 +243,18 @@</span> <span class="p_context"> void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)</span>
+ 	preempt_disable();
+ 
+ 	if (current-&gt;active_mm == mm) {
+<span class="p_del">-		if (current-&gt;mm)</span>
+<span class="p_add">+		if (current-&gt;mm) {</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * Implicit full barrier (INVLPG) that synchronizes</span>
+<span class="p_add">+			 * with switch_mm.</span>
+<span class="p_add">+			 */</span>
+ 			__flush_tlb_one(start);
+<span class="p_del">-		else</span>
+<span class="p_add">+		} else {</span>
+ 			leave_mm(smp_processor_id());
+<span class="p_add">+</span>
+<span class="p_add">+			/* Synchronize with switch_mm. */</span>
+<span class="p_add">+			smp_mb();</span>
+<span class="p_add">+		}</span>
+ 	}
+ 
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) &lt; nr_cpu_ids)
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

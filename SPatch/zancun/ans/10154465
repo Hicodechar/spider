@@ -1,0 +1,700 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[10/22] swiotlb: refactor coherent buffer allocation - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [10/22] swiotlb: refactor coherent buffer allocation</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=99">Christoph Hellwig</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Jan. 10, 2018, 8:09 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20180110080932.14157-11-hch@lst.de&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10154465/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10154465/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10154465/">/patch/10154465/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	3F30560231 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 10 Jan 2018 08:14:13 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 3260327DA4
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 10 Jan 2018 08:14:13 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 25A1B27F7F; Wed, 10 Jan 2018 08:14:13 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.8 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	RCVD_IN_DNSWL_HI,T_DKIM_INVALID autolearn=unavailable version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id AB36C27DA4
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 10 Jan 2018 08:14:12 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1755423AbeAJIOL (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 10 Jan 2018 03:14:11 -0500
+Received: from bombadil.infradead.org ([65.50.211.133]:47704 &quot;EHLO
+	bombadil.infradead.org&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S964796AbeAJIKK (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 10 Jan 2018 03:10:10 -0500
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209;
+	h=References:In-Reply-To:Message-Id:
+	Date:Subject:Cc:To:From:Sender:Reply-To:MIME-Version:Content-Type:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=Y2yTBBDtzXhYAVALDg86cP6lspVPDhxew9SqCMF3hAQ=;
+	b=V+a2itf9ClzrktSc17w31GEn2
+	odrSDQ2DOf72qhvtwUbqx1dlzLSUlcwT3OIPwFBXNdumeZa9KsMAZXMNGvRiW+rw6tGqQhh2X806L
+	Y51w3CLPvVUiplTfrdFZS29qTOOSHshjcNdmKDzo2Zr9Pui579Nzbr8129n+QwCHi+ryxbWJ25Tt4
+	h647tP8oSGeTjAK3ydMLULqhXGrxVDdmv+alo7o5La0gUVHCGcUI9+4M3RPgQWZoZO5QcEoV12dNA
+	+RTEhLgrHvcVkQb/N/eEz+4Kt1p8Vvpmk+WxWSc33JWh3V6r71VIcqtT+aQ4KxZ1B/duWlYTCpzbv
+	PpSHwlIHQ==;
+Received: from clnet-p099-196.ikbnet.co.at ([83.175.99.196] helo=localhost)
+	by bombadil.infradead.org with esmtpsa (Exim 4.89 #1 (Red Hat
+	Linux)) id 1eZBSW-0008FB-2A; Wed, 10 Jan 2018 08:10:04 +0000
+From: Christoph Hellwig &lt;hch@lst.de&gt;
+To: iommu@lists.linux-foundation.org
+Cc: Konrad Rzeszutek Wilk &lt;konrad@darnok.org&gt;,
+	Michal Simek &lt;monstr@monstr.eu&gt;, Guan Xuetao &lt;gxt@mprc.pku.edu.cn&gt;,
+	=?UTF-8?q?Christian=20K=C3=B6nig?= &lt;ckoenig.leichtzumerken@gmail.com&gt;,
+	linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org,
+	linux-mips@linux-mips.org, linuxppc-dev@lists.ozlabs.org,
+	x86@kernel.org, linux-arch@vger.kernel.org, linux-kernel@vger.kernel.org
+Subject: [PATCH 10/22] swiotlb: refactor coherent buffer allocation
+Date: Wed, 10 Jan 2018 09:09:20 +0100
+Message-Id: &lt;20180110080932.14157-11-hch@lst.de&gt;
+X-Mailer: git-send-email 2.14.2
+In-Reply-To: &lt;20180110080932.14157-1-hch@lst.de&gt;
+References: &lt;20180110080932.14157-1-hch@lst.de&gt;
+X-SRS-Rewrite: SMTP reverse-path rewritten from &lt;hch@infradead.org&gt; by
+	bombadil.infradead.org. See http://www.infradead.org/rpr.html
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=99">Christoph Hellwig</a> - Jan. 10, 2018, 8:09 a.m.</div>
+<pre class="content">
+Factor out a new swiotlb_alloc_buffer helper that allocates DMA coherent
+memory from the swiotlb bounce buffer.
+
+This allows to simplify the swiotlb_alloc implemenation that uses
+dma_direct_alloc to try to allocate a reachable buffer first.
+<span class="signed-off-by">
+Signed-off-by: Christoph Hellwig &lt;hch@lst.de&gt;</span>
+---
+ lib/swiotlb.c | 122 +++++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 65 insertions(+), 57 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=77581">Robin Murphy</a> - Jan. 10, 2018, 12:22 p.m.</div>
+<pre class="content">
+On 10/01/18 08:09, Christoph Hellwig wrote:
+<span class="quote">&gt; Factor out a new swiotlb_alloc_buffer helper that allocates DMA coherent</span>
+<span class="quote">&gt; memory from the swiotlb bounce buffer.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This allows to simplify the swiotlb_alloc implemenation that uses</span>
+<span class="quote">&gt; dma_direct_alloc to try to allocate a reachable buffer first.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Christoph Hellwig &lt;hch@lst.de&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;   lib/swiotlb.c | 122 +++++++++++++++++++++++++++++++---------------------------</span>
+<span class="quote">&gt;   1 file changed, 65 insertions(+), 57 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/lib/swiotlb.c b/lib/swiotlb.c</span>
+<span class="quote">&gt; index 1a147f1354a1..bf2d19ee91c1 100644</span>
+<span class="quote">&gt; --- a/lib/swiotlb.c</span>
+<span class="quote">&gt; +++ b/lib/swiotlb.c</span>
+<span class="quote">&gt; @@ -709,75 +709,79 @@ void swiotlb_tbl_sync_single(struct device *hwdev, phys_addr_t tlb_addr,</span>
+<span class="quote">&gt;   }</span>
+<span class="quote">&gt;   EXPORT_SYMBOL_GPL(swiotlb_tbl_sync_single);</span>
+<span class="quote">&gt;   </span>
+<span class="quote">&gt; -void *</span>
+<span class="quote">&gt; -swiotlb_alloc_coherent(struct device *hwdev, size_t size,</span>
+<span class="quote">&gt; -		       dma_addr_t *dma_handle, gfp_t flags)</span>
+<span class="quote">&gt; +static inline bool dma_coherent_ok(struct device *dev, dma_addr_t addr,</span>
+<span class="quote">&gt; +		size_t size)</span>
+<span class="quote">&gt;   {</span>
+<span class="quote">&gt; -	bool warn = !(flags &amp; __GFP_NOWARN);</span>
+<span class="quote">&gt; -	dma_addr_t dev_addr;</span>
+<span class="quote">&gt; -	void *ret;</span>
+<span class="quote">&gt; -	int order = get_order(size);</span>
+<span class="quote">&gt; -	u64 dma_mask = DMA_BIT_MASK(32);</span>
+<span class="quote">&gt; +	u64 mask = DMA_BIT_MASK(32);</span>
+<span class="quote">&gt;   </span>
+<span class="quote">&gt; -	if (hwdev &amp;&amp; hwdev-&gt;coherent_dma_mask)</span>
+<span class="quote">&gt; -		dma_mask = hwdev-&gt;coherent_dma_mask;</span>
+<span class="quote">&gt; +	if (dev &amp;&amp; dev-&gt;coherent_dma_mask)</span>
+<span class="quote">&gt; +		mask = dev-&gt;coherent_dma_mask;</span>
+<span class="quote">&gt; +	return addr + size - 1 &lt;= mask;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt;   </span>
+<span class="quote">&gt; -	ret = (void *)__get_free_pages(flags, order);</span>
+<span class="quote">&gt; -	if (ret) {</span>
+<span class="quote">&gt; -		dev_addr = swiotlb_virt_to_bus(hwdev, ret);</span>
+<span class="quote">&gt; -		if (dev_addr + size - 1 &gt; dma_mask) {</span>
+<span class="quote">&gt; -			/*</span>
+<span class="quote">&gt; -			 * The allocated memory isn&#39;t reachable by the device.</span>
+<span class="quote">&gt; -			 */</span>
+<span class="quote">&gt; -			free_pages((unsigned long) ret, order);</span>
+<span class="quote">&gt; -			ret = NULL;</span>
+<span class="quote">&gt; -		}</span>
+<span class="quote">&gt; -	}</span>
+<span class="quote">&gt; -	if (!ret) {</span>
+<span class="quote">&gt; -		/*</span>
+<span class="quote">&gt; -		 * We are either out of memory or the device can&#39;t DMA to</span>
+<span class="quote">&gt; -		 * GFP_DMA memory; fall back on map_single(), which</span>
+<span class="quote">&gt; -		 * will grab memory from the lowest available address range.</span>
+<span class="quote">&gt; -		 */</span>
+<span class="quote">&gt; -		phys_addr_t paddr = map_single(hwdev, 0, size, DMA_FROM_DEVICE,</span>
+<span class="quote">&gt; -					       warn ? 0 : DMA_ATTR_NO_WARN);</span>
+<span class="quote">&gt; -		if (paddr == SWIOTLB_MAP_ERROR)</span>
+<span class="quote">&gt; -			goto err_warn;</span>
+<span class="quote">&gt; +static void *</span>
+<span class="quote">&gt; +swiotlb_alloc_buffer(struct device *dev, size_t size, dma_addr_t *dma_handle,</span>
+<span class="quote">&gt; +		unsigned long attrs)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	phys_addr_t phys_addr;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	if (swiotlb_force == SWIOTLB_NO_FORCE)</span>
+<span class="quote">&gt; +		goto out_warn;</span>
+<span class="quote">&gt;   </span>
+<span class="quote">&gt; -		ret = phys_to_virt(paddr);</span>
+<span class="quote">&gt; -		dev_addr = swiotlb_phys_to_dma(hwdev, paddr);</span>
+<span class="quote">&gt; +	phys_addr = swiotlb_tbl_map_single(dev,</span>
+<span class="quote">&gt; +			swiotlb_phys_to_dma(dev, io_tlb_start),</span>
+<span class="quote">&gt; +			0, size, DMA_FROM_DEVICE, 0);</span>
+<span class="quote">&gt; +	if (phys_addr == SWIOTLB_MAP_ERROR)</span>
+<span class="quote">&gt; +		goto out_warn;</span>
+<span class="quote">&gt;   </span>
+<span class="quote">&gt; -		/* Confirm address can be DMA&#39;d by device */</span>
+<span class="quote">&gt; -		if (dev_addr + size - 1 &gt; dma_mask) {</span>
+<span class="quote">&gt; -			printk(&quot;hwdev DMA mask = 0x%016Lx, dev_addr = 0x%016Lx\n&quot;,</span>
+<span class="quote">&gt; -			       (unsigned long long)dma_mask,</span>
+<span class="quote">&gt; -			       (unsigned long long)dev_addr);</span>
+<span class="quote">&gt; +	*dma_handle = swiotlb_phys_to_dma(dev, phys_addr);</span>
+
+nit: this should probably go after the dma_coherent_ok() check (as with 
+the original logic).
+<span class="quote">
+&gt;   </span>
+<span class="quote">&gt; -			/*</span>
+<span class="quote">&gt; -			 * DMA_TO_DEVICE to avoid memcpy in unmap_single.</span>
+<span class="quote">&gt; -			 * The DMA_ATTR_SKIP_CPU_SYNC is optional.</span>
+<span class="quote">&gt; -			 */</span>
+<span class="quote">&gt; -			swiotlb_tbl_unmap_single(hwdev, paddr,</span>
+<span class="quote">&gt; -						 size, DMA_TO_DEVICE,</span>
+<span class="quote">&gt; -						 DMA_ATTR_SKIP_CPU_SYNC);</span>
+<span class="quote">&gt; -			goto err_warn;</span>
+<span class="quote">&gt; -		}</span>
+<span class="quote">&gt; -	}</span>
+<span class="quote">&gt; +	if (dma_coherent_ok(dev, *dma_handle, size))</span>
+<span class="quote">&gt; +		goto out_unmap;</span>
+<span class="quote">&gt;   </span>
+<span class="quote">&gt; -	*dma_handle = dev_addr;</span>
+<span class="quote">&gt; -	memset(ret, 0, size);</span>
+<span class="quote">&gt; +	memset(phys_to_virt(phys_addr), 0, size);</span>
+<span class="quote">&gt; +	return phys_to_virt(phys_addr);</span>
+<span class="quote">&gt;   </span>
+<span class="quote">&gt; -	return ret;</span>
+<span class="quote">&gt; +out_unmap:</span>
+<span class="quote">&gt; +	dev_warn(dev, &quot;hwdev DMA mask = 0x%016Lx, dev_addr = 0x%016Lx\n&quot;,</span>
+<span class="quote">&gt; +		(unsigned long long)(dev ? dev-&gt;coherent_dma_mask : 0),</span>
+<span class="quote">&gt; +		(unsigned long long)*dma_handle);</span>
+<span class="quote">&gt;   </span>
+<span class="quote">&gt; -err_warn:</span>
+<span class="quote">&gt; -	if (warn &amp;&amp; printk_ratelimit()) {</span>
+<span class="quote">&gt; -		pr_warn(&quot;swiotlb: coherent allocation failed for device %s size=%zu\n&quot;,</span>
+<span class="quote">&gt; -			dev_name(hwdev), size);</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * DMA_TO_DEVICE to avoid memcpy in unmap_single.</span>
+<span class="quote">&gt; +	 * DMA_ATTR_SKIP_CPU_SYNC is optional.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	swiotlb_tbl_unmap_single(dev, phys_addr, size, DMA_TO_DEVICE,</span>
+<span class="quote">&gt; +			DMA_ATTR_SKIP_CPU_SYNC);</span>
+<span class="quote">&gt; +out_warn:</span>
+<span class="quote">&gt; +	if ((attrs &amp; DMA_ATTR_NO_WARN) &amp;&amp; printk_ratelimit()) {</span>
+<span class="quote">&gt; +		dev_warn(dev,</span>
+<span class="quote">&gt; +			&quot;swiotlb: coherent allocation failed, size=%zu\n&quot;,</span>
+<span class="quote">&gt; +			size);</span>
+<span class="quote">&gt;   		dump_stack();</span>
+<span class="quote">&gt;   	}</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt;   	return NULL;</span>
+<span class="quote">&gt;   }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +void *</span>
+<span class="quote">&gt; +swiotlb_alloc_coherent(struct device *hwdev, size_t size,</span>
+<span class="quote">&gt; +		       dma_addr_t *dma_handle, gfp_t flags)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	int order = get_order(size);</span>
+<span class="quote">&gt; +	unsigned long attrs = (flags &amp; __GFP_NOWARN) ? DMA_ATTR_NO_WARN : 0;</span>
+<span class="quote">&gt; +	void *ret;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	ret = (void *)__get_free_pages(flags, order);</span>
+<span class="quote">&gt; +	if (ret) {</span>
+<span class="quote">&gt; +		*dma_handle = swiotlb_virt_to_bus(hwdev, ret);</span>
+<span class="quote">&gt; +		if (dma_coherent_ok(hwdev, *dma_handle, size)) {</span>
+<span class="quote">&gt; +			memset(ret, 0, size);</span>
+<span class="quote">&gt; +			return ret;</span>
+<span class="quote">&gt; +		}</span>
+
+Aren&#39;t we leaking the pages here?
+
+Robin.
+<span class="quote">
+&gt; +	}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	return swiotlb_alloc_buffer(hwdev, size, dma_handle, attrs);</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt;   EXPORT_SYMBOL(swiotlb_alloc_coherent);</span>
+<span class="quote">&gt;   </span>
+<span class="quote">&gt;   static bool swiotlb_free_buffer(struct device *dev, size_t size,</span>
+<span class="quote">&gt; @@ -1103,6 +1107,10 @@ void *swiotlb_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,</span>
+<span class="quote">&gt;   {</span>
+<span class="quote">&gt;   	void *vaddr;</span>
+<span class="quote">&gt;   </span>
+<span class="quote">&gt; +	/* temporary workaround: */</span>
+<span class="quote">&gt; +	if (gfp &amp; __GFP_NOWARN)</span>
+<span class="quote">&gt; +		attrs |= DMA_ATTR_NO_WARN;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;   	/*</span>
+<span class="quote">&gt;   	 * Don&#39;t print a warning when the first allocation attempt fails.</span>
+<span class="quote">&gt;   	 * swiotlb_alloc_coherent() will print a warning when the DMA memory</span>
+<span class="quote">&gt; @@ -1112,7 +1120,7 @@ void *swiotlb_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,</span>
+<span class="quote">&gt;   </span>
+<span class="quote">&gt;   	vaddr = dma_direct_alloc(dev, size, dma_handle, gfp, attrs);</span>
+<span class="quote">&gt;   	if (!vaddr)</span>
+<span class="quote">&gt; -		vaddr = swiotlb_alloc_coherent(dev, size, dma_handle, gfp);</span>
+<span class="quote">&gt; +		vaddr = swiotlb_alloc_buffer(dev, size, dma_handle, attrs);</span>
+<span class="quote">&gt;   	return vaddr;</span>
+<span class="quote">&gt;   }</span>
+<span class="quote">&gt;   </span>
+<span class="quote">&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=99">Christoph Hellwig</a> - Jan. 10, 2018, 3:46 p.m.</div>
+<pre class="content">
+On Wed, Jan 10, 2018 at 12:22:18PM +0000, Robin Murphy wrote:
+<span class="quote">&gt;&gt; +	if (phys_addr == SWIOTLB_MAP_ERROR)</span>
+<span class="quote">&gt;&gt; +		goto out_warn;</span>
+<span class="quote">&gt;&gt;   -		/* Confirm address can be DMA&#39;d by device */</span>
+<span class="quote">&gt;&gt; -		if (dev_addr + size - 1 &gt; dma_mask) {</span>
+<span class="quote">&gt;&gt; -			printk(&quot;hwdev DMA mask = 0x%016Lx, dev_addr = 0x%016Lx\n&quot;,</span>
+<span class="quote">&gt;&gt; -			       (unsigned long long)dma_mask,</span>
+<span class="quote">&gt;&gt; -			       (unsigned long long)dev_addr);</span>
+<span class="quote">&gt;&gt; +	*dma_handle = swiotlb_phys_to_dma(dev, phys_addr);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; nit: this should probably go after the dma_coherent_ok() check (as with the </span>
+<span class="quote">&gt; original logic).</span>
+
+But the originall logic also needs the dma_addr_t for the
+dma_coherent_ok check:
+
+		dev_addr = swiotlb_phys_to_dma(hwdev, paddr);
+		/* Confirm address can be DMA&#39;d by device */
+		if (dev_addr + size - 1 &gt; dma_mask) {
+			...
+			goto err_warn;
+		}
+
+or do you mean assining to *dma_handle?  The dma_handle is not
+valid for a failure return, so I don&#39;t think this should matter.
+<span class="quote">
+&gt;&gt; +	if (ret) {</span>
+<span class="quote">&gt;&gt; +		*dma_handle = swiotlb_virt_to_bus(hwdev, ret);</span>
+<span class="quote">&gt;&gt; +		if (dma_coherent_ok(hwdev, *dma_handle, size)) {</span>
+<span class="quote">&gt;&gt; +			memset(ret, 0, size);</span>
+<span class="quote">&gt;&gt; +			return ret;</span>
+<span class="quote">&gt;&gt; +		}</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Aren&#39;t we leaking the pages here?</span>
+
+Yes, that free_pages got lost somewhere in the rebases, I&#39;ve added
+it back.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=77581">Robin Murphy</a> - Jan. 10, 2018, 5:02 p.m.</div>
+<pre class="content">
+On 10/01/18 15:46, Christoph Hellwig wrote:
+<span class="quote">&gt; On Wed, Jan 10, 2018 at 12:22:18PM +0000, Robin Murphy wrote:</span>
+<span class="quote">&gt;&gt;&gt; +	if (phys_addr == SWIOTLB_MAP_ERROR)</span>
+<span class="quote">&gt;&gt;&gt; +		goto out_warn;</span>
+<span class="quote">&gt;&gt;&gt;    -		/* Confirm address can be DMA&#39;d by device */</span>
+<span class="quote">&gt;&gt;&gt; -		if (dev_addr + size - 1 &gt; dma_mask) {</span>
+<span class="quote">&gt;&gt;&gt; -			printk(&quot;hwdev DMA mask = 0x%016Lx, dev_addr = 0x%016Lx\n&quot;,</span>
+<span class="quote">&gt;&gt;&gt; -			       (unsigned long long)dma_mask,</span>
+<span class="quote">&gt;&gt;&gt; -			       (unsigned long long)dev_addr);</span>
+<span class="quote">&gt;&gt;&gt; +	*dma_handle = swiotlb_phys_to_dma(dev, phys_addr);</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; nit: this should probably go after the dma_coherent_ok() check (as with the</span>
+<span class="quote">&gt;&gt; original logic).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; But the originall logic also needs the dma_addr_t for the</span>
+<span class="quote">&gt; dma_coherent_ok check:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 		dev_addr = swiotlb_phys_to_dma(hwdev, paddr);</span>
+<span class="quote">&gt; 		/* Confirm address can be DMA&#39;d by device */</span>
+<span class="quote">&gt; 		if (dev_addr + size - 1 &gt; dma_mask) {</span>
+<span class="quote">&gt; 			...</span>
+<span class="quote">&gt; 			goto err_warn;</span>
+<span class="quote">&gt; 		}</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; or do you mean assining to *dma_handle?  The dma_handle is not</span>
+<span class="quote">&gt; valid for a failure return, so I don&#39;t think this should matter.</span>
+
+Yeah, only the assignment - as I said, it&#39;s just a stylistic nit; no big 
+deal either way.
+<span class="quote">
+&gt;&gt;&gt; +	if (ret) {</span>
+<span class="quote">&gt;&gt;&gt; +		*dma_handle = swiotlb_virt_to_bus(hwdev, ret);</span>
+<span class="quote">&gt;&gt;&gt; +		if (dma_coherent_ok(hwdev, *dma_handle, size)) {</span>
+<span class="quote">&gt;&gt;&gt; +			memset(ret, 0, size);</span>
+<span class="quote">&gt;&gt;&gt; +			return ret;</span>
+<span class="quote">&gt;&gt;&gt; +		}</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Aren&#39;t we leaking the pages here?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yes, that free_pages got lost somewhere in the rebases, I&#39;ve added</span>
+<span class="quote">&gt; it back.</span>
+
+Cool.
+
+Robin.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=99">Christoph Hellwig</a> - Jan. 15, 2018, 9:10 a.m.</div>
+<pre class="content">
+On Wed, Jan 10, 2018 at 05:02:30PM +0000, Robin Murphy wrote:
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; Aren&#39;t we leaking the pages here?</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Yes, that free_pages got lost somewhere in the rebases, I&#39;ve added</span>
+<span class="quote">&gt;&gt; it back.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Cool.</span>
+
+FYI, here is the fixed version, I don&#39;t want to re-send the whole
+series for this fix:
+
+http://git.infradead.org/users/hch/misc.git/commitdiff/0176adb004065d6815a8e67946752df4cd947c5b
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/lib/swiotlb.c b/lib/swiotlb.c</span>
+<span class="p_header">index 1a147f1354a1..bf2d19ee91c1 100644</span>
+<span class="p_header">--- a/lib/swiotlb.c</span>
+<span class="p_header">+++ b/lib/swiotlb.c</span>
+<span class="p_chunk">@@ -709,75 +709,79 @@</span> <span class="p_context"> void swiotlb_tbl_sync_single(struct device *hwdev, phys_addr_t tlb_addr,</span>
+ }
+ EXPORT_SYMBOL_GPL(swiotlb_tbl_sync_single);
+ 
+<span class="p_del">-void *</span>
+<span class="p_del">-swiotlb_alloc_coherent(struct device *hwdev, size_t size,</span>
+<span class="p_del">-		       dma_addr_t *dma_handle, gfp_t flags)</span>
+<span class="p_add">+static inline bool dma_coherent_ok(struct device *dev, dma_addr_t addr,</span>
+<span class="p_add">+		size_t size)</span>
+ {
+<span class="p_del">-	bool warn = !(flags &amp; __GFP_NOWARN);</span>
+<span class="p_del">-	dma_addr_t dev_addr;</span>
+<span class="p_del">-	void *ret;</span>
+<span class="p_del">-	int order = get_order(size);</span>
+<span class="p_del">-	u64 dma_mask = DMA_BIT_MASK(32);</span>
+<span class="p_add">+	u64 mask = DMA_BIT_MASK(32);</span>
+ 
+<span class="p_del">-	if (hwdev &amp;&amp; hwdev-&gt;coherent_dma_mask)</span>
+<span class="p_del">-		dma_mask = hwdev-&gt;coherent_dma_mask;</span>
+<span class="p_add">+	if (dev &amp;&amp; dev-&gt;coherent_dma_mask)</span>
+<span class="p_add">+		mask = dev-&gt;coherent_dma_mask;</span>
+<span class="p_add">+	return addr + size - 1 &lt;= mask;</span>
+<span class="p_add">+}</span>
+ 
+<span class="p_del">-	ret = (void *)__get_free_pages(flags, order);</span>
+<span class="p_del">-	if (ret) {</span>
+<span class="p_del">-		dev_addr = swiotlb_virt_to_bus(hwdev, ret);</span>
+<span class="p_del">-		if (dev_addr + size - 1 &gt; dma_mask) {</span>
+<span class="p_del">-			/*</span>
+<span class="p_del">-			 * The allocated memory isn&#39;t reachable by the device.</span>
+<span class="p_del">-			 */</span>
+<span class="p_del">-			free_pages((unsigned long) ret, order);</span>
+<span class="p_del">-			ret = NULL;</span>
+<span class="p_del">-		}</span>
+<span class="p_del">-	}</span>
+<span class="p_del">-	if (!ret) {</span>
+<span class="p_del">-		/*</span>
+<span class="p_del">-		 * We are either out of memory or the device can&#39;t DMA to</span>
+<span class="p_del">-		 * GFP_DMA memory; fall back on map_single(), which</span>
+<span class="p_del">-		 * will grab memory from the lowest available address range.</span>
+<span class="p_del">-		 */</span>
+<span class="p_del">-		phys_addr_t paddr = map_single(hwdev, 0, size, DMA_FROM_DEVICE,</span>
+<span class="p_del">-					       warn ? 0 : DMA_ATTR_NO_WARN);</span>
+<span class="p_del">-		if (paddr == SWIOTLB_MAP_ERROR)</span>
+<span class="p_del">-			goto err_warn;</span>
+<span class="p_add">+static void *</span>
+<span class="p_add">+swiotlb_alloc_buffer(struct device *dev, size_t size, dma_addr_t *dma_handle,</span>
+<span class="p_add">+		unsigned long attrs)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	phys_addr_t phys_addr;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (swiotlb_force == SWIOTLB_NO_FORCE)</span>
+<span class="p_add">+		goto out_warn;</span>
+ 
+<span class="p_del">-		ret = phys_to_virt(paddr);</span>
+<span class="p_del">-		dev_addr = swiotlb_phys_to_dma(hwdev, paddr);</span>
+<span class="p_add">+	phys_addr = swiotlb_tbl_map_single(dev,</span>
+<span class="p_add">+			swiotlb_phys_to_dma(dev, io_tlb_start),</span>
+<span class="p_add">+			0, size, DMA_FROM_DEVICE, 0);</span>
+<span class="p_add">+	if (phys_addr == SWIOTLB_MAP_ERROR)</span>
+<span class="p_add">+		goto out_warn;</span>
+ 
+<span class="p_del">-		/* Confirm address can be DMA&#39;d by device */</span>
+<span class="p_del">-		if (dev_addr + size - 1 &gt; dma_mask) {</span>
+<span class="p_del">-			printk(&quot;hwdev DMA mask = 0x%016Lx, dev_addr = 0x%016Lx\n&quot;,</span>
+<span class="p_del">-			       (unsigned long long)dma_mask,</span>
+<span class="p_del">-			       (unsigned long long)dev_addr);</span>
+<span class="p_add">+	*dma_handle = swiotlb_phys_to_dma(dev, phys_addr);</span>
+ 
+<span class="p_del">-			/*</span>
+<span class="p_del">-			 * DMA_TO_DEVICE to avoid memcpy in unmap_single.</span>
+<span class="p_del">-			 * The DMA_ATTR_SKIP_CPU_SYNC is optional.</span>
+<span class="p_del">-			 */</span>
+<span class="p_del">-			swiotlb_tbl_unmap_single(hwdev, paddr,</span>
+<span class="p_del">-						 size, DMA_TO_DEVICE,</span>
+<span class="p_del">-						 DMA_ATTR_SKIP_CPU_SYNC);</span>
+<span class="p_del">-			goto err_warn;</span>
+<span class="p_del">-		}</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+	if (dma_coherent_ok(dev, *dma_handle, size))</span>
+<span class="p_add">+		goto out_unmap;</span>
+ 
+<span class="p_del">-	*dma_handle = dev_addr;</span>
+<span class="p_del">-	memset(ret, 0, size);</span>
+<span class="p_add">+	memset(phys_to_virt(phys_addr), 0, size);</span>
+<span class="p_add">+	return phys_to_virt(phys_addr);</span>
+ 
+<span class="p_del">-	return ret;</span>
+<span class="p_add">+out_unmap:</span>
+<span class="p_add">+	dev_warn(dev, &quot;hwdev DMA mask = 0x%016Lx, dev_addr = 0x%016Lx\n&quot;,</span>
+<span class="p_add">+		(unsigned long long)(dev ? dev-&gt;coherent_dma_mask : 0),</span>
+<span class="p_add">+		(unsigned long long)*dma_handle);</span>
+ 
+<span class="p_del">-err_warn:</span>
+<span class="p_del">-	if (warn &amp;&amp; printk_ratelimit()) {</span>
+<span class="p_del">-		pr_warn(&quot;swiotlb: coherent allocation failed for device %s size=%zu\n&quot;,</span>
+<span class="p_del">-			dev_name(hwdev), size);</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * DMA_TO_DEVICE to avoid memcpy in unmap_single.</span>
+<span class="p_add">+	 * DMA_ATTR_SKIP_CPU_SYNC is optional.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	swiotlb_tbl_unmap_single(dev, phys_addr, size, DMA_TO_DEVICE,</span>
+<span class="p_add">+			DMA_ATTR_SKIP_CPU_SYNC);</span>
+<span class="p_add">+out_warn:</span>
+<span class="p_add">+	if ((attrs &amp; DMA_ATTR_NO_WARN) &amp;&amp; printk_ratelimit()) {</span>
+<span class="p_add">+		dev_warn(dev,</span>
+<span class="p_add">+			&quot;swiotlb: coherent allocation failed, size=%zu\n&quot;,</span>
+<span class="p_add">+			size);</span>
+ 		dump_stack();
+ 	}
+<span class="p_del">-</span>
+ 	return NULL;
+ }
+<span class="p_add">+</span>
+<span class="p_add">+void *</span>
+<span class="p_add">+swiotlb_alloc_coherent(struct device *hwdev, size_t size,</span>
+<span class="p_add">+		       dma_addr_t *dma_handle, gfp_t flags)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	int order = get_order(size);</span>
+<span class="p_add">+	unsigned long attrs = (flags &amp; __GFP_NOWARN) ? DMA_ATTR_NO_WARN : 0;</span>
+<span class="p_add">+	void *ret;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ret = (void *)__get_free_pages(flags, order);</span>
+<span class="p_add">+	if (ret) {</span>
+<span class="p_add">+		*dma_handle = swiotlb_virt_to_bus(hwdev, ret);</span>
+<span class="p_add">+		if (dma_coherent_ok(hwdev, *dma_handle, size)) {</span>
+<span class="p_add">+			memset(ret, 0, size);</span>
+<span class="p_add">+			return ret;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return swiotlb_alloc_buffer(hwdev, size, dma_handle, attrs);</span>
+<span class="p_add">+}</span>
+ EXPORT_SYMBOL(swiotlb_alloc_coherent);
+ 
+ static bool swiotlb_free_buffer(struct device *dev, size_t size,
+<span class="p_chunk">@@ -1103,6 +1107,10 @@</span> <span class="p_context"> void *swiotlb_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,</span>
+ {
+ 	void *vaddr;
+ 
+<span class="p_add">+	/* temporary workaround: */</span>
+<span class="p_add">+	if (gfp &amp; __GFP_NOWARN)</span>
+<span class="p_add">+		attrs |= DMA_ATTR_NO_WARN;</span>
+<span class="p_add">+</span>
+ 	/*
+ 	 * Don&#39;t print a warning when the first allocation attempt fails.
+ 	 * swiotlb_alloc_coherent() will print a warning when the DMA memory
+<span class="p_chunk">@@ -1112,7 +1120,7 @@</span> <span class="p_context"> void *swiotlb_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,</span>
+ 
+ 	vaddr = dma_direct_alloc(dev, size, dma_handle, gfp, attrs);
+ 	if (!vaddr)
+<span class="p_del">-		vaddr = swiotlb_alloc_coherent(dev, size, dma_handle, gfp);</span>
+<span class="p_add">+		vaddr = swiotlb_alloc_buffer(dev, size, dma_handle, attrs);</span>
+ 	return vaddr;
+ }
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

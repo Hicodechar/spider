@@ -1,0 +1,368 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[2/9] mm, oom: introduce oom reaper - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [2/9] mm, oom: introduce oom reaper</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=41">Andrew Morton</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>March 22, 2016, 10:45 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20160322154533.c269d76a65b81bb1b8f72545@linux-foundation.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/8645921/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/8645921/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/8645921/">/patch/8645921/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork1.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork1.web.kernel.org (Postfix) with ESMTP id 42D9C9F3D1
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 22 Mar 2016 22:45:45 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 8ECD220396
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 22 Mar 2016 22:45:44 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id CF90C2038F
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 22 Mar 2016 22:45:43 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752910AbcCVWpk (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 22 Mar 2016 18:45:40 -0400
+Received: from mail.linuxfoundation.org ([140.211.169.12]:33342 &quot;EHLO
+	mail.linuxfoundation.org&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752831AbcCVWpf (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 22 Mar 2016 18:45:35 -0400
+Received: from akpm3.mtv.corp.google.com (unknown [104.132.1.65])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 2CB0081;
+	Tue, 22 Mar 2016 22:45:34 +0000 (UTC)
+Date: Tue, 22 Mar 2016 15:45:33 -0700
+From: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+To: Michal Hocko &lt;mhocko@kernel.org&gt;
+Cc: &lt;linux-mm@kvack.org&gt;, LKML &lt;linux-kernel@vger.kernel.org&gt;,
+	Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;,
+	David Rientjes &lt;rientjes@google.com&gt;, Michal Hocko &lt;mhocko@suse.com&gt;
+Subject: Re: [PATCH 2/9] mm, oom: introduce oom reaper
+Message-Id: &lt;20160322154533.c269d76a65b81bb1b8f72545@linux-foundation.org&gt;
+In-Reply-To: &lt;1458644426-22973-3-git-send-email-mhocko@kernel.org&gt;
+References: &lt;1458644426-22973-1-git-send-email-mhocko@kernel.org&gt;
+	&lt;1458644426-22973-3-git-send-email-mhocko@kernel.org&gt;
+X-Mailer: Sylpheed 3.4.1 (GTK+ 2.24.23; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	T_RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41">Andrew Morton</a> - March 22, 2016, 10:45 p.m.</div>
+<pre class="content">
+On Tue, 22 Mar 2016 12:00:19 +0100 Michal Hocko &lt;mhocko@kernel.org&gt; wrote:
+<span class="quote">
+&gt; This is based on the idea from Mel Gorman discussed during LSFMM 2015 and</span>
+<span class="quote">&gt; independently brought up by Oleg Nesterov.</span>
+
+What happened to oom-reaper-handle-mlocked-pages.patch?  I have it in
+-mm but I don&#39;t see it in this v6.
+<span class="from">
+
+From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+Subject: oom reaper: handle mlocked pages
+
+__oom_reap_vmas current skips over all mlocked vmas because they need a
+special treatment before they are unmapped.  This is primarily done for
+simplicity.  There is no reason to skip over them and reduce the amount of
+reclaimed memory.  This is safe from the semantic point of view because
+try_to_unmap_one during rmap walk would keep tell the reclaim to cull the
+page back and mlock it again.
+
+munlock_vma_pages_all is also safe to be called from the oom reaper
+context because it doesn&#39;t sit on any locks but mmap_sem (for read).
+<span class="signed-off-by">
+Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+Cc: Andrea Argangeli &lt;andrea@kernel.org&gt;
+<span class="acked-by">Acked-by: David Rientjes &lt;rientjes@google.com&gt;</span>
+Cc: Hugh Dickins &lt;hughd@google.com&gt;
+Cc: Johannes Weiner &lt;hannes@cmpxchg.org&gt;
+Cc: Mel Gorman &lt;mgorman@suse.de&gt;
+Cc: Oleg Nesterov &lt;oleg@redhat.com&gt;
+Cc: Rik van Riel &lt;riel@redhat.com&gt;
+Cc: Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;
+<span class="signed-off-by">Signed-off-by: Andrew Morton &lt;akpm@linux-foundation.org&gt;</span>
+---
+
+ mm/oom_kill.c |   12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7851">Hugh Dickins</a> - March 22, 2016, 10:58 p.m.</div>
+<pre class="content">
+On Tue, 22 Mar 2016, Andrew Morton wrote:
+<span class="quote">&gt; On Tue, 22 Mar 2016 12:00:19 +0100 Michal Hocko &lt;mhocko@kernel.org&gt; wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; This is based on the idea from Mel Gorman discussed during LSFMM 2015 and</span>
+<span class="quote">&gt; &gt; independently brought up by Oleg Nesterov.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; What happened to oom-reaper-handle-mlocked-pages.patch?  I have it in</span>
+<span class="quote">&gt; -mm but I don&#39;t see it in this v6.</span>
+
+Michal is dropping it for now, explained in his 0/9:
+
+The previous version was posted here [1] Hugh and David have suggested to
+drop [2] because the munlock path currently depends on the page lock and
+it is better if the initial version was conservative and prevent from
+any potential lockups even though it is not clear whether they are real
+- nobody has seen oom_reaper stuck on the page lock AFAICK. Me or Hugh
+will have a look and try to make the munlock path not depend on the page
+lock as a follow up work.
+
+[1] http://lkml.kernel.org/r/1454505240-23446-1-git-send-email-mhocko@kernel.org
+[2] http://lkml.kernel.org/r/1454505240-23446-3-git-send-email-mhocko@kernel.org
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; Subject: oom reaper: handle mlocked pages</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; __oom_reap_vmas current skips over all mlocked vmas because they need a</span>
+<span class="quote">&gt; special treatment before they are unmapped.  This is primarily done for</span>
+<span class="quote">&gt; simplicity.  There is no reason to skip over them and reduce the amount of</span>
+<span class="quote">&gt; reclaimed memory.  This is safe from the semantic point of view because</span>
+<span class="quote">&gt; try_to_unmap_one during rmap walk would keep tell the reclaim to cull the</span>
+<span class="quote">&gt; page back and mlock it again.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; munlock_vma_pages_all is also safe to be called from the oom reaper</span>
+<span class="quote">&gt; context because it doesn&#39;t sit on any locks but mmap_sem (for read).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; Cc: Andrea Argangeli &lt;andrea@kernel.org&gt;</span>
+<span class="quote">&gt; Acked-by: David Rientjes &lt;rientjes@google.com&gt;</span>
+<span class="quote">&gt; Cc: Hugh Dickins &lt;hughd@google.com&gt;</span>
+<span class="quote">&gt; Cc: Johannes Weiner &lt;hannes@cmpxchg.org&gt;</span>
+<span class="quote">&gt; Cc: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+<span class="quote">&gt; Cc: Oleg Nesterov &lt;oleg@redhat.com&gt;</span>
+<span class="quote">&gt; Cc: Rik van Riel &lt;riel@redhat.com&gt;</span>
+<span class="quote">&gt; Cc: Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;</span>
+<span class="quote">&gt; Signed-off-by: Andrew Morton &lt;akpm@linux-foundation.org&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  mm/oom_kill.c |   12 ++++--------</span>
+<span class="quote">&gt;  1 file changed, 4 insertions(+), 8 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff -puN mm/oom_kill.c~oom-reaper-handle-mlocked-pages mm/oom_kill.c</span>
+<span class="quote">&gt; --- a/mm/oom_kill.c~oom-reaper-handle-mlocked-pages</span>
+<span class="quote">&gt; +++ a/mm/oom_kill.c</span>
+<span class="quote">&gt; @@ -442,13 +442,6 @@ static bool __oom_reap_vmas(struct mm_st</span>
+<span class="quote">&gt;  			continue;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  		/*</span>
+<span class="quote">&gt; -		 * mlocked VMAs require explicit munlocking before unmap.</span>
+<span class="quote">&gt; -		 * Let&#39;s keep it simple here and skip such VMAs.</span>
+<span class="quote">&gt; -		 */</span>
+<span class="quote">&gt; -		if (vma-&gt;vm_flags &amp; VM_LOCKED)</span>
+<span class="quote">&gt; -			continue;</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; -		/*</span>
+<span class="quote">&gt;  		 * Only anonymous pages have a good chance to be dropped</span>
+<span class="quote">&gt;  		 * without additional steps which we cannot afford as we</span>
+<span class="quote">&gt;  		 * are OOM already.</span>
+<span class="quote">&gt; @@ -458,9 +451,12 @@ static bool __oom_reap_vmas(struct mm_st</span>
+<span class="quote">&gt;  		 * we do not want to block exit_mmap by keeping mm ref</span>
+<span class="quote">&gt;  		 * count elevated without a good reason.</span>
+<span class="quote">&gt;  		 */</span>
+<span class="quote">&gt; -		if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED))</span>
+<span class="quote">&gt; +		if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED)) {</span>
+<span class="quote">&gt; +			if (vma-&gt;vm_flags &amp; VM_LOCKED)</span>
+<span class="quote">&gt; +				munlock_vma_pages_all(vma);</span>
+<span class="quote">&gt;  			unmap_page_range(&amp;tlb, vma, vma-&gt;vm_start, vma-&gt;vm_end,</span>
+<span class="quote">&gt;  					 &amp;details);</span>
+<span class="quote">&gt; +		}</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  	tlb_finish_mmu(&amp;tlb, 0, -1);</span>
+<span class="quote">&gt;  	up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt; _</span>
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff -puN mm/oom_kill.c~oom-reaper-handle-mlocked-pages mm/oom_kill.c</span>
+<span class="p_header">--- a/mm/oom_kill.c~oom-reaper-handle-mlocked-pages</span>
+<span class="p_header">+++ a/mm/oom_kill.c</span>
+<span class="p_chunk">@@ -442,13 +442,6 @@</span> <span class="p_context"> static bool __oom_reap_vmas(struct mm_st</span>
+ 			continue;
+ 
+ 		/*
+<span class="p_del">-		 * mlocked VMAs require explicit munlocking before unmap.</span>
+<span class="p_del">-		 * Let&#39;s keep it simple here and skip such VMAs.</span>
+<span class="p_del">-		 */</span>
+<span class="p_del">-		if (vma-&gt;vm_flags &amp; VM_LOCKED)</span>
+<span class="p_del">-			continue;</span>
+<span class="p_del">-</span>
+<span class="p_del">-		/*</span>
+ 		 * Only anonymous pages have a good chance to be dropped
+ 		 * without additional steps which we cannot afford as we
+ 		 * are OOM already.
+<span class="p_chunk">@@ -458,9 +451,12 @@</span> <span class="p_context"> static bool __oom_reap_vmas(struct mm_st</span>
+ 		 * we do not want to block exit_mmap by keeping mm ref
+ 		 * count elevated without a good reason.
+ 		 */
+<span class="p_del">-		if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED))</span>
+<span class="p_add">+		if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED)) {</span>
+<span class="p_add">+			if (vma-&gt;vm_flags &amp; VM_LOCKED)</span>
+<span class="p_add">+				munlock_vma_pages_all(vma);</span>
+ 			unmap_page_range(&amp;tlb, vma, vma-&gt;vm_start, vma-&gt;vm_end,
+ 					 &amp;details);
+<span class="p_add">+		}</span>
+ 	}
+ 	tlb_finish_mmu(&amp;tlb, 0, -1);
+ 	up_read(&amp;mm-&gt;mmap_sem);
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

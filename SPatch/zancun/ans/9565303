@@ -1,0 +1,669 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC] mm/hugetlb: use mem policy when allocating surplus huge pages - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC] mm/hugetlb: use mem policy when allocating surplus huge pages</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=170631">Grzegorz Andrejczuk</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Feb. 9, 2017, 5:50 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1486662620-18146-1-git-send-email-grzegorz.andrejczuk@intel.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9565303/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9565303/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9565303/">/patch/9565303/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	B0E9E60216 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  9 Feb 2017 17:51:47 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id A02AA28546
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  9 Feb 2017 17:51:47 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 9275128548; Thu,  9 Feb 2017 17:51:47 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 9EBF628546
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  9 Feb 2017 17:51:45 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1754394AbdBIRvo (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 9 Feb 2017 12:51:44 -0500
+Received: from mga02.intel.com ([134.134.136.20]:48798 &quot;EHLO mga02.intel.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1753215AbdBIRvm (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 9 Feb 2017 12:51:42 -0500
+Received: from fmsmga004.fm.intel.com ([10.253.24.48])
+	by orsmga101.jf.intel.com with ESMTP; 09 Feb 2017 09:50:34 -0800
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i=&quot;5.35,137,1484035200&quot;; d=&quot;scan&#39;208&quot;;a=&quot;223353103&quot;
+Received: from gklab-125-250.igk.intel.com ([10.91.125.250])
+	by fmsmga004.fm.intel.com with ESMTP; 09 Feb 2017 09:50:32 -0800
+From: Grzegorz Andrejczuk &lt;grzegorz.andrejczuk@intel.com&gt;
+To: akpm@linux-foundation.org, mhocko@suse.com,
+	n-horiguchi@ah.jp.nec.com, mike.kravetz@oracle.com,
+	gerald.schaefer@de.ibm.com, aneesh.kumar@linux.vnet.ibm.com,
+	vaishali.thakkar@oracle.com, kirill.shutemov@linux.intel.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	Grzegorz Andrejczuk &lt;grzegorz.andrejczuk@intel.com&gt;
+Subject: [RFC] mm/hugetlb: use mem policy when allocating surplus huge pages
+Date: Thu,  9 Feb 2017 18:50:20 +0100
+Message-Id: &lt;1486662620-18146-1-git-send-email-grzegorz.andrejczuk@intel.com&gt;
+X-Mailer: git-send-email 2.5.1
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=170631">Grzegorz Andrejczuk</a> - Feb. 9, 2017, 5:50 p.m.</div>
+<pre class="content">
+Application allocating overcommitted hugepages behave differently when
+its mempolicy is set to bind with NUMA nodes containing CPUs and not
+containing CPUs. When memory is allocated on node with CPUs everything
+work as expected, when memory is allocated on CPU-less node:
+1. Some memory is allocated from node with CPUs.
+2. Application is terminated with SIGBUS (due to touching not allocated
+   page).
+
+Reproduction (Node0: 90GB, 272 logical CPUs; Node1: 16GB, No CPUs):
+int
+main()
+{
+  char *p = (char*)mmap(0, 4*1024*1024, PROT_READ|PROT_WRITE,
+                 MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB, 0, 0);
+  *p = 0;
+  p += 2*1024*1024;
+  *p=0;
+  return  0;
+}
+
+echo 2 &gt; /proc/sys/vm/nr_overcommit_hugepages
+numactl -m 0 ./test #works
+numactl -m 1 ./test #sigbus
+
+The reason for this behavior is hugetlb_reserve_pages(...) omits
+struct vm_area when calling hugetlb_acct_pages(..) and later allocation is
+unable to determine memory policy.
+
+To fix this issue memory policy is forwarded from hugetlb_reserved_pages
+to allocation routine.
+When policy is interleave, NUMA Node is computed by:
+  page address &gt;&gt; huge_page_shift() % interleaved nodes count.
+
+This algorithm assumes that address is known, but in this case address
+is not known so to keep interleave working without it, dummy address is
+computed as vm_start + (1 &lt;&lt; huge_page_shift())*n, where n is allocated
+page number.
+<span class="signed-off-by">
+Signed-off-by: Grzegorz Andrejczuk &lt;grzegorz.andrejczuk@intel.com&gt;</span>
+---
+ mm/hugetlb.c | 49 +++++++++++++++++++++++++++++++++++--------------
+ 1 file changed, 35 insertions(+), 14 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Feb. 9, 2017, 7:31 p.m.</div>
+<pre class="content">
+On 02/09/2017 09:50 AM, Grzegorz Andrejczuk wrote:
+<span class="quote">&gt; Application allocating overcommitted hugepages behave differently when</span>
+<span class="quote">&gt; its mempolicy is set to bind with NUMA nodes containing CPUs and not</span>
+<span class="quote">&gt; containing CPUs. When memory is allocated on node with CPUs everything</span>
+<span class="quote">&gt; work as expected, when memory is allocated on CPU-less node:</span>
+<span class="quote">&gt; 1. Some memory is allocated from node with CPUs.</span>
+<span class="quote">&gt; 2. Application is terminated with SIGBUS (due to touching not allocated</span>
+<span class="quote">&gt;    page).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Reproduction (Node0: 90GB, 272 logical CPUs; Node1: 16GB, No CPUs):</span>
+<span class="quote">&gt; int</span>
+<span class="quote">&gt; main()</span>
+<span class="quote">&gt; {</span>
+<span class="quote">&gt;   char *p = (char*)mmap(0, 4*1024*1024, PROT_READ|PROT_WRITE,</span>
+<span class="quote">&gt;                  MAP_PRIVATE|MAP_ANONYMOUS|MAP_HUGETLB, 0, 0);</span>
+<span class="quote">&gt;   *p = 0;</span>
+<span class="quote">&gt;   p += 2*1024*1024;</span>
+<span class="quote">&gt;   *p=0;</span>
+<span class="quote">&gt;   return  0;</span>
+<span class="quote">&gt; }</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; echo 2 &gt; /proc/sys/vm/nr_overcommit_hugepages</span>
+<span class="quote">&gt; numactl -m 0 ./test #works</span>
+<span class="quote">&gt; numactl -m 1 ./test #sigbus</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The reason for this behavior is hugetlb_reserve_pages(...) omits</span>
+<span class="quote">&gt; struct vm_area when calling hugetlb_acct_pages(..) and later allocation is</span>
+<span class="quote">&gt; unable to determine memory policy.</span>
+
+Thanks Grzegorz,
+
+I believe another way of stating the problem is as follows:
+
+At mmap(MAP_HUGETLB) time a reservation for the number of huge pages
+is made.  If surplus huge pages need to be (and can be) allocated to
+satisfy the reservation, they will be allocated at this time.  However,
+the memory policy of the task is not taken into account when these
+pages are allocated to satisfy the reservation.
+
+Later when the task actually faults on pages in the mapping, reserved
+huge pages should be instantiated in the mapping.  However, at fault time
+the task&#39;s memory policy is taken into account.  It is possible that the
+pages reserved at mmap() time, are located on nodes such that they can
+not satisfy the request with the task&#39;s memory policy.  In such a case,
+the allocation fails in the same way as if there was no reservation.
+
+Does that sound accurate?
+
+Your problem statement (and solution) address the case where surplus huge
+pages need to be allocated at mmap() time to satisfy a reservation and
+later fault.  I &#39;think&#39; there is a more general problem huge page reservations
+and memory policy.
+
+Note the global resv_huge_pages and free_huge_pages counts.  At the
+beginning of gather_surplus_pages() we have:
+
+/*
+ * Increase the hugetlb pool such that it can accommodate a reservation
+ * of size &#39;delta&#39;.
+ */
+static int gather_surplus_pages(struct hstate *h, int delta)
+{
+        struct list_head surplus_list;
+        struct page *page, *tmp;
+        int ret, i;
+        int needed, allocated;
+        bool alloc_ok = true;
+
+        needed = (h-&gt;resv_huge_pages + delta) - h-&gt;free_huge_pages;
+        if (needed &lt;= 0) {
+                h-&gt;resv_huge_pages += delta;
+                return 0;
+        }
+
+So, as long as there are enough free pages to satisfy the reservation
+gather_surplus_pages (also mmap()) return success.  In this case memory
+policy is definitely not taken into account.
+
+Another failure scenario/test would be:
+- Assume 2 node system with balanced memory/cpu
+- echo 0 &gt; /proc/sys/vm/nr_overcommit_hugepages      # just to be sure
+- echo 2 &gt; /proc/sys/vm/nr_hugepages
+- Now there should be two free huge pages.  Assume interleave and there
+  should be one on each node.
+- I would expect
+  - numactl -m 0 ./test #sigbus
+  - numactl -m 1 ./test #sigbus
+- In both cases, there are enough free pages to satisfy the reservation
+  at mmap time.  However, at fault time it can not get both the pages is
+  requires from the specified node.
+
+I&#39;m thinking we may need to expand the reservation tracking to be
+per-node like free_huge_pages_node and others.  Like the code below,
+we need to take memory policy into account at reservation time.
+
+Thoughts?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=170631">Grzegorz Andrejczuk</a> - Feb. 10, 2017, 3:47 p.m.</div>
+<pre class="content">
+On Mike Kravetz, February 9, 2017 8:32 PM wrote:
+<span class="quote">&gt; I believe another way of stating the problem is as follows:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; At mmap(MAP_HUGETLB) time a reservation for the number of huge pages</span>
+<span class="quote">&gt; is made.  If surplus huge pages need to be (and can be) allocated to</span>
+<span class="quote">&gt; satisfy the reservation, they will be allocated at this time.  However,</span>
+<span class="quote">&gt; the memory policy of the task is not taken into account when these</span>
+<span class="quote">&gt; pages are allocated to satisfy the reservation.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Later when the task actually faults on pages in the mapping, reserved</span>
+<span class="quote">&gt; huge pages should be instantiated in the mapping.  However, at fault time</span>
+<span class="quote">&gt; the task&#39;s memory policy is taken into account.  It is possible that the</span>
+<span class="quote">&gt; pages reserved at mmap() time, are located on nodes such that they can</span>
+<span class="quote">&gt; not satisfy the request with the task&#39;s memory policy.  In such a case,</span>
+<span class="quote">&gt; the allocation fails in the same way as if there was no reservation.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Does that sound accurate?</span>
+
+Yes, thank you for taking time to rephrase it.
+It&#39;s much cleaner now.
+<span class="quote">
+&gt; Your problem statement (and solution) address the case where surplus huge</span>
+<span class="quote">&gt; pages need to be allocated at mmap() time to satisfy a reservation and</span>
+<span class="quote">&gt; later fault.  I &#39;think&#39; there is a more general problem huge page reservations</span>
+<span class="quote">&gt; and memory policy.</span>
+
+Yes, I fixed very specific code path. This problem is probably one of many
+problems in the crossing of the memory policy and huge pages reservations.
+<span class="quote">
+&gt; - In both cases, there are enough free pages to satisfy the reservation</span>
+<span class="quote">&gt;   at mmap time.  However, at fault time it can not get both the pages is</span>
+<span class="quote">&gt;   requires from the specified node.</span>
+
+There is difference that interleaving in preallocated huge page is well known
+and expected, when in overcommit all the pages might or might not be assigned
+to the requested NUMA node. Also after setting nr_hugepages it is possible
+to check number of the huge pages reserved for each node by:
+cat /sys/devices/system/node/nodeX/hugepages/hugepages-2048kB/nr_hugepages
+with nr_overcommit_hugepages it is impossible.
+<span class="quote">
+&gt;  I&#39;m thinking we may need to expand the reservation tracking to be</span>
+<span class="quote">&gt;  per-node like free_huge_pages_node and others.  Like the code below,</span>
+<span class="quote">&gt;  we need to take memory policy into account at reservation time.</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  Thoughts?</span>
+
+Are amounts of free, allocated and surplus huge pages tracked in sysfs mentioned above?
+My limited understanding of this problem is that obtaining all the memory policies
+requires struct vm_area (for bind, preferred) and address (for interleave).
+The first is lost in hugetlb_reserve_pages, the latter is lost when file-&gt;mmap is called.
+So reservation of the huge pages needs to be done in mmap_region function
+before calling file-&gt;mmap and I think this requires some new hugetlb API. 
+
+Best Regards,
+Grzegorz
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Feb. 10, 2017, 10:37 p.m.</div>
+<pre class="content">
+On 02/10/2017 07:47 AM, Andrejczuk, Grzegorz wrote:
+<span class="quote">&gt; On Mike Kravetz, February 9, 2017 8:32 PM wrote:</span>
+<span class="quote">&gt;&gt; I believe another way of stating the problem is as follows:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; At mmap(MAP_HUGETLB) time a reservation for the number of huge pages</span>
+<span class="quote">&gt;&gt; is made.  If surplus huge pages need to be (and can be) allocated to</span>
+<span class="quote">&gt;&gt; satisfy the reservation, they will be allocated at this time.  However,</span>
+<span class="quote">&gt;&gt; the memory policy of the task is not taken into account when these</span>
+<span class="quote">&gt;&gt; pages are allocated to satisfy the reservation.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Later when the task actually faults on pages in the mapping, reserved</span>
+<span class="quote">&gt;&gt; huge pages should be instantiated in the mapping.  However, at fault time</span>
+<span class="quote">&gt;&gt; the task&#39;s memory policy is taken into account.  It is possible that the</span>
+<span class="quote">&gt;&gt; pages reserved at mmap() time, are located on nodes such that they can</span>
+<span class="quote">&gt;&gt; not satisfy the request with the task&#39;s memory policy.  In such a case,</span>
+<span class="quote">&gt;&gt; the allocation fails in the same way as if there was no reservation.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Does that sound accurate?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yes, thank you for taking time to rephrase it.</span>
+<span class="quote">&gt; It&#39;s much cleaner now.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; Your problem statement (and solution) address the case where surplus huge</span>
+<span class="quote">&gt;&gt; pages need to be allocated at mmap() time to satisfy a reservation and</span>
+<span class="quote">&gt;&gt; later fault.  I &#39;think&#39; there is a more general problem huge page reservations</span>
+<span class="quote">&gt;&gt; and memory policy.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yes, I fixed very specific code path. This problem is probably one of many</span>
+<span class="quote">&gt; problems in the crossing of the memory policy and huge pages reservations.</span>
+<span class="quote">&gt; </span>
+
+I think we agree that there is a general issue with huge page reservations
+and memory policy.  More on this later.
+<span class="quote">
+&gt;&gt; - In both cases, there are enough free pages to satisfy the reservation</span>
+<span class="quote">&gt;&gt;   at mmap time.  However, at fault time it can not get both the pages is</span>
+<span class="quote">&gt;&gt;   requires from the specified node.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; There is difference that interleaving in preallocated huge page is well known</span>
+<span class="quote">&gt; and expected, when in overcommit all the pages might or might not be assigned</span>
+<span class="quote">&gt; to the requested NUMA node.</span>
+
+Well, one can preallocate huge pages with policies other than interleave.
+Of course, as you mention that is the most common policy and what most
+people expect.
+
+I am not sure if a failure (SIGBUS) in the preallocated case is more well
+known than in the overcommit case.
+<span class="quote">
+&gt;                             Also after setting nr_hugepages it is possible</span>
+<span class="quote">&gt; to check number of the huge pages reserved for each node by:</span>
+<span class="quote">&gt; cat /sys/devices/system/node/nodeX/hugepages/hugepages-2048kB/nr_hugepages</span>
+<span class="quote">&gt; with nr_overcommit_hugepages it is impossible.</span>
+
+Correct.  And that is because nr_overcommit_hugepages is a global.  Also,
+note that nr_hugepages shows the number of huge pages allocated on that
+node.  I think that is what you were trying to say, but &#39;reserved&#39; has
+a very specific meaning in this context.
+<span class="quote">
+&gt;&gt;  I&#39;m thinking we may need to expand the reservation tracking to be</span>
+<span class="quote">&gt;&gt;  per-node like free_huge_pages_node and others.  Like the code below,</span>
+<span class="quote">&gt;&gt;  we need to take memory policy into account at reservation time.</span>
+<span class="quote">&gt;&gt;  </span>
+<span class="quote">&gt;&gt;  Thoughts?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Are amounts of free, allocated and surplus huge pages tracked in sysfs mentioned above?</span>
+
+Like this?
+.../node/node0/hugepages/hugepages-2048kB/free_hugepages       512
+.../node/node0/hugepages/hugepages-2048kB/nr_hugepages         512
+.../node/node0/hugepages/hugepages-2048kB/surplus_hugepages    0
+
+You can write to nr_hugepages, but free_hugepages and surplus_hugepages
+are read only.
+<span class="quote">
+&gt; My limited understanding of this problem is that obtaining all the memory policies</span>
+<span class="quote">&gt; requires struct vm_area (for bind, preferred) and address (for interleave).</span>
+<span class="quote">&gt; The first is lost in hugetlb_reserve_pages, the latter is lost when file-&gt;mmap is called.</span>
+<span class="quote">&gt; So reservation of the huge pages needs to be done in mmap_region function</span>
+<span class="quote">&gt; before calling file-&gt;mmap and I think this requires some new hugetlb API. </span>
+
+You are correct about the need for more information.  I was thinking about
+creating a &#39;pseudo vma&#39; as in hugetlbfs_fallocate() to carry the extra
+information.  This way the scope would be limited to the huge page code.
+
+I still think there is a bigger question about the purpose of huge page
+reservations within the kernel.  If you read the code, it makes it sound
+like it is trying to guarantee no failures at fault time if mmap() succeeds
+(not in the MAP_NORESERVE case of course).  But, since memory policy is
+not taken into account at mmap() time and is used at fault time there can
+be no such guarantee.
+
+My question is, should we try to make the reservation code take memory
+policy into account?  I&#39;m not sure if we can ever guarantee mmap()
+success means fault success.  But, this would get us closer.  Do note
+that this would require tracking reservations on a node basis.  It
+may not be too difficult to do at mmap time, but could get tricky at
+munmap/truncate/hole punch time.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="p_header">index 418bf01..3913066 100644</span>
+<span class="p_header">--- a/mm/hugetlb.c</span>
+<span class="p_header">+++ b/mm/hugetlb.c</span>
+<span class="p_chunk">@@ -67,7 +67,8 @@</span> <span class="p_context"> static int num_fault_mutexes;</span>
+ struct mutex *hugetlb_fault_mutex_table ____cacheline_aligned_in_smp;
+ 
+ /* Forward declaration */
+<span class="p_del">-static int hugetlb_acct_memory(struct hstate *h, long delta);</span>
+<span class="p_add">+static int hugetlb_acct_memory(struct hstate *h, long delta,</span>
+<span class="p_add">+			       struct vm_area_struct *vma);</span>
+ 
+ static inline void unlock_or_release_subpool(struct hugepage_subpool *spool)
+ {
+<span class="p_chunk">@@ -81,7 +82,7 @@</span> <span class="p_context"> static inline void unlock_or_release_subpool(struct hugepage_subpool *spool)</span>
+ 	if (free) {
+ 		if (spool-&gt;min_hpages != -1)
+ 			hugetlb_acct_memory(spool-&gt;hstate,
+<span class="p_del">-						-spool-&gt;min_hpages);</span>
+<span class="p_add">+						-spool-&gt;min_hpages, NULL);</span>
+ 		kfree(spool);
+ 	}
+ }
+<span class="p_chunk">@@ -101,7 +102,7 @@</span> <span class="p_context"> struct hugepage_subpool *hugepage_new_subpool(struct hstate *h, long max_hpages,</span>
+ 	spool-&gt;hstate = h;
+ 	spool-&gt;min_hpages = min_hpages;
+ 
+<span class="p_del">-	if (min_hpages != -1 &amp;&amp; hugetlb_acct_memory(h, min_hpages)) {</span>
+<span class="p_add">+	if (min_hpages != -1 &amp;&amp; hugetlb_acct_memory(h, min_hpages, NULL)) {</span>
+ 		kfree(spool);
+ 		return NULL;
+ 	}
+<span class="p_chunk">@@ -576,7 +577,7 @@</span> <span class="p_context"> void hugetlb_fix_reserve_counts(struct inode *inode)</span>
+ 	if (rsv_adjust) {
+ 		struct hstate *h = hstate_inode(inode);
+ 
+<span class="p_del">-		hugetlb_acct_memory(h, 1);</span>
+<span class="p_add">+		hugetlb_acct_memory(h, 1, NULL);</span>
+ 	}
+ }
+ 
+<span class="p_chunk">@@ -1690,10 +1691,12 @@</span> <span class="p_context"> struct page *alloc_huge_page_node(struct hstate *h, int nid)</span>
+  * Increase the hugetlb pool such that it can accommodate a reservation
+  * of size &#39;delta&#39;.
+  */
+<span class="p_del">-static int gather_surplus_pages(struct hstate *h, int delta)</span>
+<span class="p_add">+static int gather_surplus_pages(struct hstate *h, int delta,</span>
+<span class="p_add">+				struct vm_area_struct *vma)</span>
+ {
+ 	struct list_head surplus_list;
+ 	struct page *page, *tmp;
+<span class="p_add">+	unsigned long address_offset = 0;</span>
+ 	int ret, i;
+ 	int needed, allocated;
+ 	bool alloc_ok = true;
+<span class="p_chunk">@@ -1711,7 +1714,20 @@</span> <span class="p_context"> static int gather_surplus_pages(struct hstate *h, int delta)</span>
+ retry:
+ 	spin_unlock(&amp;hugetlb_lock);
+ 	for (i = 0; i &lt; needed; i++) {
+<span class="p_del">-		page = __alloc_buddy_huge_page_no_mpol(h, NUMA_NO_NODE);</span>
+<span class="p_add">+		if (vma) {</span>
+<span class="p_add">+			unsigned long dummy_addr = vma-&gt;vm_start +</span>
+<span class="p_add">+					(address_offset &lt;&lt; huge_page_shift(h));</span>
+<span class="p_add">+</span>
+<span class="p_add">+			if (dummy_addr &gt;= vma-&gt;vm_end) {</span>
+<span class="p_add">+				address_offset = 0;</span>
+<span class="p_add">+				dummy_addr = vma-&gt;vm_start;</span>
+<span class="p_add">+			}</span>
+<span class="p_add">+			page = __alloc_buddy_huge_page_with_mpol(h, vma,</span>
+<span class="p_add">+								 dummy_addr);</span>
+<span class="p_add">+			address_offset++;</span>
+<span class="p_add">+		} else {</span>
+<span class="p_add">+			page = __alloc_buddy_huge_page_no_mpol(h, NUMA_NO_NODE);</span>
+<span class="p_add">+		}</span>
+ 		if (!page) {
+ 			alloc_ok = false;
+ 			break;
+<span class="p_chunk">@@ -2057,7 +2073,7 @@</span> <span class="p_context"> struct page *alloc_huge_page(struct vm_area_struct *vma,</span>
+ 		long rsv_adjust;
+ 
+ 		rsv_adjust = hugepage_subpool_put_pages(spool, 1);
+<span class="p_del">-		hugetlb_acct_memory(h, -rsv_adjust);</span>
+<span class="p_add">+		hugetlb_acct_memory(h, -rsv_adjust, NULL);</span>
+ 	}
+ 	return page;
+ 
+<span class="p_chunk">@@ -3031,7 +3047,8 @@</span> <span class="p_context"> unsigned long hugetlb_total_pages(void)</span>
+ 	return nr_total_pages;
+ }
+ 
+<span class="p_del">-static int hugetlb_acct_memory(struct hstate *h, long delta)</span>
+<span class="p_add">+static int hugetlb_acct_memory(struct hstate *h, long delta,</span>
+<span class="p_add">+			       struct vm_area_struct *vma)</span>
+ {
+ 	int ret = -ENOMEM;
+ 
+<span class="p_chunk">@@ -3054,7 +3071,7 @@</span> <span class="p_context"> static int hugetlb_acct_memory(struct hstate *h, long delta)</span>
+ 	 * semantics that cpuset has.
+ 	 */
+ 	if (delta &gt; 0) {
+<span class="p_del">-		if (gather_surplus_pages(h, delta) &lt; 0)</span>
+<span class="p_add">+		if (gather_surplus_pages(h, delta, vma) &lt; 0)</span>
+ 			goto out;
+ 
+ 		if (delta &gt; cpuset_mems_nr(h-&gt;free_huge_pages_node)) {
+<span class="p_chunk">@@ -3112,7 +3129,7 @@</span> <span class="p_context"> static void hugetlb_vm_op_close(struct vm_area_struct *vma)</span>
+ 		 * adjusted if the subpool has a minimum size.
+ 		 */
+ 		gbl_reserve = hugepage_subpool_put_pages(spool, reserve);
+<span class="p_del">-		hugetlb_acct_memory(h, -gbl_reserve);</span>
+<span class="p_add">+		hugetlb_acct_memory(h, -gbl_reserve, NULL);</span>
+ 	}
+ }
+ 
+<span class="p_chunk">@@ -4167,9 +4184,13 @@</span> <span class="p_context"> int hugetlb_reserve_pages(struct inode *inode,</span>
+ 
+ 	/*
+ 	 * Check enough hugepages are available for the reservation.
+<span class="p_del">-	 * Hand the pages back to the subpool if there are not</span>
+<span class="p_add">+	 * Hand the pages back to the subpool if there are not.</span>
+ 	 */
+<span class="p_del">-	ret = hugetlb_acct_memory(h, gbl_reserve);</span>
+<span class="p_add">+	if (!vma || vma-&gt;vm_flags &amp; VM_MAYSHARE)</span>
+<span class="p_add">+		ret = hugetlb_acct_memory(h, gbl_reserve, NULL);</span>
+<span class="p_add">+	else</span>
+<span class="p_add">+		ret = hugetlb_acct_memory(h, gbl_reserve, vma);</span>
+<span class="p_add">+</span>
+ 	if (ret &lt; 0) {
+ 		/* put back original number of pages, chg */
+ 		(void)hugepage_subpool_put_pages(spool, chg);
+<span class="p_chunk">@@ -4202,7 +4223,7 @@</span> <span class="p_context"> int hugetlb_reserve_pages(struct inode *inode,</span>
+ 
+ 			rsv_adjust = hugepage_subpool_put_pages(spool,
+ 								chg - add);
+<span class="p_del">-			hugetlb_acct_memory(h, -rsv_adjust);</span>
+<span class="p_add">+			hugetlb_acct_memory(h, -rsv_adjust, NULL);</span>
+ 		}
+ 	}
+ 	return 0;
+<span class="p_chunk">@@ -4243,7 +4264,7 @@</span> <span class="p_context"> long hugetlb_unreserve_pages(struct inode *inode, long start, long end,</span>
+ 	 * reservations to be released may be adjusted.
+ 	 */
+ 	gbl_reserve = hugepage_subpool_put_pages(spool, (chg - freed));
+<span class="p_del">-	hugetlb_acct_memory(h, -gbl_reserve);</span>
+<span class="p_add">+	hugetlb_acct_memory(h, -gbl_reserve, NULL);</span>
+ 
+ 	return 0;
+ }
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

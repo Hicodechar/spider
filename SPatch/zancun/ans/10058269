@@ -1,0 +1,3833 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,v11,for,4.15,01/24] Restartable sequences system call - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,v11,for,4.15,01/24] Restartable sequences system call</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Nov. 14, 2017, 8:03 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20171114200414.2188-2-mathieu.desnoyers@efficios.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10058269/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10058269/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10058269/">/patch/10058269/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	C77E8601D3 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 14 Nov 2017 20:12:40 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id B72C628793
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 14 Nov 2017 20:12:40 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id AB30228ABD; Tue, 14 Nov 2017 20:12:40 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 2C74C2996A
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 14 Nov 2017 20:12:37 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753670AbdKNUMf convert rfc822-to-8bit (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 14 Nov 2017 15:12:35 -0500
+Received: from mail.efficios.com ([167.114.142.141]:56562 &quot;EHLO
+	mail.efficios.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1756218AbdKNUEs (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 14 Nov 2017 15:04:48 -0500
+Received: from localhost (localhost.localdomain [127.0.0.1])
+	by mail.efficios.com (Postfix) with ESMTP id 03BC8340258;
+	Tue, 14 Nov 2017 20:05:32 +0000 (UTC)
+Received: from mail.efficios.com ([127.0.0.1])
+	by localhost (evm-mail-1.efficios.com [127.0.0.1]) (amavisd-new,
+	port 10032)
+	with ESMTP id EGY0vHHlcHKT; Tue, 14 Nov 2017 20:05:16 +0000 (UTC)
+Received: from localhost (localhost.localdomain [127.0.0.1])
+	by mail.efficios.com (Postfix) with ESMTP id B7D903402B4;
+	Tue, 14 Nov 2017 20:05:16 +0000 (UTC)
+X-Virus-Scanned: amavisd-new at efficios.com
+Received: from mail.efficios.com ([127.0.0.1])
+	by localhost (evm-mail-1.efficios.com [127.0.0.1]) (amavisd-new,
+	port 10026)
+	with ESMTP id 6q8udOxx3tNl; Tue, 14 Nov 2017 20:05:16 +0000 (UTC)
+Received: from thinkos.internal.efficios.com
+	(192-222-157-41.qc.cable.ebox.net [192.222.157.41])
+	by mail.efficios.com (Postfix) with ESMTPSA id 45B4434024F;
+	Tue, 14 Nov 2017 20:05:16 +0000 (UTC)
+From: Mathieu Desnoyers &lt;mathieu.desnoyers@efficios.com&gt;
+To: Peter Zijlstra &lt;peterz@infradead.org&gt;,
+	&quot;Paul E . McKenney&quot; &lt;paulmck@linux.vnet.ibm.com&gt;,
+	Boqun Feng &lt;boqun.feng@gmail.com&gt;, Andy Lutomirski &lt;luto@amacapital.net&gt;,
+	Dave Watson &lt;davejwatson@fb.com&gt;
+Cc: linux-kernel@vger.kernel.org, linux-api@vger.kernel.org,
+	Paul Turner &lt;pjt@google.com&gt;, Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Russell King &lt;linux@arm.linux.org.uk&gt;,
+	Thomas Gleixner &lt;tglx@linutronix.de&gt;, Ingo Molnar &lt;mingo@redhat.com&gt;,
+	&quot;H . Peter Anvin&quot; &lt;hpa@zytor.com&gt;, Andrew Hunter &lt;ahh@google.com&gt;,
+	Andi Kleen &lt;andi@firstfloor.org&gt;, Chris Lameter &lt;cl@linux.com&gt;,
+	Ben Maurer &lt;bmaurer@fb.com&gt;, Steven Rostedt &lt;rostedt@goodmis.org&gt;,
+	Josh Triplett &lt;josh@joshtriplett.org&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Catalin Marinas &lt;catalin.marinas@arm.com&gt;,
+	Will Deacon &lt;will.deacon@arm.com&gt;,
+	Michael Kerrisk &lt;mtk.manpages@gmail.com&gt;,
+	Mathieu Desnoyers &lt;mathieu.desnoyers@efficios.com&gt;,
+	Alexander Viro &lt;viro@zeniv.linux.org.uk&gt;
+Subject: [RFC PATCH v11 for 4.15 01/24] Restartable sequences system call
+Date: Tue, 14 Nov 2017 15:03:51 -0500
+Message-Id: &lt;20171114200414.2188-2-mathieu.desnoyers@efficios.com&gt;
+X-Mailer: git-send-email 2.11.0
+In-Reply-To: &lt;20171114200414.2188-1-mathieu.desnoyers@efficios.com&gt;
+References: &lt;20171114200414.2188-1-mathieu.desnoyers@efficios.com&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8BIT
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Nov. 14, 2017, 8:03 p.m.</div>
+<pre class="content">
+Expose a new system call allowing each thread to register one userspace
+memory area to be used as an ABI between kernel and user-space for two
+purposes: user-space restartable sequences and quick access to read the
+current CPU number value from user-space.
+
+* Restartable sequences (per-cpu atomics)
+
+Restartables sequences allow user-space to perform update operations on
+per-cpu data without requiring heavy-weight atomic operations.
+
+The restartable critical sections (percpu atomics) work has been started
+by Paul Turner and Andrew Hunter. It lets the kernel handle restart of
+critical sections. [1] [2] The re-implementation proposed here brings a
+few simplifications to the ABI which facilitates porting to other
+architectures and speeds up the user-space fast path. A second system
+call, cpu_opv(), is proposed as fallback to deal with debugger
+single-stepping. cpu_opv() executes a sequence of operations on behalf
+of user-space with preemption disabled.
+
+Here are benchmarks of various rseq use-cases.
+
+Test hardware:
+
+arm32: ARMv7 Processor rev 4 (v7l) &quot;Cubietruck&quot;, 2-core
+x86-64: Intel E5-2630 v3@2.40GHz, 16-core, hyperthreading
+
+The following benchmarks were all performed on a single thread.
+
+* Per-CPU statistic counter increment
+
+                getcpu+atomic (ns/op)    rseq (ns/op)    speedup
+arm32:                344.0                 31.4          11.0
+x86-64:                15.3                  2.0           7.7
+
+* LTTng-UST: write event 32-bit header, 32-bit payload into tracer
+             per-cpu buffer
+
+                getcpu+atomic (ns/op)    rseq (ns/op)    speedup
+arm32:               2502.0                 2250.0         1.1
+x86-64:               117.4                   98.0         1.2
+
+* liburcu percpu: lock-unlock pair, dereference, read/compare word
+
+                getcpu+atomic (ns/op)    rseq (ns/op)    speedup
+arm32:                751.0                 128.5          5.8
+x86-64:                53.4                  28.6          1.9
+
+* jemalloc memory allocator adapted to use rseq
+
+Using rseq with per-cpu memory pools in jemalloc at Facebook (based on
+rseq 2016 implementation):
+
+The production workload response-time has 1-2% gain avg. latency, and
+the P99 overall latency drops by 2-3%.
+
+* Reading the current CPU number
+
+Speeding up reading the current CPU number on which the caller thread is
+running is done by keeping the current CPU number up do date within the
+cpu_id field of the memory area registered by the thread. This is done
+by making scheduler preemption set the TIF_NOTIFY_RESUME flag on the
+current thread. Upon return to user-space, a notify-resume handler
+updates the current CPU value within the registered user-space memory
+area. User-space can then read the current CPU number directly from
+memory.
+
+Keeping the current cpu id in a memory area shared between kernel and
+user-space is an improvement over current mechanisms available to read
+the current CPU number, which has the following benefits over
+alternative approaches:
+
+- 35x speedup on ARM vs system call through glibc
+- 20x speedup on x86 compared to calling glibc, which calls vdso
+  executing a &quot;lsl&quot; instruction,
+- 14x speedup on x86 compared to inlined &quot;lsl&quot; instruction,
+- Unlike vdso approaches, this cpu_id value can be read from an inline
+  assembly, which makes it a useful building block for restartable
+  sequences.
+- The approach of reading the cpu id through memory mapping shared
+  between kernel and user-space is portable (e.g. ARM), which is not the
+  case for the lsl-based x86 vdso.
+
+On x86, yet another possible approach would be to use the gs segment
+selector to point to user-space per-cpu data. This approach performs
+similarly to the cpu id cache, but it has two disadvantages: it is
+not portable, and it is incompatible with existing applications already
+using the gs segment selector for other purposes.
+
+Benchmarking various approaches for reading the current CPU number:
+
+ARMv7 Processor rev 4 (v7l)
+Machine model: Cubietruck
+- Baseline (empty loop):                                    8.4 ns
+- Read CPU from rseq cpu_id:                               16.7 ns
+- Read CPU from rseq cpu_id (lazy register):               19.8 ns
+- glibc 2.19-0ubuntu6.6 getcpu:                           301.8 ns
+- getcpu system call:                                     234.9 ns
+
+x86-64 Intel(R) Xeon(R) CPU E5-2630 v3 @ 2.40GHz:
+- Baseline (empty loop):                                    0.8 ns
+- Read CPU from rseq cpu_id:                                0.8 ns
+- Read CPU from rseq cpu_id (lazy register):                0.8 ns
+- Read using gs segment selector:                           0.8 ns
+- &quot;lsl&quot; inline assembly:                                   13.0 ns
+- glibc 2.19-0ubuntu6 getcpu:                              16.6 ns
+- getcpu system call:                                      53.9 ns
+
+- Speed (benchmark taken on v8 of patchset)
+
+Running 10 runs of hackbench -l 100000 seems to indicate, contrary to
+expectations, that enabling CONFIG_RSEQ slightly accelerates the
+scheduler:
+
+Configuration: 2 sockets * 8-core Intel(R) Xeon(R) CPU E5-2630 v3 @
+2.40GHz (directly on hardware, hyperthreading disabled in BIOS, energy
+saving disabled in BIOS, turboboost disabled in BIOS, cpuidle.off=1
+kernel parameter), with a Linux v4.6 defconfig+localyesconfig,
+restartable sequences series applied.
+
+* CONFIG_RSEQ=n
+
+avg.:      41.37 s
+std.dev.:   0.36 s
+
+* CONFIG_RSEQ=y
+
+avg.:      40.46 s
+std.dev.:   0.33 s
+
+- Size
+
+On x86-64, between CONFIG_RSEQ=n/y, the text size increase of vmlinux is
+567 bytes, and the data size increase of vmlinux is 5696 bytes.
+
+On x86-64, between CONFIG_CPU_OPV=n/y, the text size increase of vmlinux is
+5576 bytes, and the data size increase of vmlinux is 6164 bytes.
+
+[1] https://lwn.net/Articles/650333/
+[2] http://www.linuxplumbersconf.org/2013/ocw/system/presentations/1695/original/LPC%20-%20PerCpu%20Atomics.pdf
+
+Link: http://lkml.kernel.org/r/20151027235635.16059.11630.stgit@pjt-glaptop.roam.corp.google.com
+Link: http://lkml.kernel.org/r/20150624222609.6116.86035.stgit@kitami.mtv.corp.google.com
+<span class="signed-off-by">Signed-off-by: Mathieu Desnoyers &lt;mathieu.desnoyers@efficios.com&gt;</span>
+CC: Thomas Gleixner &lt;tglx@linutronix.de&gt;
+CC: Paul Turner &lt;pjt@google.com&gt;
+CC: Andrew Hunter &lt;ahh@google.com&gt;
+CC: Peter Zijlstra &lt;peterz@infradead.org&gt;
+CC: Andy Lutomirski &lt;luto@amacapital.net&gt;
+CC: Andi Kleen &lt;andi@firstfloor.org&gt;
+CC: Dave Watson &lt;davejwatson@fb.com&gt;
+CC: Chris Lameter &lt;cl@linux.com&gt;
+CC: Ingo Molnar &lt;mingo@redhat.com&gt;
+CC: &quot;H. Peter Anvin&quot; &lt;hpa@zytor.com&gt;
+CC: Ben Maurer &lt;bmaurer@fb.com&gt;
+CC: Steven Rostedt &lt;rostedt@goodmis.org&gt;
+CC: &quot;Paul E. McKenney&quot; &lt;paulmck@linux.vnet.ibm.com&gt;
+CC: Josh Triplett &lt;josh@joshtriplett.org&gt;
+CC: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+CC: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+CC: Russell King &lt;linux@arm.linux.org.uk&gt;
+CC: Catalin Marinas &lt;catalin.marinas@arm.com&gt;
+CC: Will Deacon &lt;will.deacon@arm.com&gt;
+CC: Michael Kerrisk &lt;mtk.manpages@gmail.com&gt;
+CC: Boqun Feng &lt;boqun.feng@gmail.com&gt;
+CC: Alexander Viro &lt;viro@zeniv.linux.org.uk&gt;
+CC: linux-api@vger.kernel.org
+---
+
+Changes since v1:
+- Return -1, errno=EINVAL if cpu_cache pointer is not aligned on
+  sizeof(int32_t).
+- Update man page to describe the pointer alignement requirements and
+  update atomicity guarantees.
+- Add MAINTAINERS file GETCPU_CACHE entry.
+- Remove dynamic memory allocation: go back to having a single
+  getcpu_cache entry per thread. Update documentation accordingly.
+- Rebased on Linux 4.4.
+
+Changes since v2:
+- Introduce a &quot;cmd&quot; argument, along with an enum with GETCPU_CACHE_GET
+  and GETCPU_CACHE_SET. Introduce a uapi header linux/getcpu_cache.h
+  defining this enumeration.
+- Split resume notifier architecture implementation from the system call
+  wire up in the following arch-specific patches.
+- Man pages updates.
+- Handle 32-bit compat pointers.
+- Simplify handling of getcpu_cache GETCPU_CACHE_SET compiler barrier:
+  set the current cpu cache pointer before doing the cache update, and
+  set it back to NULL if the update fails. Setting it back to NULL on
+  error ensures that no resume notifier will trigger a SIGSEGV if a
+  migration happened concurrently.
+
+Changes since v3:
+- Fix __user annotations in compat code,
+- Update memory ordering comments.
+- Rebased on kernel v4.5-rc5.
+
+Changes since v4:
+- Inline getcpu_cache_fork, getcpu_cache_execve, and getcpu_cache_exit.
+- Add new line between if() and switch() to improve readability.
+- Added sched switch benchmarks (hackbench) and size overhead comparison
+  to change log.
+
+Changes since v5:
+- Rename &quot;getcpu_cache&quot; to &quot;thread_local_abi&quot;, allowing to extend
+  this system call to cover future features such as restartable critical
+  sections. Generalizing this system call ensures that we can add
+  features similar to the cpu_id field within the same cache-line
+  without having to track one pointer per feature within the task
+  struct.
+- Add a tlabi_nr parameter to the system call, thus allowing to extend
+  the ABI beyond the initial 64-byte structure by registering structures
+  with tlabi_nr greater than 0. The initial ABI structure is associated
+  with tlabi_nr 0.
+- Rebased on kernel v4.5.
+
+Changes since v6:
+- Integrate &quot;restartable sequences&quot; v2 patchset from Paul Turner.
+- Add handling of single-stepping purely in user-space, with a
+  fallback to locking after 2 rseq failures to ensure progress, and
+  by exposing a __rseq_table section to debuggers so they know where
+  to put breakpoints when dealing with rseq assembly blocks which
+  can be aborted at any point.
+- make the code and ABI generic: porting the kernel implementation
+  simply requires to wire up the signal handler and return to user-space
+  hooks, and allocate the syscall number.
+- extend testing with a fully configurable test program. See
+  param_spinlock_test -h for details.
+- handling of rseq ENOSYS in user-space, also with a fallback
+  to locking.
+- modify Paul Turner&#39;s rseq ABI to only require a single TLS store on
+  the user-space fast-path, removing the need to populate two additional
+  registers. This is made possible by introducing struct rseq_cs into
+  the ABI to describe a critical section start_ip, post_commit_ip, and
+  abort_ip.
+- Rebased on kernel v4.7-rc7.
+
+Changes since v7:
+- Documentation updates.
+- Integrated powerpc architecture support.
+- Compare rseq critical section start_ip, allows shriking the user-space
+  fast-path code size.
+- Added Peter Zijlstra, Paul E. McKenney and Boqun Feng as
+  co-maintainers.
+- Added do_rseq2 and do_rseq_memcpy to test program helper library.
+- Code cleanup based on review from Peter Zijlstra, Andy Lutomirski and
+  Boqun Feng.
+- Rebase on kernel v4.8-rc2.
+
+Changes since v8:
+- clear rseq_cs even if non-nested. Speeds up user-space fast path by
+  removing the final &quot;rseq_cs=NULL&quot; assignment.
+- add enum rseq_flags: critical sections and threads can set migration,
+  preemption and signal &quot;disable&quot; flags to inhibit rseq behavior.
+- rseq_event_counter needs to be updated with a pre-increment: Otherwise
+  misses an increment after exec (when TLS and in-kernel states are
+  initially 0).
+
+Changes since v9:
+- Update changelog.
+- Fold instrumentation patch.
+- check abort-ip signature: Add a signature before the abort-ip landing
+  address. This signature is also received as a new parameter to the
+  rseq system call. The kernel uses it ensures that rseq cannot be used
+  as an exploit vector to redirect execution to arbitrary code.
+- Use rseq pointer for both register and unregister. This is more
+  symmetric, and eventually allow supporting a linked list of rseq
+  struct per thread if needed in the future.
+- Unregistration of a rseq structure is now done with
+  RSEQ_FLAG_UNREGISTER.
+- Remove reference counting. Return &quot;EBUSY&quot; to the caller if rseq is
+  already registered for the current thread. This simplifies
+  implementation while still allowing user-space to perform lazy
+  registration in multi-lib use-cases. (suggested by Ben Maurer)
+- Clear rseq_cs upon unregister.
+- Set cpu_id back to -1 on unregister, so if rseq user libraries follow
+  an unregister, and they expect to lazily register rseq, they can do
+  so.
+- Document rseq_cs clear requirement: JIT should reset the rseq_cs
+  pointer before reclaiming memory of rseq_cs structure.
+- Introduce rseq_len syscall parameter, rseq_cs version field:
+  Allow keeping track of the registered rseq struct length, for future
+  extensions. Add rseq_cs version as first field. Will allow future
+  extensions.
+- Use offset and unsigned arithmetic to save a branch:  Save a
+  conditional branch when comparing instruction pointer against a
+  rseq_cs descriptor&#39;s address range by having post_commit_ip as an
+  offset from start_ip, and using unsigned integer comparison.
+  Suggested by Ben Maurer.
+- Remove event counter from ABI. Suggested by Andy Lutomirski.
+- Add INIT_ONSTACK macro: Introduce the
+  RSEQ_FIELD_u32_u64_INIT_ONSTACK() macros to ensure that users
+  correctly initialize the upper bits of RSEQ_FIELD_u32_u64() on their
+  stack to 0 on 32-bit architectures.
+- Select MEMBARRIER: Allows user-space rseq fast-paths to use the value
+  of cpu_id field (inherently required by the rseq algorithm) to figure
+  out whether membarrier can be expected to be available.
+  This effectively allows user-space fast-paths to remove extra
+  comparisons and branch testing whether membarrier is enabled, and thus
+  whether a full barrier is required (e.g. in userspace RCU
+  implementation after rcu_read_lock/before rcu_read_unlock).
+- Expose cpu_id_start field: Checking whether the (cpu_id &lt; 0) in the C
+  preparation part of the rseq fast-path brings significant overhead at
+  least on arm32. We can remove this extra comparison by exposing two
+  distinct cpu_id fields in the rseq TLS:
+
+  The field cpu_id_start always contain a *possible* cpu number, although
+  it may not be the current one if, for instance, rseq is not initialized
+  for the current thread. cpu_id_start is meant to be used in the C code
+  for the pointer chasing to figure out which per-cpu data structure
+  should be passed to the rseq asm sequence.
+
+  The field cpu_id values -1 means rseq is not initialized, and -2 means
+  initialization failed. That field is used in the rseq asm sequence to
+  confirm that the cpu_id_start value was indeed the current cpu number.
+  It also ends up confirming that rseq is initialized for the current
+  thread, because values -1 and -2 will never match the cpu_id_start
+  possible cpu number values.
+
+  This allows checking the current CPU number and rseq initialization
+  state with a single comparison on the fast-path.
+
+Changes since v10:
+
+- Update rseq.c comment, removing reference to event_counter.
+
+Man page associated:
+
+RSEQ(2)                Linux Programmer&#39;s Manual               RSEQ(2)
+
+NAME
+       rseq - Restartable sequences and cpu number cache
+
+SYNOPSIS
+       #include &lt;linux/rseq.h&gt;
+
+       int rseq(struct rseq * rseq, uint32_t rseq_len, int flags, uint32_t sig);
+
+DESCRIPTION
+       The  rseq()  ABI  accelerates  user-space operations on per-cpu
+       data by defining a shared data structure ABI between each user-
+       space thread and the kernel.
+
+       It  allows  user-space  to perform update operations on per-cpu
+       data without requiring heavy-weight atomic operations.
+
+       Restartable sequences are atomic  with  respect  to  preemption
+       (making  it atomic with respect to other threads running on the
+       same CPU), as well as  signal  delivery  (user-space  execution
+       contexts nested over the same thread).
+
+       It is suited for update operations on per-cpu data.
+
+       It can be used on data structures shared between threads within
+       a process, and on data structures shared between threads across
+       different processes.
+
+       Some examples of operations that can be accelerated or improved
+       by this ABI:
+
+       · Memory allocator per-cpu free-lists,
+
+       · Querying the current CPU number,
+
+       · Incrementing per-CPU counters,
+
+       · Modifying data protected by per-CPU spinlocks,
+
+       · Inserting/removing elements in per-CPU linked-lists,
+
+       · Writing/reading per-CPU ring buffers content.
+
+       · Accurately reading performance monitoring unit counters  with
+         respect to thread migration.
+
+       The  rseq argument is a pointer to the thread-local rseq struc‐
+       ture to be shared between kernel and user-space.  A  NULL  rseq
+       value unregisters the current thread rseq structure.
+
+       The layout of struct rseq is as follows:
+
+       Structure alignment
+              This structure is aligned on multiples of 32 bytes.
+
+       Structure size
+              This  structure  is  extensible.  Its  size is passed as
+              parameter to the rseq system call.
+
+       Fields
+
+           cpu_id_start
+              Optimistic cache of the CPU number on which the  current
+              thread  is running. Its value is guaranteed to always be
+              a possible CPU number, even when rseq  is  not  initial‐
+              ized.  The  value it contains should always be confirmed
+              by reading the cpu_id field.
+
+           cpu_id
+              Cache of the CPU number on which the current  thread  is
+              running.  -1 if uninitialized.
+
+           rseq_cs
+              The  rseq_cs  field is a pointer to a struct rseq_cs. Is
+              is NULL when no rseq assembly block critical section  is
+              active for the current thread.  Setting it to point to a
+              critical section descriptor (struct rseq_cs)  marks  the
+              beginning of the critical section.
+
+           flags
+              Flags  indicating  the  restart behavior for the current
+              thread. This is mainly used for debugging purposes.  Can
+              be either:
+
+       ·      RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT
+
+       ·      RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL
+
+       ·      RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE
+
+       The layout of struct rseq_cs version 0 is as follows:
+
+       Structure alignment
+              This structure is aligned on multiples of 32 bytes.
+
+       Structure size
+              This structure has a fixed size of 32 bytes.
+
+       Fields
+
+           version
+              Version of this structure.
+
+           flags
+              Flags indicating the restart behavior of this structure.
+              Can be either:
+
+       ·      RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT
+
+       ·      RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL
+
+       ·      RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE
+
+           start_ip
+              Instruction pointer address of the first instruction  of
+              the sequence of consecutive assembly instructions.
+
+           post_commit_offset
+              Offset  (from start_ip address) of the address after the
+              last instruction of the sequence of consecutive assembly
+              instructions.
+
+           abort_ip
+              Instruction  pointer address where to move the execution
+              flow in case of abort of  the  sequence  of  consecutive
+              assembly instructions.
+
+       The  rseq_len argument is the size of the struct rseq to regis‐
+       ter.
+
+       The flags argument is 0 for registration, and  RSEQ_FLAG_UNREG‐
+       ISTER for unregistration.
+
+       The  sig argument is the 32-bit signature to be expected before
+       the abort handler code.
+
+       A single library per process should keep the rseq structure  in
+       a  thread-local  storage  variable.  The cpu_id field should be
+       initialized to -1, and the cpu_id_start field  should  be  ini‐
+       tialized to a possible CPU value (typically 0).
+
+       Each  thread  is  responsible for registering and unregistering
+       its rseq structure. No more than one rseq structure address can
+       be registered per thread at a given time.
+
+       In  a  typical  usage scenario, the thread registering the rseq
+       structure will be performing  loads  and  stores  from/to  that
+       structure.  It  is  however also allowed to read that structure
+       from other threads.  The rseq field updates  performed  by  the
+       kernel  provide  relaxed  atomicity  semantics, which guarantee
+       that other threads performing relaxed atomic reads of  the  cpu
+       number cache will always observe a consistent value.
+
+RETURN VALUE
+       A  return  value  of  0  indicates  success.  On  error,  -1 is
+       returned, and errno is set appropriately.
+
+ERRORS
+       EINVAL Either flags contains an invalid value, or rseq contains
+              an  address  which  is  not  appropriately  aligned,  or
+              rseq_len contains a size that does not  match  the  size
+              received on registration.
+
+       ENOSYS The  rseq()  system call is not implemented by this ker‐
+              nel.
+
+       EFAULT rseq is an invalid address.
+
+       EBUSY  Restartable sequence  is  already  registered  for  this
+              thread.
+
+       EPERM  The  sig  argument  on unregistration does not match the
+              signature received on registration.
+
+VERSIONS
+       The rseq() system call was added in Linux 4.X (TODO).
+
+CONFORMING TO
+       rseq() is Linux-specific.
+
+SEE ALSO
+       sched_getcpu(3)
+
+Linux                         2017-11-06                       RSEQ(2)
+---
+ MAINTAINERS                 |  11 ++
+ arch/Kconfig                |   7 +
+ fs/exec.c                   |   1 +
+ include/linux/sched.h       |  89 ++++++++++++
+ include/trace/events/rseq.h |  60 ++++++++
+ include/uapi/linux/rseq.h   | 138 +++++++++++++++++++
+ init/Kconfig                |  14 ++
+ kernel/Makefile             |   1 +
+ kernel/fork.c               |   2 +
+ kernel/rseq.c               | 328 ++++++++++++++++++++++++++++++++++++++++++++
+ kernel/sched/core.c         |   4 +
+ kernel/sys_ni.c             |   3 +
+ 12 files changed, 658 insertions(+)
+ create mode 100644 include/trace/events/rseq.h
+ create mode 100644 include/uapi/linux/rseq.h
+ create mode 100644 kernel/rseq.c
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137821">Ben Maurer</a> - Nov. 14, 2017, 8:39 p.m.</div>
+<pre class="content">
+<span class="quote">&gt;       int rseq(struct rseq * rseq, uint32_t rseq_len, int flags, uint32_t sig);</span>
+
+Really dumb question -- and one I&#39;m sorry to bring up at the last minute. Should we consider making the syscall name something more generic &quot;register_tls_abi&quot;? I&#39;m assuming that if we ever want to use a per-thread userspace/kernel ABI we&#39;ll want to use this field given the difficulty of getting adoption of registration, the need to involve glibc, etc. It seems like there could be future use cases of this TLS area that have nothing to do with rseq.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Nov. 14, 2017, 8:52 p.m.</div>
+<pre class="content">
+----- On Nov 14, 2017, at 3:39 PM, Ben Maurer bmaurer@fb.com wrote:
+<span class="quote">
+&gt;&gt;       int rseq(struct rseq * rseq, uint32_t rseq_len, int flags, uint32_t sig);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Really dumb question -- and one I&#39;m sorry to bring up at the last minute. Should</span>
+<span class="quote">&gt; we consider making the syscall name something more generic &quot;register_tls_abi&quot;?</span>
+<span class="quote">&gt; I&#39;m assuming that if we ever want to use a per-thread userspace/kernel ABI</span>
+<span class="quote">&gt; we&#39;ll want to use this field given the difficulty of getting adoption of</span>
+<span class="quote">&gt; registration, the need to involve glibc, etc. It seems like there could be</span>
+<span class="quote">&gt; future use cases of this TLS area that have nothing to do with rseq.</span>
+
+I proposed that approach back in 2016 (&quot;tls abi&quot; system call), and the feedback
+I received back then is that it was preferred to have a dedicated &quot;rseq&quot; system
+call than an &quot;open ended&quot; and generic &quot;tls abi&quot; system call.
+
+Thanks,
+
+Mathieu
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Nov. 14, 2017, 9:03 p.m.</div>
+<pre class="content">
+----- On Nov 14, 2017, at 3:49 PM, Ben Maurer bmaurer@fb.com wrote:
+<span class="quote">
+&gt; (apologies for the duplicate email, the previous one bounced as it was</span>
+<span class="quote">&gt; accidentally using HTML formatting)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If I understand correctly this is run on every context switch so we probably</span>
+<span class="quote">&gt; want to make it really fast</span>
+
+Yes, more precisely, it runs on return to user-space, after every context
+switch going back to a registered rseq thread.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +static int rseq_need_restart(struct task_struct *t, uint32_t cs_flags)</span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +       bool need_restart = false;</span>
+<span class="quote">&gt;&gt; +       uint32_t flags;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +       /* Get thread flags. */</span>
+<span class="quote">&gt;&gt; +       if (__get_user(flags, &amp;t-&gt;rseq-&gt;flags))</span>
+<span class="quote">&gt;&gt; +               return -EFAULT;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +       /* Take into account critical section flags. */</span>
+<span class="quote">&gt;&gt; +       flags |= cs_flags;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +       /*</span>
+<span class="quote">&gt;&gt; +        * Restart on signal can only be inhibited when restart on</span>
+<span class="quote">&gt;&gt; +        * preempt and restart on migrate are inhibited too. Otherwise,</span>
+<span class="quote">&gt;&gt; +        * a preempted signal handler could fail to restart the prior</span>
+<span class="quote">&gt;&gt; +        * execution context on sigreturn.</span>
+<span class="quote">&gt;&gt; +        */</span>
+<span class="quote">&gt;&gt; +       if (flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL) {</span>
+<span class="quote">&gt;&gt; +               if (!(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE))</span>
+<span class="quote">&gt;&gt; +                       return -EINVAL;</span>
+<span class="quote">&gt;&gt; +               if (!(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT))</span>
+<span class="quote">&gt;&gt; +                       return -EINVAL;</span>
+<span class="quote">&gt;&gt; +       }</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; How does this error even get to userspace? Is it worth doing this switch on</span>
+<span class="quote">&gt; every execution?</span>
+
+If we detect this situation, the rseq_need_restart caller will end up
+sending a SIGSEGV signal to user-space. Note that the two nested if()
+checks are only executing in the unlikely case where the NO_RESTART_ON_SIGNAL
+flag is set.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; +       if (t-&gt;rseq_migrate</span>
+<span class="quote">&gt;&gt; +                       &amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE))</span>
+<span class="quote">&gt;&gt; +               need_restart = true;</span>
+<span class="quote">&gt;&gt; +       else if (t-&gt;rseq_preempt</span>
+<span class="quote">&gt;&gt; +                       &amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT))</span>
+<span class="quote">&gt;&gt; +               need_restart = true;</span>
+<span class="quote">&gt;&gt; +       else if (t-&gt;rseq_signal</span>
+<span class="quote">&gt;&gt; +                       &amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL))</span>
+<span class="quote">&gt;&gt; +               need_restart = true;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This could potentially be sped up by having the rseq_* fields in t use a single</span>
+<span class="quote">&gt; bitmask with the same bit offsets as RSEQ_CS_FLAG_NO_* then using bit</span>
+<span class="quote">&gt; operations to check the appropriate overlap.</span>
+
+Given that those are not requests impacting the ABI presented to user-space,
+I&#39;m tempted to keep these optimizations for the following 4.16 merge window.
+Is that ok with you ?
+
+Thanks,
+
+Mathieu
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137821">Ben Maurer</a> - Nov. 14, 2017, 9:48 p.m.</div>
+<pre class="content">
+<span class="quote">&gt;&gt;&gt;       int rseq(struct rseq * rseq, uint32_t rseq_len, int flags, uint32_t sig);</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; Really dumb question -- and one I&#39;m sorry to bring up at the last minute. Should</span>
+<span class="quote">&gt;&gt; we consider making the syscall name something more generic &quot;register_tls_abi&quot;?</span>
+<span class="quote">&gt; I proposed that approach back in 2016 (&quot;tls abi&quot; system call), and the feedback</span>
+<span class="quote">&gt; I received back then is that it was preferred to have a dedicated &quot;rseq&quot; system</span>
+<span class="quote">&gt; call than an &quot;open ended&quot; and generic &quot;tls abi&quot; system call.</span>
+
+Ultimately I&#39;m fine either way. I do think that in the past few months of review it has become clear that creating this tls abi requires a fair bit of work. It&#39;d be a shame to see a future attempt to use such an ABI made difficult by forcing the author to figure out the registration process yet again. I assume the maintainers of glibc would also like to avoid the need to register multiple ABIs.
+
+-b
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Nov. 16, 2017, 4:18 p.m.</div>
+<pre class="content">
+On Tue, Nov 14, 2017 at 03:03:51PM -0500, Mathieu Desnoyers wrote:
+<span class="quote">&gt; @@ -977,6 +978,13 @@ struct task_struct {</span>
+<span class="quote">&gt;  	unsigned long			numa_pages_migrated;</span>
+<span class="quote">&gt;  #endif /* CONFIG_NUMA_BALANCING */</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +#ifdef CONFIG_RSEQ</span>
+<span class="quote">&gt; +	struct rseq __user *rseq;</span>
+<span class="quote">&gt; +	u32 rseq_len;</span>
+<span class="quote">&gt; +	u32 rseq_sig;</span>
+<span class="quote">&gt; +	bool rseq_preempt, rseq_signal, rseq_migrate;</span>
+
+No bool please. Use something that has a defined size in ILP32/LP64.
+_Bool makes it absolutely impossible to speculate on structure layout
+across architectures.
+<span class="quote">
+&gt; +#endif</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  	struct tlbflush_unmap_batch	tlb_ubc;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	struct rcu_head			rcu;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Nov. 16, 2017, 4:27 p.m.</div>
+<pre class="content">
+----- On Nov 16, 2017, at 11:18 AM, Peter Zijlstra peterz@infradead.org wrote:
+<span class="quote">
+&gt; On Tue, Nov 14, 2017 at 03:03:51PM -0500, Mathieu Desnoyers wrote:</span>
+<span class="quote">&gt;&gt; @@ -977,6 +978,13 @@ struct task_struct {</span>
+<span class="quote">&gt;&gt;  	unsigned long			numa_pages_migrated;</span>
+<span class="quote">&gt;&gt;  #endif /* CONFIG_NUMA_BALANCING */</span>
+<span class="quote">&gt;&gt;  </span>
+<span class="quote">&gt;&gt; +#ifdef CONFIG_RSEQ</span>
+<span class="quote">&gt;&gt; +	struct rseq __user *rseq;</span>
+<span class="quote">&gt;&gt; +	u32 rseq_len;</span>
+<span class="quote">&gt;&gt; +	u32 rseq_sig;</span>
+<span class="quote">&gt;&gt; +	bool rseq_preempt, rseq_signal, rseq_migrate;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; No bool please. Use something that has a defined size in ILP32/LP64.</span>
+<span class="quote">&gt; _Bool makes it absolutely impossible to speculate on structure layout</span>
+<span class="quote">&gt; across architectures.</span>
+
+I should as well make all those a bitmask within a &quot;u32 rseq_event_mask&quot; then,
+sounds fair ?
+
+Thanks,
+
+Mathieu
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +#endif</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt;  	struct tlbflush_unmap_batch	tlb_ubc;</span>
+<span class="quote">&gt;&gt;  </span>
+<span class="quote">&gt; &gt;  	struct rcu_head			rcu;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Nov. 16, 2017, 4:32 p.m.</div>
+<pre class="content">
+On Thu, Nov 16, 2017 at 04:27:07PM +0000, Mathieu Desnoyers wrote:
+<span class="quote">&gt; ----- On Nov 16, 2017, at 11:18 AM, Peter Zijlstra peterz@infradead.org wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; On Tue, Nov 14, 2017 at 03:03:51PM -0500, Mathieu Desnoyers wrote:</span>
+<span class="quote">&gt; &gt;&gt; @@ -977,6 +978,13 @@ struct task_struct {</span>
+<span class="quote">&gt; &gt;&gt;  	unsigned long			numa_pages_migrated;</span>
+<span class="quote">&gt; &gt;&gt;  #endif /* CONFIG_NUMA_BALANCING */</span>
+<span class="quote">&gt; &gt;&gt;  </span>
+<span class="quote">&gt; &gt;&gt; +#ifdef CONFIG_RSEQ</span>
+<span class="quote">&gt; &gt;&gt; +	struct rseq __user *rseq;</span>
+<span class="quote">&gt; &gt;&gt; +	u32 rseq_len;</span>
+<span class="quote">&gt; &gt;&gt; +	u32 rseq_sig;</span>
+<span class="quote">&gt; &gt;&gt; +	bool rseq_preempt, rseq_signal, rseq_migrate;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; No bool please. Use something that has a defined size in ILP32/LP64.</span>
+<span class="quote">&gt; &gt; _Bool makes it absolutely impossible to speculate on structure layout</span>
+<span class="quote">&gt; &gt; across architectures.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I should as well make all those a bitmask within a &quot;u32 rseq_event_mask&quot; then,</span>
+<span class="quote">&gt; sounds fair ?</span>
+
+Sure, whatever works and isn&#39;t _Bool ;-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Nov. 16, 2017, 6:43 p.m.</div>
+<pre class="content">
+On Tue, Nov 14, 2017 at 03:03:51PM -0500, Mathieu Desnoyers wrote:
+<span class="quote">&gt; +/*</span>
+<span class="quote">&gt; + * If parent process has a registered restartable sequences area, the</span>
+<span class="quote">&gt; + * child inherits. Only applies when forking a process, not a thread. In</span>
+<span class="quote">&gt; + * case a parent fork() in the middle of a restartable sequence, set the</span>
+<span class="quote">&gt; + * resume notifier to force the child to retry.</span>
+<span class="quote">&gt; + */</span>
+<span class="quote">&gt; +static inline void rseq_fork(struct task_struct *t, unsigned long clone_flags)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	if (clone_flags &amp; CLONE_THREAD) {</span>
+<span class="quote">&gt; +		t-&gt;rseq = NULL;</span>
+<span class="quote">&gt; +		t-&gt;rseq_len = 0;</span>
+<span class="quote">&gt; +		t-&gt;rseq_sig = 0;</span>
+<span class="quote">&gt; +	} else {</span>
+<span class="quote">&gt; +		t-&gt;rseq = current-&gt;rseq;</span>
+<span class="quote">&gt; +		t-&gt;rseq_len = current-&gt;rseq_len;</span>
+<span class="quote">&gt; +		t-&gt;rseq_sig = current-&gt;rseq_sig;</span>
+<span class="quote">&gt; +		rseq_set_notify_resume(t);</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt; +}</span>
+
+This hurts my brain... what happens if you fork a multi-threaded
+process?
+
+Do we fully inherit the TLS state of the calling thread?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Nov. 16, 2017, 6:49 p.m.</div>
+<pre class="content">
+----- On Nov 16, 2017, at 1:43 PM, Peter Zijlstra peterz@infradead.org wrote:
+<span class="quote">
+&gt; On Tue, Nov 14, 2017 at 03:03:51PM -0500, Mathieu Desnoyers wrote:</span>
+<span class="quote">&gt;&gt; +/*</span>
+<span class="quote">&gt;&gt; + * If parent process has a registered restartable sequences area, the</span>
+<span class="quote">&gt;&gt; + * child inherits. Only applies when forking a process, not a thread. In</span>
+<span class="quote">&gt;&gt; + * case a parent fork() in the middle of a restartable sequence, set the</span>
+<span class="quote">&gt;&gt; + * resume notifier to force the child to retry.</span>
+<span class="quote">&gt;&gt; + */</span>
+<span class="quote">&gt;&gt; +static inline void rseq_fork(struct task_struct *t, unsigned long clone_flags)</span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +	if (clone_flags &amp; CLONE_THREAD) {</span>
+<span class="quote">&gt;&gt; +		t-&gt;rseq = NULL;</span>
+<span class="quote">&gt;&gt; +		t-&gt;rseq_len = 0;</span>
+<span class="quote">&gt;&gt; +		t-&gt;rseq_sig = 0;</span>
+<span class="quote">&gt;&gt; +	} else {</span>
+<span class="quote">&gt;&gt; +		t-&gt;rseq = current-&gt;rseq;</span>
+<span class="quote">&gt;&gt; +		t-&gt;rseq_len = current-&gt;rseq_len;</span>
+<span class="quote">&gt;&gt; +		t-&gt;rseq_sig = current-&gt;rseq_sig;</span>
+<span class="quote">&gt;&gt; +		rseq_set_notify_resume(t);</span>
+<span class="quote">&gt;&gt; +	}</span>
+<span class="quote">&gt;&gt; +}</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This hurts my brain... what happens if you fork a multi-threaded</span>
+<span class="quote">&gt; process?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Do we fully inherit the TLS state of the calling thread?</span>
+
+Yes, exactly. The user-space TLS should be inherited from that of
+the calling thread.
+
+At kernel-level, the only thing that&#39;s not inherited here is the
+task struct rseq_event_mask, which tracks whether a restart is
+needed. But this would only be relevant if fork() can be invoked
+from a signal handler, or if fork() could be invoked from a
+rseq critical section (which really makes little sense).
+
+Should I copy the current-&gt;rseq_event_mask on process fork just to
+be on the safe side though ?
+
+Thanks,
+
+Mathieu
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=107">Thomas Gleixner</a> - Nov. 16, 2017, 7:06 p.m.</div>
+<pre class="content">
+On Thu, 16 Nov 2017, Mathieu Desnoyers wrote:
+<span class="quote">&gt; ----- On Nov 16, 2017, at 1:43 PM, Peter Zijlstra peterz@infradead.org wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; On Tue, Nov 14, 2017 at 03:03:51PM -0500, Mathieu Desnoyers wrote:</span>
+<span class="quote">&gt; &gt;&gt; +/*</span>
+<span class="quote">&gt; &gt;&gt; + * If parent process has a registered restartable sequences area, the</span>
+<span class="quote">&gt; &gt;&gt; + * child inherits. Only applies when forking a process, not a thread. In</span>
+<span class="quote">&gt; &gt;&gt; + * case a parent fork() in the middle of a restartable sequence, set the</span>
+<span class="quote">&gt; &gt;&gt; + * resume notifier to force the child to retry.</span>
+<span class="quote">&gt; &gt;&gt; + */</span>
+<span class="quote">&gt; &gt;&gt; +static inline void rseq_fork(struct task_struct *t, unsigned long clone_flags)</span>
+<span class="quote">&gt; &gt;&gt; +{</span>
+<span class="quote">&gt; &gt;&gt; +	if (clone_flags &amp; CLONE_THREAD) {</span>
+<span class="quote">&gt; &gt;&gt; +		t-&gt;rseq = NULL;</span>
+<span class="quote">&gt; &gt;&gt; +		t-&gt;rseq_len = 0;</span>
+<span class="quote">&gt; &gt;&gt; +		t-&gt;rseq_sig = 0;</span>
+<span class="quote">&gt; &gt;&gt; +	} else {</span>
+<span class="quote">&gt; &gt;&gt; +		t-&gt;rseq = current-&gt;rseq;</span>
+<span class="quote">&gt; &gt;&gt; +		t-&gt;rseq_len = current-&gt;rseq_len;</span>
+<span class="quote">&gt; &gt;&gt; +		t-&gt;rseq_sig = current-&gt;rseq_sig;</span>
+<span class="quote">&gt; &gt;&gt; +		rseq_set_notify_resume(t);</span>
+<span class="quote">&gt; &gt;&gt; +	}</span>
+<span class="quote">&gt; &gt;&gt; +}</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; This hurts my brain... what happens if you fork a multi-threaded</span>
+<span class="quote">&gt; &gt; process?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Do we fully inherit the TLS state of the calling thread?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yes, exactly. The user-space TLS should be inherited from that of</span>
+<span class="quote">&gt; the calling thread.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; At kernel-level, the only thing that&#39;s not inherited here is the</span>
+<span class="quote">&gt; task struct rseq_event_mask, which tracks whether a restart is</span>
+<span class="quote">&gt; needed. But this would only be relevant if fork() can be invoked</span>
+<span class="quote">&gt; from a signal handler, or if fork() could be invoked from a</span>
+<span class="quote">&gt; rseq critical section (which really makes little sense).</span>
+
+Whether it makes sense or not does not matter much, especially in context
+of user space. You cannot make assumptions like that. When something can be
+done, then it&#39;s bound to happen sooner than later because somebody thinks
+he is extra clever.
+
+The first priority is robustness in any aspect which has to do with user
+space.
+<span class="quote">
+&gt; Should I copy the current-&gt;rseq_event_mask on process fork just to</span>
+<span class="quote">&gt; be on the safe side though ?</span>
+
+I think so, unless you let fork() fail when invoked from a rseq critical
+section.
+
+Thanks,
+
+	tglx
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Nov. 16, 2017, 7:14 p.m.</div>
+<pre class="content">
+On Tue, Nov 14, 2017 at 03:03:51PM -0500, Mathieu Desnoyers wrote:
+<span class="quote">&gt; +static bool rseq_update_cpu_id(struct task_struct *t)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	uint32_t cpu_id = raw_smp_processor_id();</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	if (__put_user(cpu_id, &amp;t-&gt;rseq-&gt;cpu_id_start))</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">&gt; +	if (__put_user(cpu_id, &amp;t-&gt;rseq-&gt;cpu_id))</span>
+<span class="quote">&gt; +		return false;</span>
+
+For LP64 this _could_ be a single 64bit store, right? It would save some
+stac/clac noise on x86_64.
+<span class="quote">
+&gt; +	trace_rseq_update(t);</span>
+<span class="quote">&gt; +	return true;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">
+&gt; +static bool rseq_get_rseq_cs(struct task_struct *t,</span>
+
+bool return value, but is used as a C int error value later (it works,
+but is inconsistent).
+<span class="quote">
+&gt; +		void __user **start_ip,</span>
+<span class="quote">&gt; +		unsigned long *post_commit_offset,</span>
+<span class="quote">&gt; +		void __user **abort_ip,</span>
+<span class="quote">&gt; +		uint32_t *cs_flags)</span>
+
+That&#39;s a fair amount of arguments, and I suppose that isn&#39;t a problem
+because there&#39;s only the one callsite and it all gets inlined anyway.
+<span class="quote">
+&gt; +{</span>
+<span class="quote">&gt; +	unsigned long ptr;</span>
+<span class="quote">&gt; +	struct rseq_cs __user *urseq_cs;</span>
+<span class="quote">&gt; +	struct rseq_cs rseq_cs;</span>
+<span class="quote">&gt; +	u32 __user *usig;</span>
+<span class="quote">&gt; +	u32 sig;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	if (__get_user(ptr, &amp;t-&gt;rseq-&gt;rseq_cs))</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">&gt; +	if (!ptr)</span>
+<span class="quote">&gt; +		return true;</span>
+<span class="quote">&gt; +	urseq_cs = (struct rseq_cs __user *)ptr;</span>
+<span class="quote">&gt; +	if (copy_from_user(&amp;rseq_cs, urseq_cs, sizeof(rseq_cs)))</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * We need to clear rseq_cs upon entry into a signal handler</span>
+<span class="quote">&gt; +	 * nested on top of a rseq assembly block, so the signal handler</span>
+<span class="quote">&gt; +	 * will not be fixed up if itself interrupted by a nested signal</span>
+<span class="quote">&gt; +	 * handler or preempted.  We also need to clear rseq_cs if we</span>
+<span class="quote">&gt; +	 * preempt or deliver a signal on top of code outside of the</span>
+<span class="quote">&gt; +	 * rseq assembly block, to ensure that a following preemption or</span>
+<span class="quote">&gt; +	 * signal delivery will not try to perform a fixup needlessly.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	if (clear_user(&amp;t-&gt;rseq-&gt;rseq_cs, sizeof(t-&gt;rseq-&gt;rseq_cs)))</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">&gt; +	if (rseq_cs.version &gt; 0)</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">
+&gt; +	*cs_flags = rseq_cs.flags;</span>
+<span class="quote">&gt; +	*start_ip = (void __user *)rseq_cs.start_ip;</span>
+<span class="quote">&gt; +	*post_commit_offset = (unsigned long)rseq_cs.post_commit_offset;</span>
+<span class="quote">&gt; +	*abort_ip = (void __user *)rseq_cs.abort_ip;</span>
+<span class="quote">
+&gt; +	usig = (u32 __user *)(rseq_cs.abort_ip - sizeof(u32));</span>
+<span class="quote">&gt; +	if (get_user(sig, usig))</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">
+&gt; +	if (current-&gt;rseq_sig != sig) {</span>
+<span class="quote">&gt; +		printk_ratelimited(KERN_WARNING</span>
+<span class="quote">&gt; +			&quot;Possible attack attempt. Unexpected rseq signature 0x%x, expecting 0x%x (pid=%d, addr=%p).\n&quot;,</span>
+<span class="quote">&gt; +			sig, current-&gt;rseq_sig, current-&gt;pid, usig);</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt; +	return true;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static int rseq_need_restart(struct task_struct *t, uint32_t cs_flags)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	bool need_restart = false;</span>
+<span class="quote">&gt; +	uint32_t flags;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/* Get thread flags. */</span>
+<span class="quote">&gt; +	if (__get_user(flags, &amp;t-&gt;rseq-&gt;flags))</span>
+<span class="quote">&gt; +		return -EFAULT;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/* Take into account critical section flags. */</span>
+<span class="quote">&gt; +	flags |= cs_flags;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Restart on signal can only be inhibited when restart on</span>
+<span class="quote">&gt; +	 * preempt and restart on migrate are inhibited too. Otherwise,</span>
+<span class="quote">&gt; +	 * a preempted signal handler could fail to restart the prior</span>
+<span class="quote">&gt; +	 * execution context on sigreturn.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	if (flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL) {</span>
+<span class="quote">&gt; +		if (!(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE))</span>
+<span class="quote">&gt; +			return -EINVAL;</span>
+<span class="quote">&gt; +		if (!(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT))</span>
+<span class="quote">&gt; +			return -EINVAL;</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt; +	if (t-&gt;rseq_migrate</span>
+<span class="quote">&gt; +			&amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE))</span>
+
+That&#39;s a horrible code form, please put the &amp;&amp; at the end of the
+previous line and begin the next line aligned with the (, like:
+
+	if (t-&gt;rseq_migrate &amp;&amp;
+	    !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE))
+
+Luckily you&#39;ve already killed this code, but try and remember for a next
+time ;-)
+<span class="quote">
+&gt; +		need_restart = true;</span>
+<span class="quote">&gt; +	else if (t-&gt;rseq_preempt</span>
+<span class="quote">&gt; +			&amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT))</span>
+<span class="quote">&gt; +		need_restart = true;</span>
+<span class="quote">&gt; +	else if (t-&gt;rseq_signal</span>
+<span class="quote">&gt; +			&amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL))</span>
+<span class="quote">&gt; +		need_restart = true;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	t-&gt;rseq_preempt = false;</span>
+<span class="quote">&gt; +	t-&gt;rseq_signal = false;</span>
+<span class="quote">&gt; +	t-&gt;rseq_migrate = false;</span>
+<span class="quote">&gt; +	if (need_restart)</span>
+<span class="quote">&gt; +		return 1;</span>
+<span class="quote">&gt; +	return 0;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static int rseq_ip_fixup(struct pt_regs *regs)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	struct task_struct *t = current;</span>
+<span class="quote">&gt; +	void __user *start_ip = NULL;</span>
+<span class="quote">&gt; +	unsigned long post_commit_offset = 0;</span>
+<span class="quote">&gt; +	void __user *abort_ip = NULL;</span>
+<span class="quote">&gt; +	uint32_t cs_flags = 0;</span>
+<span class="quote">&gt; +	int ret;</span>
+
+	unsigned long ip = instruction_pointer(regs);
+<span class="quote">
+&gt; +</span>
+<span class="quote">&gt; +	ret = rseq_get_rseq_cs(t, &amp;start_ip, &amp;post_commit_offset, &amp;abort_ip,</span>
+<span class="quote">&gt; +			&amp;cs_flags);</span>
+	trace_rseq_ip_fixup((void __user *)ip,
+<span class="quote">&gt; +		start_ip, post_commit_offset, abort_ip, ret);</span>
+
+Why trace here and not right before/after instruction_pointer_set()?
+<span class="quote">
+&gt; +	if (!ret)</span>
+<span class="quote">&gt; +		return -EFAULT;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	ret = rseq_need_restart(t, cs_flags);</span>
+<span class="quote">&gt; +	if (ret &lt; 0)</span>
+<span class="quote">&gt; +		return -EFAULT;</span>
+<span class="quote">&gt; +	if (!ret)</span>
+<span class="quote">&gt; +		return 0;</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Handle potentially not being within a critical section.</span>
+<span class="quote">&gt; +	 * Unsigned comparison will be true when</span>
+<span class="quote">&gt; +	 * ip &lt; start_ip (wrap-around to large values), and when</span>
+<span class="quote">&gt; +	 * ip &gt;= start_ip + post_commit_offset.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	if ((unsigned long)instruction_pointer(regs) - (unsigned long)start_ip</span>
+<span class="quote">&gt; +			&gt;= post_commit_offset)</span>
+
+	if ((unsigned long)(ip - start_ip) &gt;= post_commit_offset)
+<span class="quote">
+&gt; +		return 1;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	instruction_pointer_set(regs, (unsigned long)abort_ip);</span>
+
+Since you only ever use abort_ip as unsigned long, why propagate this
+&quot;void __user *&quot; all the way from rseq_get_rseq_cs() ? Save yourself some
+typing and casts :-)
+<span class="quote">
+&gt; +	return 1;</span>
+<span class="quote">&gt; +}</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Nov. 16, 2017, 8:06 p.m.</div>
+<pre class="content">
+----- On Nov 16, 2017, at 2:06 PM, Thomas Gleixner tglx@linutronix.de wrote:
+<span class="quote">
+&gt; On Thu, 16 Nov 2017, Mathieu Desnoyers wrote:</span>
+<span class="quote">&gt;&gt; ----- On Nov 16, 2017, at 1:43 PM, Peter Zijlstra peterz@infradead.org wrote:</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; &gt; On Tue, Nov 14, 2017 at 03:03:51PM -0500, Mathieu Desnoyers wrote:</span>
+<span class="quote">&gt;&gt; &gt;&gt; +/*</span>
+<span class="quote">&gt;&gt; &gt;&gt; + * If parent process has a registered restartable sequences area, the</span>
+<span class="quote">&gt;&gt; &gt;&gt; + * child inherits. Only applies when forking a process, not a thread. In</span>
+<span class="quote">&gt;&gt; &gt;&gt; + * case a parent fork() in the middle of a restartable sequence, set the</span>
+<span class="quote">&gt;&gt; &gt;&gt; + * resume notifier to force the child to retry.</span>
+<span class="quote">&gt;&gt; &gt;&gt; + */</span>
+<span class="quote">&gt;&gt; &gt;&gt; +static inline void rseq_fork(struct task_struct *t, unsigned long clone_flags)</span>
+<span class="quote">&gt;&gt; &gt;&gt; +{</span>
+<span class="quote">&gt;&gt; &gt;&gt; +	if (clone_flags &amp; CLONE_THREAD) {</span>
+<span class="quote">&gt;&gt; &gt;&gt; +		t-&gt;rseq = NULL;</span>
+<span class="quote">&gt;&gt; &gt;&gt; +		t-&gt;rseq_len = 0;</span>
+<span class="quote">&gt;&gt; &gt;&gt; +		t-&gt;rseq_sig = 0;</span>
+<span class="quote">&gt;&gt; &gt;&gt; +	} else {</span>
+<span class="quote">&gt;&gt; &gt;&gt; +		t-&gt;rseq = current-&gt;rseq;</span>
+<span class="quote">&gt;&gt; &gt;&gt; +		t-&gt;rseq_len = current-&gt;rseq_len;</span>
+<span class="quote">&gt;&gt; &gt;&gt; +		t-&gt;rseq_sig = current-&gt;rseq_sig;</span>
+<span class="quote">&gt;&gt; &gt;&gt; +		rseq_set_notify_resume(t);</span>
+<span class="quote">&gt;&gt; &gt;&gt; +	}</span>
+<span class="quote">&gt;&gt; &gt;&gt; +}</span>
+<span class="quote">&gt;&gt; &gt; </span>
+<span class="quote">&gt;&gt; &gt; This hurts my brain... what happens if you fork a multi-threaded</span>
+<span class="quote">&gt;&gt; &gt; process?</span>
+<span class="quote">&gt;&gt; &gt; </span>
+<span class="quote">&gt;&gt; &gt; Do we fully inherit the TLS state of the calling thread?</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; Yes, exactly. The user-space TLS should be inherited from that of</span>
+<span class="quote">&gt;&gt; the calling thread.</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; At kernel-level, the only thing that&#39;s not inherited here is the</span>
+<span class="quote">&gt;&gt; task struct rseq_event_mask, which tracks whether a restart is</span>
+<span class="quote">&gt;&gt; needed. But this would only be relevant if fork() can be invoked</span>
+<span class="quote">&gt;&gt; from a signal handler, or if fork() could be invoked from a</span>
+<span class="quote">&gt;&gt; rseq critical section (which really makes little sense).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Whether it makes sense or not does not matter much, especially in context</span>
+<span class="quote">&gt; of user space. You cannot make assumptions like that. When something can be</span>
+<span class="quote">&gt; done, then it&#39;s bound to happen sooner than later because somebody thinks</span>
+<span class="quote">&gt; he is extra clever.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The first priority is robustness in any aspect which has to do with user</span>
+<span class="quote">&gt; space.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; Should I copy the current-&gt;rseq_event_mask on process fork just to</span>
+<span class="quote">&gt;&gt; be on the safe side though ?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I think so, unless you let fork() fail when invoked from a rseq critical</span>
+<span class="quote">&gt; section.</span>
+
+Allright, I&#39;ll set the rseq_event_mask to 0 explicitly on exec() and
+thread-fork, and copy it from the parent on process-fork.
+
+Thanks,
+
+Mathieu
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; Thanks,</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 	tglx</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Nov. 16, 2017, 8:37 p.m.</div>
+<pre class="content">
+----- On Nov 16, 2017, at 2:14 PM, Peter Zijlstra peterz@infradead.org wrote:
+<span class="quote">
+&gt; On Tue, Nov 14, 2017 at 03:03:51PM -0500, Mathieu Desnoyers wrote:</span>
+<span class="quote">&gt;&gt; +static bool rseq_update_cpu_id(struct task_struct *t)</span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +	uint32_t cpu_id = raw_smp_processor_id();</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	if (__put_user(cpu_id, &amp;t-&gt;rseq-&gt;cpu_id_start))</span>
+<span class="quote">&gt;&gt; +		return false;</span>
+<span class="quote">&gt;&gt; +	if (__put_user(cpu_id, &amp;t-&gt;rseq-&gt;cpu_id))</span>
+<span class="quote">&gt;&gt; +		return false;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; For LP64 this _could_ be a single 64bit store, right? It would save some</span>
+<span class="quote">&gt; stac/clac noise on x86_64.</span>
+
+Yes it could, but last time I checked a __put_user of a u64
+did not guarantee single-copy atomicity of each of the two
+32-bit words on 32-bit architectures, so I figured that it
+would be better to postpone that optimization to a point
+where architectures would provide a u64 __put_user that
+guarantee single-copy atomicity of each 32-bit word on 32-bit
+architectures.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +	trace_rseq_update(t);</span>
+<span class="quote">&gt;&gt; +	return true;</span>
+<span class="quote">&gt;&gt; +}</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; +static bool rseq_get_rseq_cs(struct task_struct *t,</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; bool return value, but is used as a C int error value later (it works,</span>
+<span class="quote">&gt; but is inconsistent).</span>
+
+I can do the following on the caller side instead:
+
+        if (!rseq_get_rseq_cs(t, &amp;start_ip, &amp;post_commit_offset, &amp;abort_ip,
+                        &amp;cs_flags))
+                return -EFAULT;
+<span class="quote">
+
+&gt; </span>
+<span class="quote">&gt;&gt; +		void __user **start_ip,</span>
+<span class="quote">&gt;&gt; +		unsigned long *post_commit_offset,</span>
+<span class="quote">&gt;&gt; +		void __user **abort_ip,</span>
+<span class="quote">&gt;&gt; +		uint32_t *cs_flags)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; That&#39;s a fair amount of arguments, and I suppose that isn&#39;t a problem</span>
+<span class="quote">&gt; because there&#39;s only the one callsite and it all gets inlined anyway.</span>
+
+Yep.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +	unsigned long ptr;</span>
+<span class="quote">&gt;&gt; +	struct rseq_cs __user *urseq_cs;</span>
+<span class="quote">&gt;&gt; +	struct rseq_cs rseq_cs;</span>
+<span class="quote">&gt;&gt; +	u32 __user *usig;</span>
+<span class="quote">&gt;&gt; +	u32 sig;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	if (__get_user(ptr, &amp;t-&gt;rseq-&gt;rseq_cs))</span>
+<span class="quote">&gt;&gt; +		return false;</span>
+<span class="quote">&gt;&gt; +	if (!ptr)</span>
+<span class="quote">&gt;&gt; +		return true;</span>
+<span class="quote">&gt;&gt; +	urseq_cs = (struct rseq_cs __user *)ptr;</span>
+<span class="quote">&gt;&gt; +	if (copy_from_user(&amp;rseq_cs, urseq_cs, sizeof(rseq_cs)))</span>
+<span class="quote">&gt;&gt; +		return false;</span>
+<span class="quote">&gt;&gt; +	/*</span>
+<span class="quote">&gt;&gt; +	 * We need to clear rseq_cs upon entry into a signal handler</span>
+<span class="quote">&gt;&gt; +	 * nested on top of a rseq assembly block, so the signal handler</span>
+<span class="quote">&gt;&gt; +	 * will not be fixed up if itself interrupted by a nested signal</span>
+<span class="quote">&gt;&gt; +	 * handler or preempted.  We also need to clear rseq_cs if we</span>
+<span class="quote">&gt;&gt; +	 * preempt or deliver a signal on top of code outside of the</span>
+<span class="quote">&gt;&gt; +	 * rseq assembly block, to ensure that a following preemption or</span>
+<span class="quote">&gt;&gt; +	 * signal delivery will not try to perform a fixup needlessly.</span>
+<span class="quote">&gt;&gt; +	 */</span>
+<span class="quote">&gt;&gt; +	if (clear_user(&amp;t-&gt;rseq-&gt;rseq_cs, sizeof(t-&gt;rseq-&gt;rseq_cs)))</span>
+<span class="quote">&gt;&gt; +		return false;</span>
+<span class="quote">&gt;&gt; +	if (rseq_cs.version &gt; 0)</span>
+<span class="quote">&gt;&gt; +		return false;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; +	*cs_flags = rseq_cs.flags;</span>
+<span class="quote">&gt;&gt; +	*start_ip = (void __user *)rseq_cs.start_ip;</span>
+<span class="quote">&gt;&gt; +	*post_commit_offset = (unsigned long)rseq_cs.post_commit_offset;</span>
+<span class="quote">&gt;&gt; +	*abort_ip = (void __user *)rseq_cs.abort_ip;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; +	usig = (u32 __user *)(rseq_cs.abort_ip - sizeof(u32));</span>
+<span class="quote">&gt;&gt; +	if (get_user(sig, usig))</span>
+<span class="quote">&gt;&gt; +		return false;</span>
+<span class="quote">&gt; </span>
+
+ok for adding newlines.
+<span class="quote">
+&gt;&gt; +	if (current-&gt;rseq_sig != sig) {</span>
+<span class="quote">&gt;&gt; +		printk_ratelimited(KERN_WARNING</span>
+<span class="quote">&gt;&gt; +			&quot;Possible attack attempt. Unexpected rseq signature 0x%x, expecting 0x%x</span>
+<span class="quote">&gt;&gt; (pid=%d, addr=%p).\n&quot;,</span>
+<span class="quote">&gt;&gt; +			sig, current-&gt;rseq_sig, current-&gt;pid, usig);</span>
+<span class="quote">&gt;&gt; +		return false;</span>
+<span class="quote">&gt;&gt; +	}</span>
+<span class="quote">&gt;&gt; +	return true;</span>
+<span class="quote">&gt;&gt; +}</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +static int rseq_need_restart(struct task_struct *t, uint32_t cs_flags)</span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +	bool need_restart = false;</span>
+<span class="quote">&gt;&gt; +	uint32_t flags;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	/* Get thread flags. */</span>
+<span class="quote">&gt;&gt; +	if (__get_user(flags, &amp;t-&gt;rseq-&gt;flags))</span>
+<span class="quote">&gt;&gt; +		return -EFAULT;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	/* Take into account critical section flags. */</span>
+<span class="quote">&gt;&gt; +	flags |= cs_flags;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	/*</span>
+<span class="quote">&gt;&gt; +	 * Restart on signal can only be inhibited when restart on</span>
+<span class="quote">&gt;&gt; +	 * preempt and restart on migrate are inhibited too. Otherwise,</span>
+<span class="quote">&gt;&gt; +	 * a preempted signal handler could fail to restart the prior</span>
+<span class="quote">&gt;&gt; +	 * execution context on sigreturn.</span>
+<span class="quote">&gt;&gt; +	 */</span>
+<span class="quote">&gt;&gt; +	if (flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL) {</span>
+<span class="quote">&gt;&gt; +		if (!(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE))</span>
+<span class="quote">&gt;&gt; +			return -EINVAL;</span>
+<span class="quote">&gt;&gt; +		if (!(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT))</span>
+<span class="quote">&gt;&gt; +			return -EINVAL;</span>
+<span class="quote">&gt;&gt; +	}</span>
+<span class="quote">&gt;&gt; +	if (t-&gt;rseq_migrate</span>
+<span class="quote">&gt;&gt; +			&amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE))</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; That&#39;s a horrible code form, please put the &amp;&amp; at the end of the</span>
+<span class="quote">&gt; previous line and begin the next line aligned with the (, like:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;	if (t-&gt;rseq_migrate &amp;&amp;</span>
+<span class="quote">&gt;	    !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE))</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Luckily you&#39;ve already killed this code, but try and remember for a next</span>
+<span class="quote">&gt; time ;-)</span>
+
+I usually never space-align with open parenthesis &quot;(&quot;. Is it a coding
+style requirement of the kernel for multi-line if () conditions ?
+
+Would the following replatement code be ok ?
+
+        if (unlikely(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL)) {
+                if ((flags &amp; (RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE
+                                | RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT)) !=
+                                (RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE
+                                | RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT))
+                        return -EINVAL;
+        }
+        event_mask = t-&gt;rseq_event_mask;
+        t-&gt;rseq_event_mask = 0;
+        event_mask &amp;= ~flags;
+        if (event_mask)
+                return 1;
+        return 0;
+
+I&#39;m uneasy with the wall of text caused by the flags. And based on
+your comment, I should align on the if ( parenthesis. Style improvement
+ideas are welcome. An alternative would be:
+
+        if (unlikely(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL)) {
+                if ((flags &amp; (RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE
+                    | RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT)) !=
+                    (RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE
+                     | RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT))
+                        return -EINVAL;
+        }
+[...]
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +		need_restart = true;</span>
+<span class="quote">&gt;&gt; +	else if (t-&gt;rseq_preempt</span>
+<span class="quote">&gt;&gt; +			&amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT))</span>
+<span class="quote">&gt;&gt; +		need_restart = true;</span>
+<span class="quote">&gt;&gt; +	else if (t-&gt;rseq_signal</span>
+<span class="quote">&gt;&gt; +			&amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL))</span>
+<span class="quote">&gt;&gt; +		need_restart = true;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	t-&gt;rseq_preempt = false;</span>
+<span class="quote">&gt;&gt; +	t-&gt;rseq_signal = false;</span>
+<span class="quote">&gt;&gt; +	t-&gt;rseq_migrate = false;</span>
+<span class="quote">&gt;&gt; +	if (need_restart)</span>
+<span class="quote">&gt;&gt; +		return 1;</span>
+<span class="quote">&gt;&gt; +	return 0;</span>
+<span class="quote">&gt;&gt; +}</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +static int rseq_ip_fixup(struct pt_regs *regs)</span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +	struct task_struct *t = current;</span>
+<span class="quote">&gt;&gt; +	void __user *start_ip = NULL;</span>
+<span class="quote">&gt;&gt; +	unsigned long post_commit_offset = 0;</span>
+<span class="quote">&gt;&gt; +	void __user *abort_ip = NULL;</span>
+<span class="quote">&gt;&gt; +	uint32_t cs_flags = 0;</span>
+<span class="quote">&gt;&gt; +	int ret;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;	unsigned long ip = instruction_pointer(regs);</span>
+
+ok
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	ret = rseq_get_rseq_cs(t, &amp;start_ip, &amp;post_commit_offset, &amp;abort_ip,</span>
+<span class="quote">&gt;&gt; +			&amp;cs_flags);</span>
+<span class="quote">&gt;	trace_rseq_ip_fixup((void __user *)ip,</span>
+<span class="quote">&gt;&gt; +		start_ip, post_commit_offset, abort_ip, ret);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Why trace here and not right before/after instruction_pointer_set()?</span>
+
+Good point. Tracing right before instruction_pointer_set() would make sense.
+I can remove the &quot;ret&quot; parameter too.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +	if (!ret)</span>
+<span class="quote">&gt;&gt; +		return -EFAULT;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	ret = rseq_need_restart(t, cs_flags);</span>
+<span class="quote">&gt;&gt; +	if (ret &lt; 0)</span>
+<span class="quote">&gt;&gt; +		return -EFAULT;</span>
+<span class="quote">&gt;&gt; +	if (!ret)</span>
+<span class="quote">&gt;&gt; +		return 0;</span>
+<span class="quote">&gt;&gt; +	/*</span>
+<span class="quote">&gt;&gt; +	 * Handle potentially not being within a critical section.</span>
+<span class="quote">&gt;&gt; +	 * Unsigned comparison will be true when</span>
+<span class="quote">&gt;&gt; +	 * ip &lt; start_ip (wrap-around to large values), and when</span>
+<span class="quote">&gt;&gt; +	 * ip &gt;= start_ip + post_commit_offset.</span>
+<span class="quote">&gt;&gt; +	 */</span>
+<span class="quote">&gt;&gt; +	if ((unsigned long)instruction_pointer(regs) - (unsigned long)start_ip</span>
+<span class="quote">&gt;&gt; +			&gt;= post_commit_offset)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;	if ((unsigned long)(ip - start_ip) &gt;= post_commit_offset)</span>
+
+Now that both ip and start_ip are unsigned long, I simply can do:
+
+
+if (ip - start_ip &gt;= post_commit_offset)
+  ...
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +		return 1;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	instruction_pointer_set(regs, (unsigned long)abort_ip);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Since you only ever use abort_ip as unsigned long, why propagate this</span>
+<span class="quote">&gt; &quot;void __user *&quot; all the way from rseq_get_rseq_cs() ? Save yourself some</span>
+<span class="quote">&gt; typing and casts :-)</span>
+
+Will do, I&#39;ll use unsigned long instead,
+
+Thanks!
+
+Mathieu
+<span class="quote">
+
+&gt; </span>
+<span class="quote">&gt;&gt; +	return 1;</span>
+<span class="quote">&gt; &gt; +}</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Nov. 16, 2017, 8:46 p.m.</div>
+<pre class="content">
+On Thu, Nov 16, 2017 at 08:37:58PM +0000, Mathieu Desnoyers wrote:
+<span class="quote">&gt; I usually never space-align with open parenthesis &quot;(&quot;. Is it a coding</span>
+<span class="quote">&gt; style requirement of the kernel for multi-line if () conditions ?</span>
+
+Not sure, but it is the predominant pattern in most of the code.
+<span class="quote">
+&gt; Would the following replatement code be ok ?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;         if (unlikely(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL)) {</span>
+<span class="quote">&gt;                 if ((flags &amp; (RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE</span>
+<span class="quote">&gt;                                 | RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT)) !=</span>
+<span class="quote">&gt;                                 (RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE</span>
+<span class="quote">&gt;                                 | RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT))</span>
+<span class="quote">&gt;                         return -EINVAL;</span>
+
+I really prefer the operator at the end,
+
+git grep &quot;&amp;&amp;$&quot; | wc -l
+40708
+
+git grep &quot;^[[:space:]]*&amp;&amp;&quot; | wc -l
+3901
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=107">Thomas Gleixner</a> - Nov. 16, 2017, 9:08 p.m.</div>
+<pre class="content">
+On Tue, 14 Nov 2017, Mathieu Desnoyers wrote:
+<span class="quote">&gt; +#ifdef __KERNEL__</span>
+<span class="quote">&gt; +# include &lt;linux/types.h&gt;</span>
+<span class="quote">&gt; +#else	/* #ifdef __KERNEL__ */</span>
+
+Please drop these comments. They are distracting and not helpful at
+all. They are valuable for long #ideffed sections but then the normal form
+is:
+
+ /* __KERNEL__ */
+ 
+ /* !__KERNEL__ */
+<span class="quote">
+&gt; +# include &lt;stdint.h&gt;</span>
+<span class="quote">&gt; +#endif	/* #else #ifdef __KERNEL__ */</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +#include &lt;asm/byteorder.h&gt;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +#ifdef __LP64__</span>
+<span class="quote">&gt; +# define RSEQ_FIELD_u32_u64(field)			uint64_t field</span>
+<span class="quote">&gt; +# define RSEQ_FIELD_u32_u64_INIT_ONSTACK(field, v)	field = (intptr_t)v</span>
+<span class="quote">&gt; +#elif defined(__BYTE_ORDER) ? \</span>
+<span class="quote">&gt; +	__BYTE_ORDER == __BIG_ENDIAN : defined(__BIG_ENDIAN)</span>
+
+Can you please make this decision separate and propagate the result ?
+<span class="quote">
+&gt; +# define RSEQ_FIELD_u32_u64(field)	uint32_t field ## _padding, field</span>
+<span class="quote">&gt; +# define RSEQ_FIELD_u32_u64_INIT_ONSTACK(field, v)	\</span>
+<span class="quote">&gt; +	field ## _padding = 0, field = (intptr_t)v</span>
+<span class="quote">&gt; +#else</span>
+<span class="quote">&gt; +# define RSEQ_FIELD_u32_u64(field)	uint32_t field, field ## _padding</span>
+<span class="quote">&gt; +# define RSEQ_FIELD_u32_u64_INIT_ONSTACK(field, v)	\</span>
+<span class="quote">&gt; +	field = (intptr_t)v, field ## _padding = 0</span>
+<span class="quote">&gt; +#endif</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +enum rseq_flags {</span>
+<span class="quote">&gt; +	RSEQ_FLAG_UNREGISTER = (1 &lt;&lt; 0),</span>
+<span class="quote">&gt; +};</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +enum rseq_cs_flags {</span>
+<span class="quote">&gt; +	RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT	= (1U &lt;&lt; 0),</span>
+<span class="quote">&gt; +	RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL	= (1U &lt;&lt; 1),</span>
+<span class="quote">&gt; +	RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE	= (1U &lt;&lt; 2),</span>
+<span class="quote">&gt; +};</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +/*</span>
+<span class="quote">&gt; + * struct rseq_cs is aligned on 4 * 8 bytes to ensure it is always</span>
+<span class="quote">&gt; + * contained within a single cache-line. It is usually declared as</span>
+<span class="quote">&gt; + * link-time constant data.</span>
+<span class="quote">&gt; + */</span>
+<span class="quote">&gt; +struct rseq_cs {</span>
+<span class="quote">&gt; +	uint32_t version;	/* Version of this structure. */</span>
+<span class="quote">&gt; +	uint32_t flags;		/* enum rseq_cs_flags */</span>
+<span class="quote">&gt; +	RSEQ_FIELD_u32_u64(start_ip);</span>
+<span class="quote">&gt; +	RSEQ_FIELD_u32_u64(post_commit_offset);	/* From start_ip */</span>
+<span class="quote">&gt; +	RSEQ_FIELD_u32_u64(abort_ip);</span>
+<span class="quote">&gt; +} __attribute__((aligned(4 * sizeof(uint64_t))));</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +/*</span>
+<span class="quote">&gt; + * struct rseq is aligned on 4 * 8 bytes to ensure it is always</span>
+<span class="quote">&gt; + * contained within a single cache-line.</span>
+<span class="quote">&gt; + *</span>
+<span class="quote">&gt; + * A single struct rseq per thread is allowed.</span>
+<span class="quote">&gt; + */</span>
+<span class="quote">&gt; +struct rseq {</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Restartable sequences cpu_id_start field. Updated by the</span>
+<span class="quote">&gt; +	 * kernel, and read by user-space with single-copy atomicity</span>
+<span class="quote">&gt; +	 * semantics. Aligned on 32-bit. Always contain a value in the</span>
+
+contains
+<span class="quote">
+&gt; +	 * range of possible CPUs, although the value may not be the</span>
+<span class="quote">&gt; +	 * actual current CPU (e.g. if rseq is not initialized). This</span>
+<span class="quote">&gt; +	 * CPU number value should always be confirmed against the value</span>
+<span class="quote">&gt; +	 * of the cpu_id field.</span>
+
+Who is supposed to confirm that? I think I know what the purpose of the
+field is, but from that comment it&#39;s not obvious at all.
+<span class="quote">
+&gt; +	 */</span>
+<span class="quote">&gt; +	uint32_t cpu_id_start;</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Restartable sequences cpu_id field. Updated by the kernel,</span>
+<span class="quote">&gt; +	 * and read by user-space with single-copy atomicity semantics.</span>
+
+Again. What&#39;s the purpose of reading it. 
+<span class="quote">
+&gt; +	 * Aligned on 32-bit. Values -1U and -2U have a special</span>
+<span class="quote">&gt; +	 * semantic: -1U means &quot;rseq uninitialized&quot;, and -2U means &quot;rseq</span>
+<span class="quote">&gt; +	 * initialization failed&quot;.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	uint32_t cpu_id;</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Restartable sequences rseq_cs field.</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 * Contains NULL when no critical section is active for the current</span>
+<span class="quote">&gt; +	 * thread, or holds a pointer to the currently active struct rseq_cs.</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 * Updated by user-space at the beginning of assembly instruction</span>
+<span class="quote">&gt; +	 * sequence block, and by the kernel when it restarts an assembly</span>
+<span class="quote">&gt; +	 * instruction sequence block, and when the kernel detects that it</span>
+<span class="quote">&gt; +	 * is preempting or delivering a signal outside of the range</span>
+<span class="quote">&gt; +	 * targeted by the rseq_cs. Also needs to be cleared by user-space</span>
+<span class="quote">&gt; +	 * before reclaiming memory that contains the targeted struct</span>
+<span class="quote">&gt; +	 * rseq_cs.</span>
+
+This paragraph is pretty convoluted and it&#39;s not really clear what the
+actual purpose is and how it is supposed to be used.
+
+   It&#39;s NULL when no critical section is active.
+
+   It holds a pointer to a struct rseq_cs when a critical section is active. Fine
+
+Now the update rules:
+
+    - By user space at the start of the critical section, i.e. user space
+      sets the pointer to rseq_cs
+
+    - By the kernel when it restarts a sequence block etc ....
+
+      What happens to this field? Is the pointer updated or cleared or
+      what? How is the kernel supposed to fiddle with the pointer?
+<span class="quote">
+&gt; +	 *</span>
+<span class="quote">&gt; +	 * Read and set by the kernel with single-copy atomicity semantics.</span>
+
+This looks like it&#39;s purely kernel owned, but above you say it&#39;s written by
+user space. There are no rules for user space?
+<span class="quote">
+&gt; +	 * Aligned on 64-bit.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	RSEQ_FIELD_u32_u64(rseq_cs);</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * - RSEQ_DISABLE flag:</span>
+<span class="quote">&gt; +	 *</span>
+<span class="quote">&gt; +	 * Fallback fast-track flag for single-stepping.</span>
+<span class="quote">&gt; +	 * Set by user-space if lack of progress is detected.</span>
+<span class="quote">&gt; +	 * Cleared by user-space after rseq finish.</span>
+<span class="quote">&gt; +	 * Read by the kernel.</span>
+<span class="quote">&gt; +	 * - RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT</span>
+<span class="quote">&gt; +	 *     Inhibit instruction sequence block restart and event</span>
+<span class="quote">&gt; +	 *     counter increment on preemption for this thread.</span>
+<span class="quote">&gt; +	 * - RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL</span>
+<span class="quote">&gt; +	 *     Inhibit instruction sequence block restart and event</span>
+<span class="quote">&gt; +	 *     counter increment on signal delivery for this thread.</span>
+<span class="quote">&gt; +	 * - RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE</span>
+<span class="quote">&gt; +	 *     Inhibit instruction sequence block restart and event</span>
+<span class="quote">&gt; +	 *     counter increment on migration for this thread.</span>
+
+That looks dangerous. You want to single step through the critical section
+and just ignore whether you&#39;ve been preempted or migrated. How is that
+supposed to work?
+<span class="quote">
+&gt; +++ b/kernel/rseq.c</span>
+<span class="quote">&gt; @@ -0,0 +1,328 @@</span>
+<span class="quote">&gt; + * Detailed algorithm of rseq user-space assembly sequences:</span>
+<span class="quote">&gt; + *</span>
+<span class="quote">&gt; + *   Steps [1]-[3] (inclusive) need to be a sequence of instructions in</span>
+<span class="quote">&gt; + *   userspace that can handle being moved to the abort_ip between any</span>
+<span class="quote">&gt; + *   of those instructions.</span>
+
+A sequence of instructions cannot be moved. Please describe this in
+technical correct wording.
+<span class="quote">
+&gt; + *   The abort_ip address needs to be less than start_ip, or</span>
+<span class="quote">&gt; + *   greater-or-equal the post_commit_ip. Step [5] and the failure</span>
+
+s/the/than/
+<span class="quote">
+&gt; + *   code step [F1] need to be at addresses lesser than start_ip, or</span>
+<span class="quote">&gt; + *   greater-or-equal the post_commit_ip.</span>
+
+Please describe that block visually for clarity
+
+		init(rseq_cs)
+		cpu = TLS-&gt;rseq::cpu_id
+       
+start_ip	-----------------
+[1]		TLS-&gt;rseq::rseq_cs = rseq_cs
+		barrier()
+
+[2]		if (cpu != TLS-&gt;rseq::cpu_id)
+			goto fail_ip;
+
+[3]		last_instruction_in_cs()
+post_commit_ip  ----------------
+
+The address of jump target fail_ip must be outside the critical region, i.e.
+
+    fail_ip &lt; start_ip  ||	 fail_ip &gt;= post_commit_ip
+
+Some textual explanation along with that is certainly helpful, but.
+<span class="quote">
+&gt; + *       [start_ip]</span>
+<span class="quote">&gt; + *   1.  Userspace stores the address of the struct rseq_cs assembly</span>
+<span class="quote">&gt; + *       block descriptor into the rseq_cs field of the registered</span>
+<span class="quote">&gt; + *       struct rseq TLS area. This update is performed through a single</span>
+<span class="quote">&gt; + *       store, followed by a compiler barrier which prevents the</span>
+<span class="quote">&gt; + *       compiler from moving following loads or stores before this</span>
+<span class="quote">&gt; + *       store.</span>
+<span class="quote">&gt; + *</span>
+<span class="quote">&gt; + *   2.  Userspace tests to see whether the current cpu_id field</span>
+<span class="quote">&gt; + *       match the cpu number loaded before start_ip. Manually jumping</span>
+<span class="quote">&gt; + *       to [F1] in case of a mismatch.</span>
+
+  Manually jumping?
+<span class="quote">
+&gt; + *</span>
+<span class="quote">&gt; + *       Note that if we are preempted or interrupted by a signal</span>
+
+Up to this point the description was technical, Now you start to
+impersonate. That&#39;s inconsistent at best.
+<span class="quote">
+&gt; + *       after [1] and before post_commit_ip, then the kernel</span>
+
+How does the kernel know about being &quot;after&quot; [1]. Is there something else
+than start_ip and post_commit_id? According to this, yes. And that wants a
+name and wants to be shown in the visual block. I call it magic_ip for now.
+<span class="quote">
+&gt; + *       clears the rseq_cs field of struct rseq, then jumps us to</span>
+<span class="quote">&gt; + *       abort_ip.</span>
+
+The kernel does not jump us.
+
+    	    If the execution sequence gets preempted at an address &gt;=
+    	    magic_ip and &lt; post_commit_ip, the kernel sets
+    	    TLS-&gt;rseq::rseq_cs to NULL and sets the user space return ip to
+    	    fail_ip before returning to user space, so the preempted
+    	    execution resumes at fail_ip.
+
+Hmm?
+<span class="quote">
+&gt; + *   3.  Userspace critical section final instruction before</span>
+<span class="quote">&gt; + *       post_commit_ip is the commit. The critical section is</span>
+<span class="quote">&gt; + *       self-terminating.</span>
+<span class="quote">&gt; + *       [post_commit_ip]</span>
+<span class="quote">&gt; + *</span>
+<span class="quote">&gt; + *   4.  success</span>
+<span class="quote">&gt; + *</span>
+<span class="quote">&gt; + *   On failure at [2]:</span>
+<span class="quote">&gt; + *</span>
+<span class="quote">&gt; + *       [abort_ip]</span>
+
+Now you introduce abort_ip. Why not use the same terminology consistently?
+Because it would make sense and not confuse the reader?
+<span class="quote">
+&gt; + *   F1. goto failure label</span>
+<span class="quote">&gt; + */</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static bool rseq_update_cpu_id(struct task_struct *t)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	uint32_t cpu_id = raw_smp_processor_id();</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	if (__put_user(cpu_id, &amp;t-&gt;rseq-&gt;cpu_id_start))</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">&gt; +	if (__put_user(cpu_id, &amp;t-&gt;rseq-&gt;cpu_id))</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">&gt; +	trace_rseq_update(t);</span>
+<span class="quote">&gt; +	return true;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static bool rseq_reset_rseq_cpu_id(struct task_struct *t)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	uint32_t cpu_id_start = 0, cpu_id = -1U;</span>
+
+Please do not use -1U. Define a proper symbol for it. Hardcoded constant
+numbers which have a special measing are annoying.
+<span class="quote">
+&gt; +	/*</span>
+<span class="quote">&gt; +	 * Reset cpu_id_start to its initial state (0).</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	if (__put_user(cpu_id_start, &amp;t-&gt;rseq-&gt;cpu_id_start))</span>
+<span class="quote">&gt; +		return false;</span>
+
+Why bool? If the callsite propagates an error code return it right from
+here please.
+<span class="quote">
+&gt; +	/*</span>
+<span class="quote">&gt; +	 * Reset cpu_id to -1U, so any user coming in after unregistration can</span>
+<span class="quote">&gt; +	 * figure out that rseq needs to be registered again.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	if (__put_user(cpu_id, &amp;t-&gt;rseq-&gt;cpu_id))</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">&gt; +	return true;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static bool rseq_get_rseq_cs(struct task_struct *t,</span>
+<span class="quote">&gt; +		void __user **start_ip,</span>
+<span class="quote">&gt; +		unsigned long *post_commit_offset,</span>
+<span class="quote">&gt; +		void __user **abort_ip,</span>
+<span class="quote">&gt; +		uint32_t *cs_flags)</span>
+
+Please align the arguments with the argument in the first line
+<span class="quote">
+&gt; +{</span>
+<span class="quote">&gt; +	unsigned long ptr;</span>
+<span class="quote">&gt; +	struct rseq_cs __user *urseq_cs;</span>
+<span class="quote">&gt; +	struct rseq_cs rseq_cs;</span>
+<span class="quote">&gt; +	u32 __user *usig;</span>
+<span class="quote">&gt; +	u32 sig;</span>
+
+Please sort those variables by length in reverse fir tree order.
+<span class="quote">
+&gt; +</span>
+<span class="quote">&gt; +	if (__get_user(ptr, &amp;t-&gt;rseq-&gt;rseq_cs))</span>
+<span class="quote">&gt; +		return false;</span>
+
+Call site stores an int and then returns -EFAULT. Works, but pretty is
+something else.
+<span class="quote">
+&gt; +	if (!ptr)</span>
+<span class="quote">&gt; +		return true;</span>
+
+What&#39;s wrong with 0 / -ERRORCODE returns which are the standard way in the
+kernel?
+<span class="quote">
+&gt; +	urseq_cs = (struct rseq_cs __user *)ptr;</span>
+<span class="quote">&gt; +	if (copy_from_user(&amp;rseq_cs, urseq_cs, sizeof(rseq_cs)))</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * We need to clear rseq_cs upon entry into a signal handler</span>
+<span class="quote">&gt; +	 * nested on top of a rseq assembly block, so the signal handler</span>
+<span class="quote">&gt; +	 * will not be fixed up if itself interrupted by a nested signal</span>
+<span class="quote">&gt; +	 * handler or preempted.</span>
+
+This sentence does not parse.
+<span class="quote">
+&gt; +	   We also need to clear rseq_cs if we</span>
+<span class="quote">&gt; +	 * preempt or deliver a signal on top of code outside of the</span>
+<span class="quote">&gt; +	 * rseq assembly block, to ensure that a following preemption or</span>
+<span class="quote">&gt; +	 * signal delivery will not try to perform a fixup needlessly.</span>
+
+Please try to avoid the impersonation. We are not doing anything.
+<span class="quote">
+&gt; +	 */</span>
+<span class="quote">&gt; +	if (clear_user(&amp;t-&gt;rseq-&gt;rseq_cs, sizeof(t-&gt;rseq-&gt;rseq_cs)))</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">&gt; +	if (rseq_cs.version &gt; 0)</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">&gt; +	*cs_flags = rseq_cs.flags;</span>
+<span class="quote">&gt; +	*start_ip = (void __user *)rseq_cs.start_ip;</span>
+<span class="quote">&gt; +	*post_commit_offset = (unsigned long)rseq_cs.post_commit_offset;</span>
+<span class="quote">&gt; +	*abort_ip = (void __user *)rseq_cs.abort_ip;</span>
+<span class="quote">&gt; +	usig = (u32 __user *)(rseq_cs.abort_ip - sizeof(u32));</span>
+
+Is there no way to avoid this abundant type casting?  It&#39;s hard to find the
+code in the casts.
+<span class="quote">
+&gt; +	if (get_user(sig, usig))</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">&gt; +	if (current-&gt;rseq_sig != sig) {</span>
+<span class="quote">&gt; +		printk_ratelimited(KERN_WARNING</span>
+<span class="quote">&gt; +			&quot;Possible attack attempt. Unexpected rseq signature 0x%x, expecting 0x%x (pid=%d, addr=%p).\n&quot;,</span>
+<span class="quote">&gt; +			sig, current-&gt;rseq_sig, current-&gt;pid, usig);</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt; +	return true;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static int rseq_need_restart(struct task_struct *t, uint32_t cs_flags)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	bool need_restart = false;</span>
+<span class="quote">&gt; +	uint32_t flags;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/* Get thread flags. */</span>
+<span class="quote">&gt; +	if (__get_user(flags, &amp;t-&gt;rseq-&gt;flags))</span>
+<span class="quote">&gt; +		return -EFAULT;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/* Take into account critical section flags. */</span>
+
+Take critical section flags into account. Please
+<span class="quote">
+&gt; +	flags |= cs_flags;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Restart on signal can only be inhibited when restart on</span>
+<span class="quote">&gt; +	 * preempt and restart on migrate are inhibited too. Otherwise,</span>
+<span class="quote">&gt; +	 * a preempted signal handler could fail to restart the prior</span>
+<span class="quote">&gt; +	 * execution context on sigreturn.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	if (flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL) {</span>
+<span class="quote">&gt; +		if (!(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE))</span>
+<span class="quote">&gt; +			return -EINVAL;</span>
+<span class="quote">&gt; +		if (!(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT))</span>
+<span class="quote">&gt; +			return -EINVAL;</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt; +	if (t-&gt;rseq_migrate</span>
+<span class="quote">&gt; +			&amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE))</span>
+
+	if (t-&gt;rseq_migrate &amp;&amp;
+	    !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE))
+
+please.
+<span class="quote">
+&gt; +		need_restart = true;</span>
+<span class="quote">&gt; +	else if (t-&gt;rseq_preempt</span>
+<span class="quote">&gt; +			&amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT))</span>
+<span class="quote">&gt; +		need_restart = true;</span>
+<span class="quote">&gt; +	else if (t-&gt;rseq_signal</span>
+<span class="quote">&gt; +			&amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL))</span>
+<span class="quote">&gt; +		need_restart = true;</span>
+
+If you make all of these rseq_flags explicit bits in a u32 then you can
+just do a simple
+
+     	if ((t-&gt;rseq_flags ^ flags) &amp; t-&gt;rseq_flags)
+
+and you can probably simplify the above checks as well.
+<span class="quote">
+&gt; +</span>
+<span class="quote">&gt; +	t-&gt;rseq_preempt = false;</span>
+<span class="quote">&gt; +	t-&gt;rseq_signal = false;</span>
+<span class="quote">&gt; +	t-&gt;rseq_migrate = false;</span>
+
+This becomes a simple t-&gt;rseq_flags = 0;
+<span class="quote">
+&gt; +	if (need_restart)</span>
+<span class="quote">&gt; +		return 1;</span>
+<span class="quote">&gt; +	return 0;</span>
+
+Why are you having a bool in the first place if you have to convert it into
+a integer return value at the end. Sure the compiler can optimize that
+away, but still...
+<span class="quote">
+&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static int rseq_ip_fixup(struct pt_regs *regs)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	struct task_struct *t = current;</span>
+<span class="quote">&gt; +	void __user *start_ip = NULL;</span>
+<span class="quote">&gt; +	unsigned long post_commit_offset = 0;</span>
+<span class="quote">&gt; +	void __user *abort_ip = NULL;</span>
+<span class="quote">&gt; +	uint32_t cs_flags = 0;</span>
+<span class="quote">&gt; +	int ret;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	ret = rseq_get_rseq_cs(t, &amp;start_ip, &amp;post_commit_offset, &amp;abort_ip,</span>
+<span class="quote">&gt; +			&amp;cs_flags);</span>
+<span class="quote">&gt; +	trace_rseq_ip_fixup((void __user *)instruction_pointer(regs),</span>
+<span class="quote">&gt; +		start_ip, post_commit_offset, abort_ip, ret);</span>
+<span class="quote">&gt; +	if (!ret)</span>
+<span class="quote">&gt; +		return -EFAULT;</span>
+
+This boolean logic is really horrible.
+<span class="quote">
+&gt; +	ret = rseq_need_restart(t, cs_flags);</span>
+<span class="quote">&gt; +	if (ret &lt; 0)</span>
+<span class="quote">&gt; +		return -EFAULT;</span>
+
+Why can&#39;t you propagate ret?
+<span class="quote">
+&gt; +	if (!ret)</span>
+<span class="quote">&gt; +		return 0;</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Handle potentially not being within a critical section.</span>
+<span class="quote">&gt; +	 * Unsigned comparison will be true when</span>
+<span class="quote">&gt; +	 * ip &lt; start_ip (wrap-around to large values), and when</span>
+<span class="quote">&gt; +	 * ip &gt;= start_ip + post_commit_offset.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	if ((unsigned long)instruction_pointer(regs) - (unsigned long)start_ip</span>
+<span class="quote">&gt; +			&gt;= post_commit_offset)</span>
+
+Neither start_ip nor abort_ip need to be void __user * type. They are not
+accessed at all, So why not make them unsigned long and spare all the type
+cast mess here and in rseq_get_rseq_cs() ?
+<span class="quote">
+&gt; +		return 1;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	instruction_pointer_set(regs, (unsigned long)abort_ip);</span>
+<span class="quote">&gt; +	return 1;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +/*</span>
+<span class="quote">&gt; + * This resume handler should always be executed between any of:</span>
+
+Should? Or must?
+<span class="quote">
+&gt; + * - preemption,</span>
+<span class="quote">&gt; + * - signal delivery,</span>
+<span class="quote">&gt; + * and return to user-space.</span>
+<span class="quote">&gt; + *</span>
+<span class="quote">&gt; +	if (current-&gt;rseq) {</span>
+<span class="quote">&gt; +		/*</span>
+<span class="quote">&gt; +		 * If rseq is already registered, check whether</span>
+<span class="quote">&gt; +		 * the provided address differs from the prior</span>
+<span class="quote">&gt; +		 * one.</span>
+<span class="quote">&gt; +		 */</span>
+<span class="quote">&gt; +		if (current-&gt;rseq != rseq</span>
+<span class="quote">&gt; +				|| current-&gt;rseq_len != rseq_len)</span>
+
+Align as shown above please. Same for all other malformatted multi line
+conditionals.
+<span class="quote">
+&gt; +			return -EINVAL;</span>
+<span class="quote">&gt; +		if (current-&gt;rseq_sig != sig)</span>
+<span class="quote">&gt; +			return -EPERM;</span>
+<span class="quote">&gt; +		return -EBUSY;	/* Already registered. */</span>
+
+Please do not use tail comments. They disturb the reading flow.
+<span class="quote">
+&gt; +	} else {</span>
+<span class="quote">&gt; +		/*</span>
+<span class="quote">&gt; +		 * If there was no rseq previously registered,</span>
+<span class="quote">&gt; +		 * we need to ensure the provided rseq is</span>
+
+s/we need to//  Like in changelogs. Describe it in imperative mood.
+<span class="quote">
+&gt; +		 * properly aligned and valid.</span>
+<span class="quote">&gt; +		 */</span>
+<span class="quote">&gt; +		if (!IS_ALIGNED((unsigned long)rseq, __alignof__(*rseq))</span>
+<span class="quote">&gt; +				|| rseq_len != sizeof(*rseq))</span>
+<span class="quote">&gt; +			return -EINVAL;</span>
+<span class="quote">&gt; +		if (!access_ok(VERIFY_WRITE, rseq, rseq_len))</span>
+<span class="quote">&gt; +			return -EFAULT;</span>
+<span class="quote">&gt; +		current-&gt;rseq = rseq;</span>
+<span class="quote">&gt; +		current-&gt;rseq_len = rseq_len;</span>
+<span class="quote">&gt; +		current-&gt;rseq_sig = sig;</span>
+<span class="quote">&gt; +		/*</span>
+<span class="quote">&gt; +		 * If rseq was previously inactive, and has just been</span>
+<span class="quote">&gt; +		 * registered, ensure the cpu_id_start and cpu_id fields</span>
+<span class="quote">&gt; +		 * are updated before returning to user-space.</span>
+<span class="quote">&gt; +		 */</span>
+<span class="quote">&gt; +		rseq_set_notify_resume(current);</span>
+<span class="quote">&gt; +	}</span>
+
+Thanks,
+
+	tglx
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=6835">Mathieu Desnoyers</a> - Nov. 19, 2017, 5:24 p.m.</div>
+<pre class="content">
+----- On Nov 16, 2017, at 4:08 PM, Thomas Gleixner tglx@linutronix.de wrote:
+<span class="quote">
+&gt; On Tue, 14 Nov 2017, Mathieu Desnoyers wrote:</span>
+<span class="quote">&gt;&gt; +#ifdef __KERNEL__</span>
+<span class="quote">&gt;&gt; +# include &lt;linux/types.h&gt;</span>
+<span class="quote">&gt;&gt; +#else	/* #ifdef __KERNEL__ */</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Please drop these comments. They are distracting and not helpful at</span>
+<span class="quote">&gt; all. They are valuable for long #ideffed sections but then the normal form</span>
+<span class="quote">&gt; is:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; /* __KERNEL__ */</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; /* !__KERNEL__ */</span>
+<span class="quote">&gt; </span>
+
+ok
+<span class="quote">
+&gt;&gt; +# include &lt;stdint.h&gt;</span>
+<span class="quote">&gt;&gt; +#endif	/* #else #ifdef __KERNEL__ */</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +#include &lt;asm/byteorder.h&gt;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +#ifdef __LP64__</span>
+<span class="quote">&gt;&gt; +# define RSEQ_FIELD_u32_u64(field)			uint64_t field</span>
+<span class="quote">&gt;&gt; +# define RSEQ_FIELD_u32_u64_INIT_ONSTACK(field, v)	field = (intptr_t)v</span>
+<span class="quote">&gt;&gt; +#elif defined(__BYTE_ORDER) ? \</span>
+<span class="quote">&gt;&gt; +	__BYTE_ORDER == __BIG_ENDIAN : defined(__BIG_ENDIAN)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Can you please make this decision separate and propagate the result ?</span>
+
+Something like this ?
+
+#ifdef __BYTE_ORDER
+# if (__BYTE_ORDER == __BIG_ENDIAN)
+#  define RSEQ_BYTE_ORDER_BIG_ENDIAN
+# else
+#  define RSEQ_BYTE_ORDER_LITTLE_ENDIAN
+# endif
+#else
+# ifdef __BIG_ENDIAN
+#  define RSEQ_BYTE_ORDER_BIG_ENDIAN
+# else
+#  define RSEQ_BYTE_ORDER_LITTLE_ENDIAN
+# endif
+#endif
+
+#ifdef __LP64__
+# define RSEQ_FIELD_u32_u64(field)                      uint64_t field
+# define RSEQ_FIELD_u32_u64_INIT_ONSTACK(field, v)      field = (intptr_t)v
+#else
+# ifdef RSEQ_BYTE_ORDER_BIG_ENDIAN
+#  define RSEQ_FIELD_u32_u64(field)     uint32_t field ## _padding, field
+#  define RSEQ_FIELD_u32_u64_INIT_ONSTACK(field, v)     \
+        field ## _padding = 0, field = (intptr_t)v
+# else
+#  define RSEQ_FIELD_u32_u64(field)     uint32_t field, field ## _padding
+#  define RSEQ_FIELD_u32_u64_INIT_ONSTACK(field, v)     \
+        field = (intptr_t)v, field ## _padding = 0
+# endif
+#endif
+<span class="quote">
+
+&gt; </span>
+<span class="quote">&gt;&gt; +# define RSEQ_FIELD_u32_u64(field)	uint32_t field ## _padding, field</span>
+<span class="quote">&gt;&gt; +# define RSEQ_FIELD_u32_u64_INIT_ONSTACK(field, v)	\</span>
+<span class="quote">&gt;&gt; +	field ## _padding = 0, field = (intptr_t)v</span>
+<span class="quote">&gt;&gt; +#else</span>
+<span class="quote">&gt;&gt; +# define RSEQ_FIELD_u32_u64(field)	uint32_t field, field ## _padding</span>
+<span class="quote">&gt;&gt; +# define RSEQ_FIELD_u32_u64_INIT_ONSTACK(field, v)	\</span>
+<span class="quote">&gt;&gt; +	field = (intptr_t)v, field ## _padding = 0</span>
+<span class="quote">&gt;&gt; +#endif</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +enum rseq_flags {</span>
+<span class="quote">&gt;&gt; +	RSEQ_FLAG_UNREGISTER = (1 &lt;&lt; 0),</span>
+<span class="quote">&gt;&gt; +};</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +enum rseq_cs_flags {</span>
+<span class="quote">&gt;&gt; +	RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT	= (1U &lt;&lt; 0),</span>
+<span class="quote">&gt;&gt; +	RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL	= (1U &lt;&lt; 1),</span>
+<span class="quote">&gt;&gt; +	RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE	= (1U &lt;&lt; 2),</span>
+<span class="quote">&gt;&gt; +};</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +/*</span>
+<span class="quote">&gt;&gt; + * struct rseq_cs is aligned on 4 * 8 bytes to ensure it is always</span>
+<span class="quote">&gt;&gt; + * contained within a single cache-line. It is usually declared as</span>
+<span class="quote">&gt;&gt; + * link-time constant data.</span>
+<span class="quote">&gt;&gt; + */</span>
+<span class="quote">&gt;&gt; +struct rseq_cs {</span>
+<span class="quote">&gt;&gt; +	uint32_t version;	/* Version of this structure. */</span>
+<span class="quote">&gt;&gt; +	uint32_t flags;		/* enum rseq_cs_flags */</span>
+<span class="quote">&gt;&gt; +	RSEQ_FIELD_u32_u64(start_ip);</span>
+<span class="quote">&gt;&gt; +	RSEQ_FIELD_u32_u64(post_commit_offset);	/* From start_ip */</span>
+
+I&#39;ll move the tail comments to their own line.
+<span class="quote">
+&gt;&gt; +	RSEQ_FIELD_u32_u64(abort_ip);</span>
+<span class="quote">&gt;&gt; +} __attribute__((aligned(4 * sizeof(uint64_t))));</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +/*</span>
+<span class="quote">&gt;&gt; + * struct rseq is aligned on 4 * 8 bytes to ensure it is always</span>
+<span class="quote">&gt;&gt; + * contained within a single cache-line.</span>
+<span class="quote">&gt;&gt; + *</span>
+<span class="quote">&gt;&gt; + * A single struct rseq per thread is allowed.</span>
+<span class="quote">&gt;&gt; + */</span>
+<span class="quote">&gt;&gt; +struct rseq {</span>
+<span class="quote">&gt;&gt; +	/*</span>
+<span class="quote">&gt;&gt; +	 * Restartable sequences cpu_id_start field. Updated by the</span>
+<span class="quote">&gt;&gt; +	 * kernel, and read by user-space with single-copy atomicity</span>
+<span class="quote">&gt;&gt; +	 * semantics. Aligned on 32-bit. Always contain a value in the</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; contains</span>
+
+ok
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +	 * range of possible CPUs, although the value may not be the</span>
+<span class="quote">&gt;&gt; +	 * actual current CPU (e.g. if rseq is not initialized). This</span>
+<span class="quote">&gt;&gt; +	 * CPU number value should always be confirmed against the value</span>
+<span class="quote">&gt;&gt; +	 * of the cpu_id field.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Who is supposed to confirm that? I think I know what the purpose of the</span>
+<span class="quote">&gt; field is, but from that comment it&#39;s not obvious at all.</span>
+
+Proposed update:
+
+        /*
+         * Restartable sequences cpu_id_start field. Updated by the
+         * kernel, and read by user-space with single-copy atomicity
+         * semantics. Aligned on 32-bit. Always contains a value in the
+         * range of possible CPUs, although the value may not be the
+         * actual current CPU (e.g. if rseq is not initialized). This
+         * CPU number value should always be compared against the value
+         * of the cpu_id field before performing a rseq commit or
+         * returning a value read from a data structure indexed using
+         * the cpu_id_start value.
+         */
+        uint32_t cpu_id_start;
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +	 */</span>
+<span class="quote">&gt;&gt; +	uint32_t cpu_id_start;</span>
+<span class="quote">&gt;&gt; +	/*</span>
+<span class="quote">&gt;&gt; +	 * Restartable sequences cpu_id field. Updated by the kernel,</span>
+<span class="quote">&gt;&gt; +	 * and read by user-space with single-copy atomicity semantics.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Again. What&#39;s the purpose of reading it.</span>
+<span class="quote">&gt; </span>
+
+Update:
+
+        /*
+         * Restartable sequences cpu_id field. Updated by the kernel,
+         * and read by user-space with single-copy atomicity semantics.
+         * Aligned on 32-bit. Values RSEQ_CPU_ID_UNINITIALIZED and
+         * RSEQ_CPU_ID_REGISTRATION_FAILED have a special semantic: the
+         * former means &quot;rseq uninitialized&quot;, and latter means &quot;rseq
+         * initialization failed&quot;. This value is meant to be read within
+         * rseq critical sections and compared with the cpu_id_start
+         * value previously read, before performing the commit instruction,
+         * or read and compared with the cpu_id_start value before returning
+         * a value loaded from a data structure indexed using the
+         * cpu_id_start value.
+         */
+        uint32_t cpu_id;
+<span class="quote">
+
+&gt;&gt; +	 * Aligned on 32-bit. Values -1U and -2U have a special</span>
+<span class="quote">&gt;&gt; +	 * semantic: -1U means &quot;rseq uninitialized&quot;, and -2U means &quot;rseq</span>
+<span class="quote">&gt;&gt; +	 * initialization failed&quot;.</span>
+<span class="quote">&gt;&gt; +	 */</span>
+<span class="quote">&gt;&gt; +	uint32_t cpu_id;</span>
+<span class="quote">&gt;&gt; +	/*</span>
+<span class="quote">&gt;&gt; +	 * Restartable sequences rseq_cs field.</span>
+<span class="quote">&gt;&gt; +	 *</span>
+<span class="quote">&gt;&gt; +	 * Contains NULL when no critical section is active for the current</span>
+<span class="quote">&gt;&gt; +	 * thread, or holds a pointer to the currently active struct rseq_cs.</span>
+<span class="quote">&gt;&gt; +	 *</span>
+<span class="quote">&gt;&gt; +	 * Updated by user-space at the beginning of assembly instruction</span>
+<span class="quote">&gt;&gt; +	 * sequence block, and by the kernel when it restarts an assembly</span>
+<span class="quote">&gt;&gt; +	 * instruction sequence block, and when the kernel detects that it</span>
+<span class="quote">&gt;&gt; +	 * is preempting or delivering a signal outside of the range</span>
+<span class="quote">&gt;&gt; +	 * targeted by the rseq_cs. Also needs to be cleared by user-space</span>
+<span class="quote">&gt;&gt; +	 * before reclaiming memory that contains the targeted struct</span>
+<span class="quote">&gt;&gt; +	 * rseq_cs.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This paragraph is pretty convoluted and it&#39;s not really clear what the</span>
+<span class="quote">&gt; actual purpose is and how it is supposed to be used.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   It&#39;s NULL when no critical section is active.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   It holds a pointer to a struct rseq_cs when a critical section is active. Fine</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Now the update rules:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;    - By user space at the start of the critical section, i.e. user space</span>
+<span class="quote">&gt;      sets the pointer to rseq_cs</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;    - By the kernel when it restarts a sequence block etc ....</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;      What happens to this field? Is the pointer updated or cleared or</span>
+<span class="quote">&gt;      what? How is the kernel supposed to fiddle with the pointer?</span>
+
+The kernel sets it back to NULL when it encounters a non-NULL ptr, independently
+of whether it was nesting over a rseq c.s. or not. Updating to:
+
+         * Updated by user-space, which sets the address of the currently
+         * active rseq_cs at the beginning of assembly instruction sequence
+         * block, and set to NULL by the kernel when it restarts an assembly
+         * instruction sequence block, as well as when the kernel detects that
+         * it is preempting or delivering a signal outside of the range
+         * targeted by the rseq_cs. Also needs to be set to NULL by user-space
+         * before reclaiming memory that contains the targeted struct rseq_cs.
+<span class="quote">
+
+&gt;&gt; +	 *</span>
+<span class="quote">&gt;&gt; +	 * Read and set by the kernel with single-copy atomicity semantics.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This looks like it&#39;s purely kernel owned, but above you say it&#39;s written by</span>
+<span class="quote">&gt; user space. There are no rules for user space?</span>
+
+Update:
+
+         * Read and set by the kernel with single-copy atomicity semantics.
+         * Set by user-space with single-copy atomicity semantics. Aligned
+         * on 64-bit.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +	 * Aligned on 64-bit.</span>
+<span class="quote">&gt;&gt; +	 */</span>
+<span class="quote">&gt;&gt; +	RSEQ_FIELD_u32_u64(rseq_cs);</span>
+<span class="quote">&gt;&gt; +	/*</span>
+<span class="quote">&gt;&gt; +	 * - RSEQ_DISABLE flag:</span>
+<span class="quote">&gt;&gt; +	 *</span>
+<span class="quote">&gt;&gt; +	 * Fallback fast-track flag for single-stepping.</span>
+<span class="quote">&gt;&gt; +	 * Set by user-space if lack of progress is detected.</span>
+<span class="quote">&gt;&gt; +	 * Cleared by user-space after rseq finish.</span>
+<span class="quote">&gt;&gt; +	 * Read by the kernel.</span>
+<span class="quote">&gt;&gt; +	 * - RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT</span>
+<span class="quote">&gt;&gt; +	 *     Inhibit instruction sequence block restart and event</span>
+<span class="quote">&gt;&gt; +	 *     counter increment on preemption for this thread.</span>
+<span class="quote">&gt;&gt; +	 * - RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL</span>
+<span class="quote">&gt;&gt; +	 *     Inhibit instruction sequence block restart and event</span>
+<span class="quote">&gt;&gt; +	 *     counter increment on signal delivery for this thread.</span>
+<span class="quote">&gt;&gt; +	 * - RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE</span>
+<span class="quote">&gt;&gt; +	 *     Inhibit instruction sequence block restart and event</span>
+<span class="quote">&gt;&gt; +	 *     counter increment on migration for this thread.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; That looks dangerous. You want to single step through the critical section</span>
+<span class="quote">&gt; and just ignore whether you&#39;ve been preempted or migrated. How is that</span>
+<span class="quote">&gt; supposed to work?</span>
+
+If you&#39;re closely inspecting a program with single-stepping, and the user
+really want to single-step through the rseq c.s., those flags can be set by
+the user or debugger to allow this single-stepping to proceed. It&#39;s then up
+to the user/tool to ensure mutual exclusion with other rseq c.s. by other
+means. One of its uses is for implementers of rseq c.s. assembly code, where
+they may want to single-step through that code while ensuring consistency
+through other mechanisms (e.g. mutual exclusion, or running single-threaded).
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +++ b/kernel/rseq.c</span>
+<span class="quote">&gt;&gt; @@ -0,0 +1,328 @@</span>
+<span class="quote">&gt;&gt; + * Detailed algorithm of rseq user-space assembly sequences:</span>
+<span class="quote">&gt;&gt; + *</span>
+<span class="quote">&gt;&gt; + *   Steps [1]-[3] (inclusive) need to be a sequence of instructions in</span>
+<span class="quote">&gt;&gt; + *   userspace that can handle being moved to the abort_ip between any</span>
+<span class="quote">&gt;&gt; + *   of those instructions.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; A sequence of instructions cannot be moved. Please describe this in</span>
+<span class="quote">&gt; technical correct wording.</span>
+
+Update:
+
+ *   Steps [1]-[3] (inclusive) need to be a sequence of instructions in
+ *   userspace that can handle being interrupted between any of those
+ *   instructions, and then resumed to the abort_ip.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; + *   The abort_ip address needs to be less than start_ip, or</span>
+<span class="quote">&gt;&gt; + *   greater-or-equal the post_commit_ip. Step [5] and the failure</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; s/the/than/</span>
+
+ok
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; + *   code step [F1] need to be at addresses lesser than start_ip, or</span>
+<span class="quote">&gt;&gt; + *   greater-or-equal the post_commit_ip.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Please describe that block visually for clarity</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;		init(rseq_cs)</span>
+<span class="quote">&gt;		cpu = TLS-&gt;rseq::cpu_id</span>
+<span class="quote">&gt;       </span>
+<span class="quote">&gt; start_ip	-----------------</span>
+<span class="quote">&gt; [1]		TLS-&gt;rseq::rseq_cs = rseq_cs</span>
+<span class="quote">&gt;		barrier()</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; [2]		if (cpu != TLS-&gt;rseq::cpu_id)</span>
+<span class="quote">&gt;			goto fail_ip;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; [3]		last_instruction_in_cs()</span>
+<span class="quote">&gt; post_commit_ip  ----------------</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The address of jump target fail_ip must be outside the critical region, i.e.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;    fail_ip &lt; start_ip  ||	 fail_ip &gt;= post_commit_ip</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Some textual explanation along with that is certainly helpful, but.</span>
+
+Updated to:
+
+ *                     init(rseq_cs)
+ *                     cpu = TLS-&gt;rseq::cpu_id_start
+ *   [1]               TLS-&gt;rseq::rseq_cs = rseq_cs
+ *   [start_ip]        ----------------------------
+ *   [2]               if (cpu != TLS-&gt;rseq::cpu_id)
+ *                             goto abort_ip;
+ *   [3]               &lt;last_instruction_in_cs&gt;
+ *   [post_commit_ip]  ----------------------------
+ *  
+ *   The address of jump target abort_ip must be outside the critical
+ *   region, i.e.:
+ *
+ *     [abort_ip] &lt; [start_ip]  || [abort_ip] &gt;= [post_commit_ip]
+<span class="quote">
+
+&gt; </span>
+<span class="quote">&gt;&gt; + *       [start_ip]</span>
+<span class="quote">&gt;&gt; + *   1.  Userspace stores the address of the struct rseq_cs assembly</span>
+<span class="quote">&gt;&gt; + *       block descriptor into the rseq_cs field of the registered</span>
+<span class="quote">&gt;&gt; + *       struct rseq TLS area. This update is performed through a single</span>
+<span class="quote">&gt;&gt; + *       store, followed by a compiler barrier which prevents the</span>
+<span class="quote">&gt;&gt; + *       compiler from moving following loads or stores before this</span>
+<span class="quote">&gt;&gt; + *       store.</span>
+
+Actually, given that this all needs to be in an inline assembly, it
+makes no sense to talk about &quot;compiler barrier&quot; anymore. I&#39;ll update
+the last part.
+
+The &quot;[start_ip] tag moves just after the paragraph at &quot;1.&quot;.
+<span class="quote">
+
+&gt;&gt; + *</span>
+<span class="quote">&gt;&gt; + *   2.  Userspace tests to see whether the current cpu_id field</span>
+<span class="quote">&gt;&gt; + *       match the cpu number loaded before start_ip. Manually jumping</span>
+<span class="quote">&gt;&gt; + *       to [F1] in case of a mismatch.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  Manually jumping?</span>
+
+&quot;Branching to abort_ip&quot; would be better indeed.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; + *</span>
+<span class="quote">&gt;&gt; + *       Note that if we are preempted or interrupted by a signal</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Up to this point the description was technical, Now you start to</span>
+<span class="quote">&gt; impersonate. That&#39;s inconsistent at best.</span>
+
+ok
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; + *       after [1] and before post_commit_ip, then the kernel</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; How does the kernel know about being &quot;after&quot; [1]. Is there something else</span>
+<span class="quote">&gt; than start_ip and post_commit_id? According to this, yes. And that wants a</span>
+<span class="quote">&gt; name and wants to be shown in the visual block. I call it magic_ip for now.</span>
+
+It should have been &quot;at or after&quot;:
+
+ *       If the sequence is preempted or interrupted by a signal
+ *       at or after start_ip and before post_commit_ip, then the kernel
+ *       clears TLS-&gt;__rseq_abi::rseq_cs, then resumes execution at the
+ *       abort_ip.
+
+You bring a good point. Although it has no impact in practice, the
+&quot;start_ip&quot; can indicate the address right *after* the store to rseq_cs.
+I&#39;ll change the documentation and user-space implementation accordingly.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; + *       clears the rseq_cs field of struct rseq, then jumps us to</span>
+<span class="quote">&gt;&gt; + *       abort_ip.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The kernel does not jump us.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;    	    If the execution sequence gets preempted at an address &gt;=</span>
+<span class="quote">&gt;    	    magic_ip and &lt; post_commit_ip, the kernel sets</span>
+<span class="quote">&gt;    	    TLS-&gt;rseq::rseq_cs to NULL and sets the user space return ip to</span>
+<span class="quote">&gt;    	    fail_ip before returning to user space, so the preempted</span>
+<span class="quote">&gt;    	    execution resumes at fail_ip.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Hmm?</span>
+
+Updated to:
+
+ *       If the sequence is preempted or interrupted by a signal
+ *       at or after start_ip and before post_commit_ip, then the kernel
+ *       clears TLS-&gt;__rseq_abi::rseq_cs, and sets the user-space return
+ *       ip to abort_ip before returning to user-space, so the preempted
+ *       execution resumes at abort_ip.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; + *   3.  Userspace critical section final instruction before</span>
+<span class="quote">&gt;&gt; + *       post_commit_ip is the commit. The critical section is</span>
+<span class="quote">&gt;&gt; + *       self-terminating.</span>
+<span class="quote">&gt;&gt; + *       [post_commit_ip]</span>
+<span class="quote">&gt;&gt; + *</span>
+<span class="quote">&gt;&gt; + *   4.  success</span>
+<span class="quote">&gt;&gt; + *</span>
+<span class="quote">&gt;&gt; + *   On failure at [2]:</span>
+<span class="quote">&gt;&gt; + *</span>
+<span class="quote">&gt;&gt; + *       [abort_ip]</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Now you introduce abort_ip. Why not use the same terminology consistently?</span>
+<span class="quote">&gt; Because it would make sense and not confuse the reader?</span>
+
+I use abort_ip everywhere. Not sure where you saw &quot;fail_ip&quot;.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; + *   F1. goto failure label</span>
+<span class="quote">&gt;&gt; + */</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +static bool rseq_update_cpu_id(struct task_struct *t)</span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +	uint32_t cpu_id = raw_smp_processor_id();</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	if (__put_user(cpu_id, &amp;t-&gt;rseq-&gt;cpu_id_start))</span>
+<span class="quote">&gt;&gt; +		return false;</span>
+<span class="quote">&gt;&gt; +	if (__put_user(cpu_id, &amp;t-&gt;rseq-&gt;cpu_id))</span>
+<span class="quote">&gt;&gt; +		return false;</span>
+<span class="quote">&gt;&gt; +	trace_rseq_update(t);</span>
+<span class="quote">&gt;&gt; +	return true;</span>
+<span class="quote">&gt;&gt; +}</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +static bool rseq_reset_rseq_cpu_id(struct task_struct *t)</span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +	uint32_t cpu_id_start = 0, cpu_id = -1U;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Please do not use -1U. Define a proper symbol for it. Hardcoded constant</span>
+<span class="quote">&gt; numbers which have a special measing are annoying.</span>
+
+I&#39;ll add the following enum to uapi rseq.h:
+
+enum rseq_cpu_id_state {
+        RSEQ_CPU_ID_UNINITIALIZED               = -1,
+        RSEQ_CPU_ID_REGISTRATION_FAILED         = -2,   
+};
+
+And use it both in the user-space library and in the kernel
+&quot;reset&quot; code.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +	/*</span>
+<span class="quote">&gt;&gt; +	 * Reset cpu_id_start to its initial state (0).</span>
+<span class="quote">&gt;&gt; +	 */</span>
+<span class="quote">&gt;&gt; +	if (__put_user(cpu_id_start, &amp;t-&gt;rseq-&gt;cpu_id_start))</span>
+<span class="quote">&gt;&gt; +		return false;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Why bool? If the callsite propagates an error code return it right from</span>
+<span class="quote">&gt; here please.</span>
+
+ok, fixed.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +	/*</span>
+<span class="quote">&gt;&gt; +	 * Reset cpu_id to -1U, so any user coming in after unregistration can</span>
+<span class="quote">&gt;&gt; +	 * figure out that rseq needs to be registered again.</span>
+<span class="quote">&gt;&gt; +	 */</span>
+<span class="quote">&gt;&gt; +	if (__put_user(cpu_id, &amp;t-&gt;rseq-&gt;cpu_id))</span>
+<span class="quote">&gt;&gt; +		return false;</span>
+<span class="quote">&gt;&gt; +	return true;</span>
+<span class="quote">&gt;&gt; +}</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +static bool rseq_get_rseq_cs(struct task_struct *t,</span>
+<span class="quote">&gt;&gt; +		void __user **start_ip,</span>
+<span class="quote">&gt;&gt; +		unsigned long *post_commit_offset,</span>
+<span class="quote">&gt;&gt; +		void __user **abort_ip,</span>
+<span class="quote">&gt;&gt; +		uint32_t *cs_flags)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Please align the arguments with the argument in the first line</span>
+<span class="quote">&gt; </span>
+
+done.
+<span class="quote">
+&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +	unsigned long ptr;</span>
+<span class="quote">&gt;&gt; +	struct rseq_cs __user *urseq_cs;</span>
+<span class="quote">&gt;&gt; +	struct rseq_cs rseq_cs;</span>
+<span class="quote">&gt;&gt; +	u32 __user *usig;</span>
+<span class="quote">&gt;&gt; +	u32 sig;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Please sort those variables by length in reverse fir tree order.</span>
+
+ok
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	if (__get_user(ptr, &amp;t-&gt;rseq-&gt;rseq_cs))</span>
+<span class="quote">&gt;&gt; +		return false;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Call site stores an int and then returns -EFAULT. Works, but pretty is</span>
+<span class="quote">&gt; something else.</span>
+
+moving all return values to &quot;int&quot;, and propagating result.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +	if (!ptr)</span>
+<span class="quote">&gt;&gt; +		return true;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; What&#39;s wrong with 0 / -ERRORCODE returns which are the standard way in the</span>
+<span class="quote">&gt; kernel?</span>
+
+done
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +	urseq_cs = (struct rseq_cs __user *)ptr;</span>
+<span class="quote">&gt;&gt; +	if (copy_from_user(&amp;rseq_cs, urseq_cs, sizeof(rseq_cs)))</span>
+<span class="quote">&gt;&gt; +		return false;</span>
+<span class="quote">&gt;&gt; +	/*</span>
+<span class="quote">&gt;&gt; +	 * We need to clear rseq_cs upon entry into a signal handler</span>
+<span class="quote">&gt;&gt; +	 * nested on top of a rseq assembly block, so the signal handler</span>
+<span class="quote">&gt;&gt; +	 * will not be fixed up if itself interrupted by a nested signal</span>
+<span class="quote">&gt;&gt; +	 * handler or preempted.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This sentence does not parse.</span>
+
+Updating to:
+
+        /*
+         * The rseq_cs field is set to NULL on preemption or signal
+         * delivery on top of rseq assembly block, as well as on top
+         * of code outside of the rseq assembly block. This performs
+         * a lazy clear of the rseq_cs field.
+         *
+         * Set rseq_cs to NULL with single-copy atomicity.
+         */
+        ptr = 0;
+        ret = __put_user(ptr, &amp;t-&gt;rseq-&gt;rseq_cs);
+        if (ret)
+                return ret;
+
+All the discussion about not fixing up while executing signal
+handler was relevant with Paul Turner&#39;s original approach,
+but now that we have rseq critical section descriptors that
+contain the start_ip and post_commit_offset, guaranteeing that
+the rseq_cs pointer is cleared before returning to a signal handler
+is not relevant anymore.
+
+I&#39;ll use __put_user rather than clear_user() in order to be consistent
+with all other updates that provide single-copy atomicity guarantees.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +	   We also need to clear rseq_cs if we</span>
+<span class="quote">&gt;&gt; +	 * preempt or deliver a signal on top of code outside of the</span>
+<span class="quote">&gt;&gt; +	 * rseq assembly block, to ensure that a following preemption or</span>
+<span class="quote">&gt;&gt; +	 * signal delivery will not try to perform a fixup needlessly.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Please try to avoid the impersonation. We are not doing anything.</span>
+
+ok
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +	 */</span>
+<span class="quote">&gt;&gt; +	if (clear_user(&amp;t-&gt;rseq-&gt;rseq_cs, sizeof(t-&gt;rseq-&gt;rseq_cs)))</span>
+<span class="quote">&gt;&gt; +		return false;</span>
+<span class="quote">&gt;&gt; +	if (rseq_cs.version &gt; 0)</span>
+<span class="quote">&gt;&gt; +		return false;</span>
+
+I&#39;ll add this check to ensure that abort_ip is not within the
+rseq c.s., which would be invalid:
+
+        /* Ensure that abort_ip is not in the critical section. */
+        if (rseq_cs.abort_ip - rseq_cs.start_ip &lt; rseq_cs.post_commit_offset)
+                return false;
+<span class="quote">
+&gt;&gt; +	*cs_flags = rseq_cs.flags;</span>
+<span class="quote">&gt;&gt; +	*start_ip = (void __user *)rseq_cs.start_ip;</span>
+<span class="quote">&gt;&gt; +	*post_commit_offset = (unsigned long)rseq_cs.post_commit_offset;</span>
+<span class="quote">&gt;&gt; +	*abort_ip = (void __user *)rseq_cs.abort_ip;</span>
+<span class="quote">&gt;&gt; +	usig = (u32 __user *)(rseq_cs.abort_ip - sizeof(u32));</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Is there no way to avoid this abundant type casting?  It&#39;s hard to find the</span>
+<span class="quote">&gt; code in the casts.</span>
+
+Following peterz&#39; advice, I use unsigned long type now.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +	if (get_user(sig, usig))</span>
+<span class="quote">&gt;&gt; +		return false;</span>
+<span class="quote">&gt;&gt; +	if (current-&gt;rseq_sig != sig) {</span>
+<span class="quote">&gt;&gt; +		printk_ratelimited(KERN_WARNING</span>
+<span class="quote">&gt;&gt; +			&quot;Possible attack attempt. Unexpected rseq signature 0x%x, expecting 0x%x</span>
+<span class="quote">&gt;&gt; (pid=%d, addr=%p).\n&quot;,</span>
+<span class="quote">&gt;&gt; +			sig, current-&gt;rseq_sig, current-&gt;pid, usig);</span>
+<span class="quote">&gt;&gt; +		return false;</span>
+<span class="quote">&gt;&gt; +	}</span>
+<span class="quote">&gt;&gt; +	return true;</span>
+<span class="quote">&gt;&gt; +}</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +static int rseq_need_restart(struct task_struct *t, uint32_t cs_flags)</span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +	bool need_restart = false;</span>
+<span class="quote">&gt;&gt; +	uint32_t flags;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	/* Get thread flags. */</span>
+<span class="quote">&gt;&gt; +	if (__get_user(flags, &amp;t-&gt;rseq-&gt;flags))</span>
+<span class="quote">&gt;&gt; +		return -EFAULT;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	/* Take into account critical section flags. */</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Take critical section flags into account. Please</span>
+<span class="quote">&gt; </span>
+
+ok
+<span class="quote">
+&gt;&gt; +	flags |= cs_flags;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	/*</span>
+<span class="quote">&gt;&gt; +	 * Restart on signal can only be inhibited when restart on</span>
+<span class="quote">&gt;&gt; +	 * preempt and restart on migrate are inhibited too. Otherwise,</span>
+<span class="quote">&gt;&gt; +	 * a preempted signal handler could fail to restart the prior</span>
+<span class="quote">&gt;&gt; +	 * execution context on sigreturn.</span>
+<span class="quote">&gt;&gt; +	 */</span>
+<span class="quote">&gt;&gt; +	if (flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL) {</span>
+<span class="quote">&gt;&gt; +		if (!(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE))</span>
+<span class="quote">&gt;&gt; +			return -EINVAL;</span>
+<span class="quote">&gt;&gt; +		if (!(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT))</span>
+<span class="quote">&gt;&gt; +			return -EINVAL;</span>
+<span class="quote">&gt;&gt; +	}</span>
+<span class="quote">&gt;&gt; +	if (t-&gt;rseq_migrate</span>
+<span class="quote">&gt;&gt; +			&amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE))</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;	if (t-&gt;rseq_migrate &amp;&amp;</span>
+<span class="quote">&gt;	    !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE))</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; please.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; +		need_restart = true;</span>
+<span class="quote">&gt;&gt; +	else if (t-&gt;rseq_preempt</span>
+<span class="quote">&gt;&gt; +			&amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT))</span>
+<span class="quote">&gt;&gt; +		need_restart = true;</span>
+<span class="quote">&gt;&gt; +	else if (t-&gt;rseq_signal</span>
+<span class="quote">&gt;&gt; +			&amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL))</span>
+<span class="quote">&gt;&gt; +		need_restart = true;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If you make all of these rseq_flags explicit bits in a u32 then you can</span>
+<span class="quote">&gt; just do a simple</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;     	if ((t-&gt;rseq_flags ^ flags) &amp; t-&gt;rseq_flags)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; and you can probably simplify the above checks as well.</span>
+
+I don&#39;t think xor is the operation we want here. But yes, using
+masks tremendously simplifies the code. I did those changes
+following peterz&#39; feedback:
+
+        event_mask = t-&gt;rseq_event_mask;
+        t-&gt;rseq_event_mask = 0;
+        event_mask &amp;= ~flags;
+        if (event_mask)
+                return 1;
+        return 0;
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	t-&gt;rseq_preempt = false;</span>
+<span class="quote">&gt;&gt; +	t-&gt;rseq_signal = false;</span>
+<span class="quote">&gt;&gt; +	t-&gt;rseq_migrate = false;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This becomes a simple t-&gt;rseq_flags = 0;</span>
+
+yes.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +	if (need_restart)</span>
+<span class="quote">&gt;&gt; +		return 1;</span>
+<span class="quote">&gt;&gt; +	return 0;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Why are you having a bool in the first place if you have to convert it into</span>
+<span class="quote">&gt; a integer return value at the end. Sure the compiler can optimize that</span>
+<span class="quote">&gt; away, but still...</span>
+
+Changed to an &quot;int&quot;.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +}</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +static int rseq_ip_fixup(struct pt_regs *regs)</span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +	struct task_struct *t = current;</span>
+<span class="quote">&gt;&gt; +	void __user *start_ip = NULL;</span>
+<span class="quote">&gt;&gt; +	unsigned long post_commit_offset = 0;</span>
+<span class="quote">&gt;&gt; +	void __user *abort_ip = NULL;</span>
+<span class="quote">&gt;&gt; +	uint32_t cs_flags = 0;</span>
+<span class="quote">&gt;&gt; +	int ret;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	ret = rseq_get_rseq_cs(t, &amp;start_ip, &amp;post_commit_offset, &amp;abort_ip,</span>
+<span class="quote">&gt;&gt; +			&amp;cs_flags);</span>
+<span class="quote">&gt;&gt; +	trace_rseq_ip_fixup((void __user *)instruction_pointer(regs),</span>
+<span class="quote">&gt;&gt; +		start_ip, post_commit_offset, abort_ip, ret);</span>
+<span class="quote">&gt;&gt; +	if (!ret)</span>
+<span class="quote">&gt;&gt; +		return -EFAULT;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This boolean logic is really horrible.</span>
+
+Changed to &quot;int&quot;, returning the callee return value.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +	ret = rseq_need_restart(t, cs_flags);</span>
+<span class="quote">&gt;&gt; +	if (ret &lt; 0)</span>
+<span class="quote">&gt;&gt; +		return -EFAULT;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Why can&#39;t you propagate ret?</span>
+
+done. It becomes:
+
+        ret = rseq_need_restart(t, cs_flags);
+        if (ret &lt;= 0)
+                return ret;
+<span class="quote">
+
+&gt; </span>
+<span class="quote">&gt;&gt; +	if (!ret)</span>
+<span class="quote">&gt;&gt; +		return 0;</span>
+<span class="quote">&gt;&gt; +	/*</span>
+<span class="quote">&gt;&gt; +	 * Handle potentially not being within a critical section.</span>
+<span class="quote">&gt;&gt; +	 * Unsigned comparison will be true when</span>
+<span class="quote">&gt;&gt; +	 * ip &lt; start_ip (wrap-around to large values), and when</span>
+<span class="quote">&gt;&gt; +	 * ip &gt;= start_ip + post_commit_offset.</span>
+<span class="quote">&gt;&gt; +	 */</span>
+<span class="quote">&gt;&gt; +	if ((unsigned long)instruction_pointer(regs) - (unsigned long)start_ip</span>
+<span class="quote">&gt;&gt; +			&gt;= post_commit_offset)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Neither start_ip nor abort_ip need to be void __user * type. They are not</span>
+<span class="quote">&gt; accessed at all, So why not make them unsigned long and spare all the type</span>
+<span class="quote">&gt; cast mess here and in rseq_get_rseq_cs() ?</span>
+
+done as per peterz&#39;s feedback.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +		return 1;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	instruction_pointer_set(regs, (unsigned long)abort_ip);</span>
+<span class="quote">&gt;&gt; +	return 1;</span>
+<span class="quote">&gt;&gt; +}</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +/*</span>
+<span class="quote">&gt;&gt; + * This resume handler should always be executed between any of:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Should? Or must?</span>
+
+Yes, must.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; + * - preemption,</span>
+<span class="quote">&gt;&gt; + * - signal delivery,</span>
+<span class="quote">&gt;&gt; + * and return to user-space.</span>
+<span class="quote">&gt;&gt; + *</span>
+<span class="quote">&gt;&gt; +	if (current-&gt;rseq) {</span>
+<span class="quote">&gt;&gt; +		/*</span>
+<span class="quote">&gt;&gt; +		 * If rseq is already registered, check whether</span>
+<span class="quote">&gt;&gt; +		 * the provided address differs from the prior</span>
+<span class="quote">&gt;&gt; +		 * one.</span>
+<span class="quote">&gt;&gt; +		 */</span>
+<span class="quote">&gt;&gt; +		if (current-&gt;rseq != rseq</span>
+<span class="quote">&gt;&gt; +				|| current-&gt;rseq_len != rseq_len)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Align as shown above please. Same for all other malformatted multi line</span>
+<span class="quote">&gt; conditionals.</span>
+
+done
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +			return -EINVAL;</span>
+<span class="quote">&gt;&gt; +		if (current-&gt;rseq_sig != sig)</span>
+<span class="quote">&gt;&gt; +			return -EPERM;</span>
+<span class="quote">&gt;&gt; +		return -EBUSY;	/* Already registered. */</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Please do not use tail comments. They disturb the reading flow.</span>
+
+ok. Will do:
+
+                /* Already registered. */
+                return -EBUSY; 
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +	} else {</span>
+<span class="quote">&gt;&gt; +		/*</span>
+<span class="quote">&gt;&gt; +		 * If there was no rseq previously registered,</span>
+<span class="quote">&gt;&gt; +		 * we need to ensure the provided rseq is</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; s/we need to//  Like in changelogs. Describe it in imperative mood.</span>
+
+ok
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; +		 * properly aligned and valid.</span>
+<span class="quote">&gt;&gt; +		 */</span>
+<span class="quote">&gt;&gt; +		if (!IS_ALIGNED((unsigned long)rseq, __alignof__(*rseq))</span>
+<span class="quote">&gt;&gt; +				|| rseq_len != sizeof(*rseq))</span>
+<span class="quote">&gt;&gt; +			return -EINVAL;</span>
+<span class="quote">&gt;&gt; +		if (!access_ok(VERIFY_WRITE, rseq, rseq_len))</span>
+<span class="quote">&gt;&gt; +			return -EFAULT;</span>
+<span class="quote">&gt;&gt; +		current-&gt;rseq = rseq;</span>
+<span class="quote">&gt;&gt; +		current-&gt;rseq_len = rseq_len;</span>
+<span class="quote">&gt;&gt; +		current-&gt;rseq_sig = sig;</span>
+<span class="quote">&gt;&gt; +		/*</span>
+<span class="quote">&gt;&gt; +		 * If rseq was previously inactive, and has just been</span>
+<span class="quote">&gt;&gt; +		 * registered, ensure the cpu_id_start and cpu_id fields</span>
+<span class="quote">&gt;&gt; +		 * are updated before returning to user-space.</span>
+<span class="quote">&gt;&gt; +		 */</span>
+<span class="quote">&gt;&gt; +		rseq_set_notify_resume(current);</span>
+<span class="quote">&gt;&gt; +	}</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Thanks,</span>
+
+Thanks a lot for the thorough review Thomas !!
+
+Mathieu
+<span class="quote">
+
+&gt; </span>
+<span class="quote">&gt; 	tglx</span>
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/MAINTAINERS b/MAINTAINERS</span>
+<span class="p_header">index 2811a211632c..c9f95f8b07ed 100644</span>
+<span class="p_header">--- a/MAINTAINERS</span>
+<span class="p_header">+++ b/MAINTAINERS</span>
+<span class="p_chunk">@@ -11497,6 +11497,17 @@</span> <span class="p_context"> F:	include/dt-bindings/reset/</span>
+ F:	include/linux/reset.h
+ F:	include/linux/reset-controller.h
+ 
+<span class="p_add">+RESTARTABLE SEQUENCES SUPPORT</span>
+<span class="p_add">+M:	Mathieu Desnoyers &lt;mathieu.desnoyers@efficios.com&gt;</span>
+<span class="p_add">+M:	Peter Zijlstra &lt;peterz@infradead.org&gt;</span>
+<span class="p_add">+M:	&quot;Paul E. McKenney&quot; &lt;paulmck@linux.vnet.ibm.com&gt;</span>
+<span class="p_add">+M:	Boqun Feng &lt;boqun.feng@gmail.com&gt;</span>
+<span class="p_add">+L:	linux-kernel@vger.kernel.org</span>
+<span class="p_add">+S:	Supported</span>
+<span class="p_add">+F:	kernel/rseq.c</span>
+<span class="p_add">+F:	include/uapi/linux/rseq.h</span>
+<span class="p_add">+F:	include/trace/events/rseq.h</span>
+<span class="p_add">+</span>
+ RFKILL
+ M:	Johannes Berg &lt;johannes@sipsolutions.net&gt;
+ L:	linux-wireless@vger.kernel.org
+<span class="p_header">diff --git a/arch/Kconfig b/arch/Kconfig</span>
+<span class="p_header">index 057370a0ac4e..b5e7f977fc29 100644</span>
+<span class="p_header">--- a/arch/Kconfig</span>
+<span class="p_header">+++ b/arch/Kconfig</span>
+<span class="p_chunk">@@ -258,6 +258,13 @@</span> <span class="p_context"> config HAVE_REGS_AND_STACK_ACCESS_API</span>
+ 	  declared in asm/ptrace.h
+ 	  For example the kprobes-based event tracer needs this API.
+ 
+<span class="p_add">+config HAVE_RSEQ</span>
+<span class="p_add">+	bool</span>
+<span class="p_add">+	depends on HAVE_REGS_AND_STACK_ACCESS_API</span>
+<span class="p_add">+	help</span>
+<span class="p_add">+	  This symbol should be selected by an architecture if it</span>
+<span class="p_add">+	  supports an implementation of restartable sequences.</span>
+<span class="p_add">+</span>
+ config HAVE_CLK
+ 	bool
+ 	help
+<span class="p_header">diff --git a/fs/exec.c b/fs/exec.c</span>
+<span class="p_header">index 3e14ba25f678..3faf8ff0fc6d 100644</span>
+<span class="p_header">--- a/fs/exec.c</span>
+<span class="p_header">+++ b/fs/exec.c</span>
+<span class="p_chunk">@@ -1803,6 +1803,7 @@</span> <span class="p_context"> static int do_execveat_common(int fd, struct filename *filename,</span>
+ 	current-&gt;fs-&gt;in_exec = 0;
+ 	current-&gt;in_execve = 0;
+ 	membarrier_execve(current);
+<span class="p_add">+	rseq_execve(current);</span>
+ 	acct_update_integrals(current);
+ 	task_numa_free(current);
+ 	free_bprm(bprm);
+<span class="p_header">diff --git a/include/linux/sched.h b/include/linux/sched.h</span>
+<span class="p_header">index fdf74f27acf1..b995a3b5bfc4 100644</span>
+<span class="p_header">--- a/include/linux/sched.h</span>
+<span class="p_header">+++ b/include/linux/sched.h</span>
+<span class="p_chunk">@@ -27,6 +27,7 @@</span> <span class="p_context"></span>
+ #include &lt;linux/signal_types.h&gt;
+ #include &lt;linux/mm_types_task.h&gt;
+ #include &lt;linux/task_io_accounting.h&gt;
+<span class="p_add">+#include &lt;linux/rseq.h&gt;</span>
+ 
+ /* task_struct member predeclarations (sorted alphabetically): */
+ struct audit_context;
+<span class="p_chunk">@@ -977,6 +978,13 @@</span> <span class="p_context"> struct task_struct {</span>
+ 	unsigned long			numa_pages_migrated;
+ #endif /* CONFIG_NUMA_BALANCING */
+ 
+<span class="p_add">+#ifdef CONFIG_RSEQ</span>
+<span class="p_add">+	struct rseq __user *rseq;</span>
+<span class="p_add">+	u32 rseq_len;</span>
+<span class="p_add">+	u32 rseq_sig;</span>
+<span class="p_add">+	bool rseq_preempt, rseq_signal, rseq_migrate;</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ 	struct tlbflush_unmap_batch	tlb_ubc;
+ 
+ 	struct rcu_head			rcu;
+<span class="p_chunk">@@ -1667,4 +1675,85 @@</span> <span class="p_context"> extern long sched_getaffinity(pid_t pid, struct cpumask *mask);</span>
+ #define TASK_SIZE_OF(tsk)	TASK_SIZE
+ #endif
+ 
+<span class="p_add">+#ifdef CONFIG_RSEQ</span>
+<span class="p_add">+static inline void rseq_set_notify_resume(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (t-&gt;rseq)</span>
+<span class="p_add">+		set_tsk_thread_flag(t, TIF_NOTIFY_RESUME);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+void __rseq_handle_notify_resume(struct pt_regs *regs);</span>
+<span class="p_add">+static inline void rseq_handle_notify_resume(struct pt_regs *regs)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (current-&gt;rseq)</span>
+<span class="p_add">+		__rseq_handle_notify_resume(regs);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * If parent process has a registered restartable sequences area, the</span>
+<span class="p_add">+ * child inherits. Only applies when forking a process, not a thread. In</span>
+<span class="p_add">+ * case a parent fork() in the middle of a restartable sequence, set the</span>
+<span class="p_add">+ * resume notifier to force the child to retry.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static inline void rseq_fork(struct task_struct *t, unsigned long clone_flags)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (clone_flags &amp; CLONE_THREAD) {</span>
+<span class="p_add">+		t-&gt;rseq = NULL;</span>
+<span class="p_add">+		t-&gt;rseq_len = 0;</span>
+<span class="p_add">+		t-&gt;rseq_sig = 0;</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		t-&gt;rseq = current-&gt;rseq;</span>
+<span class="p_add">+		t-&gt;rseq_len = current-&gt;rseq_len;</span>
+<span class="p_add">+		t-&gt;rseq_sig = current-&gt;rseq_sig;</span>
+<span class="p_add">+		rseq_set_notify_resume(t);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_execve(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	t-&gt;rseq = NULL;</span>
+<span class="p_add">+	t-&gt;rseq_len = 0;</span>
+<span class="p_add">+	t-&gt;rseq_sig = 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_sched_out(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	rseq_set_notify_resume(t);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_signal_deliver(struct pt_regs *regs)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	current-&gt;rseq_signal = true;</span>
+<span class="p_add">+	rseq_handle_notify_resume(regs);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_preempt(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	t-&gt;rseq_preempt = true;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_migrate(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	t-&gt;rseq_migrate = true;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+#else</span>
+<span class="p_add">+static inline void rseq_set_notify_resume(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_handle_notify_resume(struct pt_regs *regs)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_fork(struct task_struct *t, unsigned long clone_flags)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_execve(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_sched_out(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_signal_deliver(struct pt_regs *regs)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_preempt(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+static inline void rseq_migrate(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ #endif
+<span class="p_header">diff --git a/include/trace/events/rseq.h b/include/trace/events/rseq.h</span>
+new file mode 100644
+<span class="p_header">index 000000000000..4d30d77c86b4</span>
+<span class="p_header">--- /dev/null</span>
+<span class="p_header">+++ b/include/trace/events/rseq.h</span>
+<span class="p_chunk">@@ -0,0 +1,60 @@</span> <span class="p_context"></span>
+<span class="p_add">+#undef TRACE_SYSTEM</span>
+<span class="p_add">+#define TRACE_SYSTEM rseq</span>
+<span class="p_add">+</span>
+<span class="p_add">+#if !defined(_TRACE_RSEQ_H) || defined(TRACE_HEADER_MULTI_READ)</span>
+<span class="p_add">+#define _TRACE_RSEQ_H</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;linux/tracepoint.h&gt;</span>
+<span class="p_add">+#include &lt;linux/types.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+TRACE_EVENT(rseq_update,</span>
+<span class="p_add">+</span>
+<span class="p_add">+	TP_PROTO(struct task_struct *t),</span>
+<span class="p_add">+</span>
+<span class="p_add">+	TP_ARGS(t),</span>
+<span class="p_add">+</span>
+<span class="p_add">+	TP_STRUCT__entry(</span>
+<span class="p_add">+		__field(s32, cpu_id)</span>
+<span class="p_add">+	),</span>
+<span class="p_add">+</span>
+<span class="p_add">+	TP_fast_assign(</span>
+<span class="p_add">+		__entry-&gt;cpu_id = raw_smp_processor_id();</span>
+<span class="p_add">+	),</span>
+<span class="p_add">+</span>
+<span class="p_add">+	TP_printk(&quot;cpu_id=%d&quot;, __entry-&gt;cpu_id)</span>
+<span class="p_add">+);</span>
+<span class="p_add">+</span>
+<span class="p_add">+TRACE_EVENT(rseq_ip_fixup,</span>
+<span class="p_add">+</span>
+<span class="p_add">+	TP_PROTO(void __user *regs_ip, void __user *start_ip,</span>
+<span class="p_add">+		unsigned long post_commit_offset, void __user *abort_ip,</span>
+<span class="p_add">+		int ret),</span>
+<span class="p_add">+</span>
+<span class="p_add">+	TP_ARGS(regs_ip, start_ip, post_commit_offset, abort_ip, ret),</span>
+<span class="p_add">+</span>
+<span class="p_add">+	TP_STRUCT__entry(</span>
+<span class="p_add">+		__field(void __user *, regs_ip)</span>
+<span class="p_add">+		__field(void __user *, start_ip)</span>
+<span class="p_add">+		__field(unsigned long, post_commit_offset)</span>
+<span class="p_add">+		__field(void __user *, abort_ip)</span>
+<span class="p_add">+		__field(int, ret)</span>
+<span class="p_add">+	),</span>
+<span class="p_add">+</span>
+<span class="p_add">+	TP_fast_assign(</span>
+<span class="p_add">+		__entry-&gt;regs_ip = regs_ip;</span>
+<span class="p_add">+		__entry-&gt;start_ip = start_ip;</span>
+<span class="p_add">+		__entry-&gt;post_commit_offset = post_commit_offset;</span>
+<span class="p_add">+		__entry-&gt;abort_ip = abort_ip;</span>
+<span class="p_add">+		__entry-&gt;ret = ret;</span>
+<span class="p_add">+	),</span>
+<span class="p_add">+</span>
+<span class="p_add">+	TP_printk(&quot;regs_ip=%p start_ip=%p post_commit_offset=%lu abort_ip=%p ret=%d&quot;,</span>
+<span class="p_add">+		__entry-&gt;regs_ip, __entry-&gt;start_ip,</span>
+<span class="p_add">+		__entry-&gt;post_commit_offset, __entry-&gt;abort_ip,</span>
+<span class="p_add">+		__entry-&gt;ret)</span>
+<span class="p_add">+);</span>
+<span class="p_add">+</span>
+<span class="p_add">+#endif /* _TRACE_SOCK_H */</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* This part must be outside protection */</span>
+<span class="p_add">+#include &lt;trace/define_trace.h&gt;</span>
+<span class="p_header">diff --git a/include/uapi/linux/rseq.h b/include/uapi/linux/rseq.h</span>
+new file mode 100644
+<span class="p_header">index 000000000000..28ee2ebd3dae</span>
+<span class="p_header">--- /dev/null</span>
+<span class="p_header">+++ b/include/uapi/linux/rseq.h</span>
+<span class="p_chunk">@@ -0,0 +1,138 @@</span> <span class="p_context"></span>
+<span class="p_add">+#ifndef _UAPI_LINUX_RSEQ_H</span>
+<span class="p_add">+#define _UAPI_LINUX_RSEQ_H</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * linux/rseq.h</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Restartable sequences system call API</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Copyright (c) 2015-2016 Mathieu Desnoyers &lt;mathieu.desnoyers@efficios.com&gt;</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Permission is hereby granted, free of charge, to any person obtaining a copy</span>
+<span class="p_add">+ * of this software and associated documentation files (the &quot;Software&quot;), to deal</span>
+<span class="p_add">+ * in the Software without restriction, including without limitation the rights</span>
+<span class="p_add">+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell</span>
+<span class="p_add">+ * copies of the Software, and to permit persons to whom the Software is</span>
+<span class="p_add">+ * furnished to do so, subject to the following conditions:</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * The above copyright notice and this permission notice shall be included in</span>
+<span class="p_add">+ * all copies or substantial portions of the Software.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR</span>
+<span class="p_add">+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,</span>
+<span class="p_add">+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE</span>
+<span class="p_add">+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER</span>
+<span class="p_add">+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,</span>
+<span class="p_add">+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE</span>
+<span class="p_add">+ * SOFTWARE.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifdef __KERNEL__</span>
+<span class="p_add">+# include &lt;linux/types.h&gt;</span>
+<span class="p_add">+#else	/* #ifdef __KERNEL__ */</span>
+<span class="p_add">+# include &lt;stdint.h&gt;</span>
+<span class="p_add">+#endif	/* #else #ifdef __KERNEL__ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;asm/byteorder.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifdef __LP64__</span>
+<span class="p_add">+# define RSEQ_FIELD_u32_u64(field)			uint64_t field</span>
+<span class="p_add">+# define RSEQ_FIELD_u32_u64_INIT_ONSTACK(field, v)	field = (intptr_t)v</span>
+<span class="p_add">+#elif defined(__BYTE_ORDER) ? \</span>
+<span class="p_add">+	__BYTE_ORDER == __BIG_ENDIAN : defined(__BIG_ENDIAN)</span>
+<span class="p_add">+# define RSEQ_FIELD_u32_u64(field)	uint32_t field ## _padding, field</span>
+<span class="p_add">+# define RSEQ_FIELD_u32_u64_INIT_ONSTACK(field, v)	\</span>
+<span class="p_add">+	field ## _padding = 0, field = (intptr_t)v</span>
+<span class="p_add">+#else</span>
+<span class="p_add">+# define RSEQ_FIELD_u32_u64(field)	uint32_t field, field ## _padding</span>
+<span class="p_add">+# define RSEQ_FIELD_u32_u64_INIT_ONSTACK(field, v)	\</span>
+<span class="p_add">+	field = (intptr_t)v, field ## _padding = 0</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+<span class="p_add">+enum rseq_flags {</span>
+<span class="p_add">+	RSEQ_FLAG_UNREGISTER = (1 &lt;&lt; 0),</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+<span class="p_add">+enum rseq_cs_flags {</span>
+<span class="p_add">+	RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT	= (1U &lt;&lt; 0),</span>
+<span class="p_add">+	RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL	= (1U &lt;&lt; 1),</span>
+<span class="p_add">+	RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE	= (1U &lt;&lt; 2),</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * struct rseq_cs is aligned on 4 * 8 bytes to ensure it is always</span>
+<span class="p_add">+ * contained within a single cache-line. It is usually declared as</span>
+<span class="p_add">+ * link-time constant data.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+struct rseq_cs {</span>
+<span class="p_add">+	uint32_t version;	/* Version of this structure. */</span>
+<span class="p_add">+	uint32_t flags;		/* enum rseq_cs_flags */</span>
+<span class="p_add">+	RSEQ_FIELD_u32_u64(start_ip);</span>
+<span class="p_add">+	RSEQ_FIELD_u32_u64(post_commit_offset);	/* From start_ip */</span>
+<span class="p_add">+	RSEQ_FIELD_u32_u64(abort_ip);</span>
+<span class="p_add">+} __attribute__((aligned(4 * sizeof(uint64_t))));</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * struct rseq is aligned on 4 * 8 bytes to ensure it is always</span>
+<span class="p_add">+ * contained within a single cache-line.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * A single struct rseq per thread is allowed.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+struct rseq {</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Restartable sequences cpu_id_start field. Updated by the</span>
+<span class="p_add">+	 * kernel, and read by user-space with single-copy atomicity</span>
+<span class="p_add">+	 * semantics. Aligned on 32-bit. Always contain a value in the</span>
+<span class="p_add">+	 * range of possible CPUs, although the value may not be the</span>
+<span class="p_add">+	 * actual current CPU (e.g. if rseq is not initialized). This</span>
+<span class="p_add">+	 * CPU number value should always be confirmed against the value</span>
+<span class="p_add">+	 * of the cpu_id field.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	uint32_t cpu_id_start;</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Restartable sequences cpu_id field. Updated by the kernel,</span>
+<span class="p_add">+	 * and read by user-space with single-copy atomicity semantics.</span>
+<span class="p_add">+	 * Aligned on 32-bit. Values -1U and -2U have a special</span>
+<span class="p_add">+	 * semantic: -1U means &quot;rseq uninitialized&quot;, and -2U means &quot;rseq</span>
+<span class="p_add">+	 * initialization failed&quot;.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	uint32_t cpu_id;</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Restartable sequences rseq_cs field.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Contains NULL when no critical section is active for the current</span>
+<span class="p_add">+	 * thread, or holds a pointer to the currently active struct rseq_cs.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Updated by user-space at the beginning of assembly instruction</span>
+<span class="p_add">+	 * sequence block, and by the kernel when it restarts an assembly</span>
+<span class="p_add">+	 * instruction sequence block, and when the kernel detects that it</span>
+<span class="p_add">+	 * is preempting or delivering a signal outside of the range</span>
+<span class="p_add">+	 * targeted by the rseq_cs. Also needs to be cleared by user-space</span>
+<span class="p_add">+	 * before reclaiming memory that contains the targeted struct</span>
+<span class="p_add">+	 * rseq_cs.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Read and set by the kernel with single-copy atomicity semantics.</span>
+<span class="p_add">+	 * Aligned on 64-bit.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	RSEQ_FIELD_u32_u64(rseq_cs);</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * - RSEQ_DISABLE flag:</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Fallback fast-track flag for single-stepping.</span>
+<span class="p_add">+	 * Set by user-space if lack of progress is detected.</span>
+<span class="p_add">+	 * Cleared by user-space after rseq finish.</span>
+<span class="p_add">+	 * Read by the kernel.</span>
+<span class="p_add">+	 * - RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT</span>
+<span class="p_add">+	 *     Inhibit instruction sequence block restart and event</span>
+<span class="p_add">+	 *     counter increment on preemption for this thread.</span>
+<span class="p_add">+	 * - RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL</span>
+<span class="p_add">+	 *     Inhibit instruction sequence block restart and event</span>
+<span class="p_add">+	 *     counter increment on signal delivery for this thread.</span>
+<span class="p_add">+	 * - RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE</span>
+<span class="p_add">+	 *     Inhibit instruction sequence block restart and event</span>
+<span class="p_add">+	 *     counter increment on migration for this thread.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	uint32_t flags;</span>
+<span class="p_add">+} __attribute__((aligned(4 * sizeof(uint64_t))));</span>
+<span class="p_add">+</span>
+<span class="p_add">+#endif /* _UAPI_LINUX_RSEQ_H */</span>
+<span class="p_header">diff --git a/init/Kconfig b/init/Kconfig</span>
+<span class="p_header">index 3c1faaa2af4a..cbedfb91b40a 100644</span>
+<span class="p_header">--- a/init/Kconfig</span>
+<span class="p_header">+++ b/init/Kconfig</span>
+<span class="p_chunk">@@ -1400,6 +1400,20 @@</span> <span class="p_context"> config MEMBARRIER</span>
+ 
+ 	  If unsure, say Y.
+ 
+<span class="p_add">+config RSEQ</span>
+<span class="p_add">+	bool &quot;Enable rseq() system call&quot; if EXPERT</span>
+<span class="p_add">+	default y</span>
+<span class="p_add">+	depends on HAVE_RSEQ</span>
+<span class="p_add">+	select MEMBARRIER</span>
+<span class="p_add">+	help</span>
+<span class="p_add">+	  Enable the restartable sequences system call. It provides a</span>
+<span class="p_add">+	  user-space cache for the current CPU number value, which</span>
+<span class="p_add">+	  speeds up getting the current CPU number from user-space,</span>
+<span class="p_add">+	  as well as an ABI to speed up user-space operations on</span>
+<span class="p_add">+	  per-CPU data.</span>
+<span class="p_add">+</span>
+<span class="p_add">+	  If unsure, say Y.</span>
+<span class="p_add">+</span>
+ config EMBEDDED
+ 	bool &quot;Embedded system&quot;
+ 	option allnoconfig_y
+<span class="p_header">diff --git a/kernel/Makefile b/kernel/Makefile</span>
+<span class="p_header">index 172d151d429c..3574669dafd9 100644</span>
+<span class="p_header">--- a/kernel/Makefile</span>
+<span class="p_header">+++ b/kernel/Makefile</span>
+<span class="p_chunk">@@ -112,6 +112,7 @@</span> <span class="p_context"> obj-$(CONFIG_CONTEXT_TRACKING) += context_tracking.o</span>
+ obj-$(CONFIG_TORTURE_TEST) += torture.o
+ 
+ obj-$(CONFIG_HAS_IOMEM) += memremap.o
+<span class="p_add">+obj-$(CONFIG_RSEQ) += rseq.o</span>
+ 
+ $(obj)/configs.o: $(obj)/config_data.h
+ 
+<span class="p_header">diff --git a/kernel/fork.c b/kernel/fork.c</span>
+<span class="p_header">index 07cc743698d3..1f3c25e28742 100644</span>
+<span class="p_header">--- a/kernel/fork.c</span>
+<span class="p_header">+++ b/kernel/fork.c</span>
+<span class="p_chunk">@@ -1862,6 +1862,8 @@</span> <span class="p_context"> static __latent_entropy struct task_struct *copy_process(</span>
+ 	 */
+ 	copy_seccomp(p);
+ 
+<span class="p_add">+	rseq_fork(p, clone_flags);</span>
+<span class="p_add">+</span>
+ 	/*
+ 	 * Process group and session signals need to be delivered to just the
+ 	 * parent before the fork or both the parent and the child after the
+<span class="p_header">diff --git a/kernel/rseq.c b/kernel/rseq.c</span>
+new file mode 100644
+<span class="p_header">index 000000000000..6f0d48c2c084</span>
+<span class="p_header">--- /dev/null</span>
+<span class="p_header">+++ b/kernel/rseq.c</span>
+<span class="p_chunk">@@ -0,0 +1,328 @@</span> <span class="p_context"></span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Restartable sequences system call</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This program is free software; you can redistribute it and/or modify</span>
+<span class="p_add">+ * it under the terms of the GNU General Public License as published by</span>
+<span class="p_add">+ * the Free Software Foundation; either version 2 of the License, or</span>
+<span class="p_add">+ * (at your option) any later version.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This program is distributed in the hope that it will be useful,</span>
+<span class="p_add">+ * but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="p_add">+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="p_add">+ * GNU General Public License for more details.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Copyright (C) 2015, Google, Inc.,</span>
+<span class="p_add">+ * Paul Turner &lt;pjt@google.com&gt; and Andrew Hunter &lt;ahh@google.com&gt;</span>
+<span class="p_add">+ * Copyright (C) 2015-2016, EfficiOS Inc.,</span>
+<span class="p_add">+ * Mathieu Desnoyers &lt;mathieu.desnoyers@efficios.com&gt;</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;linux/sched.h&gt;</span>
+<span class="p_add">+#include &lt;linux/uaccess.h&gt;</span>
+<span class="p_add">+#include &lt;linux/syscalls.h&gt;</span>
+<span class="p_add">+#include &lt;linux/rseq.h&gt;</span>
+<span class="p_add">+#include &lt;linux/types.h&gt;</span>
+<span class="p_add">+#include &lt;asm/ptrace.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define CREATE_TRACE_POINTS</span>
+<span class="p_add">+#include &lt;trace/events/rseq.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Restartable sequences are a lightweight interface that allows</span>
+<span class="p_add">+ * user-level code to be executed atomically relative to scheduler</span>
+<span class="p_add">+ * preemption and signal delivery. Typically used for implementing</span>
+<span class="p_add">+ * per-cpu operations.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * It allows user-space to perform update operations on per-cpu data</span>
+<span class="p_add">+ * without requiring heavy-weight atomic operations.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Detailed algorithm of rseq user-space assembly sequences:</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   Steps [1]-[3] (inclusive) need to be a sequence of instructions in</span>
+<span class="p_add">+ *   userspace that can handle being moved to the abort_ip between any</span>
+<span class="p_add">+ *   of those instructions.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   The abort_ip address needs to be less than start_ip, or</span>
+<span class="p_add">+ *   greater-or-equal the post_commit_ip. Step [5] and the failure</span>
+<span class="p_add">+ *   code step [F1] need to be at addresses lesser than start_ip, or</span>
+<span class="p_add">+ *   greater-or-equal the post_commit_ip.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *       [start_ip]</span>
+<span class="p_add">+ *   1.  Userspace stores the address of the struct rseq_cs assembly</span>
+<span class="p_add">+ *       block descriptor into the rseq_cs field of the registered</span>
+<span class="p_add">+ *       struct rseq TLS area. This update is performed through a single</span>
+<span class="p_add">+ *       store, followed by a compiler barrier which prevents the</span>
+<span class="p_add">+ *       compiler from moving following loads or stores before this</span>
+<span class="p_add">+ *       store.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   2.  Userspace tests to see whether the current cpu_id field</span>
+<span class="p_add">+ *       match the cpu number loaded before start_ip. Manually jumping</span>
+<span class="p_add">+ *       to [F1] in case of a mismatch.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *       Note that if we are preempted or interrupted by a signal</span>
+<span class="p_add">+ *       after [1] and before post_commit_ip, then the kernel</span>
+<span class="p_add">+ *       clears the rseq_cs field of struct rseq, then jumps us to</span>
+<span class="p_add">+ *       abort_ip.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   3.  Userspace critical section final instruction before</span>
+<span class="p_add">+ *       post_commit_ip is the commit. The critical section is</span>
+<span class="p_add">+ *       self-terminating.</span>
+<span class="p_add">+ *       [post_commit_ip]</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   4.  success</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *   On failure at [2]:</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *       [abort_ip]</span>
+<span class="p_add">+ *   F1. goto failure label</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+static bool rseq_update_cpu_id(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	uint32_t cpu_id = raw_smp_processor_id();</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (__put_user(cpu_id, &amp;t-&gt;rseq-&gt;cpu_id_start))</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+	if (__put_user(cpu_id, &amp;t-&gt;rseq-&gt;cpu_id))</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+	trace_rseq_update(t);</span>
+<span class="p_add">+	return true;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static bool rseq_reset_rseq_cpu_id(struct task_struct *t)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	uint32_t cpu_id_start = 0, cpu_id = -1U;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Reset cpu_id_start to its initial state (0).</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (__put_user(cpu_id_start, &amp;t-&gt;rseq-&gt;cpu_id_start))</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Reset cpu_id to -1U, so any user coming in after unregistration can</span>
+<span class="p_add">+	 * figure out that rseq needs to be registered again.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (__put_user(cpu_id, &amp;t-&gt;rseq-&gt;cpu_id))</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+	return true;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static bool rseq_get_rseq_cs(struct task_struct *t,</span>
+<span class="p_add">+		void __user **start_ip,</span>
+<span class="p_add">+		unsigned long *post_commit_offset,</span>
+<span class="p_add">+		void __user **abort_ip,</span>
+<span class="p_add">+		uint32_t *cs_flags)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long ptr;</span>
+<span class="p_add">+	struct rseq_cs __user *urseq_cs;</span>
+<span class="p_add">+	struct rseq_cs rseq_cs;</span>
+<span class="p_add">+	u32 __user *usig;</span>
+<span class="p_add">+	u32 sig;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (__get_user(ptr, &amp;t-&gt;rseq-&gt;rseq_cs))</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+	if (!ptr)</span>
+<span class="p_add">+		return true;</span>
+<span class="p_add">+	urseq_cs = (struct rseq_cs __user *)ptr;</span>
+<span class="p_add">+	if (copy_from_user(&amp;rseq_cs, urseq_cs, sizeof(rseq_cs)))</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * We need to clear rseq_cs upon entry into a signal handler</span>
+<span class="p_add">+	 * nested on top of a rseq assembly block, so the signal handler</span>
+<span class="p_add">+	 * will not be fixed up if itself interrupted by a nested signal</span>
+<span class="p_add">+	 * handler or preempted.  We also need to clear rseq_cs if we</span>
+<span class="p_add">+	 * preempt or deliver a signal on top of code outside of the</span>
+<span class="p_add">+	 * rseq assembly block, to ensure that a following preemption or</span>
+<span class="p_add">+	 * signal delivery will not try to perform a fixup needlessly.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (clear_user(&amp;t-&gt;rseq-&gt;rseq_cs, sizeof(t-&gt;rseq-&gt;rseq_cs)))</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+	if (rseq_cs.version &gt; 0)</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+	*cs_flags = rseq_cs.flags;</span>
+<span class="p_add">+	*start_ip = (void __user *)rseq_cs.start_ip;</span>
+<span class="p_add">+	*post_commit_offset = (unsigned long)rseq_cs.post_commit_offset;</span>
+<span class="p_add">+	*abort_ip = (void __user *)rseq_cs.abort_ip;</span>
+<span class="p_add">+	usig = (u32 __user *)(rseq_cs.abort_ip - sizeof(u32));</span>
+<span class="p_add">+	if (get_user(sig, usig))</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+	if (current-&gt;rseq_sig != sig) {</span>
+<span class="p_add">+		printk_ratelimited(KERN_WARNING</span>
+<span class="p_add">+			&quot;Possible attack attempt. Unexpected rseq signature 0x%x, expecting 0x%x (pid=%d, addr=%p).\n&quot;,</span>
+<span class="p_add">+			sig, current-&gt;rseq_sig, current-&gt;pid, usig);</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	return true;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int rseq_need_restart(struct task_struct *t, uint32_t cs_flags)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	bool need_restart = false;</span>
+<span class="p_add">+	uint32_t flags;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Get thread flags. */</span>
+<span class="p_add">+	if (__get_user(flags, &amp;t-&gt;rseq-&gt;flags))</span>
+<span class="p_add">+		return -EFAULT;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Take into account critical section flags. */</span>
+<span class="p_add">+	flags |= cs_flags;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Restart on signal can only be inhibited when restart on</span>
+<span class="p_add">+	 * preempt and restart on migrate are inhibited too. Otherwise,</span>
+<span class="p_add">+	 * a preempted signal handler could fail to restart the prior</span>
+<span class="p_add">+	 * execution context on sigreturn.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL) {</span>
+<span class="p_add">+		if (!(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE))</span>
+<span class="p_add">+			return -EINVAL;</span>
+<span class="p_add">+		if (!(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT))</span>
+<span class="p_add">+			return -EINVAL;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	if (t-&gt;rseq_migrate</span>
+<span class="p_add">+			&amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_MIGRATE))</span>
+<span class="p_add">+		need_restart = true;</span>
+<span class="p_add">+	else if (t-&gt;rseq_preempt</span>
+<span class="p_add">+			&amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_PREEMPT))</span>
+<span class="p_add">+		need_restart = true;</span>
+<span class="p_add">+	else if (t-&gt;rseq_signal</span>
+<span class="p_add">+			&amp;&amp; !(flags &amp; RSEQ_CS_FLAG_NO_RESTART_ON_SIGNAL))</span>
+<span class="p_add">+		need_restart = true;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	t-&gt;rseq_preempt = false;</span>
+<span class="p_add">+	t-&gt;rseq_signal = false;</span>
+<span class="p_add">+	t-&gt;rseq_migrate = false;</span>
+<span class="p_add">+	if (need_restart)</span>
+<span class="p_add">+		return 1;</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int rseq_ip_fixup(struct pt_regs *regs)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct task_struct *t = current;</span>
+<span class="p_add">+	void __user *start_ip = NULL;</span>
+<span class="p_add">+	unsigned long post_commit_offset = 0;</span>
+<span class="p_add">+	void __user *abort_ip = NULL;</span>
+<span class="p_add">+	uint32_t cs_flags = 0;</span>
+<span class="p_add">+	int ret;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ret = rseq_get_rseq_cs(t, &amp;start_ip, &amp;post_commit_offset, &amp;abort_ip,</span>
+<span class="p_add">+			&amp;cs_flags);</span>
+<span class="p_add">+	trace_rseq_ip_fixup((void __user *)instruction_pointer(regs),</span>
+<span class="p_add">+		start_ip, post_commit_offset, abort_ip, ret);</span>
+<span class="p_add">+	if (!ret)</span>
+<span class="p_add">+		return -EFAULT;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ret = rseq_need_restart(t, cs_flags);</span>
+<span class="p_add">+	if (ret &lt; 0)</span>
+<span class="p_add">+		return -EFAULT;</span>
+<span class="p_add">+	if (!ret)</span>
+<span class="p_add">+		return 0;</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Handle potentially not being within a critical section.</span>
+<span class="p_add">+	 * Unsigned comparison will be true when</span>
+<span class="p_add">+	 * ip &lt; start_ip (wrap-around to large values), and when</span>
+<span class="p_add">+	 * ip &gt;= start_ip + post_commit_offset.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if ((unsigned long)instruction_pointer(regs) - (unsigned long)start_ip</span>
+<span class="p_add">+			&gt;= post_commit_offset)</span>
+<span class="p_add">+		return 1;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	instruction_pointer_set(regs, (unsigned long)abort_ip);</span>
+<span class="p_add">+	return 1;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * This resume handler should always be executed between any of:</span>
+<span class="p_add">+ * - preemption,</span>
+<span class="p_add">+ * - signal delivery,</span>
+<span class="p_add">+ * and return to user-space.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This is how we can ensure that the entire rseq critical section,</span>
+<span class="p_add">+ * consisting of both the C part and the assembly instruction sequence,</span>
+<span class="p_add">+ * will issue the commit instruction only if executed atomically with</span>
+<span class="p_add">+ * respect to other threads scheduled on the same CPU, and with respect</span>
+<span class="p_add">+ * to signal handlers.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+void __rseq_handle_notify_resume(struct pt_regs *regs)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct task_struct *t = current;</span>
+<span class="p_add">+	int ret;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (unlikely(t-&gt;flags &amp; PF_EXITING))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	if (unlikely(!access_ok(VERIFY_WRITE, t-&gt;rseq, sizeof(*t-&gt;rseq))))</span>
+<span class="p_add">+		goto error;</span>
+<span class="p_add">+	ret = rseq_ip_fixup(regs);</span>
+<span class="p_add">+	if (unlikely(ret &lt; 0))</span>
+<span class="p_add">+		goto error;</span>
+<span class="p_add">+	if (unlikely(!rseq_update_cpu_id(t)))</span>
+<span class="p_add">+		goto error;</span>
+<span class="p_add">+	return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+error:</span>
+<span class="p_add">+	force_sig(SIGSEGV, t);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * sys_rseq - setup restartable sequences for caller thread.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+SYSCALL_DEFINE4(rseq, struct rseq __user *, rseq, uint32_t, rseq_len,</span>
+<span class="p_add">+		int, flags, uint32_t, sig)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (flags &amp; RSEQ_FLAG_UNREGISTER) {</span>
+<span class="p_add">+		/* Unregister rseq for current thread. */</span>
+<span class="p_add">+		if (current-&gt;rseq != rseq || !current-&gt;rseq)</span>
+<span class="p_add">+			return -EINVAL;</span>
+<span class="p_add">+		if (current-&gt;rseq_len != rseq_len)</span>
+<span class="p_add">+			return -EINVAL;</span>
+<span class="p_add">+		if (current-&gt;rseq_sig != sig)</span>
+<span class="p_add">+			return -EPERM;</span>
+<span class="p_add">+		if (!rseq_reset_rseq_cpu_id(current))</span>
+<span class="p_add">+			return -EFAULT;</span>
+<span class="p_add">+		current-&gt;rseq = NULL;</span>
+<span class="p_add">+		current-&gt;rseq_len = 0;</span>
+<span class="p_add">+		current-&gt;rseq_sig = 0;</span>
+<span class="p_add">+		return 0;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (unlikely(flags))</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (current-&gt;rseq) {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * If rseq is already registered, check whether</span>
+<span class="p_add">+		 * the provided address differs from the prior</span>
+<span class="p_add">+		 * one.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (current-&gt;rseq != rseq</span>
+<span class="p_add">+				|| current-&gt;rseq_len != rseq_len)</span>
+<span class="p_add">+			return -EINVAL;</span>
+<span class="p_add">+		if (current-&gt;rseq_sig != sig)</span>
+<span class="p_add">+			return -EPERM;</span>
+<span class="p_add">+		return -EBUSY;	/* Already registered. */</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * If there was no rseq previously registered,</span>
+<span class="p_add">+		 * we need to ensure the provided rseq is</span>
+<span class="p_add">+		 * properly aligned and valid.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (!IS_ALIGNED((unsigned long)rseq, __alignof__(*rseq))</span>
+<span class="p_add">+				|| rseq_len != sizeof(*rseq))</span>
+<span class="p_add">+			return -EINVAL;</span>
+<span class="p_add">+		if (!access_ok(VERIFY_WRITE, rseq, rseq_len))</span>
+<span class="p_add">+			return -EFAULT;</span>
+<span class="p_add">+		current-&gt;rseq = rseq;</span>
+<span class="p_add">+		current-&gt;rseq_len = rseq_len;</span>
+<span class="p_add">+		current-&gt;rseq_sig = sig;</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * If rseq was previously inactive, and has just been</span>
+<span class="p_add">+		 * registered, ensure the cpu_id_start and cpu_id fields</span>
+<span class="p_add">+		 * are updated before returning to user-space.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		rseq_set_notify_resume(current);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+<span class="p_header">diff --git a/kernel/sched/core.c b/kernel/sched/core.c</span>
+<span class="p_header">index d17c5da523a0..6bba05f47e51 100644</span>
+<span class="p_header">--- a/kernel/sched/core.c</span>
+<span class="p_header">+++ b/kernel/sched/core.c</span>
+<span class="p_chunk">@@ -1179,6 +1179,8 @@</span> <span class="p_context"> void set_task_cpu(struct task_struct *p, unsigned int new_cpu)</span>
+ 	WARN_ON_ONCE(!cpu_online(new_cpu));
+ #endif
+ 
+<span class="p_add">+	rseq_migrate(p);</span>
+<span class="p_add">+</span>
+ 	trace_sched_migrate_task(p, new_cpu);
+ 
+ 	if (task_cpu(p) != new_cpu) {
+<span class="p_chunk">@@ -2581,6 +2583,7 @@</span> <span class="p_context"> prepare_task_switch(struct rq *rq, struct task_struct *prev,</span>
+ {
+ 	sched_info_switch(rq, prev, next);
+ 	perf_event_task_sched_out(prev, next);
+<span class="p_add">+	rseq_sched_out(prev);</span>
+ 	fire_sched_out_preempt_notifiers(prev, next);
+ 	prepare_lock_switch(rq, next);
+ 	prepare_arch_switch(next);
+<span class="p_chunk">@@ -3341,6 +3344,7 @@</span> <span class="p_context"> static void __sched notrace __schedule(bool preempt)</span>
+ 	clear_preempt_need_resched();
+ 
+ 	if (likely(prev != next)) {
+<span class="p_add">+		rseq_preempt(prev);</span>
+ 		rq-&gt;nr_switches++;
+ 		rq-&gt;curr = next;
+ 		/*
+<span class="p_header">diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c</span>
+<span class="p_header">index b5189762d275..bfa1ee1bf669 100644</span>
+<span class="p_header">--- a/kernel/sys_ni.c</span>
+<span class="p_header">+++ b/kernel/sys_ni.c</span>
+<span class="p_chunk">@@ -259,3 +259,6 @@</span> <span class="p_context"> cond_syscall(sys_membarrier);</span>
+ cond_syscall(sys_pkey_mprotect);
+ cond_syscall(sys_pkey_alloc);
+ cond_syscall(sys_pkey_free);
+<span class="p_add">+</span>
+<span class="p_add">+/* restartable sequence */</span>
+<span class="p_add">+cond_syscall(sys_rseq);</span>
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,851 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>mm, oom: prevent additional oom kills before memory is freed - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    mm, oom: prevent additional oom kills before memory is freed</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=579">David Rientjes</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>June 14, 2017, 11:43 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;alpine.DEB.2.10.1706141632100.93071@chino.kir.corp.google.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9787651/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9787651/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9787651/">/patch/9787651/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	49E1460325 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 14 Jun 2017 23:43:25 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 34A9428599
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 14 Jun 2017 23:43:25 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 2926826E78; Wed, 14 Jun 2017 23:43:25 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-7.0 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID, DKIM_VALID_AU,
+	RCVD_IN_DNSWL_HI autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id BE28E1FF4A
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 14 Jun 2017 23:43:24 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752742AbdFNXnG (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 14 Jun 2017 19:43:06 -0400
+Received: from mail-pf0-f170.google.com ([209.85.192.170]:33057 &quot;EHLO
+	mail-pf0-f170.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752204AbdFNXnF (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 14 Jun 2017 19:43:05 -0400
+Received: by mail-pf0-f170.google.com with SMTP id 83so7603900pfr.0
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Wed, 14 Jun 2017 16:43:05 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=google.com; s=20161025;
+	h=date:from:to:cc:subject:message-id:user-agent:mime-version;
+	bh=ZdD4YVjWyWpGGyxT+kRcE/gyZLivxaTcvJmPHRnecyc=;
+	b=sSMpa7m1zdWcOQQiWucQy1aoNRadnR0tW6CN4CLv6YVOluKiP6th2mKDytwRCw1yWj
+	T6kE8lN3CyK/u8R1Xpp1JV0pnujpuRu+ivPhqUSSp7xRS4+ZDnCQ0vFplV+KkVA3b7Qs
+	R4UD7biYPkn05tvedxXhc9vMU3NKskClGTBmGd8PqwqDLfwVTFT1YUZHUgeU4hIOPyQi
+	++O3ffJyltvnirx4s0dBNf7SRUj8YOwAbfM55GGyVIfdNrdDOp3ilsLQkSll7MK/Vzgx
+	zfDx+jDy6hZkGcpNvEI6B8DwBKwB0/ELlh8R1m9SucQom1w1RzFOEiYhlC6Ni7wy1dv7
+	H14A==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:date:from:to:cc:subject:message-id:user-agent
+	:mime-version;
+	bh=ZdD4YVjWyWpGGyxT+kRcE/gyZLivxaTcvJmPHRnecyc=;
+	b=LP+zWWXk1uYQgSGi0RCG9ZSKyiTctzrA2yGq64F8nEDMHn4iqmhlXoIuXWUKmPkCmM
+	7ED0nOumonGzTi7bGTNaUlP7JEJqx5qk+7rRXItAiHliYV2FagYhB67I6Oznl/j08WTF
+	8XW42YFTWW8X3E0siADxMCC6FSrXHiCeM09UI0FhjIxAT9k+D3n19WkPWTOcCKPR86zf
+	eS9WJAw51QGpYvXAFqs0sTh3bGS4VVQRt/sOJ4EzhkvFSR5f31H53en5o5zWtHBb1hEZ
+	KDwaVh4uSyIG3JePxzgom2GJQMrBxdRB5hSiWJp6IywmRgVfasjX1PKMrFgVx/25FBEV
+	jzhg==
+X-Gm-Message-State: AKS2vOx+87kLO3YDFFjBvlL7E8Lt9q17byb5CVZIRichjG2cwBi2sn07
+	x3xOQPFP6LmGDV3RToJ1UQ==
+X-Received: by 10.84.254.73 with SMTP id a9mr2794286pln.64.1497483784720;
+	Wed, 14 Jun 2017 16:43:04 -0700 (PDT)
+Received: from [2620:15c:17:3:1de0:7b61:55d5:7db7]
+	([2620:15c:17:3:1de0:7b61:55d5:7db7])
+	by smtp.gmail.com with ESMTPSA id
+	x27sm2088810pfe.113.2017.06.14.16.43.04
+	(version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+	Wed, 14 Jun 2017 16:43:04 -0700 (PDT)
+Date: Wed, 14 Jun 2017 16:43:03 -0700 (PDT)
+From: David Rientjes &lt;rientjes@google.com&gt;
+X-X-Sender: rientjes@chino.kir.corp.google.com
+To: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+cc: Michal Hocko &lt;mhocko@suse.com&gt;,
+	Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: [patch] mm, oom: prevent additional oom kills before memory is freed
+Message-ID: &lt;alpine.DEB.2.10.1706141632100.93071@chino.kir.corp.google.com&gt;
+User-Agent: Alpine 2.10 (DEB 1266 2009-07-14)
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=579">David Rientjes</a> - June 14, 2017, 11:43 p.m.</div>
+<pre class="content">
+If mm-&gt;mm_users is not incremented because it is already zero by the oom
+reaper, meaning the final refcount has been dropped, do not set
+MMF_OOM_SKIP prematurely.
+
+__mmput() may not have had a chance to do exit_mmap() yet, so memory from
+a previous oom victim is still mapped.  __mput() naturally requires no
+references on mm-&gt;mm_users to do exit_mmap().
+
+Without this, several processes can be oom killed unnecessarily and the
+oom log can show an abundance of memory available if exit_mmap() is in
+progress at the time the process is skipped.
+<span class="signed-off-by">
+Signed-off-by: David Rientjes &lt;rientjes@google.com&gt;</span>
+---
+ mm/oom_kill.c | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - June 15, 2017, 10:39 a.m.</div>
+<pre class="content">
+On Wed 14-06-17 16:43:03, David Rientjes wrote:
+<span class="quote">&gt; If mm-&gt;mm_users is not incremented because it is already zero by the oom</span>
+<span class="quote">&gt; reaper, meaning the final refcount has been dropped, do not set</span>
+<span class="quote">&gt; MMF_OOM_SKIP prematurely.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; __mmput() may not have had a chance to do exit_mmap() yet, so memory from</span>
+<span class="quote">&gt; a previous oom victim is still mapped.</span>
+
+true and do we have a _guarantee_ it will do it? E.g. can somebody block
+exit_aio from completing? Or can somebody hold mmap_sem and thus block
+ksm_exit resp. khugepaged_exit from completing? The reason why I was
+conservative and set such a mm as MMF_OOM_SKIP was because I couldn&#39;t
+give a definitive answer to those questions. And we really _want_ to
+have a guarantee of a forward progress here. Killing an additional
+proecess is a price to pay and if that doesn&#39;t trigger normall it sounds
+like a reasonable compromise to me.
+<span class="quote">
+&gt; __mput() naturally requires no</span>
+<span class="quote">&gt; references on mm-&gt;mm_users to do exit_mmap().</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Without this, several processes can be oom killed unnecessarily and the</span>
+<span class="quote">&gt; oom log can show an abundance of memory available if exit_mmap() is in</span>
+<span class="quote">&gt; progress at the time the process is skipped.</span>
+
+Have you seen this happening in the real life?
+<span class="quote">
+&gt; Signed-off-by: David Rientjes &lt;rientjes@google.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  mm/oom_kill.c | 13 ++++++-------</span>
+<span class="quote">&gt;  1 file changed, 6 insertions(+), 7 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="quote">&gt; --- a/mm/oom_kill.c</span>
+<span class="quote">&gt; +++ b/mm/oom_kill.c</span>
+<span class="quote">&gt; @@ -531,6 +531,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt;  					 NULL);</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  	tlb_finish_mmu(&amp;tlb, 0, -1);</span>
+<span class="quote">&gt; +	set_bit(MMF_OOM_SKIP, &amp;mm-&gt;flags);</span>
+<span class="quote">&gt;  	pr_info(&quot;oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n&quot;,</span>
+<span class="quote">&gt;  			task_pid_nr(tsk), tsk-&gt;comm,</span>
+<span class="quote">&gt;  			K(get_mm_counter(mm, MM_ANONPAGES)),</span>
+<span class="quote">&gt; @@ -562,7 +563,11 @@ static void oom_reap_task(struct task_struct *tsk)</span>
+<span class="quote">&gt;  	if (attempts &lt;= MAX_OOM_REAP_RETRIES)</span>
+<span class="quote">&gt;  		goto done;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Hide this mm from OOM killer because it cannot be reaped since</span>
+<span class="quote">&gt; +	 * mm-&gt;mmap_sem cannot be acquired.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	set_bit(MMF_OOM_SKIP, &amp;mm-&gt;flags);</span>
+<span class="quote">&gt;  	pr_info(&quot;oom_reaper: unable to reap pid:%d (%s)\n&quot;,</span>
+<span class="quote">&gt;  		task_pid_nr(tsk), tsk-&gt;comm);</span>
+<span class="quote">&gt;  	debug_show_all_locks();</span>
+<span class="quote">&gt; @@ -570,12 +575,6 @@ static void oom_reap_task(struct task_struct *tsk)</span>
+<span class="quote">&gt;  done:</span>
+<span class="quote">&gt;  	tsk-&gt;oom_reaper_list = NULL;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	/*</span>
+<span class="quote">&gt; -	 * Hide this mm from OOM killer because it has been either reaped or</span>
+<span class="quote">&gt; -	 * somebody can&#39;t call up_write(mmap_sem).</span>
+<span class="quote">&gt; -	 */</span>
+<span class="quote">&gt; -	set_bit(MMF_OOM_SKIP, &amp;mm-&gt;flags);</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt;  	/* Drop a reference taken by wake_oom_reaper */</span>
+<span class="quote">&gt;  	put_task_struct(tsk);</span>
+<span class="quote">&gt;  }</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=28">Tetsuo Handa</a> - June 15, 2017, 10:53 a.m.</div>
+<pre class="content">
+Michal Hocko wrote:
+<span class="quote">&gt; On Wed 14-06-17 16:43:03, David Rientjes wrote:</span>
+<span class="quote">&gt; &gt; If mm-&gt;mm_users is not incremented because it is already zero by the oom</span>
+<span class="quote">&gt; &gt; reaper, meaning the final refcount has been dropped, do not set</span>
+<span class="quote">&gt; &gt; MMF_OOM_SKIP prematurely.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; __mmput() may not have had a chance to do exit_mmap() yet, so memory from</span>
+<span class="quote">&gt; &gt; a previous oom victim is still mapped.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; true and do we have a _guarantee_ it will do it? E.g. can somebody block</span>
+<span class="quote">&gt; exit_aio from completing? Or can somebody hold mmap_sem and thus block</span>
+<span class="quote">&gt; ksm_exit resp. khugepaged_exit from completing? The reason why I was</span>
+<span class="quote">&gt; conservative and set such a mm as MMF_OOM_SKIP was because I couldn&#39;t</span>
+<span class="quote">&gt; give a definitive answer to those questions. And we really _want_ to</span>
+<span class="quote">&gt; have a guarantee of a forward progress here. Killing an additional</span>
+<span class="quote">&gt; proecess is a price to pay and if that doesn&#39;t trigger normall it sounds</span>
+<span class="quote">&gt; like a reasonable compromise to me.</span>
+
+Right. If you want this patch, __oom_reap_task_mm() must not return true without
+setting MMF_OOM_SKIP (in other words, return false if __oom_reap_task_mm()
+does not set MMF_OOM_SKIP). The most important role of the OOM reaper is to
+guarantee that the OOM killer is re-enabled within finite time, for __mmput()
+cannot guarantee that MMF_OOM_SKIP is set within finite time.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt; __mput() naturally requires no</span>
+<span class="quote">&gt; &gt; references on mm-&gt;mm_users to do exit_mmap().</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Without this, several processes can be oom killed unnecessarily and the</span>
+<span class="quote">&gt; &gt; oom log can show an abundance of memory available if exit_mmap() is in</span>
+<span class="quote">&gt; &gt; progress at the time the process is skipped.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Have you seen this happening in the real life?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; Signed-off-by: David Rientjes &lt;rientjes@google.com&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - June 15, 2017, 11:01 a.m.</div>
+<pre class="content">
+On Thu 15-06-17 19:53:24, Tetsuo Handa wrote:
+<span class="quote">&gt; Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; On Wed 14-06-17 16:43:03, David Rientjes wrote:</span>
+<span class="quote">&gt; &gt; &gt; If mm-&gt;mm_users is not incremented because it is already zero by the oom</span>
+<span class="quote">&gt; &gt; &gt; reaper, meaning the final refcount has been dropped, do not set</span>
+<span class="quote">&gt; &gt; &gt; MMF_OOM_SKIP prematurely.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; __mmput() may not have had a chance to do exit_mmap() yet, so memory from</span>
+<span class="quote">&gt; &gt; &gt; a previous oom victim is still mapped.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; true and do we have a _guarantee_ it will do it? E.g. can somebody block</span>
+<span class="quote">&gt; &gt; exit_aio from completing? Or can somebody hold mmap_sem and thus block</span>
+<span class="quote">&gt; &gt; ksm_exit resp. khugepaged_exit from completing? The reason why I was</span>
+<span class="quote">&gt; &gt; conservative and set such a mm as MMF_OOM_SKIP was because I couldn&#39;t</span>
+<span class="quote">&gt; &gt; give a definitive answer to those questions. And we really _want_ to</span>
+<span class="quote">&gt; &gt; have a guarantee of a forward progress here. Killing an additional</span>
+<span class="quote">&gt; &gt; proecess is a price to pay and if that doesn&#39;t trigger normall it sounds</span>
+<span class="quote">&gt; &gt; like a reasonable compromise to me.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Right. If you want this patch, __oom_reap_task_mm() must not return true without</span>
+<span class="quote">&gt; setting MMF_OOM_SKIP (in other words, return false if __oom_reap_task_mm()</span>
+<span class="quote">&gt; does not set MMF_OOM_SKIP). The most important role of the OOM reaper is to</span>
+<span class="quote">&gt; guarantee that the OOM killer is re-enabled within finite time, for __mmput()</span>
+<span class="quote">&gt; cannot guarantee that MMF_OOM_SKIP is set within finite time.</span>
+
+An alternative would be to allow reaping and exit_mmap race. The unmap
+part should just work I guess. We just have to be careful to not race
+with free_pgtables and that shouldn&#39;t be too hard to implement (e.g.
+(ab)use mmap_sem for write there). I haven&#39;t thought that through
+completely though so I might miss something of course.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=579">David Rientjes</a> - June 15, 2017, 9:26 p.m.</div>
+<pre class="content">
+On Thu, 15 Jun 2017, Michal Hocko wrote:
+<span class="quote">
+&gt; &gt; If mm-&gt;mm_users is not incremented because it is already zero by the oom</span>
+<span class="quote">&gt; &gt; reaper, meaning the final refcount has been dropped, do not set</span>
+<span class="quote">&gt; &gt; MMF_OOM_SKIP prematurely.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; __mmput() may not have had a chance to do exit_mmap() yet, so memory from</span>
+<span class="quote">&gt; &gt; a previous oom victim is still mapped.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; true and do we have a _guarantee_ it will do it? E.g. can somebody block</span>
+<span class="quote">&gt; exit_aio from completing? Or can somebody hold mmap_sem and thus block</span>
+<span class="quote">&gt; ksm_exit resp. khugepaged_exit from completing? The reason why I was</span>
+<span class="quote">&gt; conservative and set such a mm as MMF_OOM_SKIP was because I couldn&#39;t</span>
+<span class="quote">&gt; give a definitive answer to those questions. And we really _want_ to</span>
+<span class="quote">&gt; have a guarantee of a forward progress here. Killing an additional</span>
+<span class="quote">&gt; proecess is a price to pay and if that doesn&#39;t trigger normall it sounds</span>
+<span class="quote">&gt; like a reasonable compromise to me.</span>
+<span class="quote">&gt; </span>
+
+I have not seen any issues where __mmput() stalls and exit_mmap() fails to 
+free its mapped memory once mm-&gt;mm_users has dropped to 0.
+<span class="quote">
+&gt; &gt; __mput() naturally requires no</span>
+<span class="quote">&gt; &gt; references on mm-&gt;mm_users to do exit_mmap().</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Without this, several processes can be oom killed unnecessarily and the</span>
+<span class="quote">&gt; &gt; oom log can show an abundance of memory available if exit_mmap() is in</span>
+<span class="quote">&gt; &gt; progress at the time the process is skipped.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Have you seen this happening in the real life?</span>
+<span class="quote">&gt; </span>
+
+Yes, quite a bit in testing.
+
+One oom kill shows the system to be oom:
+
+[22999.488705] Node 0 Normal free:90484kB min:90500kB ...
+[22999.488711] Node 1 Normal free:91536kB min:91948kB ...
+
+followed up by one or more unnecessary oom kills showing the oom killer 
+racing with memory freeing of the victim:
+
+[22999.510329] Node 0 Normal free:229588kB min:90500kB ...
+[22999.510334] Node 1 Normal free:600036kB min:91948kB ...
+
+The patch is absolutely required for us to prevent continuous oom killing 
+of processes after a single process has been oom killed and its memory is 
+in the process of being freed.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - June 15, 2017, 9:41 p.m.</div>
+<pre class="content">
+On Thu 15-06-17 14:26:26, David Rientjes wrote:
+<span class="quote">&gt; On Thu, 15 Jun 2017, Michal Hocko wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; &gt; If mm-&gt;mm_users is not incremented because it is already zero by the oom</span>
+<span class="quote">&gt; &gt; &gt; reaper, meaning the final refcount has been dropped, do not set</span>
+<span class="quote">&gt; &gt; &gt; MMF_OOM_SKIP prematurely.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; __mmput() may not have had a chance to do exit_mmap() yet, so memory from</span>
+<span class="quote">&gt; &gt; &gt; a previous oom victim is still mapped.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; true and do we have a _guarantee_ it will do it? E.g. can somebody block</span>
+<span class="quote">&gt; &gt; exit_aio from completing? Or can somebody hold mmap_sem and thus block</span>
+<span class="quote">&gt; &gt; ksm_exit resp. khugepaged_exit from completing? The reason why I was</span>
+<span class="quote">&gt; &gt; conservative and set such a mm as MMF_OOM_SKIP was because I couldn&#39;t</span>
+<span class="quote">&gt; &gt; give a definitive answer to those questions. And we really _want_ to</span>
+<span class="quote">&gt; &gt; have a guarantee of a forward progress here. Killing an additional</span>
+<span class="quote">&gt; &gt; proecess is a price to pay and if that doesn&#39;t trigger normall it sounds</span>
+<span class="quote">&gt; &gt; like a reasonable compromise to me.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I have not seen any issues where __mmput() stalls and exit_mmap() fails to </span>
+<span class="quote">&gt; free its mapped memory once mm-&gt;mm_users has dropped to 0.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; &gt; __mput() naturally requires no</span>
+<span class="quote">&gt; &gt; &gt; references on mm-&gt;mm_users to do exit_mmap().</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Without this, several processes can be oom killed unnecessarily and the</span>
+<span class="quote">&gt; &gt; &gt; oom log can show an abundance of memory available if exit_mmap() is in</span>
+<span class="quote">&gt; &gt; &gt; progress at the time the process is skipped.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Have you seen this happening in the real life?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yes, quite a bit in testing.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; One oom kill shows the system to be oom:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; [22999.488705] Node 0 Normal free:90484kB min:90500kB ...</span>
+<span class="quote">&gt; [22999.488711] Node 1 Normal free:91536kB min:91948kB ...</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; followed up by one or more unnecessary oom kills showing the oom killer </span>
+<span class="quote">&gt; racing with memory freeing of the victim:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; [22999.510329] Node 0 Normal free:229588kB min:90500kB ...</span>
+<span class="quote">&gt; [22999.510334] Node 1 Normal free:600036kB min:91948kB ...</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The patch is absolutely required for us to prevent continuous oom killing </span>
+<span class="quote">&gt; of processes after a single process has been oom killed and its memory is </span>
+<span class="quote">&gt; in the process of being freed.</span>
+
+OK, could you play with the patch/idea suggested in
+http://lkml.kernel.org/r/20170615122031.GL1486@dhcp22.suse.cz?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=579">David Rientjes</a> - June 15, 2017, 10:03 p.m.</div>
+<pre class="content">
+On Thu, 15 Jun 2017, Michal Hocko wrote:
+<span class="quote">
+&gt; &gt; Yes, quite a bit in testing.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; One oom kill shows the system to be oom:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; [22999.488705] Node 0 Normal free:90484kB min:90500kB ...</span>
+<span class="quote">&gt; &gt; [22999.488711] Node 1 Normal free:91536kB min:91948kB ...</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; followed up by one or more unnecessary oom kills showing the oom killer </span>
+<span class="quote">&gt; &gt; racing with memory freeing of the victim:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; [22999.510329] Node 0 Normal free:229588kB min:90500kB ...</span>
+<span class="quote">&gt; &gt; [22999.510334] Node 1 Normal free:600036kB min:91948kB ...</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; The patch is absolutely required for us to prevent continuous oom killing </span>
+<span class="quote">&gt; &gt; of processes after a single process has been oom killed and its memory is </span>
+<span class="quote">&gt; &gt; in the process of being freed.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; OK, could you play with the patch/idea suggested in</span>
+<span class="quote">&gt; http://lkml.kernel.org/r/20170615122031.GL1486@dhcp22.suse.cz?</span>
+<span class="quote">&gt; </span>
+
+I cannot, I am trying to unblock a stable kernel release to my production 
+that is obviously fixed with this patch and cannot experiment with 
+uncompiled and untested patches that introduce otherwise unnecessary 
+locking into the __mmput() path and is based on speculation rather than 
+hard data that __mmput() for some reason stalls for the oom victim&#39;s mm.  
+I was hoping that this fix could make it in time for 4.12 since 4.12 kills 
+1-4 processes unnecessarily for each oom condition and then can review any 
+tested solution you may propose at a later time.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - June 15, 2017, 10:12 p.m.</div>
+<pre class="content">
+On Thu 15-06-17 15:03:17, David Rientjes wrote:
+<span class="quote">&gt; On Thu, 15 Jun 2017, Michal Hocko wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; &gt; Yes, quite a bit in testing.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; One oom kill shows the system to be oom:</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; [22999.488705] Node 0 Normal free:90484kB min:90500kB ...</span>
+<span class="quote">&gt; &gt; &gt; [22999.488711] Node 1 Normal free:91536kB min:91948kB ...</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; followed up by one or more unnecessary oom kills showing the oom killer </span>
+<span class="quote">&gt; &gt; &gt; racing with memory freeing of the victim:</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; [22999.510329] Node 0 Normal free:229588kB min:90500kB ...</span>
+<span class="quote">&gt; &gt; &gt; [22999.510334] Node 1 Normal free:600036kB min:91948kB ...</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; The patch is absolutely required for us to prevent continuous oom killing </span>
+<span class="quote">&gt; &gt; &gt; of processes after a single process has been oom killed and its memory is </span>
+<span class="quote">&gt; &gt; &gt; in the process of being freed.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; OK, could you play with the patch/idea suggested in</span>
+<span class="quote">&gt; &gt; http://lkml.kernel.org/r/20170615122031.GL1486@dhcp22.suse.cz?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I cannot, I am trying to unblock a stable kernel release to my production </span>
+<span class="quote">&gt; that is obviously fixed with this patch and cannot experiment with </span>
+<span class="quote">&gt; uncompiled and untested patches that introduce otherwise unnecessary </span>
+<span class="quote">&gt; locking into the __mmput() path and is based on speculation rather than </span>
+<span class="quote">&gt; hard data that __mmput() for some reason stalls for the oom victim&#39;s mm.  </span>
+<span class="quote">&gt; I was hoping that this fix could make it in time for 4.12 since 4.12 kills </span>
+<span class="quote">&gt; 1-4 processes unnecessarily for each oom condition and then can review any </span>
+<span class="quote">&gt; tested solution you may propose at a later time.</span>
+
+I am sorry but I have really hard to make the oom reaper a reliable way
+to stop all the potential oom lockups go away. I do not want to
+reintroduce another potential lockup now. I also do not see why any
+solution should be rushed into. I have proposed a way to go and unless
+it is clear that this is not a way forward then I simply do not agree
+with any partial workarounds or shortcuts.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=579">David Rientjes</a> - June 15, 2017, 10:42 p.m.</div>
+<pre class="content">
+On Fri, 16 Jun 2017, Michal Hocko wrote:
+<span class="quote">
+&gt; I am sorry but I have really hard to make the oom reaper a reliable way</span>
+<span class="quote">&gt; to stop all the potential oom lockups go away. I do not want to</span>
+<span class="quote">&gt; reintroduce another potential lockup now.</span>
+
+Please show where this &quot;potential lockup&quot; ever existed in a bug report or 
+a testcase?  I have never seen __mmput() block when trying to free the 
+memory it maps.
+<span class="quote">
+&gt; I also do not see why any</span>
+<span class="quote">&gt; solution should be rushed into. I have proposed a way to go and unless</span>
+<span class="quote">&gt; it is clear that this is not a way forward then I simply do not agree</span>
+<span class="quote">&gt; with any partial workarounds or shortcuts.</span>
+
+This is not a shortcut, it is a bug fix.  4.12 kills 1-4 processes 
+unnecessarily as a result of setting MMF_OOM_SKIP incorrectly before the 
+mm&#39;s memory can be freed.  If you have not seen this issue before, which 
+is why you asked if I ever observed it in practice, then you have not 
+stress tested oom reaping.  It is very observable and reproducible.  I do 
+not agree that adding additional and obscure locking into __mmput() is the 
+solution to what is plainly and obviously fixed with this simple patch.
+
+4.12 needs to stop killing 2-5 processes on every oom condition instead of 
+1.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=28">Tetsuo Handa</a> - June 16, 2017, 12:54 a.m.</div>
+<pre class="content">
+Michal Hocko wrote:
+<span class="quote">&gt; On Thu 15-06-17 15:03:17, David Rientjes wrote:</span>
+<span class="quote">&gt; &gt; On Thu, 15 Jun 2017, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; Yes, quite a bit in testing.</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; One oom kill shows the system to be oom:</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; [22999.488705] Node 0 Normal free:90484kB min:90500kB ...</span>
+<span class="quote">&gt; &gt; &gt; &gt; [22999.488711] Node 1 Normal free:91536kB min:91948kB ...</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; followed up by one or more unnecessary oom kills showing the oom killer </span>
+<span class="quote">&gt; &gt; &gt; &gt; racing with memory freeing of the victim:</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; [22999.510329] Node 0 Normal free:229588kB min:90500kB ...</span>
+<span class="quote">&gt; &gt; &gt; &gt; [22999.510334] Node 1 Normal free:600036kB min:91948kB ...</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; The patch is absolutely required for us to prevent continuous oom killing </span>
+<span class="quote">&gt; &gt; &gt; &gt; of processes after a single process has been oom killed and its memory is </span>
+<span class="quote">&gt; &gt; &gt; &gt; in the process of being freed.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; OK, could you play with the patch/idea suggested in</span>
+<span class="quote">&gt; &gt; &gt; http://lkml.kernel.org/r/20170615122031.GL1486@dhcp22.suse.cz?</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I cannot, I am trying to unblock a stable kernel release to my production </span>
+<span class="quote">&gt; &gt; that is obviously fixed with this patch and cannot experiment with </span>
+<span class="quote">&gt; &gt; uncompiled and untested patches that introduce otherwise unnecessary </span>
+<span class="quote">&gt; &gt; locking into the __mmput() path and is based on speculation rather than </span>
+<span class="quote">&gt; &gt; hard data that __mmput() for some reason stalls for the oom victim&#39;s mm.  </span>
+<span class="quote">&gt; &gt; I was hoping that this fix could make it in time for 4.12 since 4.12 kills </span>
+<span class="quote">&gt; &gt; 1-4 processes unnecessarily for each oom condition and then can review any </span>
+<span class="quote">&gt; &gt; tested solution you may propose at a later time.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I am sorry but I have really hard to make the oom reaper a reliable way</span>
+<span class="quote">&gt; to stop all the potential oom lockups go away. I do not want to</span>
+<span class="quote">&gt; reintroduce another potential lockup now. I also do not see why any</span>
+<span class="quote">&gt; solution should be rushed into. I have proposed a way to go and unless</span>
+<span class="quote">&gt; it is clear that this is not a way forward then I simply do not agree</span>
+<span class="quote">&gt; with any partial workarounds or shortcuts.</span>
+
+And the patch you proposed is broken.
+
+----------
+[  161.846202] Out of memory: Kill process 6331 (a.out) score 999 or sacrifice child
+[  161.850327] Killed process 6331 (a.out) total-vm:4172kB, anon-rss:84kB, file-rss:0kB, shmem-rss:0kB
+[  161.858503] ------------[ cut here ]------------
+[  161.861512] kernel BUG at mm/memory.c:1381!
+[  161.864154] invalid opcode: 0000 [#1] SMP
+[  161.866599] Modules linked in: nf_conntrack_netbios_ns nf_conntrack_broadcast ip6t_rpfilter ip6t_REJECT nf_reject_ipv6 xt_conntrack ip_set nfnetlink ebtable_nat ebtable_broute bridge stp llc ip6table_nat nf_conntrack_ipv6 nf_defrag_ipv6 nf_nat_ipv6 ip6table_mangle ip6table_security ip6table_raw iptable_nat nf_conntrack_ipv4 nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack iptable_mangle iptable_security iptable_raw ebtable_filter ebtables ip6table_filter ip6_tables coretemp crct10dif_pclmul crc32_pclmul ghash_clmulni_intel vmw_balloon pcspkr ppdev shpchp parport_pc i2c_piix4 parport vmw_vmci xfs libcrc32c vmwgfx crc32c_intel drm_kms_helper serio_raw ttm drm e1000 mptspi scsi_transport_spi mptscsih mptbase ata_generic pata_acpi floppy
+[  161.896811] CPU: 1 PID: 43 Comm: oom_reaper Not tainted 4.12.0-rc5+ #221
+[  161.900458] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/31/2013
+[  161.905588] task: ffff937bb1c13200 task.stack: ffffa13cc0b94000
+[  161.908876] RIP: 0010:unmap_page_range+0xa19/0xa60
+[  161.911739] RSP: 0000:ffffa13cc0b97d08 EFLAGS: 00010282
+[  161.914767] RAX: 0000000000000000 RBX: ffff937ba9e89300 RCX: 0000000000401000
+[  161.918543] RDX: ffff937baf707440 RSI: ffff937baf707680 RDI: ffffa13cc0b97df0
+[  161.922314] RBP: ffffa13cc0b97de0 R08: 0000000000000000 R09: 0000000000000000
+[  161.926059] R10: 0000000000000000 R11: 000000001f1e8b15 R12: ffff937ba9e893c0
+[  161.929789] R13: ffff937ba4198000 R14: ffff937baf707440 R15: ffff937ba9e89300
+[  161.933509] FS:  0000000000000000(0000) GS:ffff937bb3800000(0000) knlGS:0000000000000000
+[  161.937615] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  161.940774] CR2: 0000561fb93c1b00 CR3: 000000009ee11000 CR4: 00000000001406e0
+[  161.944477] Call Trace:
+[  161.946333]  ? __mutex_lock+0x574/0x950
+[  161.948678]  ? __mutex_lock+0xce/0x950
+[  161.950996]  ? __oom_reap_task_mm+0x49/0x170
+[  161.953485]  __oom_reap_task_mm+0xd8/0x170
+[  161.955893]  oom_reaper+0xac/0x1c0
+[  161.957992]  ? remove_wait_queue+0x60/0x60
+[  161.960688]  kthread+0x117/0x150
+[  161.962719]  ? trace_event_raw_event_oom_score_adj_update+0xe0/0xe0
+[  161.965920]  ? kthread_create_on_node+0x70/0x70
+[  161.968417]  ret_from_fork+0x2a/0x40
+[  161.970530] Code: 13 fb ff ff e9 25 fc ff ff 48 83 e8 01 e9 77 fc ff ff 48 83 e8 01 e9 62 fe ff ff e8 22 0a e6 ff 48 8b 7d 98 e8 09 ba ff ff 0f 0b &lt;0f&gt; 0b 48 83 e9 01 e9 a1 fb ff ff e8 03 a5 06 00 48 83 e9 01 e9 
+[  161.979386] RIP: unmap_page_range+0xa19/0xa60 RSP: ffffa13cc0b97d08
+[  161.982611] ---[ end trace ef2b349884b0aaa4 ]---
+----------
+
+Please carefully consider the reason why there is VM_BUG_ON() in __mmput(),
+and clarify in your patch that what are possible side effects of racing
+uprobe_clear_state()/exit_aio()/ksm_exit()/exit_mmap() etc. with
+__oom_reap_task_mm() and clarify in your patch that there is no possibility
+of waiting for direct/indirect memory allocation inside free_pgtables(),
+in addition to fixing the bug above.
+
+----------
+	VM_BUG_ON(atomic_read(&amp;mm-&gt;mm_users));
+
+	uprobe_clear_state(mm);
+	exit_aio(mm);
+	ksm_exit(mm);
+	khugepaged_exit(mm); /* must run before exit_mmap */
+	exit_mmap(mm);
+----------
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=28">Tetsuo Handa</a> - June 16, 2017, 4 a.m.</div>
+<pre class="content">
+Tetsuo Handa wrote:
+<span class="quote">&gt; and clarify in your patch that there is no possibility</span>
+<span class="quote">&gt; of waiting for direct/indirect memory allocation inside free_pgtables(),</span>
+<span class="quote">&gt; in addition to fixing the bug above.</span>
+
+Oops, this part was wrong, for __oom_reap_task_mm() will give up after
+waiting for one second because down_read_trylock(&amp;mm-&gt;mmap_sem) continues
+failing due to down_write(&amp;mm-&gt;mmap_sem) by exit_mmap().
+# This is after all moving the location of &quot;give up by timeout&quot;, isn&#39;t it? ;-)
+
+Thus, clarify in your patch that there is no possibility of waiting for
+direct/indirect memory allocation outside down_write()/up_write() (e.g.
+i_mmap_lock_write() inside unmap_vmas(&amp;tlb, vma, 0, -1) just before
+down_write()).
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - June 16, 2017, 8:06 a.m.</div>
+<pre class="content">
+On Thu 15-06-17 15:42:23, David Rientjes wrote:
+<span class="quote">&gt; On Fri, 16 Jun 2017, Michal Hocko wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; I am sorry but I have really hard to make the oom reaper a reliable way</span>
+<span class="quote">&gt; &gt; to stop all the potential oom lockups go away. I do not want to</span>
+<span class="quote">&gt; &gt; reintroduce another potential lockup now.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Please show where this &quot;potential lockup&quot; ever existed in a bug report or </span>
+<span class="quote">&gt; a testcase?</span>
+
+I am not aware of any specific bug report. But the main point of the
+reaper is to close all _possible_ lockups due to oom victim being stuck
+somewhere. exit_aio waits for all kiocbs. Can we guarantee that none
+of them will depend on an allocation (directly or via a lock chain) to
+proceed? Likewise ksm_exit/khugepaged_exit depend on mmap_sem for write
+to proceed. Are we _guaranteed_ nobody can hold mmap_sem for read at
+that time and depend on an allocation? Can we guarantee that __mmput
+path will work without any depency on allocation in future?
+<span class="quote">
+&gt; I have never seen __mmput() block when trying to free the </span>
+<span class="quote">&gt; memory it maps.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; I also do not see why any</span>
+<span class="quote">&gt; &gt; solution should be rushed into. I have proposed a way to go and unless</span>
+<span class="quote">&gt; &gt; it is clear that this is not a way forward then I simply do not agree</span>
+<span class="quote">&gt; &gt; with any partial workarounds or shortcuts.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This is not a shortcut, it is a bug fix.  4.12 kills 1-4 processes </span>
+<span class="quote">&gt; unnecessarily as a result of setting MMF_OOM_SKIP incorrectly before the </span>
+<span class="quote">&gt; mm&#39;s memory can be freed.  If you have not seen this issue before, which </span>
+<span class="quote">&gt; is why you asked if I ever observed it in practice, then you have not </span>
+<span class="quote">&gt; stress tested oom reaping.  It is very observable and reproducible.  </span>
+
+I am not questioning that it works for your particular test. I just
+argue that it reduces the robustness of the oom reaper because it allows
+oom victim to leave the reaper without MMF_OOM_SKIP set and that is the
+core concept to guarantee a forward progress. So we should think about
+something more appropriate.
+<span class="quote">
+&gt; I do </span>
+<span class="quote">&gt; not agree that adding additional and obscure locking into __mmput() is the </span>
+<span class="quote">&gt; solution to what is plainly and obviously fixed with this simple patch.</span>
+
+Well, __mmput path already depends on the mmap_sem for write. So this is
+not a new concept. I am not saying using mmap_sem is the only way. I
+will think about that more.
+<span class="quote"> 
+&gt; 4.12 needs to stop killing 2-5 processes on every oom condition instead of </span>
+<span class="quote">&gt; 1.</span>
+
+Believe me, I am not dismissing the issue nor the fact it _has_ to be
+fixed. I just disagree we should make the oom reaper less robust.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="p_header">--- a/mm/oom_kill.c</span>
+<span class="p_header">+++ b/mm/oom_kill.c</span>
+<span class="p_chunk">@@ -531,6 +531,7 @@</span> <span class="p_context"> static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+ 					 NULL);
+ 	}
+ 	tlb_finish_mmu(&amp;tlb, 0, -1);
+<span class="p_add">+	set_bit(MMF_OOM_SKIP, &amp;mm-&gt;flags);</span>
+ 	pr_info(&quot;oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n&quot;,
+ 			task_pid_nr(tsk), tsk-&gt;comm,
+ 			K(get_mm_counter(mm, MM_ANONPAGES)),
+<span class="p_chunk">@@ -562,7 +563,11 @@</span> <span class="p_context"> static void oom_reap_task(struct task_struct *tsk)</span>
+ 	if (attempts &lt;= MAX_OOM_REAP_RETRIES)
+ 		goto done;
+ 
+<span class="p_del">-</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Hide this mm from OOM killer because it cannot be reaped since</span>
+<span class="p_add">+	 * mm-&gt;mmap_sem cannot be acquired.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	set_bit(MMF_OOM_SKIP, &amp;mm-&gt;flags);</span>
+ 	pr_info(&quot;oom_reaper: unable to reap pid:%d (%s)\n&quot;,
+ 		task_pid_nr(tsk), tsk-&gt;comm);
+ 	debug_show_all_locks();
+<span class="p_chunk">@@ -570,12 +575,6 @@</span> <span class="p_context"> static void oom_reap_task(struct task_struct *tsk)</span>
+ done:
+ 	tsk-&gt;oom_reaper_list = NULL;
+ 
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * Hide this mm from OOM killer because it has been either reaped or</span>
+<span class="p_del">-	 * somebody can&#39;t call up_write(mmap_sem).</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	set_bit(MMF_OOM_SKIP, &amp;mm-&gt;flags);</span>
+<span class="p_del">-</span>
+ 	/* Drop a reference taken by wake_oom_reaper */
+ 	put_task_struct(tsk);
+ }
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

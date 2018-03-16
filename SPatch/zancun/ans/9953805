@@ -1,0 +1,1244 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC] iommu: arm-smmu: stall support - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC] iommu: arm-smmu: stall support</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=25981">Rob Clark</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Sept. 14, 2017, 7:44 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170914194444.32551-1-robdclark@gmail.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9953805/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9953805/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9953805/">/patch/9953805/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	4A3206024A for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 14 Sep 2017 19:45:09 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 539432925A
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 14 Sep 2017 19:45:09 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 4853B2925C; Thu, 14 Sep 2017 19:45:09 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.5 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID, DKIM_VALID_AU, FREEMAIL_FROM, RCVD_IN_DNSWL_HI,
+	RCVD_IN_SORBS_SPAM autolearn=unavailable version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id BBD872925A
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 14 Sep 2017 19:45:08 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751865AbdINTpF (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 14 Sep 2017 15:45:05 -0400
+Received: from mail-qk0-f193.google.com ([209.85.220.193]:37558 &quot;EHLO
+	mail-qk0-f193.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751724AbdINTpE (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 14 Sep 2017 15:45:04 -0400
+Received: by mail-qk0-f193.google.com with SMTP id r66so228591qke.4;
+	Thu, 14 Sep 2017 12:45:03 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=gmail.com; s=20161025;
+	h=from:to:cc:subject:date:message-id;
+	bh=w3yTUkLspKBqDQJHWh+JoXDFo37Kmr6nOcS2+ZHLdto=;
+	b=rVRCdN/3Whk2yUhtrjj2x1hzlD4o3wnbOzpJlTLDje27+yaet/RzS6BxEYVBiMiTZd
+	BBeBmtZ0nLwdzsGcLkgR8U1lxSLYJxGgyYNYNYd9ntmo0FfoWpWSDHZNBmqfWRqKggv5
+	4xyVPTP/snU7+P7wJwaxw8zviiZChv4D+TReWQw6gt/SOm+iDm/uOfdNv1R32oi/6ari
+	sv7apEPY5i9vnjg7aFr3mlykPGmAgRZUbzfl8V2XkH6m4K0T+bGKn7iS47xAk7qsUdc7
+	1uvA2R+QDVu/eKivknSL4d3mbXjxXiOf1uy6jC0rD2pE2zx/Q8RBeIxc4kxvapre9850
+	rqTg==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:from:to:cc:subject:date:message-id;
+	bh=w3yTUkLspKBqDQJHWh+JoXDFo37Kmr6nOcS2+ZHLdto=;
+	b=QZ9LsHumPpXMf5syNW6H8ymFv4XTIMTXivT2hm9uDA9tnSuFjANU77TARvV1IWTFX+
+	/suefuBbYxaNrUsWhRY/Ul5cYzeUFEdl+3gRapExDGOd4lrBn8UgjJ+Mam7T2zTupXAZ
+	+F5pxQ53qnfCE7qliV2BVSJlAY4tpPPI/gegRj0YRhQWIzSlKDpaaHkU7wPdp7duMEpA
+	T6TKeADbx020kqBPW5ikpCOi9dwyw8j8rn92ZigG4BqF1rYqZbkaOXK5vFq0ZO9iK3yB
+	WdwI3OSEvHcbPNP/Vq1RfehjkxbKPQ8TnwLhqRqDjJUTdvyIIpsXAVrTShlegrQjn6Pw
+	DrGw==
+X-Gm-Message-State: AHPjjUjzhYARTbC8UVJ5TemO4evxp33VNy2yw0aWp95850gZu+FoJ8SQ
+	NV1YtdMqkBqnsw==
+X-Google-Smtp-Source: AOwi7QABFn0fwJ2Nevezgz5R9aDl6aCQlF9R8XQFzPSPlcFVR1FF5hv4Z3Gk4+0snHsqw16uW0Pfxg==
+X-Received: by 10.55.144.69 with SMTP id s66mr4416667qkd.111.1505418302854; 
+	Thu, 14 Sep 2017 12:45:02 -0700 (PDT)
+Received: from localhost ([144.121.20.162]) by smtp.gmail.com with ESMTPSA id
+	q49sm12159658qta.80.2017.09.14.12.45.00
+	(version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+	Thu, 14 Sep 2017 12:45:01 -0700 (PDT)
+From: Rob Clark &lt;robdclark@gmail.com&gt;
+To: iommu@lists.linux-foundation.org
+Cc: linux-arm-msm@vger.kernel.org, Jordan Crouse &lt;jcrouse@codeaurora.org&gt;,
+	Rob Clark &lt;robdclark@gmail.com&gt;, Will Deacon &lt;will.deacon@arm.com&gt;,
+	Robin Murphy &lt;robin.murphy@arm.com&gt;, Joerg Roedel &lt;joro@8bytes.org&gt;,
+	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
+Subject: [RFC] iommu: arm-smmu: stall support
+Date: Thu, 14 Sep 2017 15:44:33 -0400
+Message-Id: &lt;20170914194444.32551-1-robdclark@gmail.com&gt;
+X-Mailer: git-send-email 2.13.5
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=25981">Rob Clark</a> - Sept. 14, 2017, 7:44 p.m.</div>
+<pre class="content">
+Adds a new domain property for iommu clients to opt-in to stalling
+with asynchronous resume, and for the client to determine if the
+iommu supports this.
+
+Current motivation is that:
+
+a) On 8x96/a530, if we don&#39;t enable CFCFG (or HUPCF) then non-
+   faulting translations which are happening concurrently with
+   one that faults, fail (or return garbage), which triggers all
+   sorts of fun GPU crashes, which generally have no relation
+   to the root fault.  (The CP can be far ahead in the cmdstream
+   from the other parts of the GPU...)
+
+b) I am working on a debugfs feature to dump submits/batches
+   that cause GPU hangs, and I would like to also use this for
+   faults.  But it needs to run in non-atomic context, so I
+   need to toss things off to a workqueue, and then resume
+   the iommu after it finishes.
+
+c) (and ofc at some point in the future for SVM we&#39;d like to
+   be able to pin unpinned pages and things like that, in
+   response to faults.)
+
+TODO
+ - For RFC I thought it would be easier to review the idea
+   as a single patch, but it should be split into separate
+   core and arm-smmu parts
+
+ - I vaguely remember someone (Will?) mentioning that there
+   could be cases with multiple masters sharing a single
+   context bank, and somehow stalling might not work in that
+   case?  (How does that even happen, arm-smmu assignes the
+   context banks?  Maybe I&#39;m mis-remembering the details.)
+   I think that this probably shouldn&#39;t effect the API parts
+   of this RFC, the iommu driver should already know about
+   all the devices that might attach because of -&gt;attach_dev()
+   so it could fail in _set_attr()?
+<span class="signed-off-by">
+Signed-off-by: Rob Clark &lt;robdclark@gmail.com&gt;</span>
+---
+ drivers/iommu/arm-smmu.c | 36 ++++++++++++++++++++++++++++++++----
+ drivers/iommu/iommu.c    | 21 +++++++++++++++++++++
+ include/linux/iommu.h    | 14 ++++++++++++++
+ 3 files changed, 67 insertions(+), 4 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=97951">Jean-Philippe Brucker</a> - Sept. 18, 2017, 11:13 a.m.</div>
+<pre class="content">
+Hi Rob,
+
+On 14/09/17 20:44, Rob Clark wrote:
+<span class="quote">&gt; Adds a new domain property for iommu clients to opt-in to stalling</span>
+<span class="quote">&gt; with asynchronous resume, and for the client to determine if the</span>
+<span class="quote">&gt; iommu supports this.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Current motivation is that:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; a) On 8x96/a530, if we don&#39;t enable CFCFG (or HUPCF) then non-</span>
+<span class="quote">&gt;    faulting translations which are happening concurrently with</span>
+<span class="quote">&gt;    one that faults, fail (or return garbage), which triggers all</span>
+<span class="quote">&gt;    sorts of fun GPU crashes, which generally have no relation</span>
+<span class="quote">&gt;    to the root fault.  (The CP can be far ahead in the cmdstream</span>
+<span class="quote">&gt;    from the other parts of the GPU...)</span>
+
+Would the GPU driver always enable stall for this implementation? Or only
+enable it for specific domains?
+
+Instead of enabling it at domain level, I wonder if couldn&#39;t be left
+entirely to the SMMU driver. I have a proposal (that I&#39;ll publish shortly)
+for adding a &quot;can-stall&quot; attribute to device-tree nodes, telling the SMMU
+driver that the device can withstand stalled transactions without locking
+up the system.
+
+The SMMU would then enable stall for this particular device without
+needing approval from the device driver. I&#39;m doing this for v3, which has
+a more mature stall model, but I suppose we can do the same for v2 as well.
+
+In any case, the firmware has to tell the OS that a device is capable of
+stalling, because it is unlikely that many platform devices will
+gracefully handle this mode.
+<span class="quote">
+&gt; b) I am working on a debugfs feature to dump submits/batches</span>
+<span class="quote">&gt;    that cause GPU hangs, and I would like to also use this for</span>
+<span class="quote">&gt;    faults.  But it needs to run in non-atomic context, so I</span>
+<span class="quote">&gt;    need to toss things off to a workqueue, and then resume</span>
+<span class="quote">&gt;    the iommu after it finishes.</span>
+
+Are you relying on stalled transaction to freeze the GPU state and
+allow for introspection? I suppose the debug code would always terminate
+after recording the fault? I&#39;m just trying to get a picture of all
+possible users of a common fault API.
+<span class="quote">
+&gt; c) (and ofc at some point in the future for SVM we&#39;d like to</span>
+<span class="quote">&gt;    be able to pin unpinned pages and things like that, in</span>
+<span class="quote">&gt;    response to faults.)</span>
+
+For SVM there will be generic code calling into the mm code to pin pages
+and resume the SMMU. We are working on consolidating this with other
+IOMMUs at the moment and use generic code where possible. Ideally the GPU
+driver shouldn&#39;t need to get involved.
+
+That new API will be based on PASIDs/SSIDs, which doesn&#39;t exist in SMMUv2.
+I do believe that we also need to consolidate the API for devices and
+IOMMUs that support page faults but not PASIDs. We could use a common
+fault workqueue in the IOMMU core.
+
+It seems like your use-case (b) could fit in there. If the device driver
+didn&#39;t bind to a process but instead registered a fault handler, then we
+could ask it to do something with the fault. And since it&#39;s in a wq, the
+call to device driver would be synchronous and we&#39;d pass the return status
+(retry/terminate) to the SMMU.
+
+This is probably easier to handle than a separate &quot;resume&quot; callback,
+especially with SMMUv3 stall and PRI, where faults are out of order and
+contain a token identifying a fault.
+<span class="quote">
+&gt; TODO</span>
+<span class="quote">&gt;  - For RFC I thought it would be easier to review the idea</span>
+<span class="quote">&gt;    as a single patch, but it should be split into separate</span>
+<span class="quote">&gt;    core and arm-smmu parts</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  - I vaguely remember someone (Will?) mentioning that there</span>
+<span class="quote">&gt;    could be cases with multiple masters sharing a single</span>
+<span class="quote">&gt;    context bank, and somehow stalling might not work in that</span>
+<span class="quote">&gt;    case?  (How does that even happen, arm-smmu assignes the</span>
+<span class="quote">&gt;    context banks?  Maybe I&#39;m mis-remembering the details.)</span>
+<span class="quote">&gt;    I think that this probably shouldn&#39;t effect the API parts</span>
+<span class="quote">&gt;    of this RFC, the iommu driver should already know about</span>
+<span class="quote">&gt;    all the devices that might attach because of -&gt;attach_dev()</span>
+<span class="quote">&gt;    so it could fail in _set_attr()?</span>
+
+With VFIO, userspace can decide to put multiple device in the same domain.
+But attach_dev can fail if there are device incompatibilities, and then
+VFIO will use a new domain. It might become relevant with vSVM, forwarding
+recoverable faults from guest-assigned devices.
+
+Thanks,
+Jean
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=25981">Rob Clark</a> - Sept. 18, 2017, 12:11 p.m.</div>
+<pre class="content">
+On Mon, Sep 18, 2017 at 7:13 AM, Jean-Philippe Brucker
+&lt;jean-philippe.brucker@arm.com&gt; wrote:
+<span class="quote">&gt; Hi Rob,</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; On 14/09/17 20:44, Rob Clark wrote:</span>
+<span class="quote">&gt;&gt; Adds a new domain property for iommu clients to opt-in to stalling</span>
+<span class="quote">&gt;&gt; with asynchronous resume, and for the client to determine if the</span>
+<span class="quote">&gt;&gt; iommu supports this.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Current motivation is that:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; a) On 8x96/a530, if we don&#39;t enable CFCFG (or HUPCF) then non-</span>
+<span class="quote">&gt;&gt;    faulting translations which are happening concurrently with</span>
+<span class="quote">&gt;&gt;    one that faults, fail (or return garbage), which triggers all</span>
+<span class="quote">&gt;&gt;    sorts of fun GPU crashes, which generally have no relation</span>
+<span class="quote">&gt;&gt;    to the root fault.  (The CP can be far ahead in the cmdstream</span>
+<span class="quote">&gt;&gt;    from the other parts of the GPU...)</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Would the GPU driver always enable stall for this implementation? Or only</span>
+<span class="quote">&gt; enable it for specific domains?</span>
+
+I expect for all domains.  (Currently that is just a single domain,
+but I expect that to change)
+<span class="quote">
+&gt; Instead of enabling it at domain level, I wonder if couldn&#39;t be left</span>
+<span class="quote">&gt; entirely to the SMMU driver. I have a proposal (that I&#39;ll publish shortly)</span>
+<span class="quote">&gt; for adding a &quot;can-stall&quot; attribute to device-tree nodes, telling the SMMU</span>
+<span class="quote">&gt; driver that the device can withstand stalled transactions without locking</span>
+<span class="quote">&gt; up the system.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; The SMMU would then enable stall for this particular device without</span>
+<span class="quote">&gt; needing approval from the device driver. I&#39;m doing this for v3, which has</span>
+<span class="quote">&gt; a more mature stall model, but I suppose we can do the same for v2 as well.</span>
+
+The GPU driver does need to know if stalling is supported/enabled by
+the iommu driver (since depending on SoC, drm/msm works with one of
+three different iommu drivers currently), and to be in control of
+resume.. I&#39;m a bit sceptical about trying to abstract too much at the
+iommu level.
+
+For example when the gpu gets a fault, it tends to get 1000s of
+faults.  On the first fault, I want to kick things off to a wq where I
+can snapshot the cmdstream and gpu state.  But subsequent faults on
+the same submit I ignore.
+
+Btw, apologies that I haven&#39;t sent the corresponding drm/msm patches
+yet.  I haven&#39;t had a chance to clean up yet, but you can find
+something rough here:
+
+  https://github.com/freedreno/kernel-msm/commits/integration-linux-qcomlt-v4.13-rc3
+<span class="quote">
+&gt; In any case, the firmware has to tell the OS that a device is capable of</span>
+<span class="quote">&gt; stalling, because it is unlikely that many platform devices will</span>
+<span class="quote">&gt; gracefully handle this mode.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; b) I am working on a debugfs feature to dump submits/batches</span>
+<span class="quote">&gt;&gt;    that cause GPU hangs, and I would like to also use this for</span>
+<span class="quote">&gt;&gt;    faults.  But it needs to run in non-atomic context, so I</span>
+<span class="quote">&gt;&gt;    need to toss things off to a workqueue, and then resume</span>
+<span class="quote">&gt;&gt;    the iommu after it finishes.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Are you relying on stalled transaction to freeze the GPU state and</span>
+<span class="quote">&gt; allow for introspection? I suppose the debug code would always terminate</span>
+<span class="quote">&gt; after recording the fault? I&#39;m just trying to get a picture of all</span>
+<span class="quote">&gt; possible users of a common fault API.</span>
+
+yes, this is what I&#39;m doing now.  For SVM, however, we&#39;d retry the
+transaction instead of terminating.
+<span class="quote">
+&gt;&gt; c) (and ofc at some point in the future for SVM we&#39;d like to</span>
+<span class="quote">&gt;&gt;    be able to pin unpinned pages and things like that, in</span>
+<span class="quote">&gt;&gt;    response to faults.)</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; For SVM there will be generic code calling into the mm code to pin pages</span>
+<span class="quote">&gt; and resume the SMMU. We are working on consolidating this with other</span>
+<span class="quote">&gt; IOMMUs at the moment and use generic code where possible. Ideally the GPU</span>
+<span class="quote">&gt; driver shouldn&#39;t need to get involved.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; That new API will be based on PASIDs/SSIDs, which doesn&#39;t exist in SMMUv2.</span>
+<span class="quote">&gt; I do believe that we also need to consolidate the API for devices and</span>
+<span class="quote">&gt; IOMMUs that support page faults but not PASIDs. We could use a common</span>
+<span class="quote">&gt; fault workqueue in the IOMMU core.</span>
+
+I&#39;ve no idea qcom&#39;s plans for future hw, but pretty sure we are going
+to want to implement SVM on v2 iommu, without PASIDs/SSIDs.  However
+on current hw, there is really only one userspace process active on
+the gpu at a time, so we don&#39;t really need PASIDs/SSIDs.
+<span class="quote">
+&gt; It seems like your use-case (b) could fit in there. If the device driver</span>
+<span class="quote">&gt; didn&#39;t bind to a process but instead registered a fault handler, then we</span>
+<span class="quote">&gt; could ask it to do something with the fault. And since it&#39;s in a wq, the</span>
+<span class="quote">&gt; call to device driver would be synchronous and we&#39;d pass the return status</span>
+<span class="quote">&gt; (retry/terminate) to the SMMU.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; This is probably easier to handle than a separate &quot;resume&quot; callback,</span>
+<span class="quote">&gt; especially with SMMUv3 stall and PRI, where faults are out of order and</span>
+<span class="quote">&gt; contain a token identifying a fault.</span>
+
+IIRC Will or Robin mentioned wanting a token in earlier stall
+discussion.. although not being familiar with v3 I wasn&#39;t quite sure
+what the use was.
+
+At any rate, adding a token to fault handler callback and
+iommu_domain_resume() seems like something that could be added later,
+when it is needed.
+
+Anyways, I am interested to see what your proposal is.. although tend
+to be a bit sceptical about trying to abstract too much.  (And if
+there should be something more abstract, maybe it should be at the
+dma-mapping layer instead?)
+
+I don&#39;t suppose you or someone working on this from ARM side will be
+at linaro connect in a couple weeks?  Jordan and myself will be there,
+and it could be a good time to chat about this, and also per-process
+pagetables and gpu switching switching pagetables directly on v2 hw.
+
+BR,
+-R
+<span class="quote">
+&gt;&gt; TODO</span>
+<span class="quote">&gt;&gt;  - For RFC I thought it would be easier to review the idea</span>
+<span class="quote">&gt;&gt;    as a single patch, but it should be split into separate</span>
+<span class="quote">&gt;&gt;    core and arm-smmu parts</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;  - I vaguely remember someone (Will?) mentioning that there</span>
+<span class="quote">&gt;&gt;    could be cases with multiple masters sharing a single</span>
+<span class="quote">&gt;&gt;    context bank, and somehow stalling might not work in that</span>
+<span class="quote">&gt;&gt;    case?  (How does that even happen, arm-smmu assignes the</span>
+<span class="quote">&gt;&gt;    context banks?  Maybe I&#39;m mis-remembering the details.)</span>
+<span class="quote">&gt;&gt;    I think that this probably shouldn&#39;t effect the API parts</span>
+<span class="quote">&gt;&gt;    of this RFC, the iommu driver should already know about</span>
+<span class="quote">&gt;&gt;    all the devices that might attach because of -&gt;attach_dev()</span>
+<span class="quote">&gt;&gt;    so it could fail in _set_attr()?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; With VFIO, userspace can decide to put multiple device in the same domain.</span>
+<span class="quote">&gt; But attach_dev can fail if there are device incompatibilities, and then</span>
+<span class="quote">&gt; VFIO will use a new domain. It might become relevant with vSVM, forwarding</span>
+<span class="quote">&gt; recoverable faults from guest-assigned devices.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Thanks,</span>
+<span class="quote">&gt; Jean</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - Sept. 18, 2017, 5:33 p.m.</div>
+<pre class="content">
+On Mon, Sep 18, 2017 at 08:11:47AM -0400, Rob Clark wrote:
+<span class="quote">&gt; IIRC Will or Robin mentioned wanting a token in earlier stall</span>
+<span class="quote">&gt; discussion.. although not being familiar with v3 I wasn&#39;t quite sure</span>
+<span class="quote">&gt; what the use was.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; At any rate, adding a token to fault handler callback and</span>
+<span class="quote">&gt; iommu_domain_resume() seems like something that could be added later,</span>
+<span class="quote">&gt; when it is needed.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Anyways, I am interested to see what your proposal is.. although tend</span>
+<span class="quote">&gt; to be a bit sceptical about trying to abstract too much.  (And if</span>
+<span class="quote">&gt; there should be something more abstract, maybe it should be at the</span>
+<span class="quote">&gt; dma-mapping layer instead?)</span>
+
+Whilst I&#39;m also often sceptical about premature abstraction (which is why
+I previously suggested just plugging into iommu_set_fault_handler and
+managing any work queues yourself), in this case Jean-Philippe actually
+has SVM up and running with multiple hardware platforms using stalls, so
+I&#39;m confident that if we have something that works for both of you, then
+it&#39;s worth abstracting at this stage.
+
+When we last had this discussion, you were the only person writing code
+for this, but I think that things have moved on since then.
+<span class="quote">
+&gt; I don&#39;t suppose you or someone working on this from ARM side will be</span>
+<span class="quote">&gt; at linaro connect in a couple weeks?  Jordan and myself will be there,</span>
+<span class="quote">&gt; and it could be a good time to chat about this, and also per-process</span>
+<span class="quote">&gt; pagetables and gpu switching switching pagetables directly on v2 hw.</span>
+
+James Morse (CC&#39;d) will be there from our group. He&#39;s not looked at this
+at all, but it might be worth speaking to him anyway as this is often
+better done face-to-face than over email.
+
+Will
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=317">Joerg Roedel</a> - Sept. 19, 2017, 12:30 p.m.</div>
+<pre class="content">
+Hi Rob,
+
+thanks for the RFC patch. I have some comments about the interface to
+the IOMMU-API below.
+
+On Thu, Sep 14, 2017 at 03:44:33PM -0400, Rob Clark wrote:
+<span class="quote">&gt; +/**</span>
+<span class="quote">&gt; + * iommu_domain_resume - Resume translations for a domain after a fault.</span>
+<span class="quote">&gt; + *</span>
+<span class="quote">&gt; + * This can be called at some point after the fault handler is called,</span>
+<span class="quote">&gt; + * allowing the user of the IOMMU to (for example) handle the fault</span>
+<span class="quote">&gt; + * from a task context.  It is illegal to call this if</span>
+<span class="quote">&gt; + * iommu_domain_set_attr(STALL) failed.</span>
+<span class="quote">&gt; + *</span>
+<span class="quote">&gt; + * @domain:    the domain to resume</span>
+<span class="quote">&gt; + * @terminate: if true, the translation that triggered the fault should</span>
+<span class="quote">&gt; + *    be terminated, else it should be retried.</span>
+<span class="quote">&gt; + */</span>
+<span class="quote">&gt; +void iommu_domain_resume(struct iommu_domain *domain, bool terminate)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	/* invalid to call if iommu_domain_set_attr(STALL) failed: */</span>
+<span class="quote">&gt; +	if (WARN_ON(!domain-&gt;ops-&gt;domain_resume))</span>
+<span class="quote">&gt; +		return;</span>
+<span class="quote">&gt; +	domain-&gt;ops-&gt;domain_resume(domain, terminate);</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +EXPORT_SYMBOL_GPL(iommu_domain_resume);</span>
+
+So this function is being called by the device driver owning the domain,
+right?
+
+I don&#39;t think that the resume call-back you added needs to be exposed
+like this. It is better to do the page-fault handling completly in the
+iommu-code, including calling the resume call-back and just let the
+device-driver provide a per-domain call-back to let it handle the fault
+and map in the required pages.
+
+The interface could look like this:
+
+	* New function iommu_domain_enable_stalls(domain) - When
+	  this function returns the domain is in stall-handling mode. A
+	  iommu_domain_disable_stalls() might make sense too, not sure
+	  about that.
+
+	* When stalls are enabled for a domain, report_iommu_fault()
+	  queues the fault to a workqueue (so that its handler can
+	  block) and in the workqueue you call -&gt;resume() based on the
+	  return value of the handler.
+
+As a side-note, as there has been discussion on this: For now it doesn&#39;t
+make sense to merge this with the SVM page-fault handling efforts, as
+this path is different enough (SVM will call handle_mm_fault() as the
+handler, for example).
+
+
+Regards,
+
+	Joerg
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=25981">Rob Clark</a> - Sept. 19, 2017, 2:23 p.m.</div>
+<pre class="content">
+On Tue, Sep 19, 2017 at 8:30 AM, Joerg Roedel &lt;joro@8bytes.org&gt; wrote:
+<span class="quote">&gt; Hi Rob,</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; thanks for the RFC patch. I have some comments about the interface to</span>
+<span class="quote">&gt; the IOMMU-API below.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; On Thu, Sep 14, 2017 at 03:44:33PM -0400, Rob Clark wrote:</span>
+<span class="quote">&gt;&gt; +/**</span>
+<span class="quote">&gt;&gt; + * iommu_domain_resume - Resume translations for a domain after a fault.</span>
+<span class="quote">&gt;&gt; + *</span>
+<span class="quote">&gt;&gt; + * This can be called at some point after the fault handler is called,</span>
+<span class="quote">&gt;&gt; + * allowing the user of the IOMMU to (for example) handle the fault</span>
+<span class="quote">&gt;&gt; + * from a task context.  It is illegal to call this if</span>
+<span class="quote">&gt;&gt; + * iommu_domain_set_attr(STALL) failed.</span>
+<span class="quote">&gt;&gt; + *</span>
+<span class="quote">&gt;&gt; + * @domain:    the domain to resume</span>
+<span class="quote">&gt;&gt; + * @terminate: if true, the translation that triggered the fault should</span>
+<span class="quote">&gt;&gt; + *    be terminated, else it should be retried.</span>
+<span class="quote">&gt;&gt; + */</span>
+<span class="quote">&gt;&gt; +void iommu_domain_resume(struct iommu_domain *domain, bool terminate)</span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +     /* invalid to call if iommu_domain_set_attr(STALL) failed: */</span>
+<span class="quote">&gt;&gt; +     if (WARN_ON(!domain-&gt;ops-&gt;domain_resume))</span>
+<span class="quote">&gt;&gt; +             return;</span>
+<span class="quote">&gt;&gt; +     domain-&gt;ops-&gt;domain_resume(domain, terminate);</span>
+<span class="quote">&gt;&gt; +}</span>
+<span class="quote">&gt;&gt; +EXPORT_SYMBOL_GPL(iommu_domain_resume);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; So this function is being called by the device driver owning the domain,</span>
+<span class="quote">&gt; right?</span>
+
+yes, this was my plan
+<span class="quote">
+&gt; I don&#39;t think that the resume call-back you added needs to be exposed</span>
+<span class="quote">&gt; like this. It is better to do the page-fault handling completly in the</span>
+<span class="quote">&gt; iommu-code, including calling the resume call-back and just let the</span>
+<span class="quote">&gt; device-driver provide a per-domain call-back to let it handle the fault</span>
+<span class="quote">&gt; and map in the required pages.</span>
+
+I would like to decide in the IRQ whether or not to queue work or not,
+because when we get a gpu fault, we tend to get 1000&#39;s of gpu faults
+all at once (and I really only need to handle the first one).  I
+suppose that could also be achieved by having a special return value
+from the fault handler to say &quot;call me again from a wq&quot;..
+
+Note that in the drm driver I already have a suitable wq to queue the
+work, so it really doesn&#39;t buy me anything to have the iommu driver
+toss things off to a wq for me.  Might be a different situation for
+other drivers (but I guess mostly other drivers are using iommu API
+indirectly via dma-mapping?)
+<span class="quote">
+&gt; The interface could look like this:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;         * New function iommu_domain_enable_stalls(domain) - When</span>
+<span class="quote">&gt;           this function returns the domain is in stall-handling mode. A</span>
+<span class="quote">&gt;           iommu_domain_disable_stalls() might make sense too, not sure</span>
+<span class="quote">&gt;           about that.</span>
+
+I don&#39;t particularly see a use-case for disabling stalls, fwiw
+
+BR,
+-R
+<span class="quote">
+&gt;         * When stalls are enabled for a domain, report_iommu_fault()</span>
+<span class="quote">&gt;           queues the fault to a workqueue (so that its handler can</span>
+<span class="quote">&gt;           block) and in the workqueue you call -&gt;resume() based on the</span>
+<span class="quote">&gt;           return value of the handler.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; As a side-note, as there has been discussion on this: For now it doesn&#39;t</span>
+<span class="quote">&gt; make sense to merge this with the SVM page-fault handling efforts, as</span>
+<span class="quote">&gt; this path is different enough (SVM will call handle_mm_fault() as the</span>
+<span class="quote">&gt; handler, for example).</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Regards,</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;         Joerg</span>
+<span class="quote">&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=317">Joerg Roedel</a> - Sept. 22, 2017, 9:02 a.m.</div>
+<pre class="content">
+On Tue, Sep 19, 2017 at 10:23:43AM -0400, Rob Clark wrote:
+<span class="quote">&gt; I would like to decide in the IRQ whether or not to queue work or not,</span>
+<span class="quote">&gt; because when we get a gpu fault, we tend to get 1000&#39;s of gpu faults</span>
+<span class="quote">&gt; all at once (and I really only need to handle the first one).  I</span>
+<span class="quote">&gt; suppose that could also be achieved by having a special return value</span>
+<span class="quote">&gt; from the fault handler to say &quot;call me again from a wq&quot;..</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Note that in the drm driver I already have a suitable wq to queue the</span>
+<span class="quote">&gt; work, so it really doesn&#39;t buy me anything to have the iommu driver</span>
+<span class="quote">&gt; toss things off to a wq for me.  Might be a different situation for</span>
+<span class="quote">&gt; other drivers (but I guess mostly other drivers are using iommu API</span>
+<span class="quote">&gt; indirectly via dma-mapping?)</span>
+
+Okay, so since you are the only user for now, we don&#39;t need a
+work-queue. But I still want the -&gt;resume call-back to be hidden in the
+iommu code and not be exposed to users.
+
+We already have per-domain fault-handlers, so the best solution for now
+is to call -&gt;resume from report_iommu_fault() when the fault-handler
+returns a special value.
+
+
+Regards,
+
+	Joerg
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=97951">Jean-Philippe Brucker</a> - Sept. 22, 2017, 10:02 a.m.</div>
+<pre class="content">
+On 22/09/17 10:02, Joerg Roedel wrote:
+<span class="quote">&gt; On Tue, Sep 19, 2017 at 10:23:43AM -0400, Rob Clark wrote:</span>
+<span class="quote">&gt;&gt; I would like to decide in the IRQ whether or not to queue work or not,</span>
+<span class="quote">&gt;&gt; because when we get a gpu fault, we tend to get 1000&#39;s of gpu faults</span>
+<span class="quote">&gt;&gt; all at once (and I really only need to handle the first one).  I</span>
+<span class="quote">&gt;&gt; suppose that could also be achieved by having a special return value</span>
+<span class="quote">&gt;&gt; from the fault handler to say &quot;call me again from a wq&quot;..</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Note that in the drm driver I already have a suitable wq to queue the</span>
+<span class="quote">&gt;&gt; work, so it really doesn&#39;t buy me anything to have the iommu driver</span>
+<span class="quote">&gt;&gt; toss things off to a wq for me.  Might be a different situation for</span>
+<span class="quote">&gt;&gt; other drivers (but I guess mostly other drivers are using iommu API</span>
+<span class="quote">&gt;&gt; indirectly via dma-mapping?)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Okay, so since you are the only user for now, we don&#39;t need a</span>
+<span class="quote">&gt; work-queue. But I still want the -&gt;resume call-back to be hidden in the</span>
+<span class="quote">&gt; iommu code and not be exposed to users.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; We already have per-domain fault-handlers, so the best solution for now</span>
+<span class="quote">&gt; is to call -&gt;resume from report_iommu_fault() when the fault-handler</span>
+<span class="quote">&gt; returns a special value.</span>
+
+The problem is that report_iommu_fault is called from IRQ context by the
+SMMU driver, so the device driver callback cannot sleep.
+
+So if the device driver needs to be able to sleep between fault report and
+resume, as I understand Rob needs for writing debugfs, we can either:
+
+* call report_iommu_fault from higher up, in a thread or workqueue.
+* split the fault reporting as this patch proposes. The exact same
+  mechanism is needed for the vSVM work by Intel: in order to inject fault
+  into the guest, they would like to have an atomic notifier registered by
+  VFIO for passing down the Page Request, and a new function in the IOMMU
+  API to resume/complete the fault.
+
+Thanks,
+Jean
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=25981">Rob Clark</a> - Sept. 22, 2017, 6:42 p.m.</div>
+<pre class="content">
+On Fri, Sep 22, 2017 at 6:02 AM, Jean-Philippe Brucker
+&lt;jean-philippe.brucker@arm.com&gt; wrote:
+<span class="quote">&gt; On 22/09/17 10:02, Joerg Roedel wrote:</span>
+<span class="quote">&gt;&gt; On Tue, Sep 19, 2017 at 10:23:43AM -0400, Rob Clark wrote:</span>
+<span class="quote">&gt;&gt;&gt; I would like to decide in the IRQ whether or not to queue work or not,</span>
+<span class="quote">&gt;&gt;&gt; because when we get a gpu fault, we tend to get 1000&#39;s of gpu faults</span>
+<span class="quote">&gt;&gt;&gt; all at once (and I really only need to handle the first one).  I</span>
+<span class="quote">&gt;&gt;&gt; suppose that could also be achieved by having a special return value</span>
+<span class="quote">&gt;&gt;&gt; from the fault handler to say &quot;call me again from a wq&quot;..</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; Note that in the drm driver I already have a suitable wq to queue the</span>
+<span class="quote">&gt;&gt;&gt; work, so it really doesn&#39;t buy me anything to have the iommu driver</span>
+<span class="quote">&gt;&gt;&gt; toss things off to a wq for me.  Might be a different situation for</span>
+<span class="quote">&gt;&gt;&gt; other drivers (but I guess mostly other drivers are using iommu API</span>
+<span class="quote">&gt;&gt;&gt; indirectly via dma-mapping?)</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Okay, so since you are the only user for now, we don&#39;t need a</span>
+<span class="quote">&gt;&gt; work-queue. But I still want the -&gt;resume call-back to be hidden in the</span>
+<span class="quote">&gt;&gt; iommu code and not be exposed to users.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; We already have per-domain fault-handlers, so the best solution for now</span>
+<span class="quote">&gt;&gt; is to call -&gt;resume from report_iommu_fault() when the fault-handler</span>
+<span class="quote">&gt;&gt; returns a special value.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; The problem is that report_iommu_fault is called from IRQ context by the</span>
+<span class="quote">&gt; SMMU driver, so the device driver callback cannot sleep.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; So if the device driver needs to be able to sleep between fault report and</span>
+<span class="quote">&gt; resume, as I understand Rob needs for writing debugfs, we can either:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; * call report_iommu_fault from higher up, in a thread or workqueue.</span>
+<span class="quote">&gt; * split the fault reporting as this patch proposes. The exact same</span>
+<span class="quote">&gt;   mechanism is needed for the vSVM work by Intel: in order to inject fault</span>
+<span class="quote">&gt;   into the guest, they would like to have an atomic notifier registered by</span>
+<span class="quote">&gt;   VFIO for passing down the Page Request, and a new function in the IOMMU</span>
+<span class="quote">&gt;   API to resume/complete the fault.</span>
+<span class="quote">&gt;</span>
+
+I&#39;m in favour if splitting the reporting *somehow*.. the two
+approaches that seemed sane are:
+
+1) call fault handler from irq and having separate domain-&gt;resume()
+called by the driver, potentially from a wq
+2) or having two fault callbacks, first called before wq and then
+based on returned value, optionally 2nd callback called from wq
+
+The first seemed less intrusive to me, but I&#39;m flexible.
+
+BR,
+-R
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=317">Joerg Roedel</a> - Sept. 27, 2017, 12:15 p.m.</div>
+<pre class="content">
+Hi Rob, Jean,
+
+On Fri, Sep 22, 2017 at 02:42:44PM -0400, Rob Clark wrote:
+<span class="quote">&gt; I&#39;m in favour if splitting the reporting *somehow*.. the two</span>
+<span class="quote">&gt; approaches that seemed sane are:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 1) call fault handler from irq and having separate domain-&gt;resume()</span>
+<span class="quote">&gt; called by the driver, potentially from a wq</span>
+<span class="quote">&gt; 2) or having two fault callbacks, first called before wq and then</span>
+<span class="quote">&gt; based on returned value, optionally 2nd callback called from wq</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The first seemed less intrusive to me, but I&#39;m flexible.</span>
+
+How about adding a flag to the fault-handler call-back that tells us
+whether it wants to sleep or not. If it wants, we call it from a wq, if
+not we call call it directly like we do today in the
+report_iommu_fault() function.
+
+In any case we call iommu_ops-&gt;resume() when set on completion of the
+fault-handler either from the workqueue or report_iommu_fault itself.
+
+
+Regards,
+
+	Joerg
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=97951">Jean-Philippe Brucker</a> - Sept. 27, 2017, 1:49 p.m.</div>
+<pre class="content">
+Hi Joerg,
+
+On 27/09/17 13:15, Joerg Roedel wrote:
+<span class="quote">&gt; Hi Rob, Jean,</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; On Fri, Sep 22, 2017 at 02:42:44PM -0400, Rob Clark wrote:</span>
+<span class="quote">&gt;&gt; I&#39;m in favour if splitting the reporting *somehow*.. the two</span>
+<span class="quote">&gt;&gt; approaches that seemed sane are:</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; 1) call fault handler from irq and having separate domain-&gt;resume()</span>
+<span class="quote">&gt;&gt; called by the driver, potentially from a wq</span>
+<span class="quote">&gt;&gt; 2) or having two fault callbacks, first called before wq and then</span>
+<span class="quote">&gt;&gt; based on returned value, optionally 2nd callback called from wq</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; The first seemed less intrusive to me, but I&#39;m flexible.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; How about adding a flag to the fault-handler call-back that tells us</span>
+<span class="quote">&gt; whether it wants to sleep or not. If it wants, we call it from a wq, if</span>
+<span class="quote">&gt; not we call call it directly like we do today in the</span>
+<span class="quote">&gt; report_iommu_fault() function.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; In any case we call iommu_ops-&gt;resume() when set on completion of the</span>
+<span class="quote">&gt; fault-handler either from the workqueue or report_iommu_fault itself.</span>
+
+I like this approach. When the device driver registers a fault handler,
+it also tells when it would like to be called (either in atomic context,
+blocking context, or both).
+
+Then the handler itself receives a flag that says which context it&#39;s
+being called from. It returns a value telling the IOMMU how to proceed.
+Depending on this value we either resume/abort immediately, or add the
+fault to the workqueue if necessary.
+
+How about using the following return values:
+
+/**
+ * enum iommu_fault_status - Return status of fault handlers, telling the IOMMU
+ *      driver how to proceed with the fault.
+ *
+ * @IOMMU_FAULT_STATUS_NONE: Fault was not handled. Call the next handler, or
+ *      terminate.
+ * @IOMMU_FAULT_STATUS_FAILURE: General error. Drop all subsequent faults from
+ *      this device if possible. This is &quot;Response Failure&quot; in PCI PRI.
+ * @IOMMU_FAULT_STATUS_INVALID: Could not handle this fault, don&#39;t retry the
+ *      access. This is &quot;Invalid Request&quot; in PCI PRI.
+ * @IOMMU_FAULT_STATUS_HANDLED: Fault has been handled and the page tables
+ *      populated, retry the access.
+ * @IOMMU_FAULT_STATUS_IGNORE: Stop processing the fault, and do not send a
+ *      reply to the device.
+ *
+ * For unrecoverable faults, the only valid status is IOMMU_FAULT_STATUS_NONE
+ * For a recoverable fault, if no one handled the fault, treat as
+ * IOMMU_FAULT_STATUS_INVALID.
+ */
+enum iommu_fault_status {
+        IOMMU_FAULT_STATUS_NONE = 0,
+        IOMMU_FAULT_STATUS_FAILURE,
+        IOMMU_FAULT_STATUS_INVALID,
+        IOMMU_FAULT_STATUS_HANDLED,
+        IOMMU_FAULT_STATUS_IGNORE,
+};
+
+This would probably cover the two use-cases of reporting faults to
+device drivers, and injecting them into the guest with VFIO, as well as
+handling PPRs internally. I&#39;m also working on providing more details
+(pasid for instance) in the fault callback.
+
+We could also use the fault handler for invalid PRI Page Requests
+(currently specialized by amd_iommu_set_invalid_ppr_cb). It&#39;s just a
+matter of adding a registration flag to iommu_set_fault_handler.
+
+Thanks,
+Jean
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=317">Joerg Roedel</a> - Sept. 27, 2017, 2:35 p.m.</div>
+<pre class="content">
+Hi Jean,
+
+On Wed, Sep 27, 2017 at 02:49:00PM +0100, Jean-Philippe Brucker wrote:
+<span class="quote">&gt; I like this approach. When the device driver registers a fault handler,</span>
+<span class="quote">&gt; it also tells when it would like to be called (either in atomic context,</span>
+<span class="quote">&gt; blocking context, or both).</span>
+
+Is there a use-case for calling the same handler from both contexts?
+<span class="quote">
+&gt; enum iommu_fault_status {</span>
+<span class="quote">&gt;         IOMMU_FAULT_STATUS_NONE = 0,</span>
+<span class="quote">&gt;         IOMMU_FAULT_STATUS_FAILURE,</span>
+<span class="quote">&gt;         IOMMU_FAULT_STATUS_INVALID,</span>
+<span class="quote">&gt;         IOMMU_FAULT_STATUS_HANDLED,</span>
+<span class="quote">&gt;         IOMMU_FAULT_STATUS_IGNORE,</span>
+<span class="quote">&gt; };</span>
+
+
+This all certainly makes sense for the PRI/PASID case, but I don&#39;t think
+that it makes sense yet to extend the existing report_iommu_fault()
+interface to also handle PASID/PPR faults.
+
+The later needs a lot more parameters to successfully handle a fault. In
+the AMD driver these are all in &#39;struct fault&#39;, the relevant members
+are:
+
+        u64 address;
+        u16 devid;
+        u16 pasid;
+        u16 tag;
+        u16 finish;
+        u16 flags;
+
+And passing all this through the existing interface which also handles
+non-pasid faults is cumbersome. So I&#39;d like to keep the PASID/PPR
+interface separate from the old one for now.
+
+Regards,
+
+	Joerg
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=25981">Rob Clark</a> - Sept. 27, 2017, 4:14 p.m.</div>
+<pre class="content">
+On Wed, Sep 27, 2017 at 9:49 AM, Jean-Philippe Brucker
+&lt;jean-philippe.brucker@arm.com&gt; wrote:
+<span class="quote">&gt; Hi Joerg,</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; On 27/09/17 13:15, Joerg Roedel wrote:</span>
+<span class="quote">&gt;&gt; Hi Rob, Jean,</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; On Fri, Sep 22, 2017 at 02:42:44PM -0400, Rob Clark wrote:</span>
+<span class="quote">&gt;&gt;&gt; I&#39;m in favour if splitting the reporting *somehow*.. the two</span>
+<span class="quote">&gt;&gt;&gt; approaches that seemed sane are:</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; 1) call fault handler from irq and having separate domain-&gt;resume()</span>
+<span class="quote">&gt;&gt;&gt; called by the driver, potentially from a wq</span>
+<span class="quote">&gt;&gt;&gt; 2) or having two fault callbacks, first called before wq and then</span>
+<span class="quote">&gt;&gt;&gt; based on returned value, optionally 2nd callback called from wq</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; The first seemed less intrusive to me, but I&#39;m flexible.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; How about adding a flag to the fault-handler call-back that tells us</span>
+<span class="quote">&gt;&gt; whether it wants to sleep or not. If it wants, we call it from a wq, if</span>
+<span class="quote">&gt;&gt; not we call call it directly like we do today in the</span>
+<span class="quote">&gt;&gt; report_iommu_fault() function.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; In any case we call iommu_ops-&gt;resume() when set on completion of the</span>
+<span class="quote">&gt;&gt; fault-handler either from the workqueue or report_iommu_fault itself.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I like this approach. When the device driver registers a fault handler,</span>
+<span class="quote">&gt; it also tells when it would like to be called (either in atomic context,</span>
+<span class="quote">&gt; blocking context, or both).</span>
+
+What I have in mind is still a case-by-case decision.  Ie. I&#39;d decide
+if it is the first fault from a particular submit (job), in which case
+I&#39;d want to schedule the wq, or if it is one of the 999 following
+faults from the same submit (in which case, skip the wq).
+
+So a static decision when registering the fault handler doesn&#39;t work.
+
+BR,
+-R
+<span class="quote">
+
+&gt; Then the handler itself receives a flag that says which context it&#39;s</span>
+<span class="quote">&gt; being called from. It returns a value telling the IOMMU how to proceed.</span>
+<span class="quote">&gt; Depending on this value we either resume/abort immediately, or add the</span>
+<span class="quote">&gt; fault to the workqueue if necessary.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; How about using the following return values:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; /**</span>
+<span class="quote">&gt;  * enum iommu_fault_status - Return status of fault handlers, telling the IOMMU</span>
+<span class="quote">&gt;  *      driver how to proceed with the fault.</span>
+<span class="quote">&gt;  *</span>
+<span class="quote">&gt;  * @IOMMU_FAULT_STATUS_NONE: Fault was not handled. Call the next handler, or</span>
+<span class="quote">&gt;  *      terminate.</span>
+<span class="quote">&gt;  * @IOMMU_FAULT_STATUS_FAILURE: General error. Drop all subsequent faults from</span>
+<span class="quote">&gt;  *      this device if possible. This is &quot;Response Failure&quot; in PCI PRI.</span>
+<span class="quote">&gt;  * @IOMMU_FAULT_STATUS_INVALID: Could not handle this fault, don&#39;t retry the</span>
+<span class="quote">&gt;  *      access. This is &quot;Invalid Request&quot; in PCI PRI.</span>
+<span class="quote">&gt;  * @IOMMU_FAULT_STATUS_HANDLED: Fault has been handled and the page tables</span>
+<span class="quote">&gt;  *      populated, retry the access.</span>
+<span class="quote">&gt;  * @IOMMU_FAULT_STATUS_IGNORE: Stop processing the fault, and do not send a</span>
+<span class="quote">&gt;  *      reply to the device.</span>
+<span class="quote">&gt;  *</span>
+<span class="quote">&gt;  * For unrecoverable faults, the only valid status is IOMMU_FAULT_STATUS_NONE</span>
+<span class="quote">&gt;  * For a recoverable fault, if no one handled the fault, treat as</span>
+<span class="quote">&gt;  * IOMMU_FAULT_STATUS_INVALID.</span>
+<span class="quote">&gt;  */</span>
+<span class="quote">&gt; enum iommu_fault_status {</span>
+<span class="quote">&gt;         IOMMU_FAULT_STATUS_NONE = 0,</span>
+<span class="quote">&gt;         IOMMU_FAULT_STATUS_FAILURE,</span>
+<span class="quote">&gt;         IOMMU_FAULT_STATUS_INVALID,</span>
+<span class="quote">&gt;         IOMMU_FAULT_STATUS_HANDLED,</span>
+<span class="quote">&gt;         IOMMU_FAULT_STATUS_IGNORE,</span>
+<span class="quote">&gt; };</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; This would probably cover the two use-cases of reporting faults to</span>
+<span class="quote">&gt; device drivers, and injecting them into the guest with VFIO, as well as</span>
+<span class="quote">&gt; handling PPRs internally. I&#39;m also working on providing more details</span>
+<span class="quote">&gt; (pasid for instance) in the fault callback.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; We could also use the fault handler for invalid PRI Page Requests</span>
+<span class="quote">&gt; (currently specialized by amd_iommu_set_invalid_ppr_cb). It&#39;s just a</span>
+<span class="quote">&gt; matter of adding a registration flag to iommu_set_fault_handler.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Thanks,</span>
+<span class="quote">&gt; Jean</span>
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/drivers/iommu/arm-smmu.c b/drivers/iommu/arm-smmu.c</span>
+<span class="p_header">index fe8e7fd61282..50131985a1e7 100644</span>
+<span class="p_header">--- a/drivers/iommu/arm-smmu.c</span>
+<span class="p_header">+++ b/drivers/iommu/arm-smmu.c</span>
+<span class="p_chunk">@@ -239,6 +239,7 @@</span> <span class="p_context"> struct arm_smmu_domain {</span>
+ 	struct io_pgtable_ops		*pgtbl_ops;
+ 	struct arm_smmu_cfg		cfg;
+ 	enum arm_smmu_domain_stage	stage;
+<span class="p_add">+	bool				stall;</span>
+ 	struct mutex			init_mutex; /* Protects smmu pointer */
+ 	spinlock_t			cb_lock; /* Serialises ATS1* ops */
+ 	struct iommu_domain		domain;
+<span class="p_chunk">@@ -544,6 +545,24 @@</span> <span class="p_context"> static const struct iommu_gather_ops arm_smmu_s2_tlb_ops_v1 = {</span>
+ 	.tlb_sync	= arm_smmu_tlb_sync_vmid,
+ };
+ 
+<span class="p_add">+static void arm_smmu_domain_resume(struct iommu_domain *domain, bool terminate)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);</span>
+<span class="p_add">+	struct arm_smmu_cfg *cfg = &amp;smmu_domain-&gt;cfg;</span>
+<span class="p_add">+	struct arm_smmu_device *smmu = smmu_domain-&gt;smmu;</span>
+<span class="p_add">+	void __iomem *cb_base;</span>
+<span class="p_add">+	unsigned val;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	cb_base = ARM_SMMU_CB(smmu, cfg-&gt;cbndx);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (terminate)</span>
+<span class="p_add">+		val = RESUME_TERMINATE;</span>
+<span class="p_add">+	else</span>
+<span class="p_add">+		val = RESUME_RETRY;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	writel_relaxed(val, cb_base + ARM_SMMU_CB_RESUME);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ static irqreturn_t arm_smmu_context_fault(int irq, void *dev)
+ {
+ 	u32 fsr, fsynr;
+<span class="p_chunk">@@ -563,11 +582,14 @@</span> <span class="p_context"> static irqreturn_t arm_smmu_context_fault(int irq, void *dev)</span>
+ 	fsynr = readl_relaxed(cb_base + ARM_SMMU_CB_FSYNR0);
+ 	iova = readq_relaxed(cb_base + ARM_SMMU_CB_FAR);
+ 
+<span class="p_del">-	dev_err_ratelimited(smmu-&gt;dev,</span>
+<span class="p_del">-	&quot;Unhandled context fault: fsr=0x%x, iova=0x%08lx, fsynr=0x%x, cb=%d\n&quot;,</span>
+<span class="p_del">-			    fsr, iova, fsynr, cfg-&gt;cbndx);</span>
+<span class="p_del">-</span>
+ 	writel(fsr, cb_base + ARM_SMMU_CB_FSR);
+<span class="p_add">+</span>
+<span class="p_add">+	if (!report_iommu_fault(domain, smmu-&gt;dev, iova, 0)) {</span>
+<span class="p_add">+		dev_err_ratelimited(smmu-&gt;dev,</span>
+<span class="p_add">+		&quot;Unhandled context fault: fsr=0x%x, iova=0x%08lx, fsynr=0x%x, cb=%d\n&quot;,</span>
+<span class="p_add">+				    fsr, iova, fsynr, cfg-&gt;cbndx);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+ 	return IRQ_HANDLED;
+ }
+ 
+<span class="p_chunk">@@ -698,6 +720,8 @@</span> <span class="p_context"> static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,</span>
+ 
+ 	/* SCTLR */
+ 	reg = SCTLR_CFIE | SCTLR_CFRE | SCTLR_AFE | SCTLR_TRE | SCTLR_M;
+<span class="p_add">+	if (smmu_domain-&gt;stall)</span>
+<span class="p_add">+		reg |= SCTLR_CFCFG;    /* stall on fault */</span>
+ 	if (stage1)
+ 		reg |= SCTLR_S1_ASIDPNE;
+ #ifdef __BIG_ENDIAN
+<span class="p_chunk">@@ -1524,6 +1548,9 @@</span> <span class="p_context"> static int arm_smmu_domain_set_attr(struct iommu_domain *domain,</span>
+ 			smmu_domain-&gt;stage = ARM_SMMU_DOMAIN_S1;
+ 
+ 		break;
+<span class="p_add">+	case DOMAIN_ATTR_STALL:</span>
+<span class="p_add">+		smmu_domain-&gt;stall = *(bool *)data;</span>
+<span class="p_add">+		break;</span>
+ 	default:
+ 		ret = -ENODEV;
+ 	}
+<span class="p_chunk">@@ -1587,6 +1614,7 @@</span> <span class="p_context"> static struct iommu_ops arm_smmu_ops = {</span>
+ 	.device_group		= arm_smmu_device_group,
+ 	.domain_get_attr	= arm_smmu_domain_get_attr,
+ 	.domain_set_attr	= arm_smmu_domain_set_attr,
+<span class="p_add">+	.domain_resume		= arm_smmu_domain_resume,</span>
+ 	.of_xlate		= arm_smmu_of_xlate,
+ 	.get_resv_regions	= arm_smmu_get_resv_regions,
+ 	.put_resv_regions	= arm_smmu_put_resv_regions,
+<span class="p_header">diff --git a/drivers/iommu/iommu.c b/drivers/iommu/iommu.c</span>
+<span class="p_header">index 3f6ea160afed..49eecfb7abd7 100644</span>
+<span class="p_header">--- a/drivers/iommu/iommu.c</span>
+<span class="p_header">+++ b/drivers/iommu/iommu.c</span>
+<span class="p_chunk">@@ -1788,6 +1788,27 @@</span> <span class="p_context"> int iommu_domain_set_attr(struct iommu_domain *domain,</span>
+ }
+ EXPORT_SYMBOL_GPL(iommu_domain_set_attr);
+ 
+<span class="p_add">+/**</span>
+<span class="p_add">+ * iommu_domain_resume - Resume translations for a domain after a fault.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This can be called at some point after the fault handler is called,</span>
+<span class="p_add">+ * allowing the user of the IOMMU to (for example) handle the fault</span>
+<span class="p_add">+ * from a task context.  It is illegal to call this if</span>
+<span class="p_add">+ * iommu_domain_set_attr(STALL) failed.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * @domain:    the domain to resume</span>
+<span class="p_add">+ * @terminate: if true, the translation that triggered the fault should</span>
+<span class="p_add">+ *    be terminated, else it should be retried.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+void iommu_domain_resume(struct iommu_domain *domain, bool terminate)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	/* invalid to call if iommu_domain_set_attr(STALL) failed: */</span>
+<span class="p_add">+	if (WARN_ON(!domain-&gt;ops-&gt;domain_resume))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	domain-&gt;ops-&gt;domain_resume(domain, terminate);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL_GPL(iommu_domain_resume);</span>
+<span class="p_add">+</span>
+ void iommu_get_resv_regions(struct device *dev, struct list_head *list)
+ {
+ 	const struct iommu_ops *ops = dev-&gt;bus-&gt;iommu_ops;
+<span class="p_header">diff --git a/include/linux/iommu.h b/include/linux/iommu.h</span>
+<span class="p_header">index 2cb54adc4a33..2154fe2591a0 100644</span>
+<span class="p_header">--- a/include/linux/iommu.h</span>
+<span class="p_header">+++ b/include/linux/iommu.h</span>
+<span class="p_chunk">@@ -124,6 +124,17 @@</span> <span class="p_context"> enum iommu_attr {</span>
+ 	DOMAIN_ATTR_FSL_PAMU_ENABLE,
+ 	DOMAIN_ATTR_FSL_PAMUV1,
+ 	DOMAIN_ATTR_NESTING,	/* two stages of translation */
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Domain stalls faulting translations, if DOMAIN_ATTR_STALL is</span>
+<span class="p_add">+	 * enabled, user of domain calls iommu_domain_resume() at some</span>
+<span class="p_add">+	 * point (either from fault handler or asynchronously after</span>
+<span class="p_add">+	 * the fault handler is called (for example, from a workqueue)</span>
+<span class="p_add">+	 * to resume translations.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * The attribute value is a bool, and should be set before</span>
+<span class="p_add">+	 * attaching the domain.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	DOMAIN_ATTR_STALL,</span>
+ 	DOMAIN_ATTR_MAX,
+ };
+ 
+<span class="p_chunk">@@ -208,6 +219,8 @@</span> <span class="p_context"> struct iommu_ops {</span>
+ 	int (*domain_set_attr)(struct iommu_domain *domain,
+ 			       enum iommu_attr attr, void *data);
+ 
+<span class="p_add">+	void (*domain_resume)(struct iommu_domain *domain, bool terminate);</span>
+<span class="p_add">+</span>
+ 	/* Request/Free a list of reserved regions for a device */
+ 	void (*get_resv_regions)(struct device *dev, struct list_head *list);
+ 	void (*put_resv_regions)(struct device *dev, struct list_head *list);
+<span class="p_chunk">@@ -333,6 +346,7 @@</span> <span class="p_context"> extern int iommu_domain_get_attr(struct iommu_domain *domain, enum iommu_attr,</span>
+ 				 void *data);
+ extern int iommu_domain_set_attr(struct iommu_domain *domain, enum iommu_attr,
+ 				 void *data);
+<span class="p_add">+extern void iommu_domain_resume(struct iommu_domain *domain, bool terminate);</span>
+ 
+ /* Window handling function prototypes */
+ extern int iommu_domain_window_enable(struct iommu_domain *domain, u32 wnd_nr,
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

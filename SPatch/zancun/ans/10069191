@@ -1,0 +1,305 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[3.16,087/133] s390/mm: fix race on mm-&gt;context.flush_mm - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [3.16,087/133] s390/mm: fix race on mm-&gt;context.flush_mm</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=131">Ben Hutchings</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Nov. 22, 2017, 1:58 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;lsq.1511315893.105953333@decadent.org.uk&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10069191/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10069191/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10069191/">/patch/10069191/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	47FC36022E for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 22 Nov 2017 02:34:39 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 3647229998
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 22 Nov 2017 02:34:39 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 28272299D0; Wed, 22 Nov 2017 02:34:39 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 8050829998
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 22 Nov 2017 02:34:38 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752445AbdKVCd1 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 21 Nov 2017 21:33:27 -0500
+Received: from shadbolt.e.decadent.org.uk ([88.96.1.126]:56793 &quot;EHLO
+	shadbolt.e.decadent.org.uk&quot; rhost-flags-OK-OK-OK-OK)
+	by vger.kernel.org with ESMTP id S1751873AbdKVCUY (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 21 Nov 2017 21:20:24 -0500
+Received: from [2a02:8011:400e:2:6f00:88c8:c921:d332] (helo=deadeye)
+	by shadbolt.decadent.org.uk with esmtps
+	(TLS1.2:ECDHE_RSA_AES_256_GCM_SHA384:256) (Exim 4.84_2)
+	(envelope-from &lt;ben@decadent.org.uk&gt;)
+	id 1eHKeE-0004Y6-Q4; Wed, 22 Nov 2017 02:20:22 +0000
+Received: from ben by deadeye with local (Exim 4.89)
+	(envelope-from &lt;ben@decadent.org.uk&gt;)
+	id 1eHKe8-0003BP-7J; Wed, 22 Nov 2017 02:20:16 +0000
+Content-Type: text/plain; charset=&quot;UTF-8&quot;
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+MIME-Version: 1.0
+From: Ben Hutchings &lt;ben@decadent.org.uk&gt;
+To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
+CC: akpm@linux-foundation.org, &quot;Heiko Carstens&quot; &lt;heiko.carstens@de.ibm.com&gt;,
+	&quot;Martin Schwidefsky&quot; &lt;schwidefsky@de.ibm.com&gt;
+Date: Wed, 22 Nov 2017 01:58:13 +0000
+Message-ID: &lt;lsq.1511315893.105953333@decadent.org.uk&gt;
+X-Mailer: LinuxStableQueue (scripts by bwh)
+Subject: [PATCH 3.16 087/133] s390/mm: fix race on mm-&gt;context.flush_mm
+In-Reply-To: &lt;lsq.1511315892.657723235@decadent.org.uk&gt;
+X-SA-Exim-Connect-IP: 2a02:8011:400e:2:6f00:88c8:c921:d332
+X-SA-Exim-Mail-From: ben@decadent.org.uk
+X-SA-Exim-Scanned: No (on shadbolt.decadent.org.uk);
+	SAEximRunCond expanded to false
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=131">Ben Hutchings</a> - Nov. 22, 2017, 1:58 a.m.</div>
+<pre class="content">
+3.16.51-rc1 review patch.  If anyone has any objections, please let me know.
+
+------------------
+<span class="from">
+From: Martin Schwidefsky &lt;schwidefsky@de.ibm.com&gt;</span>
+
+commit 60f07c8ec5fae06c23e9fd7bab67dabce92b3414 upstream.
+
+The order in __tlb_flush_mm_lazy is to flush TLB first and then clear
+the mm-&gt;context.flush_mm bit. This can lead to missed flushes as the
+bit can be set anytime, the order needs to be the other way aronud.
+
+But this leads to a different race, __tlb_flush_mm_lazy may be called
+on two CPUs concurrently. If mm-&gt;context.flush_mm is cleared first then
+another CPU can bypass __tlb_flush_mm_lazy although the first CPU has
+not done the flush yet. In a virtualized environment the time until the
+flush is finally completed can be arbitrarily long.
+
+Add a spinlock to serialize __tlb_flush_mm_lazy and use the function
+in finish_arch_post_lock_switch as well.
+<span class="reviewed-by">
+Reviewed-by: Heiko Carstens &lt;heiko.carstens@de.ibm.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Martin Schwidefsky &lt;schwidefsky@de.ibm.com&gt;</span>
+[bwh: Backported to 3.16: adjust context]
+<span class="signed-off-by">Signed-off-by: Ben Hutchings &lt;ben@decadent.org.uk&gt;</span>
+---
+ arch/s390/include/asm/mmu.h         | 2 ++
+ arch/s390/include/asm/mmu_context.h | 4 ++--
+ arch/s390/include/asm/tlbflush.h    | 4 +++-
+ 3 files changed, 7 insertions(+), 3 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- a/arch/s390/include/asm/mmu.h</span>
+<span class="p_header">+++ b/arch/s390/include/asm/mmu.h</span>
+<span class="p_chunk">@@ -5,6 +5,7 @@</span> <span class="p_context"></span>
+ #include &lt;linux/errno.h&gt;
+ 
+ typedef struct {
+<span class="p_add">+	spinlock_t lock;</span>
+ 	cpumask_t cpu_attach_mask;
+ 	atomic_t attach_count;
+ 	unsigned int flush_mm;
+<span class="p_chunk">@@ -21,6 +22,7 @@</span> <span class="p_context"> typedef struct {</span>
+ } mm_context_t;
+ 
+ #define INIT_MM_CONTEXT(name)						      \
+<span class="p_add">+	.context.lock =	__SPIN_LOCK_UNLOCKED(name.context.lock),	      \</span>
+ 	.context.list_lock    = __SPIN_LOCK_UNLOCKED(name.context.list_lock), \
+ 	.context.pgtable_list = LIST_HEAD_INIT(name.context.pgtable_list),    \
+ 	.context.gmap_list = LIST_HEAD_INIT(name.context.gmap_list),
+<span class="p_header">--- a/arch/s390/include/asm/mmu_context.h</span>
+<span class="p_header">+++ b/arch/s390/include/asm/mmu_context.h</span>
+<span class="p_chunk">@@ -15,6 +15,7 @@</span> <span class="p_context"></span>
+ static inline int init_new_context(struct task_struct *tsk,
+ 				   struct mm_struct *mm)
+ {
+<span class="p_add">+	spin_lock_init(&amp;mm-&gt;context.lock);</span>
+ 	spin_lock_init(&amp;mm-&gt;context.list_lock);
+ 	INIT_LIST_HEAD(&amp;mm-&gt;context.pgtable_list);
+ 	INIT_LIST_HEAD(&amp;mm-&gt;context.gmap_list);
+<span class="p_chunk">@@ -95,8 +96,7 @@</span> <span class="p_context"> static inline void finish_arch_post_lock</span>
+ 			cpu_relax();
+ 
+ 		cpumask_set_cpu(smp_processor_id(), mm_cpumask(mm));
+<span class="p_del">-		if (mm-&gt;context.flush_mm)</span>
+<span class="p_del">-			__tlb_flush_mm(mm);</span>
+<span class="p_add">+		__tlb_flush_mm_lazy(mm);</span>
+ 		preempt_enable();
+ 	}
+ 	set_fs(current-&gt;thread.mm_segment);
+<span class="p_header">--- a/arch/s390/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/s390/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -164,10 +164,12 @@</span> <span class="p_context"> static inline void __tlb_flush_mm(struct</span>
+ 
+ static inline void __tlb_flush_mm_lazy(struct mm_struct * mm)
+ {
+<span class="p_add">+	spin_lock(&amp;mm-&gt;context.lock);</span>
+ 	if (mm-&gt;context.flush_mm) {
+<span class="p_del">-		__tlb_flush_mm(mm);</span>
+ 		mm-&gt;context.flush_mm = 0;
+<span class="p_add">+		__tlb_flush_mm(mm);</span>
+ 	}
+<span class="p_add">+	spin_unlock(&amp;mm-&gt;context.lock);</span>
+ }
+ 
+ /*
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

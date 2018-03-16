@@ -1,0 +1,365 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[4.4,019/117] parisc: Protect huge page pte changes with spinlocks - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [4.4,019/117] parisc: Protect huge page pte changes with spinlocks</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=37061">gregkh@linuxfoundation.org</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Feb. 14, 2016, 10:20 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20160214222141.977649639@linuxfoundation.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/8308161/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/8308161/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/8308161/">/patch/8308161/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork1.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork1.web.kernel.org (Postfix) with ESMTP id 1E2E49F372
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 15 Feb 2016 00:47:26 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 6420F2041F
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 15 Feb 2016 00:47:25 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 6634120515
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 15 Feb 2016 00:47:24 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752034AbcBNWYm (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Sun, 14 Feb 2016 17:24:42 -0500
+Received: from mail.linuxfoundation.org ([140.211.169.12]:39711 &quot;EHLO
+	mail.linuxfoundation.org&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751687AbcBNWXz (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Sun, 14 Feb 2016 17:23:55 -0500
+Received: from localhost (c-50-170-35-168.hsd1.wa.comcast.net
+	[50.170.35.168])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 2AB54F2D;
+	Sun, 14 Feb 2016 22:23:55 +0000 (UTC)
+From: Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;,
+	stable@vger.kernel.org, Helge Deller &lt;deller@gmx.de&gt;
+Subject: [PATCH 4.4 019/117] parisc: Protect huge page pte changes with
+	spinlocks
+Date: Sun, 14 Feb 2016 14:20:56 -0800
+Message-Id: &lt;20160214222141.977649639@linuxfoundation.org&gt;
+X-Mailer: git-send-email 2.7.1
+In-Reply-To: &lt;20160214222141.393531627@linuxfoundation.org&gt;
+References: &lt;20160214222141.393531627@linuxfoundation.org&gt;
+User-Agent: quilt/0.64
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=37061">gregkh@linuxfoundation.org</a> - Feb. 14, 2016, 10:20 p.m.</div>
+<pre class="content">
+4.4-stable review patch.  If anyone has any objections, please let me know.
+
+------------------
+<span class="from">
+From: Helge Deller &lt;deller@gmx.de&gt;</span>
+
+commit b0e551313ebde17764f3a5ed273df524d1e7e690 upstream.
+
+PA-RISC doesn&#39;t have atomic instructions to modify page table entries, so it
+takes spinlock in the TLB handler and modifies the page table entry
+non-atomically. If you modify the page table entry without the spinlock, you
+may race with TLB handler on another CPU and your modification may be lost.
+Protect against that with usage of purge_tlb_start() and purge_tlb_end() which
+handles the TLB spinlock.
+<span class="signed-off-by">
+Signed-off-by: Helge Deller &lt;deller@gmx.de&gt;</span>
+<span class="signed-off-by">Signed-off-by: Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;</span>
+
+---
+ arch/parisc/include/asm/hugetlb.h |   20 ++----------
+ arch/parisc/mm/hugetlbpage.c      |   60 ++++++++++++++++++++++++++++++--------
+ 2 files changed, 52 insertions(+), 28 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- a/arch/parisc/include/asm/hugetlb.h</span>
+<span class="p_header">+++ b/arch/parisc/include/asm/hugetlb.h</span>
+<span class="p_chunk">@@ -54,24 +54,12 @@</span> <span class="p_context"> static inline pte_t huge_pte_wrprotect(p</span>
+ 	return pte_wrprotect(pte);
+ }
+ 
+<span class="p_del">-static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,</span>
+<span class="p_del">-					   unsigned long addr, pte_t *ptep)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	pte_t old_pte = *ptep;</span>
+<span class="p_del">-	set_huge_pte_at(mm, addr, ptep, pte_wrprotect(old_pte));</span>
+<span class="p_del">-}</span>
+<span class="p_add">+void huge_ptep_set_wrprotect(struct mm_struct *mm,</span>
+<span class="p_add">+					   unsigned long addr, pte_t *ptep);</span>
+ 
+<span class="p_del">-static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,</span>
+<span class="p_add">+int huge_ptep_set_access_flags(struct vm_area_struct *vma,</span>
+ 					     unsigned long addr, pte_t *ptep,
+<span class="p_del">-					     pte_t pte, int dirty)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	int changed = !pte_same(*ptep, pte);</span>
+<span class="p_del">-	if (changed) {</span>
+<span class="p_del">-		set_huge_pte_at(vma-&gt;vm_mm, addr, ptep, pte);</span>
+<span class="p_del">-		flush_tlb_page(vma, addr);</span>
+<span class="p_del">-	}</span>
+<span class="p_del">-	return changed;</span>
+<span class="p_del">-}</span>
+<span class="p_add">+					     pte_t pte, int dirty);</span>
+ 
+ static inline pte_t huge_ptep_get(pte_t *ptep)
+ {
+<span class="p_header">--- a/arch/parisc/mm/hugetlbpage.c</span>
+<span class="p_header">+++ b/arch/parisc/mm/hugetlbpage.c</span>
+<span class="p_chunk">@@ -105,15 +105,13 @@</span> <span class="p_context"> static inline void purge_tlb_entries_hug</span>
+ 	addr |= _HUGE_PAGE_SIZE_ENCODING_DEFAULT;
+ 
+ 	for (i = 0; i &lt; (1 &lt;&lt; (HPAGE_SHIFT-REAL_HPAGE_SHIFT)); i++) {
+<span class="p_del">-		mtsp(mm-&gt;context, 1);</span>
+<span class="p_del">-		pdtlb(addr);</span>
+<span class="p_del">-		if (unlikely(split_tlb))</span>
+<span class="p_del">-			pitlb(addr);</span>
+<span class="p_add">+		purge_tlb_entries(mm, addr);</span>
+ 		addr += (1UL &lt;&lt; REAL_HPAGE_SHIFT);
+ 	}
+ }
+ 
+<span class="p_del">-void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,</span>
+<span class="p_add">+/* __set_huge_pte_at() must be called holding the pa_tlb_lock. */</span>
+<span class="p_add">+static void __set_huge_pte_at(struct mm_struct *mm, unsigned long addr,</span>
+ 		     pte_t *ptep, pte_t entry)
+ {
+ 	unsigned long addr_start;
+<span class="p_chunk">@@ -123,14 +121,9 @@</span> <span class="p_context"> void set_huge_pte_at(struct mm_struct *m</span>
+ 	addr_start = addr;
+ 
+ 	for (i = 0; i &lt; (1 &lt;&lt; HUGETLB_PAGE_ORDER); i++) {
+<span class="p_del">-		/* Directly write pte entry.  We could call set_pte_at(mm, addr, ptep, entry)</span>
+<span class="p_del">-		 * instead, but then we get double locking on pa_tlb_lock. */</span>
+<span class="p_del">-		*ptep = entry;</span>
+<span class="p_add">+		set_pte(ptep, entry);</span>
+ 		ptep++;
+ 
+<span class="p_del">-		/* Drop the PAGE_SIZE/non-huge tlb entry */</span>
+<span class="p_del">-		purge_tlb_entries(mm, addr);</span>
+<span class="p_del">-</span>
+ 		addr += PAGE_SIZE;
+ 		pte_val(entry) += PAGE_SIZE;
+ 	}
+<span class="p_chunk">@@ -138,18 +131,61 @@</span> <span class="p_context"> void set_huge_pte_at(struct mm_struct *m</span>
+ 	purge_tlb_entries_huge(mm, addr_start);
+ }
+ 
+<span class="p_add">+void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,</span>
+<span class="p_add">+		     pte_t *ptep, pte_t entry)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long flags;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	purge_tlb_start(flags);</span>
+<span class="p_add">+	__set_huge_pte_at(mm, addr, ptep, entry);</span>
+<span class="p_add">+	purge_tlb_end(flags);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ 
+ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
+ 			      pte_t *ptep)
+ {
+<span class="p_add">+	unsigned long flags;</span>
+ 	pte_t entry;
+ 
+<span class="p_add">+	purge_tlb_start(flags);</span>
+ 	entry = *ptep;
+<span class="p_del">-	set_huge_pte_at(mm, addr, ptep, __pte(0));</span>
+<span class="p_add">+	__set_huge_pte_at(mm, addr, ptep, __pte(0));</span>
+<span class="p_add">+	purge_tlb_end(flags);</span>
+ 
+ 	return entry;
+ }
+ 
+<span class="p_add">+</span>
+<span class="p_add">+void huge_ptep_set_wrprotect(struct mm_struct *mm,</span>
+<span class="p_add">+				unsigned long addr, pte_t *ptep)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long flags;</span>
+<span class="p_add">+	pte_t old_pte;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	purge_tlb_start(flags);</span>
+<span class="p_add">+	old_pte = *ptep;</span>
+<span class="p_add">+	__set_huge_pte_at(mm, addr, ptep, pte_wrprotect(old_pte));</span>
+<span class="p_add">+	purge_tlb_end(flags);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+int huge_ptep_set_access_flags(struct vm_area_struct *vma,</span>
+<span class="p_add">+				unsigned long addr, pte_t *ptep,</span>
+<span class="p_add">+				pte_t pte, int dirty)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long flags;</span>
+<span class="p_add">+	int changed;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	purge_tlb_start(flags);</span>
+<span class="p_add">+	changed = !pte_same(*ptep, pte);</span>
+<span class="p_add">+	if (changed) {</span>
+<span class="p_add">+		__set_huge_pte_at(vma-&gt;vm_mm, addr, ptep, pte);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	purge_tlb_end(flags);</span>
+<span class="p_add">+	return changed;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+</span>
+ int pmd_huge(pmd_t pmd)
+ {
+ 	return 0;
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

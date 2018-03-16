@@ -1,0 +1,594 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC] x86/mm: Flush more aggressively in lazy TLB mode - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC] x86/mm: Flush more aggressively in lazy TLB mode</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Oct. 9, 2017, 4:50 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;8eccc9240041ea7cb94624cab8d07e2a6e911ba7.1507567665.git.luto@kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9993953/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9993953/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9993953/">/patch/9993953/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	1E2DF60230 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  9 Oct 2017 16:50:58 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 0F765287C3
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  9 Oct 2017 16:50:58 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 028A6287F8; Mon,  9 Oct 2017 16:50:57 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id C18A0287C3
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  9 Oct 2017 16:50:56 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1755270AbdJIQuy (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 9 Oct 2017 12:50:54 -0400
+Received: from mail.kernel.org ([198.145.29.99]:48248 &quot;EHLO mail.kernel.org&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1755093AbdJIQuw (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 9 Oct 2017 12:50:52 -0400
+Received: from localhost (c-71-202-137-17.hsd1.ca.comcast.net
+	[71.202.137.17])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256
+	bits)) (No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 5972521879;
+	Mon,  9 Oct 2017 16:50:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5972521879
+Authentication-Results: mail.kernel.org;
+	dmarc=none (p=none dis=none) header.from=kernel.org
+Authentication-Results: mail.kernel.org;
+	spf=none smtp.mailfrom=luto@kernel.org
+From: Andy Lutomirski &lt;luto@kernel.org&gt;
+To: x86@kernel.org
+Cc: linux-kernel@vger.kernel.org, Borislav Petkov &lt;bp@alien8.de&gt;,
+	Markus Trippelsdorf &lt;markus@trippelsdorf.de&gt;,
+	Adam Borowski &lt;kilobyte@angband.pl&gt;, Andy Lutomirski &lt;luto@kernel.org&gt;,
+	Brian Gerst &lt;brgerst@gmail.com&gt;
+Subject: [RFC PATCH] x86/mm: Flush more aggressively in lazy TLB mode
+Date: Mon,  9 Oct 2017 09:50:49 -0700
+Message-Id: &lt;8eccc9240041ea7cb94624cab8d07e2a6e911ba7.1507567665.git.luto@kernel.org&gt;
+X-Mailer: git-send-email 2.13.6
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - Oct. 9, 2017, 4:50 p.m.</div>
+<pre class="content">
+Since commit 94b1b03b519b, x86&#39;s lazy TLB mode has been all the way
+lazy: when running a kernel thread (including the idle thread), the
+kernel keeps using the last user mm&#39;s page tables without attempting
+to maintain user TLB coherence at all.  From a pure semantic
+perspective, this is fine -- kernel threads won&#39;t attempt to access
+user pages, so having stale TLB entries doesn&#39;t matter.
+
+Unfortunately, I forgot about a subtlety.  By skipping TLB flushes,
+we also allow any paging-structure caches that may exist on the CPU
+to become incoherent.  This means that we can have a
+paging-structure cache entry that references a freed page table, and
+the CPU is within its rights to do a speculative page walk starting
+at the freed page table.
+
+I can imagine this causing two different problems:
+
+ - A speculative page walk starting from a bogus page table could read
+   IO addresses.  I haven&#39;t seen any reports of this causing problems.
+
+ - A speculative page walk that involves a bogus page table can install
+   garbage in the TLB.  Such garbage would always be at a user VA, but
+   some AMD CPUs have logic that triggers a machine check when it notices
+   these bogus entries.  I&#39;ve seen a couple reports of this.
+
+Reinstate TLB coherence in lazy mode.  With this patch applied, we
+do it in one of two ways.  If we have PCID, we simply switch back to
+init_mm&#39;s page tables when we enter a kernel thread -- this seems to
+be quite cheap except for the cost of serializing the CPU.  If we
+don&#39;t have PCID, then we set a flag and switch to init_mm the first
+time we would otherwise need to flush the TLB.
+
+/sys/kernel/debug/x86/tlb_use_lazy_mode can be changed to override
+the default mode for benchmarking.
+
+In theory, we could optimize this better by only flushing the TLB in
+lazy CPUs when a page table is freed.  Doing that would require
+auditing the mm code to make sure that all page table freeing goes
+through tlb_remove_page() as well as reworking some data structures
+to implement the improved flush logic.
+
+Fixes: 94b1b03b519b (&quot;x86/mm: Rework lazy TLB mode and TLB freshness tracking&quot;)
+Reported-by: Markus Trippelsdorf &lt;markus@trippelsdorf.de&gt;
+Reported-by: Adam Borowski &lt;kilobyte@angband.pl&gt;
+Cc: Brian Gerst &lt;brgerst@gmail.com&gt;
+Cc: Borislav Petkov &lt;bp@alien8.de&gt;
+<span class="signed-off-by">Signed-off-by: Andy Lutomirski &lt;luto@kernel.org&gt;</span>
+---
+
+There are two optimizations we should probably do on top of this.
+
+ - In lazy mode, we should switch to init_mm when entering a long idle
+   state.  We used to do this, but it was a mess.  I&#39;m working on a clean
+   patch to reinstate it.
+
+ - In non-lazy mode with PCID, we could microoptimize switches to init_mm
+   by hardcoding the ASID.
+
+ arch/x86/include/asm/mmu_context.h |   8 +-
+ arch/x86/include/asm/tlbflush.h    |  24 ++++++
+ arch/x86/mm/tlb.c                  | 153 +++++++++++++++++++++++++++----------
+ 3 files changed, 136 insertions(+), 49 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=171">Markus Trippelsdorf</a> - Oct. 10, 2017, 8:22 a.m.</div>
+<pre class="content">
+On 2017.10.09 at 09:50 -0700, Andy Lutomirski wrote:
+<span class="quote">&gt; Since commit 94b1b03b519b, x86&#39;s lazy TLB mode has been all the way</span>
+<span class="quote">&gt; lazy: when running a kernel thread (including the idle thread), the</span>
+<span class="quote">&gt; kernel keeps using the last user mm&#39;s page tables without attempting</span>
+<span class="quote">&gt; to maintain user TLB coherence at all.  From a pure semantic</span>
+<span class="quote">&gt; perspective, this is fine -- kernel threads won&#39;t attempt to access</span>
+<span class="quote">&gt; user pages, so having stale TLB entries doesn&#39;t matter.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Unfortunately, I forgot about a subtlety.  By skipping TLB flushes,</span>
+<span class="quote">&gt; we also allow any paging-structure caches that may exist on the CPU</span>
+<span class="quote">&gt; to become incoherent.  This means that we can have a</span>
+<span class="quote">&gt; paging-structure cache entry that references a freed page table, and</span>
+<span class="quote">&gt; the CPU is within its rights to do a speculative page walk starting</span>
+<span class="quote">&gt; at the freed page table.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I can imagine this causing two different problems:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  - A speculative page walk starting from a bogus page table could read</span>
+<span class="quote">&gt;    IO addresses.  I haven&#39;t seen any reports of this causing problems.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  - A speculative page walk that involves a bogus page table can install</span>
+<span class="quote">&gt;    garbage in the TLB.  Such garbage would always be at a user VA, but</span>
+<span class="quote">&gt;    some AMD CPUs have logic that triggers a machine check when it notices</span>
+<span class="quote">&gt;    these bogus entries.  I&#39;ve seen a couple reports of this.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Reinstate TLB coherence in lazy mode.  With this patch applied, we</span>
+<span class="quote">&gt; do it in one of two ways.  If we have PCID, we simply switch back to</span>
+<span class="quote">&gt; init_mm&#39;s page tables when we enter a kernel thread -- this seems to</span>
+<span class="quote">&gt; be quite cheap except for the cost of serializing the CPU.  If we</span>
+<span class="quote">&gt; don&#39;t have PCID, then we set a flag and switch to init_mm the first</span>
+<span class="quote">&gt; time we would otherwise need to flush the TLB.</span>
+
+Your patch fixes the problem. (I&#39;ve stressed my AMD machine in various
+ways since yesterday. No issues thus far.) 
+Thanks.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_header">index c120b5db178a..3c856a15b98e 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_chunk">@@ -126,13 +126,7 @@</span> <span class="p_context"> static inline void switch_ldt(struct mm_struct *prev, struct mm_struct *next)</span>
+ 	DEBUG_LOCKS_WARN_ON(preemptible());
+ }
+ 
+<span class="p_del">-static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	int cpu = smp_processor_id();</span>
+<span class="p_del">-</span>
+<span class="p_del">-	if (cpumask_test_cpu(cpu, mm_cpumask(mm)))</span>
+<span class="p_del">-		cpumask_clear_cpu(cpu, mm_cpumask(mm));</span>
+<span class="p_del">-}</span>
+<span class="p_add">+void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk);</span>
+ 
+ static inline int init_new_context(struct task_struct *tsk,
+ 				   struct mm_struct *mm)
+<span class="p_header">diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">index 4893abf7f74f..d362161d3291 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -83,6 +83,13 @@</span> <span class="p_context"> static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)</span>
+ #endif
+ 
+ /*
+<span class="p_add">+ * If tlb_use_lazy_mode is true, then we try to avoid switching CR3 to point</span>
+<span class="p_add">+ * to init_mm when we switch to a kernel thread (e.g. the idle thread).  If</span>
+<span class="p_add">+ * it&#39;s false, then we immediately switch CR3 when entering a kernel thread.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+DECLARE_STATIC_KEY_TRUE(tlb_use_lazy_mode);</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+  * 6 because 6 should be plenty and struct tlb_state will fit in
+  * two cache lines.
+  */
+<span class="p_chunk">@@ -105,6 +112,23 @@</span> <span class="p_context"> struct tlb_state {</span>
+ 	u16 next_asid;
+ 
+ 	/*
+<span class="p_add">+	 * We can be in one of several states:</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 *  - Actively using an mm.  Our CPU&#39;s bit will be set in</span>
+<span class="p_add">+	 *    mm_cpumask(loaded_mm) and is_lazy == false;</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 *  - Not using a real mm.  loaded_mm == &amp;init_mm.  Our CPU&#39;s bit</span>
+<span class="p_add">+	 *    will not be set in mm_cpumask(&amp;init_mm) and is_lazy == false.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 *  - Lazily using a real mm.  loaded_mm != &amp;init_mm, our bit</span>
+<span class="p_add">+	 *    is set in mm_cpumask(loaded_mm), but is_lazy == true.</span>
+<span class="p_add">+	 *    We&#39;re heuristically guessing that the CR3 load we</span>
+<span class="p_add">+	 *    skipped more than makes up for the overhead added by</span>
+<span class="p_add">+	 *    lazy mode.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	bool is_lazy;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+ 	 * Access to this CR4 shadow and to H/W CR4 is protected by
+ 	 * disabling interrupts when modifying either one.
+ 	 */
+<span class="p_header">diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c</span>
+<span class="p_header">index 5c52462fed19..4950f007a0a3 100644</span>
+<span class="p_header">--- a/arch/x86/mm/tlb.c</span>
+<span class="p_header">+++ b/arch/x86/mm/tlb.c</span>
+<span class="p_chunk">@@ -30,6 +30,8 @@</span> <span class="p_context"></span>
+ 
+ atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
+ 
+<span class="p_add">+DEFINE_STATIC_KEY_TRUE(tlb_use_lazy_mode);</span>
+<span class="p_add">+</span>
+ static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
+ 			    u16 *new_asid, bool *need_flush)
+ {
+<span class="p_chunk">@@ -80,7 +82,7 @@</span> <span class="p_context"> void leave_mm(int cpu)</span>
+ 		return;
+ 
+ 	/* Warn if we&#39;re not lazy. */
+<span class="p_del">-	WARN_ON(cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm)));</span>
+<span class="p_add">+	WARN_ON(!this_cpu_read(cpu_tlbstate.is_lazy));</span>
+ 
+ 	switch_mm(NULL, &amp;init_mm, NULL);
+ }
+<span class="p_chunk">@@ -142,45 +144,24 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ 		__flush_tlb_all();
+ 	}
+ #endif
+<span class="p_add">+	this_cpu_write(cpu_tlbstate.is_lazy, false);</span>
+ 
+ 	if (real_prev == next) {
+ 		VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[prev_asid].ctx_id) !=
+ 			   next-&gt;context.ctx_id);
+ 
+<span class="p_del">-		if (cpumask_test_cpu(cpu, mm_cpumask(next))) {</span>
+<span class="p_del">-			/*</span>
+<span class="p_del">-			 * There&#39;s nothing to do: we weren&#39;t lazy, and we</span>
+<span class="p_del">-			 * aren&#39;t changing our mm.  We don&#39;t need to flush</span>
+<span class="p_del">-			 * anything, nor do we need to update CR3, CR4, or</span>
+<span class="p_del">-			 * LDTR.</span>
+<span class="p_del">-			 */</span>
+<span class="p_del">-			return;</span>
+<span class="p_del">-		}</span>
+<span class="p_del">-</span>
+<span class="p_del">-		/* Resume remote flushes and then read tlb_gen. */</span>
+<span class="p_del">-		cpumask_set_cpu(cpu, mm_cpumask(next));</span>
+<span class="p_del">-		next_tlb_gen = atomic64_read(&amp;next-&gt;context.tlb_gen);</span>
+<span class="p_del">-</span>
+<span class="p_del">-		if (this_cpu_read(cpu_tlbstate.ctxs[prev_asid].tlb_gen) &lt;</span>
+<span class="p_del">-		    next_tlb_gen) {</span>
+<span class="p_del">-			/*</span>
+<span class="p_del">-			 * Ideally, we&#39;d have a flush_tlb() variant that</span>
+<span class="p_del">-			 * takes the known CR3 value as input.  This would</span>
+<span class="p_del">-			 * be faster on Xen PV and on hypothetical CPUs</span>
+<span class="p_del">-			 * on which INVPCID is fast.</span>
+<span class="p_del">-			 */</span>
+<span class="p_del">-			this_cpu_write(cpu_tlbstate.ctxs[prev_asid].tlb_gen,</span>
+<span class="p_del">-				       next_tlb_gen);</span>
+<span class="p_del">-			write_cr3(build_cr3(next, prev_asid));</span>
+<span class="p_del">-			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,</span>
+<span class="p_del">-					TLB_FLUSH_ALL);</span>
+<span class="p_del">-		}</span>
+<span class="p_del">-</span>
+ 		/*
+<span class="p_del">-		 * We just exited lazy mode, which means that CR4 and/or LDTR</span>
+<span class="p_del">-		 * may be stale.  (Changes to the required CR4 and LDTR states</span>
+<span class="p_del">-		 * are not reflected in tlb_gen.)</span>
+<span class="p_add">+		 * We don&#39;t currently support having a real mm loaded without</span>
+<span class="p_add">+		 * our cpu set in mm_cpumask().  We have all the bookkeeping</span>
+<span class="p_add">+		 * in place to figure out whether we would need to flush</span>
+<span class="p_add">+		 * if our cpu were cleared in mm_cpumask(), but we don&#39;t</span>
+<span class="p_add">+		 * currently use it.</span>
+ 		 */
+<span class="p_add">+		if (WARN_ON_ONCE(real_prev != &amp;init_mm &amp;&amp;</span>
+<span class="p_add">+				 !cpumask_test_cpu(cpu, mm_cpumask(next))))</span>
+<span class="p_add">+			cpumask_set_cpu(cpu, mm_cpumask(next));</span>
+<span class="p_add">+</span>
+<span class="p_add">+		return;</span>
+ 	} else {
+ 		u16 new_asid;
+ 		bool need_flush;
+<span class="p_chunk">@@ -199,10 +180,9 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ 		}
+ 
+ 		/* Stop remote flushes for the previous mm */
+<span class="p_del">-		if (cpumask_test_cpu(cpu, mm_cpumask(real_prev)))</span>
+<span class="p_del">-			cpumask_clear_cpu(cpu, mm_cpumask(real_prev));</span>
+<span class="p_del">-</span>
+<span class="p_del">-		VM_WARN_ON_ONCE(cpumask_test_cpu(cpu, mm_cpumask(next)));</span>
+<span class="p_add">+		VM_WARN_ON_ONCE(!cpumask_test_cpu(cpu, mm_cpumask(real_prev)) &amp;&amp;</span>
+<span class="p_add">+				real_prev != &amp;init_mm);</span>
+<span class="p_add">+		cpumask_clear_cpu(cpu, mm_cpumask(real_prev));</span>
+ 
+ 		/*
+ 		 * Start remote flushes and then read tlb_gen.
+<span class="p_chunk">@@ -233,6 +213,37 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ }
+ 
+ /*
+<span class="p_add">+ * enter_lazy_tlb() is a hint from the scheduler that we are entering a</span>
+<span class="p_add">+ * kernel thread or other context without an mm.  Acceptable implementations</span>
+<span class="p_add">+ * include doing nothing whatsoever, switching to init_mm, or various clever</span>
+<span class="p_add">+ * lazy tricks to try to minimize TLB flushes.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * The scheduler reserves the right to call enter_lazy_tlb() several times</span>
+<span class="p_add">+ * in a row.  It will notify us that we&#39;re going back to a real mm by</span>
+<span class="p_add">+ * calling switch_mm_irqs_off().</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (this_cpu_read(cpu_tlbstate.loaded_mm) == &amp;init_mm)</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (static_branch_unlikely(&amp;tlb_use_lazy_mode)) {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * There&#39;s a significant optimization that may be possible</span>
+<span class="p_add">+		 * here.  We have accurate enough TLB flush tracking that we</span>
+<span class="p_add">+		 * don&#39;t need to maintain coherence of TLB per se when we&#39;re</span>
+<span class="p_add">+		 * lazy.  We do, however, need to maintain coherence of</span>
+<span class="p_add">+		 * paging-structure caches.  We could, in principle, leave our</span>
+<span class="p_add">+		 * old mm loaded and only switch to init_mm when</span>
+<span class="p_add">+		 * tlb_remove_page() happens.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		this_cpu_write(cpu_tlbstate.is_lazy, true);</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		switch_mm(NULL, &amp;init_mm, NULL);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+  * Call this when reinitializing a CPU.  It fixes the following potential
+  * problems:
+  *
+<span class="p_chunk">@@ -303,16 +314,20 @@</span> <span class="p_context"> static void flush_tlb_func_common(const struct flush_tlb_info *f,</span>
+ 	/* This code cannot presently handle being reentered. */
+ 	VM_WARN_ON(!irqs_disabled());
+ 
+<span class="p_add">+	if (unlikely(loaded_mm == &amp;init_mm))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+ 	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].ctx_id) !=
+ 		   loaded_mm-&gt;context.ctx_id);
+ 
+<span class="p_del">-	if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm))) {</span>
+<span class="p_add">+	if (this_cpu_read(cpu_tlbstate.is_lazy)) {</span>
+ 		/*
+<span class="p_del">-		 * We&#39;re in lazy mode -- don&#39;t flush.  We can get here on</span>
+<span class="p_del">-		 * remote flushes due to races and on local flushes if a</span>
+<span class="p_del">-		 * kernel thread coincidentally flushes the mm it&#39;s lazily</span>
+<span class="p_del">-		 * still using.</span>
+<span class="p_add">+		 * We&#39;re in lazy mode.  We need to at least flush our</span>
+<span class="p_add">+		 * paging-structure cache to avoid speculatively reading</span>
+<span class="p_add">+		 * garbage into our TLB.  Since switching to init_mm is barely</span>
+<span class="p_add">+		 * slower than a minimal flush, just switch to init_mm.</span>
+ 		 */
+<span class="p_add">+		switch_mm_irqs_off(NULL, &amp;init_mm, NULL);</span>
+ 		return;
+ 	}
+ 
+<span class="p_chunk">@@ -611,3 +626,57 @@</span> <span class="p_context"> static int __init create_tlb_single_page_flush_ceiling(void)</span>
+ 	return 0;
+ }
+ late_initcall(create_tlb_single_page_flush_ceiling);
+<span class="p_add">+</span>
+<span class="p_add">+static ssize_t tlblazy_read_file(struct file *file, char __user *user_buf,</span>
+<span class="p_add">+				 size_t count, loff_t *ppos)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	char buf[2];</span>
+<span class="p_add">+</span>
+<span class="p_add">+	buf[0] = static_branch_likely(&amp;tlb_use_lazy_mode) ? &#39;1&#39; : &#39;0&#39;;</span>
+<span class="p_add">+	buf[1] = &#39;\n&#39;;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return simple_read_from_buffer(user_buf, count, ppos, buf, 2);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static ssize_t tlblazy_write_file(struct file *file,</span>
+<span class="p_add">+		 const char __user *user_buf, size_t count, loff_t *ppos)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	bool val;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (kstrtobool_from_user(user_buf, count, &amp;val))</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (val)</span>
+<span class="p_add">+		static_branch_enable(&amp;tlb_use_lazy_mode);</span>
+<span class="p_add">+	else</span>
+<span class="p_add">+		static_branch_disable(&amp;tlb_use_lazy_mode);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return count;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static const struct file_operations fops_tlblazy = {</span>
+<span class="p_add">+	.read = tlblazy_read_file,</span>
+<span class="p_add">+	.write = tlblazy_write_file,</span>
+<span class="p_add">+	.llseek = default_llseek,</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int __init init_tlb_use_lazy_mode(void)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (boot_cpu_has(X86_FEATURE_PCID)) {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Heuristic: with PCID on, switching to and from</span>
+<span class="p_add">+		 * init_mm is reasonably fast, but remote flush IPIs</span>
+<span class="p_add">+		 * as expensive as ever, so turn off lazy TLB mode.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * We can&#39;t do this in setup_pcid() because static keys</span>
+<span class="p_add">+		 * haven&#39;t been initialized yet, and it would blow up</span>
+<span class="p_add">+		 * badly.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		static_branch_disable(&amp;tlb_use_lazy_mode);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	debugfs_create_file(&quot;tlb_use_lazy_mode&quot;, S_IRUSR | S_IWUSR,</span>
+<span class="p_add">+			    arch_debugfs_dir, NULL, &amp;fops_tlblazy);</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+late_initcall(init_tlb_use_lazy_mode);</span>
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

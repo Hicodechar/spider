@@ -1,0 +1,3300 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v4,3/6] iommu: add ARM short descriptor page table allocator. - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v4,3/6] iommu: add ARM short descriptor page table allocator.</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=123111">Yong Wu</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Aug. 3, 2015, 10:21 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1438597279-2937-4-git-send-email-yong.wu@mediatek.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/6928491/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/6928491/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/6928491/">/patch/6928491/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id 2292DC05AD
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  3 Aug 2015 10:22:35 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id ED009205DF
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  3 Aug 2015 10:22:32 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 81F2A2056D
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  3 Aug 2015 10:22:30 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753291AbbHCKW0 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 3 Aug 2015 06:22:26 -0400
+Received: from mailgw01.mediatek.com ([210.61.82.183]:46608 &quot;EHLO
+	mailgw01.mediatek.com&quot; rhost-flags-OK-FAIL-OK-FAIL) by
+	vger.kernel.org with ESMTP id S1752603AbbHCKWW (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 3 Aug 2015 06:22:22 -0400
+X-Listener-Flag: 11101
+Received: from mtkhts09.mediatek.inc [(172.21.101.70)] by
+	mailgw01.mediatek.com (envelope-from &lt;yong.wu@mediatek.com&gt;)
+	(mhqrelay.mediatek.com ESMTP with TLS)
+	with ESMTP id 860906271; Mon, 03 Aug 2015 18:22:20 +0800
+Received: from mhfsdcap03.mhfswrd (10.17.3.153) by mtkhts09.mediatek.inc
+	(172.21.101.73) with Microsoft SMTP Server id 14.3.181.6;
+	Mon, 3 Aug 2015 18:22:18 +0800
+From: Yong Wu &lt;yong.wu@mediatek.com&gt;
+To: Joerg Roedel &lt;joro@8bytes.org&gt;, Thierry Reding &lt;treding@nvidia.com&gt;,
+	Mark Rutland &lt;mark.rutland@arm.com&gt;,
+	Matthias Brugger &lt;matthias.bgg@gmail.com&gt;
+CC: Robin Murphy &lt;robin.murphy@arm.com&gt;, Will Deacon &lt;will.deacon@arm.com&gt;,
+	Daniel Kurtz &lt;djkurtz@google.com&gt;, Tomasz Figa &lt;tfiga@google.com&gt;,
+	Lucas Stach &lt;l.stach@pengutronix.de&gt;, Rob Herring &lt;robh+dt@kernel.org&gt;,
+	Catalin Marinas &lt;catalin.marinas@arm.com&gt;,
+	&lt;linux-mediatek@lists.infradead.org&gt;,
+	Sasha Hauer &lt;kernel@pengutronix.de&gt;,
+	&lt;srv_heupstream@mediatek.com&gt;, &lt;devicetree@vger.kernel.org&gt;,
+	&lt;linux-kernel@vger.kernel.org&gt;, &lt;linux-arm-kernel@lists.infradead.org&gt;,
+	&lt;iommu@lists.linux-foundation.org&gt;, &lt;pebolle@tiscali.nl&gt;,
+	&lt;arnd@arndb.de&gt;, &lt;mitchelh@codeaurora.org&gt;,
+	&lt;youhua.li@mediatek.com&gt;, &lt;k.zhang@mediatek.com&gt;,
+	&lt;frederic.chen@mediatek.com&gt;, Yong Wu &lt;yong.wu@mediatek.com&gt;
+Subject: [PATCH v4 3/6] iommu: add ARM short descriptor page table allocator.
+Date: Mon, 3 Aug 2015 18:21:16 +0800
+Message-ID: &lt;1438597279-2937-4-git-send-email-yong.wu@mediatek.com&gt;
+X-Mailer: git-send-email 1.8.1.1.dirty
+In-Reply-To: &lt;1438597279-2937-1-git-send-email-yong.wu@mediatek.com&gt;
+References: &lt;1438597279-2937-1-git-send-email-yong.wu@mediatek.com&gt;
+MIME-Version: 1.0
+Content-Type: text/plain
+X-MTK: N
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-7.1 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=123111">Yong Wu</a> - Aug. 3, 2015, 10:21 a.m.</div>
+<pre class="content">
+This patch is for ARM Short Descriptor Format.
+<span class="signed-off-by">
+Signed-off-by: Yong Wu &lt;yong.wu@mediatek.com&gt;</span>
+---
+ drivers/iommu/Kconfig                |  18 +
+ drivers/iommu/Makefile               |   1 +
+ drivers/iommu/io-pgtable-arm-short.c | 813 +++++++++++++++++++++++++++++++++++
+ drivers/iommu/io-pgtable-arm.c       |   3 -
+ drivers/iommu/io-pgtable.c           |   4 +
+ drivers/iommu/io-pgtable.h           |  14 +
+ 6 files changed, 850 insertions(+), 3 deletions(-)
+ create mode 100644 drivers/iommu/io-pgtable-arm-short.c
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - Sept. 16, 2015, 3:58 p.m.</div>
+<pre class="content">
+On Mon, Aug 03, 2015 at 11:21:16AM +0100, Yong Wu wrote:
+<span class="quote">&gt; This patch is for ARM Short Descriptor Format.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Yong Wu &lt;yong.wu@mediatek.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  drivers/iommu/Kconfig                |  18 +</span>
+<span class="quote">&gt;  drivers/iommu/Makefile               |   1 +</span>
+<span class="quote">&gt;  drivers/iommu/io-pgtable-arm-short.c | 813 +++++++++++++++++++++++++++++++++++</span>
+<span class="quote">&gt;  drivers/iommu/io-pgtable-arm.c       |   3 -</span>
+<span class="quote">&gt;  drivers/iommu/io-pgtable.c           |   4 +</span>
+<span class="quote">&gt;  drivers/iommu/io-pgtable.h           |  14 +</span>
+<span class="quote">&gt;  6 files changed, 850 insertions(+), 3 deletions(-)</span>
+<span class="quote">&gt;  create mode 100644 drivers/iommu/io-pgtable-arm-short.c</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/drivers/iommu/Kconfig b/drivers/iommu/Kconfig</span>
+<span class="quote">&gt; index f1fb1d3..3abd066 100644</span>
+<span class="quote">&gt; --- a/drivers/iommu/Kconfig</span>
+<span class="quote">&gt; +++ b/drivers/iommu/Kconfig</span>
+<span class="quote">&gt; @@ -39,6 +39,24 @@ config IOMMU_IO_PGTABLE_LPAE_SELFTEST</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;           If unsure, say N here.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; +config IOMMU_IO_PGTABLE_SHORT</span>
+<span class="quote">&gt; +       bool &quot;ARMv7/v8 Short Descriptor Format&quot;</span>
+<span class="quote">&gt; +       select IOMMU_IO_PGTABLE</span>
+<span class="quote">&gt; +       depends on ARM || ARM64 || COMPILE_TEST</span>
+<span class="quote">&gt; +       help</span>
+<span class="quote">&gt; +         Enable support for the ARM Short-descriptor pagetable format.</span>
+<span class="quote">&gt; +         This allocator supports 2 levels translation tables which supports</span>
+
+Some minor rewording here:
+
+&quot;...2 levels of translation tables, which enables a 32-bit memory map based
+ on...&quot;
+<span class="quote">
+&gt; +         a memory map based on memory sections or pages.</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +config IOMMU_IO_PGTABLE_SHORT_SELFTEST</span>
+<span class="quote">&gt; +       bool &quot;Short Descriptor selftests&quot;</span>
+<span class="quote">&gt; +       depends on IOMMU_IO_PGTABLE_SHORT</span>
+<span class="quote">&gt; +       help</span>
+<span class="quote">&gt; +         Enable self-tests for Short-descriptor page table allocator.</span>
+<span class="quote">&gt; +         This performs a series of page-table consistency checks during boot.</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +         If unsure, say N here.</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  endmenu</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  config IOMMU_IOVA</span>
+
+[...]
+<span class="quote">
+&gt; +#define ARM_SHORT_PGDIR_SHIFT                  20</span>
+<span class="quote">&gt; +#define ARM_SHORT_PAGE_SHIFT                   12</span>
+<span class="quote">&gt; +#define ARM_SHORT_PTRS_PER_PTE                 \</span>
+<span class="quote">&gt; +       (1 &lt;&lt; (ARM_SHORT_PGDIR_SHIFT - ARM_SHORT_PAGE_SHIFT))</span>
+<span class="quote">&gt; +#define ARM_SHORT_BYTES_PER_PTE                        \</span>
+<span class="quote">&gt; +       (ARM_SHORT_PTRS_PER_PTE * sizeof(arm_short_iopte))</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +/* level 1 pagetable */</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_TYPE_PGTABLE             BIT(0)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_TYPE_SECTION             BIT(1)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_B                                BIT(2)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_C                                BIT(3)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_PGTABLE_NS               BIT(3)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_SECTION_XN               BIT(4)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_IMPLE                    BIT(9)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_RD_WR                    (3 &lt;&lt; 10)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_RDONLY                   BIT(15)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_S                                BIT(16)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_nG                       BIT(17)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_SUPERSECTION             BIT(18)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_SECTION_NS               BIT(19)</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_TYPE_SUPERSECTION                \</span>
+<span class="quote">&gt; +       (ARM_SHORT_PGD_TYPE_SECTION | ARM_SHORT_PGD_SUPERSECTION)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_SECTION_TYPE_MSK         \</span>
+<span class="quote">&gt; +       (ARM_SHORT_PGD_TYPE_SECTION | ARM_SHORT_PGD_SUPERSECTION)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_PGTABLE_TYPE_MSK         \</span>
+<span class="quote">&gt; +       (ARM_SHORT_PGD_TYPE_SECTION | ARM_SHORT_PGD_TYPE_PGTABLE)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_TYPE_IS_PGTABLE(pgd)     \</span>
+<span class="quote">&gt; +       (((pgd) &amp; ARM_SHORT_PGD_PGTABLE_TYPE_MSK) == ARM_SHORT_PGD_TYPE_PGTABLE)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_TYPE_IS_SECTION(pgd)     \</span>
+<span class="quote">&gt; +       (((pgd) &amp; ARM_SHORT_PGD_SECTION_TYPE_MSK) == ARM_SHORT_PGD_TYPE_SECTION)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_TYPE_IS_SUPERSECTION(pgd)        \</span>
+<span class="quote">&gt; +       (((pgd) &amp; ARM_SHORT_PGD_SECTION_TYPE_MSK) == \</span>
+<span class="quote">&gt; +       ARM_SHORT_PGD_TYPE_SUPERSECTION)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_PGTABLE_MSK              0xfffffc00</span>
+
+You could use (~(ARM_SHORT_BYTES_PER_PTE - 1)), I think.
+<span class="quote">
+&gt; +#define ARM_SHORT_PGD_SECTION_MSK              (~(SZ_1M - 1))</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_SUPERSECTION_MSK         (~(SZ_16M - 1))</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +/* level 2 pagetable */</span>
+<span class="quote">&gt; +#define ARM_SHORT_PTE_TYPE_LARGE               BIT(0)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PTE_SMALL_XN                 BIT(0)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PTE_TYPE_SMALL               BIT(1)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PTE_B                                BIT(2)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PTE_C                                BIT(3)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PTE_RD_WR                    (3 &lt;&lt; 4)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PTE_RDONLY                   BIT(9)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PTE_S                                BIT(10)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PTE_nG                       BIT(11)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PTE_LARGE_XN                 BIT(15)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PTE_LARGE_MSK                        (~(SZ_64K - 1))</span>
+<span class="quote">&gt; +#define ARM_SHORT_PTE_SMALL_MSK                        (~(SZ_4K - 1))</span>
+<span class="quote">&gt; +#define ARM_SHORT_PTE_TYPE_MSK                 \</span>
+<span class="quote">&gt; +       (ARM_SHORT_PTE_TYPE_LARGE | ARM_SHORT_PTE_TYPE_SMALL)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PTE_TYPE_IS_SMALLPAGE(pte)   \</span>
+<span class="quote">&gt; +       (((pte) &amp; ARM_SHORT_PTE_TYPE_SMALL) == ARM_SHORT_PTE_TYPE_SMALL)</span>
+
+Maybe a comment here, because it&#39;s confusing that you don&#39;t and with the
+mask due to XN.
+<span class="quote">
+&gt; +#define ARM_SHORT_PTE_TYPE_IS_LARGEPAGE(pte)   \</span>
+<span class="quote">&gt; +       (((pte) &amp; ARM_SHORT_PTE_TYPE_MSK) == ARM_SHORT_PTE_TYPE_LARGE)</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +#define ARM_SHORT_PGD_IDX(a)                   ((a) &gt;&gt; ARM_SHORT_PGDIR_SHIFT)</span>
+<span class="quote">&gt; +#define ARM_SHORT_PTE_IDX(a)                   \</span>
+<span class="quote">&gt; +       (((a) &gt;&gt; ARM_SHORT_PAGE_SHIFT) &amp; (ARM_SHORT_PTRS_PER_PTE - 1))</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +#define ARM_SHORT_GET_PGTABLE_VA(pgd)          \</span>
+<span class="quote">&gt; +       (phys_to_virt((unsigned long)pgd &amp; ARM_SHORT_PGD_PGTABLE_MSK))</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +#define ARM_SHORT_PTE_LARGE_GET_PROT(pte)      \</span>
+<span class="quote">&gt; +       (((pte) &amp; (~ARM_SHORT_PTE_LARGE_MSK)) &amp; ~ARM_SHORT_PTE_TYPE_MSK)</span>
+
+AFAICT, the only user of this also does an &#39;&amp; ~ARM_SHORT_PTE_SMALL_MSK&#39;.
+Wouldn&#39;t it be better to define ARM_SHORT_PTE_GET_PROT, which just returns
+the AP bits? That said, what are you going to do about XN? I know you
+don&#39;t support it in your hardware, but this could code should still do
+the right thing.
+<span class="quote">
+&gt; +static int</span>
+<span class="quote">&gt; +__arm_short_set_pte(arm_short_iopte *ptep, arm_short_iopte pte,</span>
+<span class="quote">&gt; +                   unsigned int ptenr, struct io_pgtable_cfg *cfg)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +       struct device *dev = cfg-&gt;iommu_dev;</span>
+<span class="quote">&gt; +       int i;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       for (i = 0; i &lt; ptenr; i++) {</span>
+<span class="quote">&gt; +               if (ptep[i] &amp;&amp; pte) {</span>
+<span class="quote">&gt; +                       /* Someone else may have allocated for this pte */</span>
+<span class="quote">&gt; +                       WARN_ON(!selftest_running);</span>
+<span class="quote">&gt; +                       goto err_exist_pte;</span>
+<span class="quote">&gt; +               }</span>
+<span class="quote">&gt; +               ptep[i] = pte;</span>
+<span class="quote">&gt; +       }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (selftest_running)</span>
+<span class="quote">&gt; +               return 0;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       dma_sync_single_for_device(dev, __arm_short_dma_addr(dev, ptep),</span>
+<span class="quote">&gt; +                                  sizeof(*ptep) * ptenr, DMA_TO_DEVICE);</span>
+<span class="quote">&gt; +       return 0;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +err_exist_pte:</span>
+<span class="quote">&gt; +       while (i--)</span>
+<span class="quote">&gt; +               ptep[i] = 0;</span>
+
+What about a dma_sync for the failure case?
+<span class="quote">
+&gt; +       return -EEXIST;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static void *</span>
+<span class="quote">&gt; +__arm_short_alloc_pgtable(size_t size, gfp_t gfp, bool pgd,</span>
+<span class="quote">&gt; +                         struct io_pgtable_cfg *cfg)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +       struct arm_short_io_pgtable *data;</span>
+<span class="quote">&gt; +       struct device *dev = cfg-&gt;iommu_dev;</span>
+<span class="quote">&gt; +       dma_addr_t dma;</span>
+<span class="quote">&gt; +       void *va;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (pgd) {/* lvl1 pagetable */</span>
+<span class="quote">&gt; +               va = alloc_pages_exact(size, gfp);</span>
+<span class="quote">&gt; +       } else {  /* lvl2 pagetable */</span>
+<span class="quote">&gt; +               data = io_pgtable_cfg_to_data(cfg);</span>
+<span class="quote">&gt; +               va = kmem_cache_zalloc(data-&gt;pgtable_cached, gfp);</span>
+<span class="quote">&gt; +       }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (!va)</span>
+<span class="quote">&gt; +               return NULL;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (selftest_running)</span>
+<span class="quote">&gt; +               return va;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       dma = dma_map_single(dev, va, size, DMA_TO_DEVICE);</span>
+<span class="quote">&gt; +       if (dma_mapping_error(dev, dma))</span>
+<span class="quote">&gt; +               goto out_free;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (dma != __arm_short_dma_addr(dev, va))</span>
+<span class="quote">&gt; +               goto out_unmap;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (!pgd) {</span>
+<span class="quote">&gt; +               kmemleak_ignore(va);</span>
+<span class="quote">&gt; +               dma_sync_single_for_device(dev, __arm_short_dma_addr(dev, va),</span>
+<span class="quote">&gt; +                                          size, DMA_TO_DEVICE);</span>
+
+Why do you need to do this as well as the dma_map_single above?
+<span class="quote">
+&gt; +       }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       return va;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +out_unmap:</span>
+<span class="quote">&gt; +       dev_err_ratelimited(dev, &quot;Cannot accommodate DMA translation for IOMMU page tables\n&quot;);</span>
+<span class="quote">&gt; +       dma_unmap_single(dev, dma, size, DMA_TO_DEVICE);</span>
+<span class="quote">&gt; +out_free:</span>
+<span class="quote">&gt; +       if (pgd)</span>
+<span class="quote">&gt; +               free_pages_exact(va, size);</span>
+<span class="quote">&gt; +       else</span>
+<span class="quote">&gt; +               kmem_cache_free(data-&gt;pgtable_cached, va);</span>
+<span class="quote">&gt; +       return NULL;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static void</span>
+<span class="quote">&gt; +__arm_short_free_pgtable(void *va, size_t size, bool pgd,</span>
+<span class="quote">&gt; +                        struct io_pgtable_cfg *cfg)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +       struct arm_short_io_pgtable *data = io_pgtable_cfg_to_data(cfg);</span>
+<span class="quote">&gt; +       struct device *dev = cfg-&gt;iommu_dev;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (!selftest_running)</span>
+<span class="quote">&gt; +               dma_unmap_single(dev, __arm_short_dma_addr(dev, va),</span>
+<span class="quote">&gt; +                                size, DMA_TO_DEVICE);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (pgd)</span>
+<span class="quote">&gt; +               free_pages_exact(va, size);</span>
+<span class="quote">&gt; +       else</span>
+<span class="quote">&gt; +               kmem_cache_free(data-&gt;pgtable_cached, va);</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static arm_short_iopte</span>
+<span class="quote">&gt; +__arm_short_pte_prot(struct arm_short_io_pgtable *data, int prot, bool large)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +       arm_short_iopte pteprot;</span>
+<span class="quote">&gt; +       int quirk = data-&gt;iop.cfg.quirks;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       pteprot = ARM_SHORT_PTE_S | ARM_SHORT_PTE_nG;</span>
+<span class="quote">&gt; +       pteprot |= large ? ARM_SHORT_PTE_TYPE_LARGE :</span>
+<span class="quote">&gt; +                               ARM_SHORT_PTE_TYPE_SMALL;</span>
+<span class="quote">&gt; +       if (prot &amp; IOMMU_CACHE)</span>
+<span class="quote">&gt; +               pteprot |=  ARM_SHORT_PTE_B | ARM_SHORT_PTE_C;</span>
+<span class="quote">&gt; +       if (!(quirk &amp; IO_PGTABLE_QUIRK_SHORT_NO_XN) &amp;&amp; (prot &amp; IOMMU_NOEXEC)) {</span>
+<span class="quote">&gt; +                       pteprot |= large ? ARM_SHORT_PTE_LARGE_XN :</span>
+<span class="quote">&gt; +                               ARM_SHORT_PTE_SMALL_XN;</span>
+
+Weird indentation, man. Also, see my later comment about combining NO_XN
+with NO_PERMS (the latter subsumes the first)
+<span class="quote">
+&gt; +       }</span>
+<span class="quote">&gt; +       if (!(quirk &amp; IO_PGTABLE_QUIRK_SHORT_NO_PERMS)) {</span>
+<span class="quote">&gt; +               pteprot |= ARM_SHORT_PTE_RD_WR;</span>
+<span class="quote">&gt; +               if (!(prot &amp; IOMMU_WRITE) &amp;&amp; (prot &amp; IOMMU_READ))</span>
+<span class="quote">&gt; +                       pteprot |= ARM_SHORT_PTE_RDONLY;</span>
+<span class="quote">&gt; +       }</span>
+<span class="quote">&gt; +       return pteprot;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static arm_short_iopte</span>
+<span class="quote">&gt; +__arm_short_pgd_prot(struct arm_short_io_pgtable *data, int prot, bool super)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +       arm_short_iopte pgdprot;</span>
+<span class="quote">&gt; +       int quirk = data-&gt;iop.cfg.quirks;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       pgdprot = ARM_SHORT_PGD_S | ARM_SHORT_PGD_nG;</span>
+<span class="quote">&gt; +       pgdprot |= super ? ARM_SHORT_PGD_TYPE_SUPERSECTION :</span>
+<span class="quote">&gt; +                               ARM_SHORT_PGD_TYPE_SECTION;</span>
+<span class="quote">&gt; +       if (prot &amp; IOMMU_CACHE)</span>
+<span class="quote">&gt; +               pgdprot |= ARM_SHORT_PGD_C | ARM_SHORT_PGD_B;</span>
+<span class="quote">&gt; +       if (quirk &amp; IO_PGTABLE_QUIRK_ARM_NS)</span>
+<span class="quote">&gt; +               pgdprot |= ARM_SHORT_PGD_SECTION_NS;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (!(quirk &amp; IO_PGTABLE_QUIRK_SHORT_NO_XN) &amp;&amp; (prot &amp; IOMMU_NOEXEC))</span>
+<span class="quote">&gt; +                       pgdprot |= ARM_SHORT_PGD_SECTION_XN;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (!(quirk &amp; IO_PGTABLE_QUIRK_SHORT_NO_PERMS)) {</span>
+
+Same comments here.
+<span class="quote">
+&gt; +               pgdprot |= ARM_SHORT_PGD_RD_WR;</span>
+<span class="quote">&gt; +               if (!(prot &amp; IOMMU_WRITE) &amp;&amp; (prot &amp; IOMMU_READ))</span>
+<span class="quote">&gt; +                       pgdprot |= ARM_SHORT_PGD_RDONLY;</span>
+<span class="quote">&gt; +       }</span>
+<span class="quote">&gt; +       return pgdprot;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static arm_short_iopte</span>
+<span class="quote">&gt; +__arm_short_pte_prot_split(struct arm_short_io_pgtable *data,</span>
+<span class="quote">&gt; +                          arm_short_iopte pgdprot,</span>
+<span class="quote">&gt; +                          arm_short_iopte pteprot_large,</span>
+<span class="quote">&gt; +                          bool large)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +       arm_short_iopte pteprot = 0;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       pteprot = ARM_SHORT_PTE_S | ARM_SHORT_PTE_nG | ARM_SHORT_PTE_RD_WR;</span>
+<span class="quote">&gt; +       pteprot |= large ? ARM_SHORT_PTE_TYPE_LARGE :</span>
+<span class="quote">&gt; +                               ARM_SHORT_PTE_TYPE_SMALL;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       /* large page to small page pte prot. Only large page may split */</span>
+<span class="quote">&gt; +       if (!pgdprot &amp;&amp; !large) {</span>
+
+It&#39;s slightly complicated having these two variables controlling the
+behaviour of the split. In reality, we&#39;re either splitting a section or
+a large page, so there are three valid combinations.
+
+It might be simpler to operate on IOMMU_{READ,WRITE,NOEXEC,CACHE} as
+much as possible, and then have some simple functions to encode/decode
+these into section/large/small page prot bits. We could then just pass
+the IOMMU_* prot around along with the map size. What do you think?
+<span class="quote">
+&gt; +               pteprot |= pteprot_large &amp; ~ARM_SHORT_PTE_SMALL_MSK;</span>
+<span class="quote">&gt; +               if (pteprot_large &amp; ARM_SHORT_PTE_LARGE_XN)</span>
+<span class="quote">&gt; +                       pteprot |= ARM_SHORT_PTE_SMALL_XN;</span>
+<span class="quote">&gt; +       }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       /* section to pte prot */</span>
+<span class="quote">&gt; +       if (pgdprot &amp; ARM_SHORT_PGD_C)</span>
+<span class="quote">&gt; +               pteprot |= ARM_SHORT_PTE_C;</span>
+<span class="quote">&gt; +       if (pgdprot &amp; ARM_SHORT_PGD_B)</span>
+<span class="quote">&gt; +               pteprot |= ARM_SHORT_PTE_B;</span>
+<span class="quote">&gt; +       if (pgdprot &amp; ARM_SHORT_PGD_nG)</span>
+<span class="quote">&gt; +               pteprot |= ARM_SHORT_PTE_nG;</span>
+<span class="quote">&gt; +       if (pgdprot &amp; ARM_SHORT_PGD_SECTION_XN)</span>
+<span class="quote">&gt; +               pteprot |= large ? ARM_SHORT_PTE_LARGE_XN :</span>
+<span class="quote">&gt; +                               ARM_SHORT_PTE_SMALL_XN;</span>
+<span class="quote">&gt; +       if (pgdprot &amp; ARM_SHORT_PGD_RD_WR)</span>
+<span class="quote">&gt; +               pteprot |= ARM_SHORT_PTE_RD_WR;</span>
+<span class="quote">&gt; +       if (pgdprot &amp; ARM_SHORT_PGD_RDONLY)</span>
+<span class="quote">&gt; +               pteprot |= ARM_SHORT_PTE_RDONLY;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       return pteprot;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static arm_short_iopte</span>
+<span class="quote">&gt; +__arm_short_pgtable_prot(struct arm_short_io_pgtable *data)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +       arm_short_iopte pgdprot = 0;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       pgdprot = ARM_SHORT_PGD_TYPE_PGTABLE;</span>
+<span class="quote">&gt; +       if (data-&gt;iop.cfg.quirks &amp; IO_PGTABLE_QUIRK_ARM_NS)</span>
+<span class="quote">&gt; +               pgdprot |= ARM_SHORT_PGD_PGTABLE_NS;</span>
+<span class="quote">&gt; +       return pgdprot;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static int</span>
+<span class="quote">&gt; +_arm_short_map(struct arm_short_io_pgtable *data,</span>
+<span class="quote">&gt; +              unsigned int iova, phys_addr_t paddr,</span>
+<span class="quote">&gt; +              arm_short_iopte pgdprot, arm_short_iopte pteprot,</span>
+<span class="quote">&gt; +              bool large)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +       struct io_pgtable_cfg *cfg = &amp;data-&gt;iop.cfg;</span>
+<span class="quote">&gt; +       arm_short_iopte *pgd = data-&gt;pgd, *pte;</span>
+<span class="quote">&gt; +       void *pte_new = NULL;</span>
+<span class="quote">&gt; +       int ret;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       pgd += ARM_SHORT_PGD_IDX(iova);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (!pteprot) { /* section or supersection */</span>
+<span class="quote">&gt; +               pte = pgd;</span>
+<span class="quote">&gt; +               pteprot = pgdprot;</span>
+<span class="quote">&gt; +       } else {        /* page or largepage */</span>
+<span class="quote">&gt; +               if (!(*pgd)) {</span>
+<span class="quote">&gt; +                       pte_new = __arm_short_alloc_pgtable(</span>
+<span class="quote">&gt; +                                       ARM_SHORT_BYTES_PER_PTE,</span>
+<span class="quote">&gt; +                                       GFP_ATOMIC, false, cfg);</span>
+<span class="quote">&gt; +                       if (unlikely(!pte_new))</span>
+<span class="quote">&gt; +                               return -ENOMEM;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +                       pgdprot |= virt_to_phys(pte_new);</span>
+<span class="quote">&gt; +                       __arm_short_set_pte(pgd, pgdprot, 1, cfg);</span>
+<span class="quote">&gt; +               }</span>
+<span class="quote">&gt; +               pte = arm_short_get_pte_in_pgd(*pgd, iova);</span>
+<span class="quote">&gt; +       }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       pteprot |= (arm_short_iopte)paddr;</span>
+<span class="quote">&gt; +       ret = __arm_short_set_pte(pte, pteprot, large ? 16 : 1, cfg);</span>
+<span class="quote">&gt; +       if (ret &amp;&amp; pte_new)</span>
+<span class="quote">&gt; +               __arm_short_free_pgtable(pte_new, ARM_SHORT_BYTES_PER_PTE,</span>
+<span class="quote">&gt; +                                        false, cfg);</span>
+
+Don&#39;t you need to kill the pgd entry before freeing this? Please see my
+previous comments about safely freeing page tables:
+
+  http://lists.infradead.org/pipermail/linux-arm-kernel/2015-July/358268.html
+
+(at the end of the post)
+<span class="quote">
+&gt; +       return ret;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static int arm_short_map(struct io_pgtable_ops *ops, unsigned long iova,</span>
+<span class="quote">&gt; +                        phys_addr_t paddr, size_t size, int prot)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +       struct arm_short_io_pgtable *data = io_pgtable_ops_to_data(ops);</span>
+<span class="quote">&gt; +       arm_short_iopte pgdprot = 0, pteprot = 0;</span>
+<span class="quote">&gt; +       bool large;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       /* If no access, then nothing to do */</span>
+<span class="quote">&gt; +       if (!(prot &amp; (IOMMU_READ | IOMMU_WRITE)))</span>
+<span class="quote">&gt; +               return 0;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (WARN_ON((iova | paddr) &amp; (size - 1)))</span>
+<span class="quote">&gt; +               return -EINVAL;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       switch (size) {</span>
+<span class="quote">&gt; +       case SZ_4K:</span>
+<span class="quote">&gt; +       case SZ_64K:</span>
+<span class="quote">&gt; +               large = (size == SZ_64K) ? true : false;</span>
+<span class="quote">&gt; +               pteprot = __arm_short_pte_prot(data, prot, large);</span>
+<span class="quote">&gt; +               pgdprot = __arm_short_pgtable_prot(data);</span>
+<span class="quote">&gt; +               break;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       case SZ_1M:</span>
+<span class="quote">&gt; +       case SZ_16M:</span>
+<span class="quote">&gt; +               large = (size == SZ_16M) ? true : false;</span>
+<span class="quote">&gt; +               pgdprot = __arm_short_pgd_prot(data, prot, large);</span>
+<span class="quote">&gt; +               break;</span>
+<span class="quote">&gt; +       default:</span>
+<span class="quote">&gt; +               return -EINVAL;</span>
+<span class="quote">&gt; +       }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       return _arm_short_map(data, iova, paddr, pgdprot, pteprot, large);</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static phys_addr_t arm_short_iova_to_phys(struct io_pgtable_ops *ops,</span>
+<span class="quote">&gt; +                                         unsigned long iova)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +       struct arm_short_io_pgtable *data = io_pgtable_ops_to_data(ops);</span>
+<span class="quote">&gt; +       arm_short_iopte *pte, *pgd = data-&gt;pgd;</span>
+<span class="quote">&gt; +       phys_addr_t pa = 0;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       pgd += ARM_SHORT_PGD_IDX(iova);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (ARM_SHORT_PGD_TYPE_IS_PGTABLE(*pgd)) {</span>
+<span class="quote">&gt; +               pte = arm_short_get_pte_in_pgd(*pgd, iova);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +               if (ARM_SHORT_PTE_TYPE_IS_LARGEPAGE(*pte)) {</span>
+<span class="quote">&gt; +                       pa = (*pte) &amp; ARM_SHORT_PTE_LARGE_MSK;</span>
+<span class="quote">&gt; +                       pa |= iova &amp; ~ARM_SHORT_PTE_LARGE_MSK;</span>
+<span class="quote">&gt; +               } else if (ARM_SHORT_PTE_TYPE_IS_SMALLPAGE(*pte)) {</span>
+<span class="quote">&gt; +                       pa = (*pte) &amp; ARM_SHORT_PTE_SMALL_MSK;</span>
+<span class="quote">&gt; +                       pa |= iova &amp; ~ARM_SHORT_PTE_SMALL_MSK;</span>
+<span class="quote">&gt; +               }</span>
+<span class="quote">&gt; +       } else if (ARM_SHORT_PGD_TYPE_IS_SECTION(*pgd)) {</span>
+<span class="quote">&gt; +               pa = (*pgd) &amp; ARM_SHORT_PGD_SECTION_MSK;</span>
+<span class="quote">&gt; +               pa |= iova &amp; ~ARM_SHORT_PGD_SECTION_MSK;</span>
+<span class="quote">&gt; +       } else if (ARM_SHORT_PGD_TYPE_IS_SUPERSECTION(*pgd)) {</span>
+<span class="quote">&gt; +               pa = (*pgd) &amp; ARM_SHORT_PGD_SUPERSECTION_MSK;</span>
+<span class="quote">&gt; +               pa |= iova &amp; ~ARM_SHORT_PGD_SUPERSECTION_MSK;</span>
+<span class="quote">&gt; +       }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       return pa;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static bool _arm_short_whether_free_pgtable(arm_short_iopte *pgd)</span>
+<span class="quote">&gt; +{</span>
+
+_arm_short_pgtable_empty might be a better name.
+<span class="quote">
+&gt; +       arm_short_iopte *pte;</span>
+<span class="quote">&gt; +       int i;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       pte = ARM_SHORT_GET_PGTABLE_VA(*pgd);</span>
+<span class="quote">&gt; +       for (i = 0; i &lt; ARM_SHORT_PTRS_PER_PTE; i++) {</span>
+<span class="quote">&gt; +               if (pte[i] != 0)</span>
+<span class="quote">&gt; +                       return false;</span>
+<span class="quote">&gt; +       }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       return true;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static int</span>
+<span class="quote">&gt; +arm_short_split_blk_unmap(struct io_pgtable_ops *ops, unsigned int iova,</span>
+<span class="quote">&gt; +                         phys_addr_t paddr, size_t size,</span>
+<span class="quote">&gt; +                         arm_short_iopte pgdprotup, arm_short_iopte pteprotup,</span>
+<span class="quote">&gt; +                         size_t blk_size)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +       struct arm_short_io_pgtable *data = io_pgtable_ops_to_data(ops);</span>
+<span class="quote">&gt; +       const struct iommu_gather_ops *tlb = data-&gt;iop.cfg.tlb;</span>
+<span class="quote">&gt; +       struct io_pgtable_cfg *cfg = &amp;data-&gt;iop.cfg;</span>
+<span class="quote">&gt; +       unsigned long *pgbitmap = &amp;cfg-&gt;pgsize_bitmap;</span>
+<span class="quote">&gt; +       unsigned int blk_base, blk_start, blk_end, i;</span>
+<span class="quote">&gt; +       arm_short_iopte pgdprot, pteprot;</span>
+<span class="quote">&gt; +       phys_addr_t blk_paddr;</span>
+<span class="quote">&gt; +       size_t mapsize = 0, nextmapsize;</span>
+<span class="quote">&gt; +       int ret;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       /* find the nearest mapsize */</span>
+<span class="quote">&gt; +       for (i = find_first_bit(pgbitmap, BITS_PER_LONG);</span>
+<span class="quote">&gt; +            i &lt; BITS_PER_LONG &amp;&amp; ((1 &lt;&lt; i) &lt; blk_size) &amp;&amp;</span>
+<span class="quote">&gt; +            IS_ALIGNED(size, 1 &lt;&lt; i);</span>
+<span class="quote">&gt; +            i = find_next_bit(pgbitmap, BITS_PER_LONG, i + 1))</span>
+<span class="quote">&gt; +               mapsize = 1 &lt;&lt; i;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (WARN_ON(!mapsize))</span>
+<span class="quote">&gt; +               return 0; /* Bytes unmapped */</span>
+<span class="quote">&gt; +       nextmapsize = 1 &lt;&lt; i;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       blk_base = iova &amp; ~(blk_size - 1);</span>
+<span class="quote">&gt; +       blk_start = blk_base;</span>
+<span class="quote">&gt; +       blk_end = blk_start + blk_size;</span>
+<span class="quote">&gt; +       blk_paddr = paddr;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       for (; blk_start &lt; blk_end;</span>
+<span class="quote">&gt; +            blk_start += mapsize, blk_paddr += mapsize) {</span>
+<span class="quote">&gt; +               /* Unmap! */</span>
+<span class="quote">&gt; +               if (blk_start == iova)</span>
+<span class="quote">&gt; +                       continue;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +               /* Try to upper map */</span>
+<span class="quote">&gt; +               if (blk_base != blk_start &amp;&amp;</span>
+<span class="quote">&gt; +                   IS_ALIGNED(blk_start | blk_paddr, nextmapsize) &amp;&amp;</span>
+<span class="quote">&gt; +                   mapsize != nextmapsize) {</span>
+<span class="quote">&gt; +                       mapsize = nextmapsize;</span>
+<span class="quote">&gt; +                       i = find_next_bit(pgbitmap, BITS_PER_LONG, i + 1);</span>
+<span class="quote">&gt; +                       if (i &lt; BITS_PER_LONG)</span>
+<span class="quote">&gt; +                               nextmapsize = 1 &lt;&lt; i;</span>
+<span class="quote">&gt; +               }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +               if (mapsize == SZ_1M) {</span>
+
+How do we get here with a mapsize of 1M?
+<span class="quote">
+&gt; +                       pgdprot = pgdprotup;</span>
+<span class="quote">&gt; +                       pgdprot |= __arm_short_pgd_prot(data, 0, false);</span>
+<span class="quote">&gt; +                       pteprot = 0;</span>
+<span class="quote">&gt; +               } else { /* small or large page */</span>
+<span class="quote">&gt; +                       pgdprot = (blk_size == SZ_64K) ? 0 : pgdprotup;</span>
+<span class="quote">&gt; +                       pteprot = __arm_short_pte_prot_split(</span>
+<span class="quote">&gt; +                                       data, pgdprot, pteprotup,</span>
+<span class="quote">&gt; +                                       mapsize == SZ_64K);</span>
+<span class="quote">&gt; +                       pgdprot = __arm_short_pgtable_prot(data);</span>
+<span class="quote">&gt; +               }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +               ret = _arm_short_map(data, blk_start, blk_paddr, pgdprot,</span>
+<span class="quote">&gt; +                                    pteprot, mapsize == SZ_64K);</span>
+<span class="quote">&gt; +               if (ret &lt; 0) {</span>
+<span class="quote">&gt; +                       /* Free the table we allocated */</span>
+<span class="quote">&gt; +                       arm_short_iopte *pgd = data-&gt;pgd, *pte;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +                       pgd += ARM_SHORT_PGD_IDX(blk_base);</span>
+<span class="quote">&gt; +                       if (*pgd) {</span>
+<span class="quote">&gt; +                               pte = ARM_SHORT_GET_PGTABLE_VA(*pgd);</span>
+<span class="quote">&gt; +                               __arm_short_set_pte(pgd, 0, 1, cfg);</span>
+<span class="quote">&gt; +                               tlb-&gt;tlb_add_flush(blk_base, blk_size, true,</span>
+<span class="quote">&gt; +                                                  data-&gt;iop.cookie);</span>
+<span class="quote">&gt; +                               tlb-&gt;tlb_sync(data-&gt;iop.cookie);</span>
+<span class="quote">&gt; +                               __arm_short_free_pgtable(</span>
+<span class="quote">&gt; +                                       pte, ARM_SHORT_BYTES_PER_PTE,</span>
+<span class="quote">&gt; +                                       false, cfg);</span>
+
+This looks wrong. _arm_short_map cleans up if it returns non-zero already.
+<span class="quote">
+&gt; +                       }</span>
+<span class="quote">&gt; +                       return 0;/* Bytes unmapped */</span>
+<span class="quote">&gt; +               }</span>
+<span class="quote">&gt; +       }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       tlb-&gt;tlb_add_flush(blk_base, blk_size, true, data-&gt;iop.cookie);</span>
+<span class="quote">&gt; +       tlb-&gt;tlb_sync(data-&gt;iop.cookie);</span>
+
+Why are you syncing here? You can postpone this to the caller, if it turns
+out the unmap was a success.
+<span class="quote">
+&gt; +       return size;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static int arm_short_unmap(struct io_pgtable_ops *ops,</span>
+<span class="quote">&gt; +                          unsigned long iova,</span>
+<span class="quote">&gt; +                          size_t size)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +       struct arm_short_io_pgtable *data = io_pgtable_ops_to_data(ops);</span>
+<span class="quote">&gt; +       struct io_pgtable_cfg *cfg = &amp;data-&gt;iop.cfg;</span>
+<span class="quote">&gt; +       arm_short_iopte *pgd, *pte = NULL;</span>
+<span class="quote">&gt; +       arm_short_iopte curpgd, curpte = 0;</span>
+<span class="quote">&gt; +       phys_addr_t paddr;</span>
+<span class="quote">&gt; +       unsigned int iova_base, blk_size = 0;</span>
+<span class="quote">&gt; +       void *cookie = data-&gt;iop.cookie;</span>
+<span class="quote">&gt; +       bool pgtablefree = false;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       pgd = (arm_short_iopte *)data-&gt;pgd + ARM_SHORT_PGD_IDX(iova);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       /* Get block size */</span>
+<span class="quote">&gt; +       if (ARM_SHORT_PGD_TYPE_IS_PGTABLE(*pgd)) {</span>
+<span class="quote">&gt; +               pte = arm_short_get_pte_in_pgd(*pgd, iova);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +               if (ARM_SHORT_PTE_TYPE_IS_SMALLPAGE(*pte))</span>
+<span class="quote">&gt; +                       blk_size = SZ_4K;</span>
+<span class="quote">&gt; +               else if (ARM_SHORT_PTE_TYPE_IS_LARGEPAGE(*pte))</span>
+<span class="quote">&gt; +                       blk_size = SZ_64K;</span>
+<span class="quote">&gt; +               else</span>
+<span class="quote">&gt; +                       WARN_ON(1);</span>
+<span class="quote">&gt; +       } else if (ARM_SHORT_PGD_TYPE_IS_SECTION(*pgd)) {</span>
+<span class="quote">&gt; +               blk_size = SZ_1M;</span>
+<span class="quote">&gt; +       } else if (ARM_SHORT_PGD_TYPE_IS_SUPERSECTION(*pgd)) {</span>
+<span class="quote">&gt; +               blk_size = SZ_16M;</span>
+<span class="quote">&gt; +       } else {</span>
+<span class="quote">&gt; +               WARN_ON(1);</span>
+
+Maybe return 0 or something instead of falling through with blk_size == 0?
+<span class="quote">
+&gt; +       }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       iova_base = iova &amp; ~(blk_size - 1);</span>
+<span class="quote">&gt; +       pgd = (arm_short_iopte *)data-&gt;pgd + ARM_SHORT_PGD_IDX(iova_base);</span>
+<span class="quote">&gt; +       paddr = arm_short_iova_to_phys(ops, iova_base);</span>
+<span class="quote">&gt; +       curpgd = *pgd;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (blk_size == SZ_4K || blk_size == SZ_64K) {</span>
+<span class="quote">&gt; +               pte = arm_short_get_pte_in_pgd(*pgd, iova_base);</span>
+<span class="quote">&gt; +               curpte = *pte;</span>
+<span class="quote">&gt; +               __arm_short_set_pte(pte, 0, blk_size / SZ_4K, cfg);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +               pgtablefree = _arm_short_whether_free_pgtable(pgd);</span>
+<span class="quote">&gt; +               if (pgtablefree)</span>
+<span class="quote">&gt; +                       __arm_short_set_pte(pgd, 0, 1, cfg);</span>
+<span class="quote">&gt; +       } else if (blk_size == SZ_1M || blk_size == SZ_16M) {</span>
+<span class="quote">&gt; +               __arm_short_set_pte(pgd, 0, blk_size / SZ_1M, cfg);</span>
+<span class="quote">&gt; +       }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       cfg-&gt;tlb-&gt;tlb_add_flush(iova_base, blk_size, true, cookie);</span>
+<span class="quote">&gt; +       cfg-&gt;tlb-&gt;tlb_sync(cookie);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (pgtablefree)/* Free pgtable after tlb-flush */</span>
+<span class="quote">&gt; +               __arm_short_free_pgtable(ARM_SHORT_GET_PGTABLE_VA(curpgd),</span>
+<span class="quote">&gt; +                                        ARM_SHORT_BYTES_PER_PTE, false, cfg);</span>
+
+Curious, but why do you care about freeing this on unmap? It will get
+freed when the page table itself is freed anyway (via the -&gt;free callback).
+<span class="quote">
+&gt; +</span>
+<span class="quote">&gt; +       if (blk_size &gt; size) { /* Split the block */</span>
+<span class="quote">&gt; +               return arm_short_split_blk_unmap(</span>
+<span class="quote">&gt; +                               ops, iova, paddr, size,</span>
+<span class="quote">&gt; +                               ARM_SHORT_PGD_GET_PROT(curpgd),</span>
+<span class="quote">&gt; +                               ARM_SHORT_PTE_LARGE_GET_PROT(curpte),</span>
+<span class="quote">&gt; +                               blk_size);</span>
+<span class="quote">&gt; +       } else if (blk_size &lt; size) {</span>
+<span class="quote">&gt; +               /* Unmap the block while remap partial again after split */</span>
+<span class="quote">&gt; +               return blk_size +</span>
+<span class="quote">&gt; +                       arm_short_unmap(ops, iova + blk_size, size - blk_size);</span>
+<span class="quote">&gt; +       }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       return size;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static struct io_pgtable *</span>
+<span class="quote">&gt; +arm_short_alloc_pgtable(struct io_pgtable_cfg *cfg, void *cookie)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +       struct arm_short_io_pgtable *data;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (cfg-&gt;ias &gt; 32 || cfg-&gt;oas &gt; 32)</span>
+<span class="quote">&gt; +               return NULL;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       cfg-&gt;pgsize_bitmap &amp;=</span>
+<span class="quote">&gt; +               (cfg-&gt;quirks &amp; IO_PGTABLE_QUIRK_SHORT_SUPERSECTION) ?</span>
+<span class="quote">&gt; +               (SZ_4K | SZ_64K | SZ_1M | SZ_16M) : (SZ_4K | SZ_64K | SZ_1M);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       data = kzalloc(sizeof(*data), GFP_KERNEL);</span>
+<span class="quote">&gt; +       if (!data)</span>
+<span class="quote">&gt; +               return NULL;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       data-&gt;pgd_size = SZ_16K;</span>
+<span class="quote">&gt; +       data-&gt;pgd = __arm_short_alloc_pgtable(</span>
+<span class="quote">&gt; +                                       data-&gt;pgd_size,</span>
+<span class="quote">&gt; +                                       GFP_KERNEL | __GFP_ZERO | __GFP_DMA,</span>
+<span class="quote">&gt; +                                       true, cfg);</span>
+<span class="quote">&gt; +       if (!data-&gt;pgd)</span>
+<span class="quote">&gt; +               goto out_free_data;</span>
+<span class="quote">&gt; +       wmb();/* Ensure the empty pgd is visible before any actual TTBR write */</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       data-&gt;pgtable_cached = kmem_cache_create(</span>
+<span class="quote">&gt; +                                       &quot;io-pgtable-arm-short&quot;,</span>
+<span class="quote">&gt; +                                        ARM_SHORT_BYTES_PER_PTE,</span>
+<span class="quote">&gt; +                                        ARM_SHORT_BYTES_PER_PTE,</span>
+<span class="quote">&gt; +                                        0, NULL);</span>
+<span class="quote">&gt; +       if (!data-&gt;pgtable_cached)</span>
+<span class="quote">&gt; +               goto out_free_pgd;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       /* TTBRs */</span>
+<span class="quote">&gt; +       cfg-&gt;arm_short_cfg.ttbr[0] = virt_to_phys(data-&gt;pgd);</span>
+<span class="quote">&gt; +       cfg-&gt;arm_short_cfg.ttbr[1] = 0;</span>
+<span class="quote">&gt; +       cfg-&gt;arm_short_cfg.tcr = 0;</span>
+<span class="quote">&gt; +       cfg-&gt;arm_short_cfg.nmrr = 0;</span>
+<span class="quote">&gt; +       cfg-&gt;arm_short_cfg.prrr = 0;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       data-&gt;iop.ops = (struct io_pgtable_ops) {</span>
+<span class="quote">&gt; +               .map            = arm_short_map,</span>
+<span class="quote">&gt; +               .unmap          = arm_short_unmap,</span>
+<span class="quote">&gt; +               .iova_to_phys   = arm_short_iova_to_phys,</span>
+<span class="quote">&gt; +       };</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       return &amp;data-&gt;iop;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +out_free_pgd:</span>
+<span class="quote">&gt; +       __arm_short_free_pgtable(data-&gt;pgd, data-&gt;pgd_size, true, cfg);</span>
+<span class="quote">&gt; +out_free_data:</span>
+<span class="quote">&gt; +       kfree(data);</span>
+<span class="quote">&gt; +       return NULL;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +static void arm_short_free_pgtable(struct io_pgtable *iop)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +       struct arm_short_io_pgtable *data = io_pgtable_to_data(iop);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       kmem_cache_destroy(data-&gt;pgtable_cached);</span>
+<span class="quote">&gt; +       __arm_short_free_pgtable(data-&gt;pgd, data-&gt;pgd_size,</span>
+<span class="quote">&gt; +                                true, &amp;data-&gt;iop.cfg);</span>
+<span class="quote">&gt; +       kfree(data);</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +struct io_pgtable_init_fns io_pgtable_arm_short_init_fns = {</span>
+<span class="quote">&gt; +       .alloc  = arm_short_alloc_pgtable,</span>
+<span class="quote">&gt; +       .free   = arm_short_free_pgtable,</span>
+<span class="quote">&gt; +};</span>
+<span class="quote">&gt; +</span>
+
+[...]
+<span class="quote">
+&gt; diff --git a/drivers/iommu/io-pgtable.c b/drivers/iommu/io-pgtable.c</span>
+<span class="quote">&gt; index 6436fe2..14a9b3a 100644</span>
+<span class="quote">&gt; --- a/drivers/iommu/io-pgtable.c</span>
+<span class="quote">&gt; +++ b/drivers/iommu/io-pgtable.c</span>
+<span class="quote">&gt; @@ -28,6 +28,7 @@ extern struct io_pgtable_init_fns io_pgtable_arm_32_lpae_s1_init_fns;</span>
+<span class="quote">&gt;  extern struct io_pgtable_init_fns io_pgtable_arm_32_lpae_s2_init_fns;</span>
+<span class="quote">&gt;  extern struct io_pgtable_init_fns io_pgtable_arm_64_lpae_s1_init_fns;</span>
+<span class="quote">&gt;  extern struct io_pgtable_init_fns io_pgtable_arm_64_lpae_s2_init_fns;</span>
+<span class="quote">&gt; +extern struct io_pgtable_init_fns io_pgtable_arm_short_init_fns;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  static const struct io_pgtable_init_fns *</span>
+<span class="quote">&gt;  io_pgtable_init_table[IO_PGTABLE_NUM_FMTS] =</span>
+<span class="quote">&gt; @@ -38,6 +39,9 @@ io_pgtable_init_table[IO_PGTABLE_NUM_FMTS] =</span>
+<span class="quote">&gt;         [ARM_64_LPAE_S1] = &amp;io_pgtable_arm_64_lpae_s1_init_fns,</span>
+<span class="quote">&gt;         [ARM_64_LPAE_S2] = &amp;io_pgtable_arm_64_lpae_s2_init_fns,</span>
+<span class="quote">&gt;  #endif</span>
+<span class="quote">&gt; +#ifdef CONFIG_IOMMU_IO_PGTABLE_SHORT</span>
+<span class="quote">&gt; +       [ARM_SHORT_DESC] = &amp;io_pgtable_arm_short_init_fns,</span>
+<span class="quote">&gt; +#endif</span>
+<span class="quote">&gt;  };</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  struct io_pgtable_ops *alloc_io_pgtable_ops(enum io_pgtable_fmt fmt,</span>
+<span class="quote">&gt; diff --git a/drivers/iommu/io-pgtable.h b/drivers/iommu/io-pgtable.h</span>
+<span class="quote">&gt; index 68c63d9..0f45e60 100644</span>
+<span class="quote">&gt; --- a/drivers/iommu/io-pgtable.h</span>
+<span class="quote">&gt; +++ b/drivers/iommu/io-pgtable.h</span>
+<span class="quote">&gt; @@ -9,6 +9,7 @@ enum io_pgtable_fmt {</span>
+<span class="quote">&gt;         ARM_32_LPAE_S2,</span>
+<span class="quote">&gt;         ARM_64_LPAE_S1,</span>
+<span class="quote">&gt;         ARM_64_LPAE_S2,</span>
+<span class="quote">&gt; +       ARM_SHORT_DESC,</span>
+<span class="quote">&gt;         IO_PGTABLE_NUM_FMTS,</span>
+<span class="quote">&gt;  };</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; @@ -45,6 +46,9 @@ struct iommu_gather_ops {</span>
+<span class="quote">&gt;   */</span>
+<span class="quote">&gt;  struct io_pgtable_cfg {</span>
+<span class="quote">&gt;         #define IO_PGTABLE_QUIRK_ARM_NS (1 &lt;&lt; 0)        /* Set NS bit in PTEs */</span>
+<span class="quote">&gt; +       #define IO_PGTABLE_QUIRK_SHORT_SUPERSECTION     BIT(1)</span>
+<span class="quote">&gt; +       #define IO_PGTABLE_QUIRK_SHORT_NO_XN            BIT(2) /* No XN bit */</span>
+<span class="quote">&gt; +       #define IO_PGTABLE_QUIRK_SHORT_NO_PERMS         BIT(3) /* No AP bit */</span>
+
+Why have two quirks for this? I suggested included NO_XN in NO_PERMS:
+
+  http://lists.infradead.org/pipermail/linux-arm-kernel/2015-July/361160.html
+<span class="quote">
+&gt;         int                             quirks;</span>
+<span class="quote">&gt;         unsigned long                   pgsize_bitmap;</span>
+<span class="quote">&gt;         unsigned int                    ias;</span>
+<span class="quote">&gt; @@ -64,6 +68,13 @@ struct io_pgtable_cfg {</span>
+<span class="quote">&gt;                         u64     vttbr;</span>
+<span class="quote">&gt;                         u64     vtcr;</span>
+<span class="quote">&gt;                 } arm_lpae_s2_cfg;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +               struct {</span>
+<span class="quote">&gt; +                       u32     ttbr[2];</span>
+<span class="quote">&gt; +                       u32     tcr;</span>
+<span class="quote">&gt; +                       u32     nmrr;</span>
+<span class="quote">&gt; +                       u32     prrr;</span>
+<span class="quote">&gt; +               } arm_short_cfg;</span>
+
+We don&#39;t return an SCTLR value here, so a comment somewhere saying that
+access flag is not supported would be helpful (so that drivers can ensure
+that they configure things for the AP[2:0] permission model).
+
+Will
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=123111">Yong Wu</a> - Sept. 17, 2015, 2:54 p.m.</div>
+<pre class="content">
+On Wed, 2015-09-16 at 16:58 +0100, Will Deacon wrote:
+<span class="quote">&gt; On Mon, Aug 03, 2015 at 11:21:16AM +0100, Yong Wu wrote:</span>
+<span class="quote">&gt; &gt; This patch is for ARM Short Descriptor Format.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Signed-off-by: Yong Wu &lt;yong.wu@mediatek.com&gt;</span>
+<span class="quote">&gt; &gt; ---</span>
+<span class="quote">&gt; &gt;  drivers/iommu/Kconfig                |  18 +</span>
+<span class="quote">&gt; &gt;  drivers/iommu/Makefile               |   1 +</span>
+<span class="quote">&gt; &gt;  drivers/iommu/io-pgtable-arm-short.c | 813 +++++++++++++++++++++++++++++++++++</span>
+<span class="quote">&gt; &gt;  drivers/iommu/io-pgtable-arm.c       |   3 -</span>
+<span class="quote">&gt; &gt;  drivers/iommu/io-pgtable.c           |   4 +</span>
+<span class="quote">&gt; &gt;  drivers/iommu/io-pgtable.h           |  14 +</span>
+<span class="quote">&gt; &gt;  6 files changed, 850 insertions(+), 3 deletions(-)</span>
+<span class="quote">&gt; &gt;  create mode 100644 drivers/iommu/io-pgtable-arm-short.c</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; diff --git a/drivers/iommu/Kconfig b/drivers/iommu/Kconfig</span>
+<span class="quote">&gt; &gt; index f1fb1d3..3abd066 100644</span>
+<span class="quote">&gt; &gt; --- a/drivers/iommu/Kconfig</span>
+<span class="quote">&gt; &gt; +++ b/drivers/iommu/Kconfig</span>
+<span class="quote">&gt; &gt; @@ -39,6 +39,24 @@ config IOMMU_IO_PGTABLE_LPAE_SELFTEST</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;           If unsure, say N here.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; +config IOMMU_IO_PGTABLE_SHORT</span>
+<span class="quote">&gt; &gt; +       bool &quot;ARMv7/v8 Short Descriptor Format&quot;</span>
+<span class="quote">&gt; &gt; +       select IOMMU_IO_PGTABLE</span>
+<span class="quote">&gt; &gt; +       depends on ARM || ARM64 || COMPILE_TEST</span>
+<span class="quote">&gt; &gt; +       help</span>
+<span class="quote">&gt; &gt; +         Enable support for the ARM Short-descriptor pagetable format.</span>
+<span class="quote">&gt; &gt; +         This allocator supports 2 levels translation tables which supports</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Some minor rewording here:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &quot;...2 levels of translation tables, which enables a 32-bit memory map based</span>
+<span class="quote">&gt;  on...&quot;</span>
+
+Hi Will,
+    OK.Thanks very much for your review so detail every time.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt; +         a memory map based on memory sections or pages.</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +config IOMMU_IO_PGTABLE_SHORT_SELFTEST</span>
+<span class="quote">&gt; &gt; +       bool &quot;Short Descriptor selftests&quot;</span>
+<span class="quote">&gt; &gt; +       depends on IOMMU_IO_PGTABLE_SHORT</span>
+<span class="quote">&gt; &gt; +       help</span>
+<span class="quote">&gt; &gt; +         Enable self-tests for Short-descriptor page table allocator.</span>
+<span class="quote">&gt; &gt; +         This performs a series of page-table consistency checks during boot.</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +         If unsure, say N here.</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt;  endmenu</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;  config IOMMU_IOVA</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; [...]</span>
+<span class="quote">&gt; &gt; +#define ARM_SHORT_PGD_PGTABLE_MSK              0xfffffc00</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; You could use (~(ARM_SHORT_BYTES_PER_PTE - 1)), I think.</span>
+
+Yes. Thanks.
+<span class="quote">
+&gt; &gt; +/* level 2 pagetable */</span>
+<span class="quote">&gt; &gt; +#define ARM_SHORT_PTE_TYPE_LARGE               BIT(0)</span>
+<span class="quote">&gt; &gt; +#define ARM_SHORT_PTE_SMALL_XN                 BIT(0)</span>
+<span class="quote">&gt; &gt; +#define ARM_SHORT_PTE_TYPE_SMALL               BIT(1)</span>
+<span class="quote">&gt; &gt; +#define ARM_SHORT_PTE_B                                BIT(2)</span>
+<span class="quote">&gt; &gt; +#define ARM_SHORT_PTE_C                                BIT(3)</span>
+<span class="quote">&gt; &gt; +#define ARM_SHORT_PTE_RD_WR                    (3 &lt;&lt; 4)</span>
+<span class="quote">&gt; &gt; +#define ARM_SHORT_PTE_RDONLY                   BIT(9)</span>
+<span class="quote">&gt; &gt; +#define ARM_SHORT_PTE_S                                BIT(10)</span>
+<span class="quote">&gt; &gt; +#define ARM_SHORT_PTE_nG                       BIT(11)</span>
+<span class="quote">&gt; &gt; +#define ARM_SHORT_PTE_LARGE_XN                 BIT(15)</span>
+<span class="quote">&gt; &gt; +#define ARM_SHORT_PTE_LARGE_MSK                        (~(SZ_64K - 1))</span>
+<span class="quote">&gt; &gt; +#define ARM_SHORT_PTE_SMALL_MSK                        (~(SZ_4K - 1))</span>
+<span class="quote">&gt; &gt; +#define ARM_SHORT_PTE_TYPE_MSK                 \</span>
+<span class="quote">&gt; &gt; +       (ARM_SHORT_PTE_TYPE_LARGE | ARM_SHORT_PTE_TYPE_SMALL)</span>
+<span class="quote">&gt; &gt; +#define ARM_SHORT_PTE_TYPE_IS_SMALLPAGE(pte)   \</span>
+<span class="quote">&gt; &gt; +       (((pte) &amp; ARM_SHORT_PTE_TYPE_SMALL) == ARM_SHORT_PTE_TYPE_SMALL)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Maybe a comment here, because it&#39;s confusing that you don&#39;t and with the</span>
+<span class="quote">&gt; mask due to XN.</span>
+
+I will add a comment like : 
+/* The bit0 in small page is XN */
+<span class="quote">
+&gt; &gt; +#define ARM_SHORT_PTE_LARGE_GET_PROT(pte)      \</span>
+<span class="quote">&gt; &gt; +       (((pte) &amp; (~ARM_SHORT_PTE_LARGE_MSK)) &amp; ~ARM_SHORT_PTE_TYPE_MSK)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; AFAICT, the only user of this also does an &#39;&amp; ~ARM_SHORT_PTE_SMALL_MSK&#39;.</span>
+<span class="quote">&gt; Wouldn&#39;t it be better to define ARM_SHORT_PTE_GET_PROT, which just returns</span>
+<span class="quote">&gt; the AP bits? That said, what are you going to do about XN? I know you</span>
+<span class="quote">&gt; don&#39;t support it in your hardware, but this could code should still do</span>
+<span class="quote">&gt; the right thing.</span>
+
+I&#39;m a little confuse here: rename to ARM_SHORT_PTE_GET_PROT which just
+return the AP bits? like this :
+//=====
+#define ARM_SHORT_PTE_GET_PROT(pte) \
+(((pte) &amp; (~ARM_SHORT_PTE_SMALL_MSK)) &amp; ~ARM_SHORT_PTE_TYPE_MSK)
+//=====
+
+This macro is only used to get the prot of large page while split.
+
+If it only return AP bits, then how about PXN,TEX[2:0] in large page?
+(we need transform PXN in large-page to XN in small-page while split)
+
+how about add a comment like below:
+//=====
+/* Get the prot of large page for split */
+#define ARM_SHORT_PTE_LARGE_GET_PROT(pte)      \
+   (((pte) &amp; (~ARM_SHORT_PTE_LARGE_MSK)) &amp; ~ARM_SHORT_PTE_TYPE_MSK)
+//=====
+or rename it ARM_SHORT_PTE_GET_PROT_SPLIT?
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt; +static int</span>
+<span class="quote">&gt; &gt; +__arm_short_set_pte(arm_short_iopte *ptep, arm_short_iopte pte,</span>
+<span class="quote">&gt; &gt; +                   unsigned int ptenr, struct io_pgtable_cfg *cfg)</span>
+<span class="quote">&gt; &gt; +{</span>
+<span class="quote">&gt; &gt; +       struct device *dev = cfg-&gt;iommu_dev;</span>
+<span class="quote">&gt; &gt; +       int i;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       for (i = 0; i &lt; ptenr; i++) {</span>
+<span class="quote">&gt; &gt; +               if (ptep[i] &amp;&amp; pte) {</span>
+<span class="quote">&gt; &gt; +                       /* Someone else may have allocated for this pte */</span>
+<span class="quote">&gt; &gt; +                       WARN_ON(!selftest_running);</span>
+<span class="quote">&gt; &gt; +                       goto err_exist_pte;</span>
+<span class="quote">&gt; &gt; +               }</span>
+<span class="quote">&gt; &gt; +               ptep[i] = pte;</span>
+<span class="quote">&gt; &gt; +       }</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       if (selftest_running)</span>
+<span class="quote">&gt; &gt; +               return 0;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       dma_sync_single_for_device(dev, __arm_short_dma_addr(dev, ptep),</span>
+<span class="quote">&gt; &gt; +                                  sizeof(*ptep) * ptenr, DMA_TO_DEVICE);</span>
+<span class="quote">&gt; &gt; +       return 0;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +err_exist_pte:</span>
+<span class="quote">&gt; &gt; +       while (i--)</span>
+<span class="quote">&gt; &gt; +               ptep[i] = 0;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; What about a dma_sync for the failure case?</span>
+
+I will add it.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt; +       return -EEXIST;</span>
+<span class="quote">&gt; &gt; +}</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +static void *</span>
+<span class="quote">&gt; &gt; +__arm_short_alloc_pgtable(size_t size, gfp_t gfp, bool pgd,</span>
+<span class="quote">&gt; &gt; +                         struct io_pgtable_cfg *cfg)</span>
+<span class="quote">&gt; &gt; +{</span>
+<span class="quote">&gt; &gt; +       struct arm_short_io_pgtable *data;</span>
+<span class="quote">&gt; &gt; +       struct device *dev = cfg-&gt;iommu_dev;</span>
+<span class="quote">&gt; &gt; +       dma_addr_t dma;</span>
+<span class="quote">&gt; &gt; +       void *va;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       if (pgd) {/* lvl1 pagetable */</span>
+<span class="quote">&gt; &gt; +               va = alloc_pages_exact(size, gfp);</span>
+<span class="quote">&gt; &gt; +       } else {  /* lvl2 pagetable */</span>
+<span class="quote">&gt; &gt; +               data = io_pgtable_cfg_to_data(cfg);</span>
+<span class="quote">&gt; &gt; +               va = kmem_cache_zalloc(data-&gt;pgtable_cached, gfp);</span>
+<span class="quote">&gt; &gt; +       }</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       if (!va)</span>
+<span class="quote">&gt; &gt; +               return NULL;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       if (selftest_running)</span>
+<span class="quote">&gt; &gt; +               return va;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       dma = dma_map_single(dev, va, size, DMA_TO_DEVICE);</span>
+<span class="quote">&gt; &gt; +       if (dma_mapping_error(dev, dma))</span>
+<span class="quote">&gt; &gt; +               goto out_free;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       if (dma != __arm_short_dma_addr(dev, va))</span>
+<span class="quote">&gt; &gt; +               goto out_unmap;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       if (!pgd) {</span>
+<span class="quote">&gt; &gt; +               kmemleak_ignore(va);</span>
+<span class="quote">&gt; &gt; +               dma_sync_single_for_device(dev, __arm_short_dma_addr(dev, va),</span>
+<span class="quote">&gt; &gt; +                                          size, DMA_TO_DEVICE);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Why do you need to do this as well as the dma_map_single above?</span>
+
+It&#39;s redundance, I will delete it...
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt; +       }</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       return va;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +out_unmap:</span>
+<span class="quote">&gt; &gt; +       dev_err_ratelimited(dev, &quot;Cannot accommodate DMA translation for IOMMU page tables\n&quot;);</span>
+<span class="quote">&gt; &gt; +       dma_unmap_single(dev, dma, size, DMA_TO_DEVICE);</span>
+<span class="quote">&gt; &gt; +out_free:</span>
+<span class="quote">&gt; &gt; +       if (pgd)</span>
+<span class="quote">&gt; &gt; +               free_pages_exact(va, size);</span>
+<span class="quote">&gt; &gt; +       else</span>
+<span class="quote">&gt; &gt; +               kmem_cache_free(data-&gt;pgtable_cached, va);</span>
+<span class="quote">&gt; &gt; +       return NULL;</span>
+<span class="quote">&gt; &gt; +}</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +static void</span>
+<span class="quote">&gt; &gt; +__arm_short_free_pgtable(void *va, size_t size, bool pgd,</span>
+<span class="quote">&gt; &gt; +                        struct io_pgtable_cfg *cfg)</span>
+<span class="quote">&gt; &gt; +{</span>
+<span class="quote">&gt; &gt; +       struct arm_short_io_pgtable *data = io_pgtable_cfg_to_data(cfg);</span>
+<span class="quote">&gt; &gt; +       struct device *dev = cfg-&gt;iommu_dev;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       if (!selftest_running)</span>
+<span class="quote">&gt; &gt; +               dma_unmap_single(dev, __arm_short_dma_addr(dev, va),</span>
+<span class="quote">&gt; &gt; +                                size, DMA_TO_DEVICE);</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       if (pgd)</span>
+<span class="quote">&gt; &gt; +               free_pages_exact(va, size);</span>
+<span class="quote">&gt; &gt; +       else</span>
+<span class="quote">&gt; &gt; +               kmem_cache_free(data-&gt;pgtable_cached, va);</span>
+<span class="quote">&gt; &gt; +}</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +static arm_short_iopte</span>
+<span class="quote">&gt; &gt; +__arm_short_pte_prot(struct arm_short_io_pgtable *data, int prot, bool large)</span>
+<span class="quote">&gt; &gt; +{</span>
+<span class="quote">&gt; &gt; +       arm_short_iopte pteprot;</span>
+<span class="quote">&gt; &gt; +       int quirk = data-&gt;iop.cfg.quirks;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       pteprot = ARM_SHORT_PTE_S | ARM_SHORT_PTE_nG;</span>
+<span class="quote">&gt; &gt; +       pteprot |= large ? ARM_SHORT_PTE_TYPE_LARGE :</span>
+<span class="quote">&gt; &gt; +                               ARM_SHORT_PTE_TYPE_SMALL;</span>
+<span class="quote">&gt; &gt; +       if (prot &amp; IOMMU_CACHE)</span>
+<span class="quote">&gt; &gt; +               pteprot |=  ARM_SHORT_PTE_B | ARM_SHORT_PTE_C;</span>
+<span class="quote">&gt; &gt; +       if (!(quirk &amp; IO_PGTABLE_QUIRK_SHORT_NO_XN) &amp;&amp; (prot &amp; IOMMU_NOEXEC)) {</span>
+<span class="quote">&gt; &gt; +                       pteprot |= large ? ARM_SHORT_PTE_LARGE_XN :</span>
+<span class="quote">&gt; &gt; +                               ARM_SHORT_PTE_SMALL_XN;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Weird indentation, man. Also, see my later comment about combining NO_XN</span>
+<span class="quote">&gt; with NO_PERMS (the latter subsumes the first)</span>
+
+Sorry, I misunderstanded about the quirk, I will use NO_PERMS which
+contain NO_XN.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt; +       }</span>
+<span class="quote">&gt; &gt; +       if (!(quirk &amp; IO_PGTABLE_QUIRK_SHORT_NO_PERMS)) {</span>
+<span class="quote">&gt; &gt; +               pteprot |= ARM_SHORT_PTE_RD_WR;</span>
+<span class="quote">&gt; &gt; +               if (!(prot &amp; IOMMU_WRITE) &amp;&amp; (prot &amp; IOMMU_READ))</span>
+<span class="quote">&gt; &gt; +                       pteprot |= ARM_SHORT_PTE_RDONLY;</span>
+<span class="quote">&gt; &gt; +       }</span>
+<span class="quote">&gt; &gt; +       return pteprot;</span>
+<span class="quote">&gt; &gt; +}</span>
+<span class="quote">&gt; &gt; +</span>
+[...]
+<span class="quote">&gt; &gt; +static arm_short_iopte</span>
+<span class="quote">&gt; &gt; +__arm_short_pte_prot_split(struct arm_short_io_pgtable *data,</span>
+<span class="quote">&gt; &gt; +                          arm_short_iopte pgdprot,</span>
+<span class="quote">&gt; &gt; +                          arm_short_iopte pteprot_large,</span>
+<span class="quote">&gt; &gt; +                          bool large)</span>
+<span class="quote">&gt; &gt; +{</span>
+<span class="quote">&gt; &gt; +       arm_short_iopte pteprot = 0;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       pteprot = ARM_SHORT_PTE_S | ARM_SHORT_PTE_nG | ARM_SHORT_PTE_RD_WR;</span>
+<span class="quote">&gt; &gt; +       pteprot |= large ? ARM_SHORT_PTE_TYPE_LARGE :</span>
+<span class="quote">&gt; &gt; +                               ARM_SHORT_PTE_TYPE_SMALL;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       /* large page to small page pte prot. Only large page may split */</span>
+<span class="quote">&gt; &gt; +       if (!pgdprot &amp;&amp; !large) {</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It&#39;s slightly complicated having these two variables controlling the</span>
+<span class="quote">&gt; behaviour of the split. In reality, we&#39;re either splitting a section or</span>
+<span class="quote">&gt; a large page, so there are three valid combinations.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It might be simpler to operate on IOMMU_{READ,WRITE,NOEXEC,CACHE} as</span>
+<span class="quote">&gt; much as possible, and then have some simple functions to encode/decode</span>
+<span class="quote">&gt; these into section/large/small page prot bits. We could then just pass</span>
+<span class="quote">&gt; the IOMMU_* prot around along with the map size. What do you think?</span>
+
+It will be more simple if IOMMU_{READ,WRITE,NOEXEC,CACHE} prot can be
+used here. But we cann&#39;t get IOMMU_x prot while split in unmap. is it
+right?
+we can only get the prot from the pagetable, then restructure the new
+prot after split.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt; +               pteprot |= pteprot_large &amp; ~ARM_SHORT_PTE_SMALL_MSK;</span>
+<span class="quote">&gt; &gt; +               if (pteprot_large &amp; ARM_SHORT_PTE_LARGE_XN)</span>
+<span class="quote">&gt; &gt; +                       pteprot |= ARM_SHORT_PTE_SMALL_XN;</span>
+<span class="quote">&gt; &gt; +       }</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       /* section to pte prot */</span>
+<span class="quote">&gt; &gt; +       if (pgdprot &amp; ARM_SHORT_PGD_C)</span>
+<span class="quote">&gt; &gt; +               pteprot |= ARM_SHORT_PTE_C;</span>
+<span class="quote">&gt; &gt; +       if (pgdprot &amp; ARM_SHORT_PGD_B)</span>
+<span class="quote">&gt; &gt; +               pteprot |= ARM_SHORT_PTE_B;</span>
+<span class="quote">&gt; &gt; +       if (pgdprot &amp; ARM_SHORT_PGD_nG)</span>
+<span class="quote">&gt; &gt; +               pteprot |= ARM_SHORT_PTE_nG;</span>
+<span class="quote">&gt; &gt; +       if (pgdprot &amp; ARM_SHORT_PGD_SECTION_XN)</span>
+<span class="quote">&gt; &gt; +               pteprot |= large ? ARM_SHORT_PTE_LARGE_XN :</span>
+<span class="quote">&gt; &gt; +                               ARM_SHORT_PTE_SMALL_XN;</span>
+<span class="quote">&gt; &gt; +       if (pgdprot &amp; ARM_SHORT_PGD_RD_WR)</span>
+<span class="quote">&gt; &gt; +               pteprot |= ARM_SHORT_PTE_RD_WR;</span>
+<span class="quote">&gt; &gt; +       if (pgdprot &amp; ARM_SHORT_PGD_RDONLY)</span>
+<span class="quote">&gt; &gt; +               pteprot |= ARM_SHORT_PTE_RDONLY;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       return pteprot;</span>
+<span class="quote">&gt; &gt; +}</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +static int</span>
+<span class="quote">&gt; &gt; +_arm_short_map(struct arm_short_io_pgtable *data,</span>
+<span class="quote">&gt; &gt; +              unsigned int iova, phys_addr_t paddr,</span>
+<span class="quote">&gt; &gt; +              arm_short_iopte pgdprot, arm_short_iopte pteprot,</span>
+<span class="quote">&gt; &gt; +              bool large)</span>
+<span class="quote">&gt; &gt; +{</span>
+<span class="quote">&gt; &gt; +       struct io_pgtable_cfg *cfg = &amp;data-&gt;iop.cfg;</span>
+<span class="quote">&gt; &gt; +       arm_short_iopte *pgd = data-&gt;pgd, *pte;</span>
+<span class="quote">&gt; &gt; +       void *pte_new = NULL;</span>
+<span class="quote">&gt; &gt; +       int ret;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       pgd += ARM_SHORT_PGD_IDX(iova);</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       if (!pteprot) { /* section or supersection */</span>
+<span class="quote">&gt; &gt; +               pte = pgd;</span>
+<span class="quote">&gt; &gt; +               pteprot = pgdprot;</span>
+<span class="quote">&gt; &gt; +       } else {        /* page or largepage */</span>
+<span class="quote">&gt; &gt; +               if (!(*pgd)) {</span>
+<span class="quote">&gt; &gt; +                       pte_new = __arm_short_alloc_pgtable(</span>
+<span class="quote">&gt; &gt; +                                       ARM_SHORT_BYTES_PER_PTE,</span>
+<span class="quote">&gt; &gt; +                                       GFP_ATOMIC, false, cfg);</span>
+<span class="quote">&gt; &gt; +                       if (unlikely(!pte_new))</span>
+<span class="quote">&gt; &gt; +                               return -ENOMEM;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +                       pgdprot |= virt_to_phys(pte_new);</span>
+<span class="quote">&gt; &gt; +                       __arm_short_set_pte(pgd, pgdprot, 1, cfg);</span>
+<span class="quote">&gt; &gt; +               }</span>
+<span class="quote">&gt; &gt; +               pte = arm_short_get_pte_in_pgd(*pgd, iova);</span>
+<span class="quote">&gt; &gt; +       }</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       pteprot |= (arm_short_iopte)paddr;</span>
+<span class="quote">&gt; &gt; +       ret = __arm_short_set_pte(pte, pteprot, large ? 16 : 1, cfg);</span>
+<span class="quote">&gt; &gt; +       if (ret &amp;&amp; pte_new)</span>
+<span class="quote">&gt; &gt; +               __arm_short_free_pgtable(pte_new, ARM_SHORT_BYTES_PER_PTE,</span>
+<span class="quote">&gt; &gt; +                                        false, cfg);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Don&#39;t you need to kill the pgd entry before freeing this? Please see my</span>
+<span class="quote">&gt; previous comments about safely freeing page tables:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   http://lists.infradead.org/pipermail/linux-arm-kernel/2015-July/358268.html</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; (at the end of the post)</span>
+
+
+ I will add like this:
+//======================
+  if (ret &amp;&amp; pte_new)
+        goto err_unmap_pgd:
+
+  if (data-&gt;iop.cfg.quirk &amp; IO_PGTABLE_QUIRK_TLBI_ON_MAP) {
+        tlb-&gt;tlb_add_flush(iova, size, true, data-&gt;iop.cookie);
+        tlb-&gt;tlb_sync(data-&gt;iop.cookie);
+   }
+   return ret;
+
+err_unmap_pgd:
+           __arm_short_set_pte(pgd, 0, 1, cfg);
+           tlb-&gt;tlb_add_flush(iova, SZ_1M, true, data-&gt;iop.cookie); /*
+the size is 1M, the whole pgd */
+           tlb-&gt;tlb_sync(data-&gt;iop.cookie); 
+           __arm_short_free_pgtable(pte_new, ARM_SHORT_BYTES_PER_PTE,
+                                   false, cfg);
+   return ret;
+//======================
+
+Here I move the TLBI_ON_MAP quirk into _arm_short_map, then the map from
+split also could flush-tlb if it&#39;s necessary.
+<span class="quote">
+&gt; &gt; +       return ret;</span>
+<span class="quote">&gt; &gt; +}</span>
+<span class="quote">&gt; &gt; +</span>
+[...]
+<span class="quote">&gt; &gt; +static bool _arm_short_whether_free_pgtable(arm_short_iopte *pgd)</span>
+<span class="quote">&gt; &gt; +{</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; _arm_short_pgtable_empty might be a better name.</span>
+
+Thanks.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt; +       arm_short_iopte *pte;</span>
+<span class="quote">&gt; &gt; +       int i;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       pte = ARM_SHORT_GET_PGTABLE_VA(*pgd);</span>
+<span class="quote">&gt; &gt; +       for (i = 0; i &lt; ARM_SHORT_PTRS_PER_PTE; i++) {</span>
+<span class="quote">&gt; &gt; +               if (pte[i] != 0)</span>
+<span class="quote">&gt; &gt; +                       return false;</span>
+<span class="quote">&gt; &gt; +       }</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       return true;</span>
+<span class="quote">&gt; &gt; +}</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +static int</span>
+<span class="quote">&gt; &gt; +arm_short_split_blk_unmap(struct io_pgtable_ops *ops, unsigned int iova,</span>
+<span class="quote">&gt; &gt; +                         phys_addr_t paddr, size_t size,</span>
+<span class="quote">&gt; &gt; +                         arm_short_iopte pgdprotup, arm_short_iopte pteprotup,</span>
+<span class="quote">&gt; &gt; +                         size_t blk_size)</span>
+<span class="quote">&gt; &gt; +{</span>
+<span class="quote">&gt; &gt; +       struct arm_short_io_pgtable *data = io_pgtable_ops_to_data(ops);</span>
+<span class="quote">&gt; &gt; +       const struct iommu_gather_ops *tlb = data-&gt;iop.cfg.tlb;</span>
+<span class="quote">&gt; &gt; +       struct io_pgtable_cfg *cfg = &amp;data-&gt;iop.cfg;</span>
+<span class="quote">&gt; &gt; +       unsigned long *pgbitmap = &amp;cfg-&gt;pgsize_bitmap;</span>
+<span class="quote">&gt; &gt; +       unsigned int blk_base, blk_start, blk_end, i;</span>
+<span class="quote">&gt; &gt; +       arm_short_iopte pgdprot, pteprot;</span>
+<span class="quote">&gt; &gt; +       phys_addr_t blk_paddr;</span>
+<span class="quote">&gt; &gt; +       size_t mapsize = 0, nextmapsize;</span>
+<span class="quote">&gt; &gt; +       int ret;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       /* find the nearest mapsize */</span>
+<span class="quote">&gt; &gt; +       for (i = find_first_bit(pgbitmap, BITS_PER_LONG);</span>
+<span class="quote">&gt; &gt; +            i &lt; BITS_PER_LONG &amp;&amp; ((1 &lt;&lt; i) &lt; blk_size) &amp;&amp;</span>
+<span class="quote">&gt; &gt; +            IS_ALIGNED(size, 1 &lt;&lt; i);</span>
+<span class="quote">&gt; &gt; +            i = find_next_bit(pgbitmap, BITS_PER_LONG, i + 1))</span>
+<span class="quote">&gt; &gt; +               mapsize = 1 &lt;&lt; i;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       if (WARN_ON(!mapsize))</span>
+<span class="quote">&gt; &gt; +               return 0; /* Bytes unmapped */</span>
+<span class="quote">&gt; &gt; +       nextmapsize = 1 &lt;&lt; i;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       blk_base = iova &amp; ~(blk_size - 1);</span>
+<span class="quote">&gt; &gt; +       blk_start = blk_base;</span>
+<span class="quote">&gt; &gt; +       blk_end = blk_start + blk_size;</span>
+<span class="quote">&gt; &gt; +       blk_paddr = paddr;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       for (; blk_start &lt; blk_end;</span>
+<span class="quote">&gt; &gt; +            blk_start += mapsize, blk_paddr += mapsize) {</span>
+<span class="quote">&gt; &gt; +               /* Unmap! */</span>
+<span class="quote">&gt; &gt; +               if (blk_start == iova)</span>
+<span class="quote">&gt; &gt; +                       continue;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +               /* Try to upper map */</span>
+<span class="quote">&gt; &gt; +               if (blk_base != blk_start &amp;&amp;</span>
+<span class="quote">&gt; &gt; +                   IS_ALIGNED(blk_start | blk_paddr, nextmapsize) &amp;&amp;</span>
+<span class="quote">&gt; &gt; +                   mapsize != nextmapsize) {</span>
+<span class="quote">&gt; &gt; +                       mapsize = nextmapsize;</span>
+<span class="quote">&gt; &gt; +                       i = find_next_bit(pgbitmap, BITS_PER_LONG, i + 1);</span>
+<span class="quote">&gt; &gt; +                       if (i &lt; BITS_PER_LONG)</span>
+<span class="quote">&gt; &gt; +                               nextmapsize = 1 &lt;&lt; i;</span>
+<span class="quote">&gt; &gt; +               }</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +               if (mapsize == SZ_1M) {</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; How do we get here with a mapsize of 1M?</span>
+
+About the split, there may be some cases:
+
+super section may split to section, or large page, or small page.
+section may split to large page, or small page.
+large page may split to small page.
+
+How do we get here with a mapsize of 1M?
+-&gt;the mapsize will be 1M while supersection split to section.
+  If we run the self-test, we can get the mapsize&#39;s change.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt; +                       pgdprot = pgdprotup;</span>
+<span class="quote">&gt; &gt; +                       pgdprot |= __arm_short_pgd_prot(data, 0, false);</span>
+
+    Here I cann&#39;t get IOMMU_{READ,WRITE,NOEXEC,CACHE}, I have to use 0
+as the second parameter(some bits like PGD_B/PGD_C have been record in
+pgdprotup)
+<span class="quote">
+&gt; &gt; +                       pteprot = 0;</span>
+<span class="quote">&gt; &gt; +               } else { /* small or large page */</span>
+<span class="quote">&gt; &gt; +                       pgdprot = (blk_size == SZ_64K) ? 0 : pgdprotup;</span>
+<span class="quote">&gt; &gt; +                       pteprot = __arm_short_pte_prot_split(</span>
+<span class="quote">&gt; &gt; +                                       data, pgdprot, pteprotup,</span>
+<span class="quote">&gt; &gt; +                                       mapsize == SZ_64K);</span>
+<span class="quote">&gt; &gt; +                       pgdprot = __arm_short_pgtable_prot(data);</span>
+<span class="quote">&gt; &gt; +               }</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +               ret = _arm_short_map(data, blk_start, blk_paddr, pgdprot,</span>
+<span class="quote">&gt; &gt; +                                    pteprot, mapsize == SZ_64K);</span>
+<span class="quote">&gt; &gt; +               if (ret &lt; 0) {</span>
+<span class="quote">&gt; &gt; +                       /* Free the table we allocated */</span>
+<span class="quote">&gt; &gt; +                       arm_short_iopte *pgd = data-&gt;pgd, *pte;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +                       pgd += ARM_SHORT_PGD_IDX(blk_base);</span>
+<span class="quote">&gt; &gt; +                       if (*pgd) {</span>
+<span class="quote">&gt; &gt; +                               pte = ARM_SHORT_GET_PGTABLE_VA(*pgd);</span>
+<span class="quote">&gt; &gt; +                               __arm_short_set_pte(pgd, 0, 1, cfg);</span>
+<span class="quote">&gt; &gt; +                               tlb-&gt;tlb_add_flush(blk_base, blk_size, true,</span>
+<span class="quote">&gt; &gt; +                                                  data-&gt;iop.cookie);</span>
+<span class="quote">&gt; &gt; +                               tlb-&gt;tlb_sync(data-&gt;iop.cookie);</span>
+<span class="quote">&gt; &gt; +                               __arm_short_free_pgtable(</span>
+<span class="quote">&gt; &gt; +                                       pte, ARM_SHORT_BYTES_PER_PTE,</span>
+<span class="quote">&gt; &gt; +                                       false, cfg);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This looks wrong. _arm_short_map cleans up if it returns non-zero already.</span>
+
+...
+YES. It seems that I can delete the &quot;if&quot; for the error case.
+
+if (ret &lt; 0)
+	return 0;
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt; +                       }</span>
+<span class="quote">&gt; &gt; +                       return 0;/* Bytes unmapped */</span>
+<span class="quote">&gt; &gt; +               }</span>
+<span class="quote">&gt; &gt; +       }</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       tlb-&gt;tlb_add_flush(blk_base, blk_size, true, data-&gt;iop.cookie);</span>
+<span class="quote">&gt; &gt; +       tlb-&gt;tlb_sync(data-&gt;iop.cookie);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Why are you syncing here? You can postpone this to the caller, if it turns</span>
+<span class="quote">&gt; out the unmap was a success.</span>
+
+I only saw that there is a tlb_add_flush in arm_lpae_split_blk_unmap. so
+add it here.
+About this, I think that we can delete the tlb-flush here. see below.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt; +       return size;</span>
+<span class="quote">&gt; &gt; +}</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +static int arm_short_unmap(struct io_pgtable_ops *ops,</span>
+<span class="quote">&gt; &gt; +                          unsigned long iova,</span>
+<span class="quote">&gt; &gt; +                          size_t size)</span>
+<span class="quote">&gt; &gt; +{</span>
+<span class="quote">&gt; &gt; +       struct arm_short_io_pgtable *data = io_pgtable_ops_to_data(ops);</span>
+<span class="quote">&gt; &gt; +       struct io_pgtable_cfg *cfg = &amp;data-&gt;iop.cfg;</span>
+<span class="quote">&gt; &gt; +       arm_short_iopte *pgd, *pte = NULL;</span>
+<span class="quote">&gt; &gt; +       arm_short_iopte curpgd, curpte = 0;</span>
+<span class="quote">&gt; &gt; +       phys_addr_t paddr;</span>
+<span class="quote">&gt; &gt; +       unsigned int iova_base, blk_size = 0;</span>
+<span class="quote">&gt; &gt; +       void *cookie = data-&gt;iop.cookie;</span>
+<span class="quote">&gt; &gt; +       bool pgtablefree = false;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       pgd = (arm_short_iopte *)data-&gt;pgd + ARM_SHORT_PGD_IDX(iova);</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       /* Get block size */</span>
+<span class="quote">&gt; &gt; +       if (ARM_SHORT_PGD_TYPE_IS_PGTABLE(*pgd)) {</span>
+<span class="quote">&gt; &gt; +               pte = arm_short_get_pte_in_pgd(*pgd, iova);</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +               if (ARM_SHORT_PTE_TYPE_IS_SMALLPAGE(*pte))</span>
+<span class="quote">&gt; &gt; +                       blk_size = SZ_4K;</span>
+<span class="quote">&gt; &gt; +               else if (ARM_SHORT_PTE_TYPE_IS_LARGEPAGE(*pte))</span>
+<span class="quote">&gt; &gt; +                       blk_size = SZ_64K;</span>
+<span class="quote">&gt; &gt; +               else</span>
+<span class="quote">&gt; &gt; +                       WARN_ON(1);</span>
+<span class="quote">
+&gt; &gt; +       } else if (ARM_SHORT_PGD_TYPE_IS_SECTION(*pgd)) {</span>
+<span class="quote">&gt; &gt; +               blk_size = SZ_1M;</span>
+<span class="quote">&gt; &gt; +       } else if (ARM_SHORT_PGD_TYPE_IS_SUPERSECTION(*pgd)) {</span>
+<span class="quote">&gt; &gt; +               blk_size = SZ_16M;</span>
+<span class="quote">&gt; &gt; +       } else {</span>
+<span class="quote">&gt; &gt; +               WARN_ON(1);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Maybe return 0 or something instead of falling through with blk_size == 0?</span>
+
+how about :
+//=====
+        if (WARN_ON(blk_size == 0))
+		return 0;
+//=====
+ return 0 and report the error information.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt; +       }</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       iova_base = iova &amp; ~(blk_size - 1);</span>
+<span class="quote">&gt; &gt; +       pgd = (arm_short_iopte *)data-&gt;pgd + ARM_SHORT_PGD_IDX(iova_base);</span>
+<span class="quote">&gt; &gt; +       paddr = arm_short_iova_to_phys(ops, iova_base);</span>
+<span class="quote">&gt; &gt; +       curpgd = *pgd;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       if (blk_size == SZ_4K || blk_size == SZ_64K) {</span>
+<span class="quote">&gt; &gt; +               pte = arm_short_get_pte_in_pgd(*pgd, iova_base);</span>
+<span class="quote">&gt; &gt; +               curpte = *pte;</span>
+<span class="quote">&gt; &gt; +               __arm_short_set_pte(pte, 0, blk_size / SZ_4K, cfg);</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +            pgtablefree = _arm_short_whether_free_pgtable(pgd);</span>
+<span class="quote">&gt; &gt; +            if (pgtablefree)</span>
+<span class="quote">&gt; &gt; +(1)(2)                 __arm_short_set_pte(pgd, 0, 1, cfg);</span>
+<span class="quote">&gt; &gt; +       } else if (blk_size == SZ_1M || blk_size == SZ_16M) {</span>
+<span class="quote">&gt; &gt; +               __arm_short_set_pte(pgd, 0, blk_size / SZ_1M, cfg);</span>
+<span class="quote">&gt; &gt; +       }</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +(3)    cfg-&gt;tlb-&gt;tlb_add_flush(iova_base, blk_size, true, cookie);</span>
+<span class="quote">&gt; &gt; +(4)    cfg-&gt;tlb-&gt;tlb_sync(cookie);</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       if (pgtablefree)/* Free pgtable after tlb-flush */</span>
+<span class="quote">&gt; &gt; +(5)              __arm_short_free_pgtable(ARM_SHORT_GET_PGTABLE_VA(curpgd),</span>
+<span class="quote">&gt; &gt; +                                        ARM_SHORT_BYTES_PER_PTE, false, cfg);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Curious, but why do you care about freeing this on unmap? It will get</span>
+<span class="quote">&gt; freed when the page table itself is freed anyway (via the -&gt;free callback).</span>
+
+This is free the level2 pagetable while there is no item in it. It isn&#39;t
+level1 pagetable(-&gt;free callback).
+
+The flow of free pagetable is following your suggestion that 5 steps
+what I mark above like (1)..(5). so I have to move free_pgtable after
+(4)tlb_sync. and add a comment /* Free pgtable after tlb-flush */.
+the comment may should be changed to : /* Free level2 pgtable after
+tlb-flush */
+<span class="quote">
+&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       if (blk_size &gt; size) { /* Split the block */</span>
+<span class="quote">&gt; &gt; +               return arm_short_split_blk_unmap(</span>
+<span class="quote">&gt; &gt; +                               ops, iova, paddr, size,</span>
+<span class="quote">&gt; &gt; +                               ARM_SHORT_PGD_GET_PROT(curpgd),</span>
+<span class="quote">&gt; &gt; +                               ARM_SHORT_PTE_LARGE_GET_PROT(curpte),</span>
+<span class="quote">&gt; &gt; +                               blk_size);</span>
+
+    About add flush-tlb after split. There is a flush-tlb before. And
+the map in split is from invalid to valid. It don&#39;t need flush-tlb
+again.
+<span class="quote">
+&gt; &gt; +       } else if (blk_size &lt; size) {</span>
+<span class="quote">&gt; &gt; +               /* Unmap the block while remap partial again after split */</span>
+<span class="quote">&gt; &gt; +               return blk_size +</span>
+<span class="quote">&gt; &gt; +                       arm_short_unmap(ops, iova + blk_size, size - blk_size);</span>
+<span class="quote">&gt; &gt; +       }</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       return size;</span>
+<span class="quote">&gt; &gt; +}</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +static struct io_pgtable *</span>
+<span class="quote">&gt; &gt; +arm_short_alloc_pgtable(struct io_pgtable_cfg *cfg, void *cookie)</span>
+<span class="quote">&gt; &gt; +{</span>
+<span class="quote">&gt; &gt; +       struct arm_short_io_pgtable *data;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       if (cfg-&gt;ias &gt; 32 || cfg-&gt;oas &gt; 32)</span>
+<span class="quote">&gt; &gt; +               return NULL;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       cfg-&gt;pgsize_bitmap &amp;=</span>
+<span class="quote">&gt; &gt; +               (cfg-&gt;quirks &amp; IO_PGTABLE_QUIRK_SHORT_SUPERSECTION) ?</span>
+<span class="quote">&gt; &gt; +               (SZ_4K | SZ_64K | SZ_1M | SZ_16M) : (SZ_4K | SZ_64K | SZ_1M);</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       data = kzalloc(sizeof(*data), GFP_KERNEL);</span>
+<span class="quote">&gt; &gt; +       if (!data)</span>
+<span class="quote">&gt; &gt; +               return NULL;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       data-&gt;pgd_size = SZ_16K;</span>
+<span class="quote">&gt; &gt; +       data-&gt;pgd = __arm_short_alloc_pgtable(</span>
+<span class="quote">&gt; &gt; +                                       data-&gt;pgd_size,</span>
+<span class="quote">&gt; &gt; +                                       GFP_KERNEL | __GFP_ZERO | __GFP_DMA,</span>
+<span class="quote">&gt; &gt; +                                       true, cfg);</span>
+<span class="quote">&gt; &gt; +       if (!data-&gt;pgd)</span>
+<span class="quote">&gt; &gt; +               goto out_free_data;</span>
+<span class="quote">&gt; &gt; +       wmb();/* Ensure the empty pgd is visible before any actual TTBR write */</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       data-&gt;pgtable_cached = kmem_cache_create(</span>
+<span class="quote">&gt; &gt; +                                       &quot;io-pgtable-arm-short&quot;,</span>
+<span class="quote">&gt; &gt; +                                        ARM_SHORT_BYTES_PER_PTE,</span>
+<span class="quote">&gt; &gt; +                                        ARM_SHORT_BYTES_PER_PTE,</span>
+<span class="quote">&gt; &gt; +                                        0, NULL);</span>
+
+I prepare to add SLAB_CACHE_DMA to guarantee the level2 pagetable base
+address(pa) is alway 32bit(not over 4GB).
+<span class="quote">
+&gt; &gt; +       if (!data-&gt;pgtable_cached)</span>
+<span class="quote">&gt; &gt; +               goto out_free_pgd;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       /* TTBRs */</span>
+<span class="quote">&gt; &gt; +       cfg-&gt;arm_short_cfg.ttbr[0] = virt_to_phys(data-&gt;pgd);</span>
+<span class="quote">&gt; &gt; +       cfg-&gt;arm_short_cfg.ttbr[1] = 0;</span>
+<span class="quote">&gt; &gt; +       cfg-&gt;arm_short_cfg.tcr = 0;</span>
+<span class="quote">&gt; &gt; +       cfg-&gt;arm_short_cfg.nmrr = 0;</span>
+<span class="quote">&gt; &gt; +       cfg-&gt;arm_short_cfg.prrr = 0;</span>
+
+           About SCTLR, How about we add it here:
+          //===========
+          cfg-&gt;arm_short_cfg.sctlr = 0; /* The iommu user should
+configure IOMMU_{READ/WRITE} */
+          //===========
+           Is the comment ok?
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       data-&gt;iop.ops = (struct io_pgtable_ops) {</span>
+<span class="quote">&gt; &gt; +               .map            = arm_short_map,</span>
+<span class="quote">&gt; &gt; +               .unmap          = arm_short_unmap,</span>
+<span class="quote">&gt; &gt; +               .iova_to_phys   = arm_short_iova_to_phys,</span>
+<span class="quote">&gt; &gt; +       };</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +       return &amp;data-&gt;iop;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +out_free_pgd:</span>
+<span class="quote">&gt; &gt; +       __arm_short_free_pgtable(data-&gt;pgd, data-&gt;pgd_size, true, cfg);</span>
+<span class="quote">&gt; &gt; +out_free_data:</span>
+<span class="quote">&gt; &gt; +       kfree(data);</span>
+<span class="quote">&gt; &gt; +       return NULL;</span>
+<span class="quote">&gt; &gt; +}</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; [...]</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; diff --git a/drivers/iommu/io-pgtable.c b/drivers/iommu/io-pgtable.c</span>
+<span class="quote">&gt; &gt; index 6436fe2..14a9b3a 100644</span>
+<span class="quote">&gt; &gt; --- a/drivers/iommu/io-pgtable.c</span>
+<span class="quote">&gt; &gt; +++ b/drivers/iommu/io-pgtable.c</span>
+<span class="quote">&gt; &gt; @@ -28,6 +28,7 @@ extern struct io_pgtable_init_fns io_pgtable_arm_32_lpae_s1_init_fns;</span>
+<span class="quote">&gt; &gt;  extern struct io_pgtable_init_fns io_pgtable_arm_32_lpae_s2_init_fns;</span>
+<span class="quote">&gt; &gt;  extern struct io_pgtable_init_fns io_pgtable_arm_64_lpae_s1_init_fns;</span>
+<span class="quote">&gt; &gt;  extern struct io_pgtable_init_fns io_pgtable_arm_64_lpae_s2_init_fns;</span>
+<span class="quote">&gt; &gt; +extern struct io_pgtable_init_fns io_pgtable_arm_short_init_fns;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;  static const struct io_pgtable_init_fns *</span>
+<span class="quote">&gt; &gt;  io_pgtable_init_table[IO_PGTABLE_NUM_FMTS] =</span>
+<span class="quote">&gt; &gt; @@ -38,6 +39,9 @@ io_pgtable_init_table[IO_PGTABLE_NUM_FMTS] =</span>
+<span class="quote">&gt; &gt;         [ARM_64_LPAE_S1] = &amp;io_pgtable_arm_64_lpae_s1_init_fns,</span>
+<span class="quote">&gt; &gt;         [ARM_64_LPAE_S2] = &amp;io_pgtable_arm_64_lpae_s2_init_fns,</span>
+<span class="quote">&gt; &gt;  #endif</span>
+<span class="quote">&gt; &gt; +#ifdef CONFIG_IOMMU_IO_PGTABLE_SHORT</span>
+<span class="quote">&gt; &gt; +       [ARM_SHORT_DESC] = &amp;io_pgtable_arm_short_init_fns,</span>
+<span class="quote">&gt; &gt; +#endif</span>
+<span class="quote">&gt; &gt;  };</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;  struct io_pgtable_ops *alloc_io_pgtable_ops(enum io_pgtable_fmt fmt,</span>
+<span class="quote">&gt; &gt; diff --git a/drivers/iommu/io-pgtable.h b/drivers/iommu/io-pgtable.h</span>
+<span class="quote">&gt; &gt; index 68c63d9..0f45e60 100644</span>
+<span class="quote">&gt; &gt; --- a/drivers/iommu/io-pgtable.h</span>
+<span class="quote">&gt; &gt; +++ b/drivers/iommu/io-pgtable.h</span>
+<span class="quote">&gt; &gt; @@ -9,6 +9,7 @@ enum io_pgtable_fmt {</span>
+<span class="quote">&gt; &gt;         ARM_32_LPAE_S2,</span>
+<span class="quote">&gt; &gt;         ARM_64_LPAE_S1,</span>
+<span class="quote">&gt; &gt;         ARM_64_LPAE_S2,</span>
+<span class="quote">&gt; &gt; +       ARM_SHORT_DESC,</span>
+<span class="quote">&gt; &gt;         IO_PGTABLE_NUM_FMTS,</span>
+<span class="quote">&gt; &gt;  };</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; @@ -45,6 +46,9 @@ struct iommu_gather_ops {</span>
+<span class="quote">&gt; &gt;   */</span>
+<span class="quote">&gt; &gt;  struct io_pgtable_cfg {</span>
+<span class="quote">&gt; &gt;         #define IO_PGTABLE_QUIRK_ARM_NS (1 &lt;&lt; 0)        /* Set NS bit in PTEs */</span>
+<span class="quote">&gt; &gt; +       #define IO_PGTABLE_QUIRK_SHORT_SUPERSECTION     BIT(1)</span>
+<span class="quote">&gt; &gt; +       #define IO_PGTABLE_QUIRK_SHORT_NO_XN            BIT(2) /* No XN bit */</span>
+<span class="quote">&gt; &gt; +       #define IO_PGTABLE_QUIRK_SHORT_NO_PERMS         BIT(3) /* No AP bit */</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Why have two quirks for this? I suggested included NO_XN in NO_PERMS:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   http://lists.infradead.org/pipermail/linux-arm-kernel/2015-July/361160.html</span>
+
+Sorry. I will change like this in next time:
+
+#define IO_PGTABLE_QUIRK_NO_PERMS            BIT(1) /* No XN/AP bits */
+#define IO_PGTABLE_QUIRK_TLBI_ON_MAP         BIT(2) /* TLB-Flush after
+map */
+#define IO_PGTABLE_QUIRK_SHORT_SUPERSECTION  BIT(3)
+
+Do I need change (1 &lt;&lt; 0) to BIT(0) in ARM_NS?
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; &gt;         int                             quirks;</span>
+<span class="quote">&gt; &gt;         unsigned long                   pgsize_bitmap;</span>
+<span class="quote">&gt; &gt;         unsigned int                    ias;</span>
+<span class="quote">&gt; &gt; @@ -64,6 +68,13 @@ struct io_pgtable_cfg {</span>
+<span class="quote">&gt; &gt;                         u64     vttbr;</span>
+<span class="quote">&gt; &gt;                         u64     vtcr;</span>
+<span class="quote">&gt; &gt;                 } arm_lpae_s2_cfg;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +               struct {</span>
+<span class="quote">&gt; &gt; +                       u32     ttbr[2];</span>
+<span class="quote">&gt; &gt; +                       u32     tcr;</span>
+<span class="quote">&gt; &gt; +                       u32     nmrr;</span>
+<span class="quote">&gt; &gt; +                       u32     prrr;</span>
+<span class="quote">&gt; &gt; +               } arm_short_cfg;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; We don&#39;t return an SCTLR value here, so a comment somewhere saying that</span>
+<span class="quote">&gt; access flag is not supported would be helpful (so that drivers can ensure</span>
+<span class="quote">&gt; that they configure things for the AP[2:0] permission model).</span>
+
+Do we need add SCTLR? like: 
+         struct {
+                 u32     ttbr[2];
+                 u32     tcr;
+                 u32     nmrr;
+                 u32     prrr;
++                u32     sctlr;
+          } arm_short_cfg;
+
+  Or only add a comment in the place where ttbr,tcr is set?
+  /* The iommu user should configure IOMMU_{READ/WRITE} since SCTLR
+isn&#39;t implemented */
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Will</span>
+
+
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=123111">Yong Wu</a> - Sept. 22, 2015, 2:12 p.m.</div>
+<pre class="content">
+<span class="quote">&gt; &gt; &gt; +static int arm_short_unmap(struct io_pgtable_ops *ops,</span>
+<span class="quote">&gt; &gt; &gt; +                          unsigned long iova,</span>
+<span class="quote">&gt; &gt; &gt; +                          size_t size)</span>
+<span class="quote">&gt; &gt; &gt; +{</span>
+<span class="quote">&gt; &gt; &gt; +       struct arm_short_io_pgtable *data = io_pgtable_ops_to_data(ops);</span>
+<span class="quote">&gt; &gt; &gt; +       struct io_pgtable_cfg *cfg = &amp;data-&gt;iop.cfg;</span>
+<span class="quote">&gt; &gt; &gt; +       arm_short_iopte *pgd, *pte = NULL;</span>
+<span class="quote">&gt; &gt; &gt; +       arm_short_iopte curpgd, curpte = 0;</span>
+<span class="quote">&gt; &gt; &gt; +       phys_addr_t paddr;</span>
+<span class="quote">&gt; &gt; &gt; +       unsigned int iova_base, blk_size = 0;</span>
+<span class="quote">&gt; &gt; &gt; +       void *cookie = data-&gt;iop.cookie;</span>
+<span class="quote">&gt; &gt; &gt; +       bool pgtablefree = false;</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +       pgd = (arm_short_iopte *)data-&gt;pgd + ARM_SHORT_PGD_IDX(iova);</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +       /* Get block size */</span>
+<span class="quote">&gt; &gt; &gt; +       if (ARM_SHORT_PGD_TYPE_IS_PGTABLE(*pgd)) {</span>
+<span class="quote">&gt; &gt; &gt; +               pte = arm_short_get_pte_in_pgd(*pgd, iova);</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +               if (ARM_SHORT_PTE_TYPE_IS_SMALLPAGE(*pte))</span>
+<span class="quote">&gt; &gt; &gt; +                       blk_size = SZ_4K;</span>
+<span class="quote">&gt; &gt; &gt; +               else if (ARM_SHORT_PTE_TYPE_IS_LARGEPAGE(*pte))</span>
+<span class="quote">&gt; &gt; &gt; +                       blk_size = SZ_64K;</span>
+<span class="quote">&gt; &gt; &gt; +               else</span>
+<span class="quote">&gt; &gt; &gt; +                       WARN_ON(1);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; &gt; +       } else if (ARM_SHORT_PGD_TYPE_IS_SECTION(*pgd)) {</span>
+<span class="quote">&gt; &gt; &gt; +               blk_size = SZ_1M;</span>
+<span class="quote">&gt; &gt; &gt; +       } else if (ARM_SHORT_PGD_TYPE_IS_SUPERSECTION(*pgd)) {</span>
+<span class="quote">&gt; &gt; &gt; +               blk_size = SZ_16M;</span>
+<span class="quote">&gt; &gt; &gt; +       } else {</span>
+<span class="quote">&gt; &gt; &gt; +               WARN_ON(1); </span>
+<span class="quote">&gt; &gt; &gt; +       }</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +       iova_base = iova &amp; ~(blk_size - 1);</span>
+<span class="quote">&gt; &gt; &gt; +       pgd = (arm_short_iopte *)data-&gt;pgd + ARM_SHORT_PGD_IDX(iova_base);</span>
+<span class="quote">&gt; &gt; &gt; +       paddr = arm_short_iova_to_phys(ops, iova_base);</span>
+<span class="quote">&gt; &gt; &gt; +       curpgd = *pgd;</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +       if (blk_size == SZ_4K || blk_size == SZ_64K) {</span>
+<span class="quote">&gt; &gt; &gt; +               pte = arm_short_get_pte_in_pgd(*pgd, iova_base);</span>
+<span class="quote">&gt; &gt; &gt; +               curpte = *pte;</span>
+<span class="quote">&gt; &gt; &gt; +               __arm_short_set_pte(pte, 0, blk_size / SZ_4K, cfg);</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +            pgtablefree = _arm_short_whether_free_pgtable(pgd);</span>
+<span class="quote">&gt; &gt; &gt; +            if (pgtablefree)</span>
+<span class="quote">&gt; &gt; &gt; +                 __arm_short_set_pte(pgd, 0, 1, cfg);</span>
+<span class="quote">&gt; &gt; &gt; +       } else if (blk_size == SZ_1M || blk_size == SZ_16M) {</span>
+<span class="quote">&gt; &gt; &gt; +               __arm_short_set_pte(pgd, 0, blk_size / SZ_1M, cfg);</span>
+<span class="quote">&gt; &gt; &gt; +       }</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +    cfg-&gt;tlb-&gt;tlb_add_flush(iova_base, blk_size, true, cookie);</span>
+<span class="quote">&gt; &gt; &gt; +    cfg-&gt;tlb-&gt;tlb_sync(cookie);</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +       if (pgtablefree)/* Free pgtable after tlb-flush */</span>
+<span class="quote">&gt; &gt; &gt; +              __arm_short_free_pgtable(ARM_SHORT_GET_PGTABLE_VA(curpgd),</span>
+<span class="quote">&gt; &gt; &gt; +                                        ARM_SHORT_BYTES_PER_PTE, false, cfg);</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +       if (blk_size &gt; size) { /* Split the block */</span>
+<span class="quote">&gt; &gt; &gt; +               return arm_short_split_blk_unmap(</span>
+<span class="quote">&gt; &gt; &gt; +                               ops, iova, paddr, size,</span>
+<span class="quote">&gt; &gt; &gt; +                               ARM_SHORT_PGD_GET_PROT(curpgd),</span>
+<span class="quote">&gt; &gt; &gt; +                               ARM_SHORT_PTE_LARGE_GET_PROT(curpte),</span>
+<span class="quote">&gt; &gt; &gt; +                               blk_size);</span>
+<span class="quote">&gt; &gt; &gt; +       } else if (blk_size &lt; size) {</span>
+<span class="quote">&gt; &gt; &gt; +               /* Unmap the block while remap partial again after split */</span>
+<span class="quote">&gt; &gt; &gt; +               return blk_size +</span>
+<span class="quote">&gt; &gt; &gt; +                       arm_short_unmap(ops, iova + blk_size, size - blk_size);</span>
+
+Hi Will, Robin,
+     I would like to show you a problem I met, The recursion here may
+lead to stack overflow while we test FHD video decode.
+
+    From the log, I get the internal variable in the error case: the
+&quot;size&quot; is 0x100000, the &quot;iova&quot; is 0xfea00000, but at that time the
+&quot;blk_size&quot; is 0x1000 as it was the map of small-page. so it enter the
+recursion here.
+    
+    After check the unmap flow, there is only a iommu_unmap in
+__iommu_dma_unmap, and it won&#39;t check the physical address align in
+iommu_unmap.
+so if the iova and size both are SZ_16M or SZ_1M align by chance, it
+also enter the arm_short_unmap even though it was the map of small-page.
+
+    So.
+    a) Do we need unmap each sg item while iommu_dma_unmap?, like below:
+
+//===============
+static void __iommu_dma_unmap(struct iommu_domain *domain, dma_addr_t
+dma_addr)
+{
+	/* ...and if we can&#39;t, then something is horribly, horribly wrong */
++       for_each_sg(sg, s, nents, i)
+		BUG_ON(iommu_unmap(domain, pfn &lt;&lt; shift, size) &lt; size);
+	__free_iova(iovad, iova);
+}
+//===============
+ 
+    b). I need to add do-while which was suggested to delete from [1] in
+arm_short_unmap for this case.
+
+     After I test locally, I prepare to add the do-while like below:
+     
+//==============================
+static int arm_short_unmap(struct io_pgtable_ops *ops,
+			   unsigned long iova,
+			   size_t size)
+{
+	struct arm_short_io_pgtable *data = io_pgtable_ops_to_data(ops);
+	struct io_pgtable_cfg *cfg = &amp;data-&gt;iop.cfg;
+	arm_short_iopte *pgd, *pte = NULL;
+	arm_short_iopte curpgd, curpte = 0;
+	unsigned int blk_base, blk_size;
+	int unmap_size = 0;
+	bool pgtempty;
+
+	do {
+		pgd = (arm_short_iopte *)data-&gt;pgd + ARM_SHORT_PGD_IDX(iova);
+		blk_size = 0;
+		pgtempty = false;
+
+		/* Get block size */
+		if (ARM_SHORT_PGD_TYPE_IS_PGTABLE(*pgd)) {
+			pte = arm_short_get_pte_in_pgd(*pgd, iova);
+
+			if (ARM_SHORT_PTE_TYPE_IS_SMALLPAGE(*pte))
+				blk_size = SZ_4K;
+			else if (ARM_SHORT_PTE_TYPE_IS_LARGEPAGE(*pte))
+				blk_size = SZ_64K;
+		} else if (ARM_SHORT_PGD_TYPE_IS_SECTION(*pgd)) {
+			blk_size = SZ_1M;
+		} else if (ARM_SHORT_PGD_TYPE_IS_SUPERSECTION(*pgd)) {
+			blk_size = SZ_16M;
+		}
+
+		if (WARN_ON(!blk_size))
+			return 0;
+
+		blk_base = iova &amp; ~(blk_size - 1);
+		pgd = (arm_short_iopte *)data-&gt;pgd + ARM_SHORT_PGD_IDX(blk_base);
+		curpgd = *pgd;
+
+		if (blk_size == SZ_4K || blk_size == SZ_64K) {
+			pte = arm_short_get_pte_in_pgd(*pgd, blk_base);
+			curpte = *pte;
+			__arm_short_set_pte(pte, 0, blk_size / SZ_4K, cfg);
+
+			pgtempty = __arm_short_pgtable_empty(pgd);
+			if (pgtempty)
+				__arm_short_set_pte(pgd, 0, 1, cfg);
+		} else if (blk_size == SZ_1M || blk_size == SZ_16M) {
+			__arm_short_set_pte(pgd, 0, blk_size / SZ_1M, cfg);
+		}
+
+		cfg-&gt;tlb-&gt;tlb_add_flush(blk_base, blk_size, true, data-&gt;iop.cookie);
+		cfg-&gt;tlb-&gt;tlb_sync(data-&gt;iop.cookie);
+
+		if (pgtempty)/* Free lvl2 pgtable after tlb-flush */
+			__arm_short_free_pgtable(
+					ARM_SHORT_GET_PGTABLE_VA(curpgd),
+					ARM_SHORT_BYTES_PER_PTE, false, cfg);
+
+		/*
+		 * If the unmap size which is from the pgsize_bitmap is more
+		 * than the current blk_size, unmap it continuously.
+		 */
+		if (blk_size &lt;= size) {
+			iova += blk_size;
+			size -= blk_size;
+			unmap_size += blk_size;
+			continue;
+		} else { /* Split this block */
+			return arm_short_split_blk_unmap(
+					ops, iova, size, blk_size,
+					ARM_SHORT_PGD_GET_PROT(curpgd),
+					ARM_SHORT_PTE_GET_PROT_LARGE(curpte));
+		}
+	}while (size);
+
+	return unmap_size;
+}
+//=============================
+
+    Is there any other suggestion?
+    Thanks very much.
+
+
+[1]:http://lists.linuxfoundation.org/pipermail/iommu/2015-June/013322.html
+<span class="quote">
+&gt; &gt; &gt; +       }</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +       return size;</span>
+<span class="quote">&gt; &gt; &gt; +}</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; _______________________________________________</span>
+<span class="quote">&gt; iommu mailing list</span>
+<span class="quote">&gt; iommu@lists.linux-foundation.org</span>
+<span class="quote">&gt; https://lists.linuxfoundation.org/mailman/listinfo/iommu</span>
+
+
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - Oct. 9, 2015, 3:57 p.m.</div>
+<pre class="content">
+On Tue, Sep 22, 2015 at 03:12:47PM +0100, Yong Wu wrote:
+<span class="quote">&gt;      I would like to show you a problem I met, The recursion here may</span>
+<span class="quote">&gt; lead to stack overflow while we test FHD video decode.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;     From the log, I get the internal variable in the error case: the</span>
+<span class="quote">&gt; &quot;size&quot; is 0x100000, the &quot;iova&quot; is 0xfea00000, but at that time the</span>
+<span class="quote">&gt; &quot;blk_size&quot; is 0x1000 as it was the map of small-page. so it enter the</span>
+<span class="quote">&gt; recursion here.</span>
+<span class="quote">&gt;     </span>
+<span class="quote">&gt;     After check the unmap flow, there is only a iommu_unmap in</span>
+<span class="quote">&gt; __iommu_dma_unmap, and it won&#39;t check the physical address align in</span>
+<span class="quote">&gt; iommu_unmap.</span>
+
+That sounds like a bug in __iommu_dma_unmap. Robin?
+
+Will
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=77581">Robin Murphy</a> - Oct. 9, 2015, 5:41 p.m.</div>
+<pre class="content">
+On 09/10/15 16:57, Will Deacon wrote:
+<span class="quote">&gt; On Tue, Sep 22, 2015 at 03:12:47PM +0100, Yong Wu wrote:</span>
+<span class="quote">&gt;&gt;       I would like to show you a problem I met, The recursion here may</span>
+<span class="quote">&gt;&gt; lead to stack overflow while we test FHD video decode.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;      From the log, I get the internal variable in the error case: the</span>
+<span class="quote">&gt;&gt; &quot;size&quot; is 0x100000, the &quot;iova&quot; is 0xfea00000, but at that time the</span>
+<span class="quote">&gt;&gt; &quot;blk_size&quot; is 0x1000 as it was the map of small-page. so it enter the</span>
+<span class="quote">&gt;&gt; recursion here.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;      After check the unmap flow, there is only a iommu_unmap in</span>
+<span class="quote">&gt;&gt; __iommu_dma_unmap, and it won&#39;t check the physical address align in</span>
+<span class="quote">&gt;&gt; iommu_unmap.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; That sounds like a bug in __iommu_dma_unmap. Robin?</span>
+
+Isn&#39;t it just cf27ec930be9 again wearing different trousers? All I do is 
+call iommu_unmap with the same total size that was mapped originally.
+
+Robin.
+
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - Oct. 9, 2015, 6:19 p.m.</div>
+<pre class="content">
+On Fri, Oct 09, 2015 at 06:41:51PM +0100, Robin Murphy wrote:
+<span class="quote">&gt; On 09/10/15 16:57, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt;On Tue, Sep 22, 2015 at 03:12:47PM +0100, Yong Wu wrote:</span>
+<span class="quote">&gt; &gt;&gt;      I would like to show you a problem I met, The recursion here may</span>
+<span class="quote">&gt; &gt;&gt;lead to stack overflow while we test FHD video decode.</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt;     From the log, I get the internal variable in the error case: the</span>
+<span class="quote">&gt; &gt;&gt;&quot;size&quot; is 0x100000, the &quot;iova&quot; is 0xfea00000, but at that time the</span>
+<span class="quote">&gt; &gt;&gt;&quot;blk_size&quot; is 0x1000 as it was the map of small-page. so it enter the</span>
+<span class="quote">&gt; &gt;&gt;recursion here.</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt;     After check the unmap flow, there is only a iommu_unmap in</span>
+<span class="quote">&gt; &gt;&gt;__iommu_dma_unmap, and it won&#39;t check the physical address align in</span>
+<span class="quote">&gt; &gt;&gt;iommu_unmap.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt;That sounds like a bug in __iommu_dma_unmap. Robin?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Isn&#39;t it just cf27ec930be9 again wearing different trousers? All I do is</span>
+<span class="quote">&gt; call iommu_unmap with the same total size that was mapped originally.</span>
+
+I don&#39;t think it&#39;s the same as that issue, which was to do with installing
+block mappings over the top of an existing table entry. The problem here
+seems to be that we don&#39;t walk the page table properly on unmap.
+
+The long descriptor code has:
+
+	/* If the size matches this level, we&#39;re in the right place */
+	if (size == blk_size) {
+		__arm_lpae_set_pte(ptep, 0, &amp;data-&gt;iop.cfg);
+
+		if (!iopte_leaf(pte, lvl)) {
+			/* Also flush any partial walks */
+			tlb-&gt;tlb_add_flush(iova, size, false, cookie);
+			tlb-&gt;tlb_sync(cookie);
+			ptep = iopte_deref(pte, data);
+			__arm_lpae_free_pgtable(data, lvl + 1, ptep);
+		} else {
+			tlb-&gt;tlb_add_flush(iova, size, true, cookie);
+		}
+
+		return size;
+	} else if (iopte_leaf(pte, lvl)) {
+		/*
+		 * Insert a table at the next level to map the old region,
+		 * minus the part we want to unmap
+		 */
+		return arm_lpae_split_blk_unmap(data, iova, size,
+						iopte_prot(pte), lvl, ptep,
+						blk_size);
+	}
+
+why doesn&#39;t something similar work for short descriptors?
+
+Will
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=123111">Yong Wu</a> - Oct. 21, 2015, 10:34 a.m.</div>
+<pre class="content">
+On Fri, 2015-10-09 at 19:19 +0100, Will Deacon wrote:
+<span class="quote">&gt; On Fri, Oct 09, 2015 at 06:41:51PM +0100, Robin Murphy wrote:</span>
+<span class="quote">&gt; &gt; On 09/10/15 16:57, Will Deacon wrote:</span>
+<span class="quote">&gt; &gt; &gt;On Tue, Sep 22, 2015 at 03:12:47PM +0100, Yong Wu wrote:</span>
+<span class="quote">&gt; &gt; &gt;&gt;      I would like to show you a problem I met, The recursion here may</span>
+<span class="quote">&gt; &gt; &gt;&gt;lead to stack overflow while we test FHD video decode.</span>
+<span class="quote">&gt; &gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt; &gt;&gt;     From the log, I get the internal variable in the error case: the</span>
+<span class="quote">&gt; &gt; &gt;&gt;&quot;size&quot; is 0x100000, the &quot;iova&quot; is 0xfea00000, but at that time the</span>
+<span class="quote">&gt; &gt; &gt;&gt;&quot;blk_size&quot; is 0x1000 as it was the map of small-page. so it enter the</span>
+<span class="quote">&gt; &gt; &gt;&gt;recursion here.</span>
+<span class="quote">&gt; &gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt; &gt;&gt;     After check the unmap flow, there is only a iommu_unmap in</span>
+<span class="quote">&gt; &gt; &gt;&gt;__iommu_dma_unmap, and it won&#39;t check the physical address align in</span>
+<span class="quote">&gt; &gt; &gt;&gt;iommu_unmap.</span>
+<span class="quote">&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt;That sounds like a bug in __iommu_dma_unmap. Robin?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Isn&#39;t it just cf27ec930be9 again wearing different trousers? All I do is</span>
+<span class="quote">&gt; &gt; call iommu_unmap with the same total size that was mapped originally.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I don&#39;t think it&#39;s the same as that issue, which was to do with installing</span>
+<span class="quote">&gt; block mappings over the top of an existing table entry. The problem here</span>
+<span class="quote">&gt; seems to be that we don&#39;t walk the page table properly on unmap.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The long descriptor code has:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 	/* If the size matches this level, we&#39;re in the right place */</span>
+<span class="quote">&gt; 	if (size == blk_size) {</span>
+<span class="quote">&gt; 		__arm_lpae_set_pte(ptep, 0, &amp;data-&gt;iop.cfg);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 		if (!iopte_leaf(pte, lvl)) {</span>
+<span class="quote">&gt; 			/* Also flush any partial walks */</span>
+<span class="quote">&gt; 			tlb-&gt;tlb_add_flush(iova, size, false, cookie);</span>
+<span class="quote">&gt; 			tlb-&gt;tlb_sync(cookie);</span>
+<span class="quote">&gt; 			ptep = iopte_deref(pte, data);</span>
+<span class="quote">&gt; 			__arm_lpae_free_pgtable(data, lvl + 1, ptep);</span>
+<span class="quote">&gt; 		} else {</span>
+<span class="quote">&gt; 			tlb-&gt;tlb_add_flush(iova, size, true, cookie);</span>
+<span class="quote">&gt; 		}</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 		return size;</span>
+<span class="quote">&gt; 	} else if (iopte_leaf(pte, lvl)) {</span>
+<span class="quote">&gt; 		/*</span>
+<span class="quote">&gt; 		 * Insert a table at the next level to map the old region,</span>
+<span class="quote">&gt; 		 * minus the part we want to unmap</span>
+<span class="quote">&gt; 		 */</span>
+<span class="quote">&gt; 		return arm_lpae_split_blk_unmap(data, iova, size,</span>
+<span class="quote">&gt; 						iopte_prot(pte), lvl, ptep,</span>
+<span class="quote">&gt; 						blk_size);</span>
+<span class="quote">&gt; 	}</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; why doesn&#39;t something similar work for short descriptors?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Will</span>
+
+Hi Will,
+
+   There are some different between long and short descriptor, I can not
+use it directly.
+
+1. Long descriptor control the blk_size with 3 levels easily whose 
+lvl1 is 4KB, lvl2 is 2MB and lvl3 is 1GB in stage 1. It have 3 levels
+pagetable, then it use 3 levels block_size here. It is ok.
+
+But I don&#39;t use the &quot;level&quot; in short descriptor. At the beginning of
+designing short, I planned to use 4 levels whose lvl1 is 4KB, lvl2 is
+64KB, lvl3 is 1MB, lvl4 is 16MB in short descriptor. then the code may
+be more similar with long descriptor. But there is only 2 levels
+pagetable in short. if we use 4 levels here, It may lead to
+misunderstand. so I don&#39;t use the &quot;level&quot; and list the four case in map
+and unmap.
+(If you think short-descriptor could use 4 level like above, I can try
+it.)
+
+2. Following the unmap in long, if it&#39;s not a leaf, we free the
+pagetable, then we can delete do-while. I have tested this:
+ 
+//===========================
+static int arm_short_unmap(struct io_pgtable_ops *ops,
+			   unsigned long iova,
+			   size_t size)
+{
+	struct arm_short_io_pgtable *data = io_pgtable_ops_to_data(ops);
+	struct io_pgtable_cfg *cfg = &amp;data-&gt;iop.cfg;
+	void *cookie = data-&gt;iop.cookie;
+	arm_short_iopte *pgd, *pte = NULL;
+	arm_short_iopte pgd_tmp, pte_tmp = 0;
+	unsigned int blk_size = 0, blk_base;
+	bool empty = false, split = false;
+	int i;
+
+	blk_size = arm_short_iova_to_blk_size(ops, iova);
+	if (WARN_ON(!blk_size))
+		return 0;
+
+	blk_base = iova &amp; ~(blk_size - 1);
+	pgd = (arm_short_iopte *)data-&gt;pgd + ARM_SHORT_PGD_IDX(blk_base);
+
+	if (size == SZ_1M || size == SZ_16M) {/* section or supersection */
+		for (i = 0; i &lt; size/SZ_1M; i++, pgd++, blk_base += SZ_1M) {
+			pgd_tmp = *pgd;
+			__arm_short_set_pte(pgd, 0, 1, cfg);
+
+			cfg-&gt;tlb-&gt;tlb_add_flush(blk_base, SZ_1M, true, cookie);
+			cfg-&gt;tlb-&gt;tlb_sync(cookie);
+
+			/* Lvl2 pgtable should be freed while current is pgtable */
+			if (ARM_SHORT_PGD_TYPE_IS_PGTABLE(pgd_tmp))
+				__arm_short_free_pgtable(
+					ARM_SHORT_GET_PGTABLE_VA(pgd_tmp),
+					ARM_SHORT_BYTES_PER_PTE, false, cfg);
+
+			/* Split is needed while unmap 1M in supersection */
+			if (size == SZ_1M &amp;&amp; blk_size == SZ_16M)
+				split = true;
+		}
+	} else if (size == SZ_4K || size == SZ_64K) {/* page or large page */
+		pgd_tmp = *pgd;
+
+		/* Unmap the current node */
+		if (blk_size == SZ_4K || blk_size == SZ_64K) {
+			pte = arm_short_get_pte_in_pgd(*pgd, blk_base);
+			pte_tmp = *pte;
+			__arm_short_set_pte(
+				pte, 0, max_t(size_t, size, blk_size) / SZ_4K, cfg);
+
+			empty = __arm_short_pgtable_empty(pgd);
+			if (empty)
+				__arm_short_set_pte(pgd, 0, 1, cfg);
+		} else if (blk_size == SZ_1M || blk_size == SZ_16M) {
+			__arm_short_set_pte(pgd, 0, blk_size / SZ_1M, cfg);
+		}
+
+		cfg-&gt;tlb-&gt;tlb_add_flush(blk_size, size, true, cookie);
+		cfg-&gt;tlb-&gt;tlb_sync(cookie);
+
+		if (empty)/* Free lvl2 pgtable */
+			__arm_short_free_pgtable(
+					ARM_SHORT_GET_PGTABLE_VA(pgd_tmp),
+					ARM_SHORT_BYTES_PER_PTE, false, cfg);
+
+		if (blk_size &gt; size)
+			split = true;
+
+	} else {
+		return 0;/* Unmapped size */
+	}
+
+	if (split)/* Split while blk_size &gt; size */
+		return arm_short_split_blk_unmap(
+				ops, iova, size, blk_size,
+				ARM_SHORT_PGD_GET_PROT(pgd_tmp),
+				ARM_SHORT_PTE_GET_PROT_LARGE(pte_tmp));
+
+	return size;
+}
+//===========================
+This look also not good. The do-while in our v5 maybe better than this
+one. what&#39;s your opinion?
+
+3. (Also add Joerg)There is a line in iommu_map:
+size_t pgsize = iommu_pgsize(domain, iova | paddr, size);
+
+   And there is a line in iommu_unmap:
+size_t pgsize = iommu_pgsize(domain, iova, size - unmapped);
+
+   Is it possible to change like this:
+phys_addr_t paddr = domain-&gt;ops-&gt;iova_to_phys(domain, iova);
+size_t pgsize = iommu_pgsize(domain, iova | paddr, size - unmapped);
+
+   If we add physical address align check in iommu_unmap, then it may be
+simpler in the unmap flow.
+   I think iommu_map&amp;iommu_unmap both should be atmoic map/unmap,
+iommu_map check the physical address, Why iommu_unmap don&#39;t check the
+physical address?
+
+
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/drivers/iommu/Kconfig b/drivers/iommu/Kconfig</span>
+<span class="p_header">index f1fb1d3..3abd066 100644</span>
+<span class="p_header">--- a/drivers/iommu/Kconfig</span>
+<span class="p_header">+++ b/drivers/iommu/Kconfig</span>
+<span class="p_chunk">@@ -39,6 +39,24 @@</span> <span class="p_context"> config IOMMU_IO_PGTABLE_LPAE_SELFTEST</span>
+ 
+ 	  If unsure, say N here.
+ 
+<span class="p_add">+config IOMMU_IO_PGTABLE_SHORT</span>
+<span class="p_add">+	bool &quot;ARMv7/v8 Short Descriptor Format&quot;</span>
+<span class="p_add">+	select IOMMU_IO_PGTABLE</span>
+<span class="p_add">+	depends on ARM || ARM64 || COMPILE_TEST</span>
+<span class="p_add">+	help</span>
+<span class="p_add">+	  Enable support for the ARM Short-descriptor pagetable format.</span>
+<span class="p_add">+	  This allocator supports 2 levels translation tables which supports</span>
+<span class="p_add">+	  a memory map based on memory sections or pages.</span>
+<span class="p_add">+</span>
+<span class="p_add">+config IOMMU_IO_PGTABLE_SHORT_SELFTEST</span>
+<span class="p_add">+	bool &quot;Short Descriptor selftests&quot;</span>
+<span class="p_add">+	depends on IOMMU_IO_PGTABLE_SHORT</span>
+<span class="p_add">+	help</span>
+<span class="p_add">+	  Enable self-tests for Short-descriptor page table allocator.</span>
+<span class="p_add">+	  This performs a series of page-table consistency checks during boot.</span>
+<span class="p_add">+</span>
+<span class="p_add">+	  If unsure, say N here.</span>
+<span class="p_add">+</span>
+ endmenu
+ 
+ config IOMMU_IOVA
+<span class="p_header">diff --git a/drivers/iommu/Makefile b/drivers/iommu/Makefile</span>
+<span class="p_header">index c6dcc51..06df3e6 100644</span>
+<span class="p_header">--- a/drivers/iommu/Makefile</span>
+<span class="p_header">+++ b/drivers/iommu/Makefile</span>
+<span class="p_chunk">@@ -3,6 +3,7 @@</span> <span class="p_context"> obj-$(CONFIG_IOMMU_API) += iommu-traces.o</span>
+ obj-$(CONFIG_IOMMU_API) += iommu-sysfs.o
+ obj-$(CONFIG_IOMMU_IO_PGTABLE) += io-pgtable.o
+ obj-$(CONFIG_IOMMU_IO_PGTABLE_LPAE) += io-pgtable-arm.o
+<span class="p_add">+obj-$(CONFIG_IOMMU_IO_PGTABLE_SHORT) += io-pgtable-arm-short.o</span>
+ obj-$(CONFIG_IOMMU_IOVA) += iova.o
+ obj-$(CONFIG_OF_IOMMU)	+= of_iommu.o
+ obj-$(CONFIG_MSM_IOMMU) += msm_iommu.o msm_iommu_dev.o
+<span class="p_header">diff --git a/drivers/iommu/io-pgtable-arm-short.c b/drivers/iommu/io-pgtable-arm-short.c</span>
+new file mode 100644
+<span class="p_header">index 0000000..56f5480</span>
+<span class="p_header">--- /dev/null</span>
+<span class="p_header">+++ b/drivers/iommu/io-pgtable-arm-short.c</span>
+<span class="p_chunk">@@ -0,0 +1,813 @@</span> <span class="p_context"></span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Copyright (c) 2014-2015 MediaTek Inc.</span>
+<span class="p_add">+ * Author: Yong Wu &lt;yong.wu@mediatek.com&gt;</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This program is free software; you can redistribute it and/or modify</span>
+<span class="p_add">+ * it under the terms of the GNU General Public License version 2 as</span>
+<span class="p_add">+ * published by the Free Software Foundation.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This program is distributed in the hope that it will be useful,</span>
+<span class="p_add">+ * but WITHOUT ANY WARRANTY; without even the implied warranty of</span>
+<span class="p_add">+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the</span>
+<span class="p_add">+ * GNU General Public License for more details.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+#define pr_fmt(fmt)	&quot;arm-short-desc io-pgtable: &quot;fmt</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;linux/err.h&gt;</span>
+<span class="p_add">+#include &lt;linux/slab.h&gt;</span>
+<span class="p_add">+#include &lt;linux/iommu.h&gt;</span>
+<span class="p_add">+#include &lt;linux/errno.h&gt;</span>
+<span class="p_add">+#include &quot;io-pgtable.h&quot;</span>
+<span class="p_add">+</span>
+<span class="p_add">+typedef u32 arm_short_iopte;</span>
+<span class="p_add">+</span>
+<span class="p_add">+struct arm_short_io_pgtable {</span>
+<span class="p_add">+	struct io_pgtable	iop;</span>
+<span class="p_add">+	struct kmem_cache	*pgtable_cached;</span>
+<span class="p_add">+	size_t			pgd_size;</span>
+<span class="p_add">+	void			*pgd;</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define io_pgtable_to_data(x)			\</span>
+<span class="p_add">+	container_of((x), struct arm_short_io_pgtable, iop)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define io_pgtable_ops_to_data(x)		\</span>
+<span class="p_add">+	io_pgtable_to_data(io_pgtable_ops_to_pgtable(x))</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define io_pgtable_cfg_to_pgtable(x)		\</span>
+<span class="p_add">+	container_of((x), struct io_pgtable, cfg)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define io_pgtable_cfg_to_data(x)		\</span>
+<span class="p_add">+	io_pgtable_to_data(io_pgtable_cfg_to_pgtable(x))</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define ARM_SHORT_PGDIR_SHIFT			20</span>
+<span class="p_add">+#define ARM_SHORT_PAGE_SHIFT			12</span>
+<span class="p_add">+#define ARM_SHORT_PTRS_PER_PTE			\</span>
+<span class="p_add">+	(1 &lt;&lt; (ARM_SHORT_PGDIR_SHIFT - ARM_SHORT_PAGE_SHIFT))</span>
+<span class="p_add">+#define ARM_SHORT_BYTES_PER_PTE			\</span>
+<span class="p_add">+	(ARM_SHORT_PTRS_PER_PTE * sizeof(arm_short_iopte))</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* level 1 pagetable */</span>
+<span class="p_add">+#define ARM_SHORT_PGD_TYPE_PGTABLE		BIT(0)</span>
+<span class="p_add">+#define ARM_SHORT_PGD_TYPE_SECTION		BIT(1)</span>
+<span class="p_add">+#define ARM_SHORT_PGD_B				BIT(2)</span>
+<span class="p_add">+#define ARM_SHORT_PGD_C				BIT(3)</span>
+<span class="p_add">+#define ARM_SHORT_PGD_PGTABLE_NS		BIT(3)</span>
+<span class="p_add">+#define ARM_SHORT_PGD_SECTION_XN		BIT(4)</span>
+<span class="p_add">+#define ARM_SHORT_PGD_IMPLE			BIT(9)</span>
+<span class="p_add">+#define ARM_SHORT_PGD_RD_WR			(3 &lt;&lt; 10)</span>
+<span class="p_add">+#define ARM_SHORT_PGD_RDONLY			BIT(15)</span>
+<span class="p_add">+#define ARM_SHORT_PGD_S				BIT(16)</span>
+<span class="p_add">+#define ARM_SHORT_PGD_nG			BIT(17)</span>
+<span class="p_add">+#define ARM_SHORT_PGD_SUPERSECTION		BIT(18)</span>
+<span class="p_add">+#define ARM_SHORT_PGD_SECTION_NS		BIT(19)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define ARM_SHORT_PGD_TYPE_SUPERSECTION		\</span>
+<span class="p_add">+	(ARM_SHORT_PGD_TYPE_SECTION | ARM_SHORT_PGD_SUPERSECTION)</span>
+<span class="p_add">+#define ARM_SHORT_PGD_SECTION_TYPE_MSK		\</span>
+<span class="p_add">+	(ARM_SHORT_PGD_TYPE_SECTION | ARM_SHORT_PGD_SUPERSECTION)</span>
+<span class="p_add">+#define ARM_SHORT_PGD_PGTABLE_TYPE_MSK		\</span>
+<span class="p_add">+	(ARM_SHORT_PGD_TYPE_SECTION | ARM_SHORT_PGD_TYPE_PGTABLE)</span>
+<span class="p_add">+#define ARM_SHORT_PGD_TYPE_IS_PGTABLE(pgd)	\</span>
+<span class="p_add">+	(((pgd) &amp; ARM_SHORT_PGD_PGTABLE_TYPE_MSK) == ARM_SHORT_PGD_TYPE_PGTABLE)</span>
+<span class="p_add">+#define ARM_SHORT_PGD_TYPE_IS_SECTION(pgd)	\</span>
+<span class="p_add">+	(((pgd) &amp; ARM_SHORT_PGD_SECTION_TYPE_MSK) == ARM_SHORT_PGD_TYPE_SECTION)</span>
+<span class="p_add">+#define ARM_SHORT_PGD_TYPE_IS_SUPERSECTION(pgd)	\</span>
+<span class="p_add">+	(((pgd) &amp; ARM_SHORT_PGD_SECTION_TYPE_MSK) == \</span>
+<span class="p_add">+	ARM_SHORT_PGD_TYPE_SUPERSECTION)</span>
+<span class="p_add">+#define ARM_SHORT_PGD_PGTABLE_MSK		0xfffffc00</span>
+<span class="p_add">+#define ARM_SHORT_PGD_SECTION_MSK		(~(SZ_1M - 1))</span>
+<span class="p_add">+#define ARM_SHORT_PGD_SUPERSECTION_MSK		(~(SZ_16M - 1))</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* level 2 pagetable */</span>
+<span class="p_add">+#define ARM_SHORT_PTE_TYPE_LARGE		BIT(0)</span>
+<span class="p_add">+#define ARM_SHORT_PTE_SMALL_XN			BIT(0)</span>
+<span class="p_add">+#define ARM_SHORT_PTE_TYPE_SMALL		BIT(1)</span>
+<span class="p_add">+#define ARM_SHORT_PTE_B				BIT(2)</span>
+<span class="p_add">+#define ARM_SHORT_PTE_C				BIT(3)</span>
+<span class="p_add">+#define ARM_SHORT_PTE_RD_WR			(3 &lt;&lt; 4)</span>
+<span class="p_add">+#define ARM_SHORT_PTE_RDONLY			BIT(9)</span>
+<span class="p_add">+#define ARM_SHORT_PTE_S				BIT(10)</span>
+<span class="p_add">+#define ARM_SHORT_PTE_nG			BIT(11)</span>
+<span class="p_add">+#define ARM_SHORT_PTE_LARGE_XN			BIT(15)</span>
+<span class="p_add">+#define ARM_SHORT_PTE_LARGE_MSK			(~(SZ_64K - 1))</span>
+<span class="p_add">+#define ARM_SHORT_PTE_SMALL_MSK			(~(SZ_4K - 1))</span>
+<span class="p_add">+#define ARM_SHORT_PTE_TYPE_MSK			\</span>
+<span class="p_add">+	(ARM_SHORT_PTE_TYPE_LARGE | ARM_SHORT_PTE_TYPE_SMALL)</span>
+<span class="p_add">+#define ARM_SHORT_PTE_TYPE_IS_SMALLPAGE(pte)	\</span>
+<span class="p_add">+	(((pte) &amp; ARM_SHORT_PTE_TYPE_SMALL) == ARM_SHORT_PTE_TYPE_SMALL)</span>
+<span class="p_add">+#define ARM_SHORT_PTE_TYPE_IS_LARGEPAGE(pte)	\</span>
+<span class="p_add">+	(((pte) &amp; ARM_SHORT_PTE_TYPE_MSK) == ARM_SHORT_PTE_TYPE_LARGE)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define ARM_SHORT_PGD_IDX(a)			((a) &gt;&gt; ARM_SHORT_PGDIR_SHIFT)</span>
+<span class="p_add">+#define ARM_SHORT_PTE_IDX(a)			\</span>
+<span class="p_add">+	(((a) &gt;&gt; ARM_SHORT_PAGE_SHIFT) &amp; (ARM_SHORT_PTRS_PER_PTE - 1))</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define ARM_SHORT_GET_PGTABLE_VA(pgd)		\</span>
+<span class="p_add">+	(phys_to_virt((unsigned long)pgd &amp; ARM_SHORT_PGD_PGTABLE_MSK))</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define ARM_SHORT_PTE_LARGE_GET_PROT(pte)	\</span>
+<span class="p_add">+	(((pte) &amp; (~ARM_SHORT_PTE_LARGE_MSK)) &amp; ~ARM_SHORT_PTE_TYPE_MSK)</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define ARM_SHORT_PGD_GET_PROT(pgd)		\</span>
+<span class="p_add">+	(((pgd) &amp; (~ARM_SHORT_PGD_SECTION_MSK)) &amp; ~ARM_SHORT_PGD_SUPERSECTION)</span>
+<span class="p_add">+</span>
+<span class="p_add">+static bool selftest_running;</span>
+<span class="p_add">+</span>
+<span class="p_add">+static arm_short_iopte *</span>
+<span class="p_add">+arm_short_get_pte_in_pgd(arm_short_iopte pgd, unsigned int iova)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	arm_short_iopte *pte;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pte = ARM_SHORT_GET_PGTABLE_VA(pgd);</span>
+<span class="p_add">+	pte += ARM_SHORT_PTE_IDX(iova);</span>
+<span class="p_add">+	return pte;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static dma_addr_t</span>
+<span class="p_add">+__arm_short_dma_addr(struct device *dev, void *va)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return phys_to_dma(dev, virt_to_phys(va));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int</span>
+<span class="p_add">+__arm_short_set_pte(arm_short_iopte *ptep, arm_short_iopte pte,</span>
+<span class="p_add">+		    unsigned int ptenr, struct io_pgtable_cfg *cfg)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct device *dev = cfg-&gt;iommu_dev;</span>
+<span class="p_add">+	int i;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for (i = 0; i &lt; ptenr; i++) {</span>
+<span class="p_add">+		if (ptep[i] &amp;&amp; pte) {</span>
+<span class="p_add">+			/* Someone else may have allocated for this pte */</span>
+<span class="p_add">+			WARN_ON(!selftest_running);</span>
+<span class="p_add">+			goto err_exist_pte;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+		ptep[i] = pte;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (selftest_running)</span>
+<span class="p_add">+		return 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	dma_sync_single_for_device(dev, __arm_short_dma_addr(dev, ptep),</span>
+<span class="p_add">+				   sizeof(*ptep) * ptenr, DMA_TO_DEVICE);</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+err_exist_pte:</span>
+<span class="p_add">+	while (i--)</span>
+<span class="p_add">+		ptep[i] = 0;</span>
+<span class="p_add">+	return -EEXIST;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void *</span>
+<span class="p_add">+__arm_short_alloc_pgtable(size_t size, gfp_t gfp, bool pgd,</span>
+<span class="p_add">+			  struct io_pgtable_cfg *cfg)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct arm_short_io_pgtable *data;</span>
+<span class="p_add">+	struct device *dev = cfg-&gt;iommu_dev;</span>
+<span class="p_add">+	dma_addr_t dma;</span>
+<span class="p_add">+	void *va;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (pgd) {/* lvl1 pagetable */</span>
+<span class="p_add">+		va = alloc_pages_exact(size, gfp);</span>
+<span class="p_add">+	} else {  /* lvl2 pagetable */</span>
+<span class="p_add">+		data = io_pgtable_cfg_to_data(cfg);</span>
+<span class="p_add">+		va = kmem_cache_zalloc(data-&gt;pgtable_cached, gfp);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!va)</span>
+<span class="p_add">+		return NULL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (selftest_running)</span>
+<span class="p_add">+		return va;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	dma = dma_map_single(dev, va, size, DMA_TO_DEVICE);</span>
+<span class="p_add">+	if (dma_mapping_error(dev, dma))</span>
+<span class="p_add">+		goto out_free;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (dma != __arm_short_dma_addr(dev, va))</span>
+<span class="p_add">+		goto out_unmap;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!pgd) {</span>
+<span class="p_add">+		kmemleak_ignore(va);</span>
+<span class="p_add">+		dma_sync_single_for_device(dev, __arm_short_dma_addr(dev, va),</span>
+<span class="p_add">+					   size, DMA_TO_DEVICE);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return va;</span>
+<span class="p_add">+</span>
+<span class="p_add">+out_unmap:</span>
+<span class="p_add">+	dev_err_ratelimited(dev, &quot;Cannot accommodate DMA translation for IOMMU page tables\n&quot;);</span>
+<span class="p_add">+	dma_unmap_single(dev, dma, size, DMA_TO_DEVICE);</span>
+<span class="p_add">+out_free:</span>
+<span class="p_add">+	if (pgd)</span>
+<span class="p_add">+		free_pages_exact(va, size);</span>
+<span class="p_add">+	else</span>
+<span class="p_add">+		kmem_cache_free(data-&gt;pgtable_cached, va);</span>
+<span class="p_add">+	return NULL;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void</span>
+<span class="p_add">+__arm_short_free_pgtable(void *va, size_t size, bool pgd,</span>
+<span class="p_add">+			 struct io_pgtable_cfg *cfg)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct arm_short_io_pgtable *data = io_pgtable_cfg_to_data(cfg);</span>
+<span class="p_add">+	struct device *dev = cfg-&gt;iommu_dev;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!selftest_running)</span>
+<span class="p_add">+		dma_unmap_single(dev, __arm_short_dma_addr(dev, va),</span>
+<span class="p_add">+				 size, DMA_TO_DEVICE);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (pgd)</span>
+<span class="p_add">+		free_pages_exact(va, size);</span>
+<span class="p_add">+	else</span>
+<span class="p_add">+		kmem_cache_free(data-&gt;pgtable_cached, va);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static arm_short_iopte</span>
+<span class="p_add">+__arm_short_pte_prot(struct arm_short_io_pgtable *data, int prot, bool large)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	arm_short_iopte pteprot;</span>
+<span class="p_add">+	int quirk = data-&gt;iop.cfg.quirks;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pteprot = ARM_SHORT_PTE_S | ARM_SHORT_PTE_nG;</span>
+<span class="p_add">+	pteprot |= large ? ARM_SHORT_PTE_TYPE_LARGE :</span>
+<span class="p_add">+				ARM_SHORT_PTE_TYPE_SMALL;</span>
+<span class="p_add">+	if (prot &amp; IOMMU_CACHE)</span>
+<span class="p_add">+		pteprot |=  ARM_SHORT_PTE_B | ARM_SHORT_PTE_C;</span>
+<span class="p_add">+	if (!(quirk &amp; IO_PGTABLE_QUIRK_SHORT_NO_XN) &amp;&amp; (prot &amp; IOMMU_NOEXEC)) {</span>
+<span class="p_add">+			pteprot |= large ? ARM_SHORT_PTE_LARGE_XN :</span>
+<span class="p_add">+				ARM_SHORT_PTE_SMALL_XN;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	if (!(quirk &amp; IO_PGTABLE_QUIRK_SHORT_NO_PERMS)) {</span>
+<span class="p_add">+		pteprot |= ARM_SHORT_PTE_RD_WR;</span>
+<span class="p_add">+		if (!(prot &amp; IOMMU_WRITE) &amp;&amp; (prot &amp; IOMMU_READ))</span>
+<span class="p_add">+			pteprot |= ARM_SHORT_PTE_RDONLY;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	return pteprot;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static arm_short_iopte</span>
+<span class="p_add">+__arm_short_pgd_prot(struct arm_short_io_pgtable *data, int prot, bool super)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	arm_short_iopte pgdprot;</span>
+<span class="p_add">+	int quirk = data-&gt;iop.cfg.quirks;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pgdprot = ARM_SHORT_PGD_S | ARM_SHORT_PGD_nG;</span>
+<span class="p_add">+	pgdprot |= super ? ARM_SHORT_PGD_TYPE_SUPERSECTION :</span>
+<span class="p_add">+				ARM_SHORT_PGD_TYPE_SECTION;</span>
+<span class="p_add">+	if (prot &amp; IOMMU_CACHE)</span>
+<span class="p_add">+		pgdprot |= ARM_SHORT_PGD_C | ARM_SHORT_PGD_B;</span>
+<span class="p_add">+	if (quirk &amp; IO_PGTABLE_QUIRK_ARM_NS)</span>
+<span class="p_add">+		pgdprot |= ARM_SHORT_PGD_SECTION_NS;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!(quirk &amp; IO_PGTABLE_QUIRK_SHORT_NO_XN) &amp;&amp; (prot &amp; IOMMU_NOEXEC))</span>
+<span class="p_add">+			pgdprot |= ARM_SHORT_PGD_SECTION_XN;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!(quirk &amp; IO_PGTABLE_QUIRK_SHORT_NO_PERMS)) {</span>
+<span class="p_add">+		pgdprot |= ARM_SHORT_PGD_RD_WR;</span>
+<span class="p_add">+		if (!(prot &amp; IOMMU_WRITE) &amp;&amp; (prot &amp; IOMMU_READ))</span>
+<span class="p_add">+			pgdprot |= ARM_SHORT_PGD_RDONLY;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	return pgdprot;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static arm_short_iopte</span>
+<span class="p_add">+__arm_short_pte_prot_split(struct arm_short_io_pgtable *data,</span>
+<span class="p_add">+			   arm_short_iopte pgdprot,</span>
+<span class="p_add">+			   arm_short_iopte pteprot_large,</span>
+<span class="p_add">+			   bool large)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	arm_short_iopte pteprot = 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pteprot = ARM_SHORT_PTE_S | ARM_SHORT_PTE_nG | ARM_SHORT_PTE_RD_WR;</span>
+<span class="p_add">+	pteprot |= large ? ARM_SHORT_PTE_TYPE_LARGE :</span>
+<span class="p_add">+				ARM_SHORT_PTE_TYPE_SMALL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* large page to small page pte prot. Only large page may split */</span>
+<span class="p_add">+	if (!pgdprot &amp;&amp; !large) {</span>
+<span class="p_add">+		pteprot |= pteprot_large &amp; ~ARM_SHORT_PTE_SMALL_MSK;</span>
+<span class="p_add">+		if (pteprot_large &amp; ARM_SHORT_PTE_LARGE_XN)</span>
+<span class="p_add">+			pteprot |= ARM_SHORT_PTE_SMALL_XN;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* section to pte prot */</span>
+<span class="p_add">+	if (pgdprot &amp; ARM_SHORT_PGD_C)</span>
+<span class="p_add">+		pteprot |= ARM_SHORT_PTE_C;</span>
+<span class="p_add">+	if (pgdprot &amp; ARM_SHORT_PGD_B)</span>
+<span class="p_add">+		pteprot |= ARM_SHORT_PTE_B;</span>
+<span class="p_add">+	if (pgdprot &amp; ARM_SHORT_PGD_nG)</span>
+<span class="p_add">+		pteprot |= ARM_SHORT_PTE_nG;</span>
+<span class="p_add">+	if (pgdprot &amp; ARM_SHORT_PGD_SECTION_XN)</span>
+<span class="p_add">+		pteprot |= large ? ARM_SHORT_PTE_LARGE_XN :</span>
+<span class="p_add">+				ARM_SHORT_PTE_SMALL_XN;</span>
+<span class="p_add">+	if (pgdprot &amp; ARM_SHORT_PGD_RD_WR)</span>
+<span class="p_add">+		pteprot |= ARM_SHORT_PTE_RD_WR;</span>
+<span class="p_add">+	if (pgdprot &amp; ARM_SHORT_PGD_RDONLY)</span>
+<span class="p_add">+		pteprot |= ARM_SHORT_PTE_RDONLY;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return pteprot;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static arm_short_iopte</span>
+<span class="p_add">+__arm_short_pgtable_prot(struct arm_short_io_pgtable *data)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	arm_short_iopte pgdprot = 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pgdprot = ARM_SHORT_PGD_TYPE_PGTABLE;</span>
+<span class="p_add">+	if (data-&gt;iop.cfg.quirks &amp; IO_PGTABLE_QUIRK_ARM_NS)</span>
+<span class="p_add">+		pgdprot |= ARM_SHORT_PGD_PGTABLE_NS;</span>
+<span class="p_add">+	return pgdprot;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int</span>
+<span class="p_add">+_arm_short_map(struct arm_short_io_pgtable *data,</span>
+<span class="p_add">+	       unsigned int iova, phys_addr_t paddr,</span>
+<span class="p_add">+	       arm_short_iopte pgdprot, arm_short_iopte pteprot,</span>
+<span class="p_add">+	       bool large)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct io_pgtable_cfg *cfg = &amp;data-&gt;iop.cfg;</span>
+<span class="p_add">+	arm_short_iopte *pgd = data-&gt;pgd, *pte;</span>
+<span class="p_add">+	void *pte_new = NULL;</span>
+<span class="p_add">+	int ret;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pgd += ARM_SHORT_PGD_IDX(iova);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!pteprot) { /* section or supersection */</span>
+<span class="p_add">+		pte = pgd;</span>
+<span class="p_add">+		pteprot = pgdprot;</span>
+<span class="p_add">+	} else {        /* page or largepage */</span>
+<span class="p_add">+		if (!(*pgd)) {</span>
+<span class="p_add">+			pte_new = __arm_short_alloc_pgtable(</span>
+<span class="p_add">+					ARM_SHORT_BYTES_PER_PTE,</span>
+<span class="p_add">+					GFP_ATOMIC, false, cfg);</span>
+<span class="p_add">+			if (unlikely(!pte_new))</span>
+<span class="p_add">+				return -ENOMEM;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			pgdprot |= virt_to_phys(pte_new);</span>
+<span class="p_add">+			__arm_short_set_pte(pgd, pgdprot, 1, cfg);</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+		pte = arm_short_get_pte_in_pgd(*pgd, iova);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pteprot |= (arm_short_iopte)paddr;</span>
+<span class="p_add">+	ret = __arm_short_set_pte(pte, pteprot, large ? 16 : 1, cfg);</span>
+<span class="p_add">+	if (ret &amp;&amp; pte_new)</span>
+<span class="p_add">+		__arm_short_free_pgtable(pte_new, ARM_SHORT_BYTES_PER_PTE,</span>
+<span class="p_add">+					 false, cfg);</span>
+<span class="p_add">+	return ret;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int arm_short_map(struct io_pgtable_ops *ops, unsigned long iova,</span>
+<span class="p_add">+			 phys_addr_t paddr, size_t size, int prot)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct arm_short_io_pgtable *data = io_pgtable_ops_to_data(ops);</span>
+<span class="p_add">+	arm_short_iopte pgdprot = 0, pteprot = 0;</span>
+<span class="p_add">+	bool large;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* If no access, then nothing to do */</span>
+<span class="p_add">+	if (!(prot &amp; (IOMMU_READ | IOMMU_WRITE)))</span>
+<span class="p_add">+		return 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (WARN_ON((iova | paddr) &amp; (size - 1)))</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	switch (size) {</span>
+<span class="p_add">+	case SZ_4K:</span>
+<span class="p_add">+	case SZ_64K:</span>
+<span class="p_add">+		large = (size == SZ_64K) ? true : false;</span>
+<span class="p_add">+		pteprot = __arm_short_pte_prot(data, prot, large);</span>
+<span class="p_add">+		pgdprot = __arm_short_pgtable_prot(data);</span>
+<span class="p_add">+		break;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	case SZ_1M:</span>
+<span class="p_add">+	case SZ_16M:</span>
+<span class="p_add">+		large = (size == SZ_16M) ? true : false;</span>
+<span class="p_add">+		pgdprot = __arm_short_pgd_prot(data, prot, large);</span>
+<span class="p_add">+		break;</span>
+<span class="p_add">+	default:</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return _arm_short_map(data, iova, paddr, pgdprot, pteprot, large);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static phys_addr_t arm_short_iova_to_phys(struct io_pgtable_ops *ops,</span>
+<span class="p_add">+					  unsigned long iova)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct arm_short_io_pgtable *data = io_pgtable_ops_to_data(ops);</span>
+<span class="p_add">+	arm_short_iopte *pte, *pgd = data-&gt;pgd;</span>
+<span class="p_add">+	phys_addr_t pa = 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pgd += ARM_SHORT_PGD_IDX(iova);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (ARM_SHORT_PGD_TYPE_IS_PGTABLE(*pgd)) {</span>
+<span class="p_add">+		pte = arm_short_get_pte_in_pgd(*pgd, iova);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (ARM_SHORT_PTE_TYPE_IS_LARGEPAGE(*pte)) {</span>
+<span class="p_add">+			pa = (*pte) &amp; ARM_SHORT_PTE_LARGE_MSK;</span>
+<span class="p_add">+			pa |= iova &amp; ~ARM_SHORT_PTE_LARGE_MSK;</span>
+<span class="p_add">+		} else if (ARM_SHORT_PTE_TYPE_IS_SMALLPAGE(*pte)) {</span>
+<span class="p_add">+			pa = (*pte) &amp; ARM_SHORT_PTE_SMALL_MSK;</span>
+<span class="p_add">+			pa |= iova &amp; ~ARM_SHORT_PTE_SMALL_MSK;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	} else if (ARM_SHORT_PGD_TYPE_IS_SECTION(*pgd)) {</span>
+<span class="p_add">+		pa = (*pgd) &amp; ARM_SHORT_PGD_SECTION_MSK;</span>
+<span class="p_add">+		pa |= iova &amp; ~ARM_SHORT_PGD_SECTION_MSK;</span>
+<span class="p_add">+	} else if (ARM_SHORT_PGD_TYPE_IS_SUPERSECTION(*pgd)) {</span>
+<span class="p_add">+		pa = (*pgd) &amp; ARM_SHORT_PGD_SUPERSECTION_MSK;</span>
+<span class="p_add">+		pa |= iova &amp; ~ARM_SHORT_PGD_SUPERSECTION_MSK;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return pa;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static bool _arm_short_whether_free_pgtable(arm_short_iopte *pgd)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	arm_short_iopte *pte;</span>
+<span class="p_add">+	int i;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pte = ARM_SHORT_GET_PGTABLE_VA(*pgd);</span>
+<span class="p_add">+	for (i = 0; i &lt; ARM_SHORT_PTRS_PER_PTE; i++) {</span>
+<span class="p_add">+		if (pte[i] != 0)</span>
+<span class="p_add">+			return false;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return true;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int</span>
+<span class="p_add">+arm_short_split_blk_unmap(struct io_pgtable_ops *ops, unsigned int iova,</span>
+<span class="p_add">+			  phys_addr_t paddr, size_t size,</span>
+<span class="p_add">+			  arm_short_iopte pgdprotup, arm_short_iopte pteprotup,</span>
+<span class="p_add">+			  size_t blk_size)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct arm_short_io_pgtable *data = io_pgtable_ops_to_data(ops);</span>
+<span class="p_add">+	const struct iommu_gather_ops *tlb = data-&gt;iop.cfg.tlb;</span>
+<span class="p_add">+	struct io_pgtable_cfg *cfg = &amp;data-&gt;iop.cfg;</span>
+<span class="p_add">+	unsigned long *pgbitmap = &amp;cfg-&gt;pgsize_bitmap;</span>
+<span class="p_add">+	unsigned int blk_base, blk_start, blk_end, i;</span>
+<span class="p_add">+	arm_short_iopte pgdprot, pteprot;</span>
+<span class="p_add">+	phys_addr_t blk_paddr;</span>
+<span class="p_add">+	size_t mapsize = 0, nextmapsize;</span>
+<span class="p_add">+	int ret;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* find the nearest mapsize */</span>
+<span class="p_add">+	for (i = find_first_bit(pgbitmap, BITS_PER_LONG);</span>
+<span class="p_add">+	     i &lt; BITS_PER_LONG &amp;&amp; ((1 &lt;&lt; i) &lt; blk_size) &amp;&amp;</span>
+<span class="p_add">+	     IS_ALIGNED(size, 1 &lt;&lt; i);</span>
+<span class="p_add">+	     i = find_next_bit(pgbitmap, BITS_PER_LONG, i + 1))</span>
+<span class="p_add">+		mapsize = 1 &lt;&lt; i;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (WARN_ON(!mapsize))</span>
+<span class="p_add">+		return 0; /* Bytes unmapped */</span>
+<span class="p_add">+	nextmapsize = 1 &lt;&lt; i;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	blk_base = iova &amp; ~(blk_size - 1);</span>
+<span class="p_add">+	blk_start = blk_base;</span>
+<span class="p_add">+	blk_end = blk_start + blk_size;</span>
+<span class="p_add">+	blk_paddr = paddr;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for (; blk_start &lt; blk_end;</span>
+<span class="p_add">+	     blk_start += mapsize, blk_paddr += mapsize) {</span>
+<span class="p_add">+		/* Unmap! */</span>
+<span class="p_add">+		if (blk_start == iova)</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/* Try to upper map */</span>
+<span class="p_add">+		if (blk_base != blk_start &amp;&amp;</span>
+<span class="p_add">+		    IS_ALIGNED(blk_start | blk_paddr, nextmapsize) &amp;&amp;</span>
+<span class="p_add">+		    mapsize != nextmapsize) {</span>
+<span class="p_add">+			mapsize = nextmapsize;</span>
+<span class="p_add">+			i = find_next_bit(pgbitmap, BITS_PER_LONG, i + 1);</span>
+<span class="p_add">+			if (i &lt; BITS_PER_LONG)</span>
+<span class="p_add">+				nextmapsize = 1 &lt;&lt; i;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (mapsize == SZ_1M) {</span>
+<span class="p_add">+			pgdprot = pgdprotup;</span>
+<span class="p_add">+			pgdprot |= __arm_short_pgd_prot(data, 0, false);</span>
+<span class="p_add">+			pteprot = 0;</span>
+<span class="p_add">+		} else { /* small or large page */</span>
+<span class="p_add">+			pgdprot = (blk_size == SZ_64K) ? 0 : pgdprotup;</span>
+<span class="p_add">+			pteprot = __arm_short_pte_prot_split(</span>
+<span class="p_add">+					data, pgdprot, pteprotup,</span>
+<span class="p_add">+					mapsize == SZ_64K);</span>
+<span class="p_add">+			pgdprot = __arm_short_pgtable_prot(data);</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+</span>
+<span class="p_add">+		ret = _arm_short_map(data, blk_start, blk_paddr, pgdprot,</span>
+<span class="p_add">+				     pteprot, mapsize == SZ_64K);</span>
+<span class="p_add">+		if (ret &lt; 0) {</span>
+<span class="p_add">+			/* Free the table we allocated */</span>
+<span class="p_add">+			arm_short_iopte *pgd = data-&gt;pgd, *pte;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			pgd += ARM_SHORT_PGD_IDX(blk_base);</span>
+<span class="p_add">+			if (*pgd) {</span>
+<span class="p_add">+				pte = ARM_SHORT_GET_PGTABLE_VA(*pgd);</span>
+<span class="p_add">+				__arm_short_set_pte(pgd, 0, 1, cfg);</span>
+<span class="p_add">+				tlb-&gt;tlb_add_flush(blk_base, blk_size, true,</span>
+<span class="p_add">+						   data-&gt;iop.cookie);</span>
+<span class="p_add">+				tlb-&gt;tlb_sync(data-&gt;iop.cookie);</span>
+<span class="p_add">+				__arm_short_free_pgtable(</span>
+<span class="p_add">+					pte, ARM_SHORT_BYTES_PER_PTE,</span>
+<span class="p_add">+					false, cfg);</span>
+<span class="p_add">+			}</span>
+<span class="p_add">+			return 0;/* Bytes unmapped */</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	tlb-&gt;tlb_add_flush(blk_base, blk_size, true, data-&gt;iop.cookie);</span>
+<span class="p_add">+	tlb-&gt;tlb_sync(data-&gt;iop.cookie);</span>
+<span class="p_add">+	return size;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int arm_short_unmap(struct io_pgtable_ops *ops,</span>
+<span class="p_add">+			   unsigned long iova,</span>
+<span class="p_add">+			   size_t size)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct arm_short_io_pgtable *data = io_pgtable_ops_to_data(ops);</span>
+<span class="p_add">+	struct io_pgtable_cfg *cfg = &amp;data-&gt;iop.cfg;</span>
+<span class="p_add">+	arm_short_iopte *pgd, *pte = NULL;</span>
+<span class="p_add">+	arm_short_iopte curpgd, curpte = 0;</span>
+<span class="p_add">+	phys_addr_t paddr;</span>
+<span class="p_add">+	unsigned int iova_base, blk_size = 0;</span>
+<span class="p_add">+	void *cookie = data-&gt;iop.cookie;</span>
+<span class="p_add">+	bool pgtablefree = false;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pgd = (arm_short_iopte *)data-&gt;pgd + ARM_SHORT_PGD_IDX(iova);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Get block size */</span>
+<span class="p_add">+	if (ARM_SHORT_PGD_TYPE_IS_PGTABLE(*pgd)) {</span>
+<span class="p_add">+		pte = arm_short_get_pte_in_pgd(*pgd, iova);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (ARM_SHORT_PTE_TYPE_IS_SMALLPAGE(*pte))</span>
+<span class="p_add">+			blk_size = SZ_4K;</span>
+<span class="p_add">+		else if (ARM_SHORT_PTE_TYPE_IS_LARGEPAGE(*pte))</span>
+<span class="p_add">+			blk_size = SZ_64K;</span>
+<span class="p_add">+		else</span>
+<span class="p_add">+			WARN_ON(1);</span>
+<span class="p_add">+	} else if (ARM_SHORT_PGD_TYPE_IS_SECTION(*pgd)) {</span>
+<span class="p_add">+		blk_size = SZ_1M;</span>
+<span class="p_add">+	} else if (ARM_SHORT_PGD_TYPE_IS_SUPERSECTION(*pgd)) {</span>
+<span class="p_add">+		blk_size = SZ_16M;</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		WARN_ON(1);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	iova_base = iova &amp; ~(blk_size - 1);</span>
+<span class="p_add">+	pgd = (arm_short_iopte *)data-&gt;pgd + ARM_SHORT_PGD_IDX(iova_base);</span>
+<span class="p_add">+	paddr = arm_short_iova_to_phys(ops, iova_base);</span>
+<span class="p_add">+	curpgd = *pgd;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (blk_size == SZ_4K || blk_size == SZ_64K) {</span>
+<span class="p_add">+		pte = arm_short_get_pte_in_pgd(*pgd, iova_base);</span>
+<span class="p_add">+		curpte = *pte;</span>
+<span class="p_add">+		__arm_short_set_pte(pte, 0, blk_size / SZ_4K, cfg);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		pgtablefree = _arm_short_whether_free_pgtable(pgd);</span>
+<span class="p_add">+		if (pgtablefree)</span>
+<span class="p_add">+			__arm_short_set_pte(pgd, 0, 1, cfg);</span>
+<span class="p_add">+	} else if (blk_size == SZ_1M || blk_size == SZ_16M) {</span>
+<span class="p_add">+		__arm_short_set_pte(pgd, 0, blk_size / SZ_1M, cfg);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	cfg-&gt;tlb-&gt;tlb_add_flush(iova_base, blk_size, true, cookie);</span>
+<span class="p_add">+	cfg-&gt;tlb-&gt;tlb_sync(cookie);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (pgtablefree)/* Free pgtable after tlb-flush */</span>
+<span class="p_add">+		__arm_short_free_pgtable(ARM_SHORT_GET_PGTABLE_VA(curpgd),</span>
+<span class="p_add">+					 ARM_SHORT_BYTES_PER_PTE, false, cfg);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (blk_size &gt; size) { /* Split the block */</span>
+<span class="p_add">+		return arm_short_split_blk_unmap(</span>
+<span class="p_add">+				ops, iova, paddr, size,</span>
+<span class="p_add">+				ARM_SHORT_PGD_GET_PROT(curpgd),</span>
+<span class="p_add">+				ARM_SHORT_PTE_LARGE_GET_PROT(curpte),</span>
+<span class="p_add">+				blk_size);</span>
+<span class="p_add">+	} else if (blk_size &lt; size) {</span>
+<span class="p_add">+		/* Unmap the block while remap partial again after split */</span>
+<span class="p_add">+		return blk_size +</span>
+<span class="p_add">+			arm_short_unmap(ops, iova + blk_size, size - blk_size);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return size;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static struct io_pgtable *</span>
+<span class="p_add">+arm_short_alloc_pgtable(struct io_pgtable_cfg *cfg, void *cookie)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct arm_short_io_pgtable *data;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (cfg-&gt;ias &gt; 32 || cfg-&gt;oas &gt; 32)</span>
+<span class="p_add">+		return NULL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	cfg-&gt;pgsize_bitmap &amp;=</span>
+<span class="p_add">+		(cfg-&gt;quirks &amp; IO_PGTABLE_QUIRK_SHORT_SUPERSECTION) ?</span>
+<span class="p_add">+		(SZ_4K | SZ_64K | SZ_1M | SZ_16M) : (SZ_4K | SZ_64K | SZ_1M);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	data = kzalloc(sizeof(*data), GFP_KERNEL);</span>
+<span class="p_add">+	if (!data)</span>
+<span class="p_add">+		return NULL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	data-&gt;pgd_size = SZ_16K;</span>
+<span class="p_add">+	data-&gt;pgd = __arm_short_alloc_pgtable(</span>
+<span class="p_add">+					data-&gt;pgd_size,</span>
+<span class="p_add">+					GFP_KERNEL | __GFP_ZERO | __GFP_DMA,</span>
+<span class="p_add">+					true, cfg);</span>
+<span class="p_add">+	if (!data-&gt;pgd)</span>
+<span class="p_add">+		goto out_free_data;</span>
+<span class="p_add">+	wmb();/* Ensure the empty pgd is visible before any actual TTBR write */</span>
+<span class="p_add">+</span>
+<span class="p_add">+	data-&gt;pgtable_cached = kmem_cache_create(</span>
+<span class="p_add">+					&quot;io-pgtable-arm-short&quot;,</span>
+<span class="p_add">+					 ARM_SHORT_BYTES_PER_PTE,</span>
+<span class="p_add">+					 ARM_SHORT_BYTES_PER_PTE,</span>
+<span class="p_add">+					 0, NULL);</span>
+<span class="p_add">+	if (!data-&gt;pgtable_cached)</span>
+<span class="p_add">+		goto out_free_pgd;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* TTBRs */</span>
+<span class="p_add">+	cfg-&gt;arm_short_cfg.ttbr[0] = virt_to_phys(data-&gt;pgd);</span>
+<span class="p_add">+	cfg-&gt;arm_short_cfg.ttbr[1] = 0;</span>
+<span class="p_add">+	cfg-&gt;arm_short_cfg.tcr = 0;</span>
+<span class="p_add">+	cfg-&gt;arm_short_cfg.nmrr = 0;</span>
+<span class="p_add">+	cfg-&gt;arm_short_cfg.prrr = 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	data-&gt;iop.ops = (struct io_pgtable_ops) {</span>
+<span class="p_add">+		.map		= arm_short_map,</span>
+<span class="p_add">+		.unmap		= arm_short_unmap,</span>
+<span class="p_add">+		.iova_to_phys	= arm_short_iova_to_phys,</span>
+<span class="p_add">+	};</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return &amp;data-&gt;iop;</span>
+<span class="p_add">+</span>
+<span class="p_add">+out_free_pgd:</span>
+<span class="p_add">+	__arm_short_free_pgtable(data-&gt;pgd, data-&gt;pgd_size, true, cfg);</span>
+<span class="p_add">+out_free_data:</span>
+<span class="p_add">+	kfree(data);</span>
+<span class="p_add">+	return NULL;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void arm_short_free_pgtable(struct io_pgtable *iop)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct arm_short_io_pgtable *data = io_pgtable_to_data(iop);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	kmem_cache_destroy(data-&gt;pgtable_cached);</span>
+<span class="p_add">+	__arm_short_free_pgtable(data-&gt;pgd, data-&gt;pgd_size,</span>
+<span class="p_add">+				 true, &amp;data-&gt;iop.cfg);</span>
+<span class="p_add">+	kfree(data);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+struct io_pgtable_init_fns io_pgtable_arm_short_init_fns = {</span>
+<span class="p_add">+	.alloc	= arm_short_alloc_pgtable,</span>
+<span class="p_add">+	.free	= arm_short_free_pgtable,</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifdef CONFIG_IOMMU_IO_PGTABLE_SHORT_SELFTEST</span>
+<span class="p_add">+</span>
+<span class="p_add">+static struct io_pgtable_cfg *cfg_cookie;</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void dummy_tlb_flush_all(void *cookie)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	WARN_ON(cookie != cfg_cookie);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void dummy_tlb_add_flush(unsigned long iova, size_t size, bool leaf,</span>
+<span class="p_add">+				void *cookie)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	WARN_ON(cookie != cfg_cookie);</span>
+<span class="p_add">+	WARN_ON(!(size &amp; cfg_cookie-&gt;pgsize_bitmap));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void dummy_tlb_sync(void *cookie)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	WARN_ON(cookie != cfg_cookie);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static struct iommu_gather_ops dummy_tlb_ops = {</span>
+<span class="p_add">+	.tlb_flush_all	= dummy_tlb_flush_all,</span>
+<span class="p_add">+	.tlb_add_flush	= dummy_tlb_add_flush,</span>
+<span class="p_add">+	.tlb_sync	= dummy_tlb_sync,</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define __FAIL(ops)	({				\</span>
+<span class="p_add">+		WARN(1, &quot;selftest: test failed\n&quot;);	\</span>
+<span class="p_add">+		selftest_running = false;		\</span>
+<span class="p_add">+		-EFAULT;				\</span>
+<span class="p_add">+})</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int __init arm_short_do_selftests(void)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct io_pgtable_ops *ops;</span>
+<span class="p_add">+	struct io_pgtable_cfg cfg = {</span>
+<span class="p_add">+		.tlb = &amp;dummy_tlb_ops,</span>
+<span class="p_add">+		.oas = 32,</span>
+<span class="p_add">+		.ias = 32,</span>
+<span class="p_add">+		.quirks = IO_PGTABLE_QUIRK_ARM_NS |</span>
+<span class="p_add">+			IO_PGTABLE_QUIRK_SHORT_SUPERSECTION,</span>
+<span class="p_add">+		.pgsize_bitmap = SZ_4K | SZ_64K | SZ_1M | SZ_16M,</span>
+<span class="p_add">+	};</span>
+<span class="p_add">+	unsigned int iova, size, iova_start;</span>
+<span class="p_add">+	unsigned int i, loopnr = 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	selftest_running = true;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	cfg_cookie = &amp;cfg;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ops = alloc_io_pgtable_ops(ARM_SHORT_DESC, &amp;cfg, &amp;cfg);</span>
+<span class="p_add">+	if (!ops) {</span>
+<span class="p_add">+		pr_err(&quot;Failed to alloc short desc io pgtable\n&quot;);</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Initial sanity checks.</span>
+<span class="p_add">+	 * Empty page tables shouldn&#39;t provide any translations.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (ops-&gt;iova_to_phys(ops, 42))</span>
+<span class="p_add">+		return __FAIL(ops);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (ops-&gt;iova_to_phys(ops, SZ_1G + 42))</span>
+<span class="p_add">+		return __FAIL(ops);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (ops-&gt;iova_to_phys(ops, SZ_2G + 42))</span>
+<span class="p_add">+		return __FAIL(ops);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Distinct mappings of different granule sizes.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	iova = 0;</span>
+<span class="p_add">+	i = find_first_bit(&amp;cfg.pgsize_bitmap, BITS_PER_LONG);</span>
+<span class="p_add">+	while (i != BITS_PER_LONG) {</span>
+<span class="p_add">+		size = 1UL &lt;&lt; i;</span>
+<span class="p_add">+		if (ops-&gt;map(ops, iova, iova, size, IOMMU_READ |</span>
+<span class="p_add">+						    IOMMU_WRITE |</span>
+<span class="p_add">+						    IOMMU_NOEXEC |</span>
+<span class="p_add">+						    IOMMU_CACHE))</span>
+<span class="p_add">+			return __FAIL(ops);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/* Overlapping mappings */</span>
+<span class="p_add">+		if (!ops-&gt;map(ops, iova, iova + size, size,</span>
+<span class="p_add">+			      IOMMU_READ | IOMMU_NOEXEC))</span>
+<span class="p_add">+			return __FAIL(ops);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (ops-&gt;iova_to_phys(ops, iova + 42) != (iova + 42))</span>
+<span class="p_add">+			return __FAIL(ops);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		iova += SZ_16M;</span>
+<span class="p_add">+		i++;</span>
+<span class="p_add">+		i = find_next_bit(&amp;cfg.pgsize_bitmap, BITS_PER_LONG, i);</span>
+<span class="p_add">+		loopnr++;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Partial unmap */</span>
+<span class="p_add">+	i = 1;</span>
+<span class="p_add">+	size = 1UL &lt;&lt; __ffs(cfg.pgsize_bitmap);</span>
+<span class="p_add">+	while (i &lt; loopnr) {</span>
+<span class="p_add">+		iova_start = i * SZ_16M;</span>
+<span class="p_add">+		if (ops-&gt;unmap(ops, iova_start + size, size) != size)</span>
+<span class="p_add">+			return __FAIL(ops);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/* Remap of partial unmap */</span>
+<span class="p_add">+		if (ops-&gt;map(ops, iova_start + size, size, size, IOMMU_READ))</span>
+<span class="p_add">+			return __FAIL(ops);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (ops-&gt;iova_to_phys(ops, iova_start + size + 42)</span>
+<span class="p_add">+		    != (size + 42))</span>
+<span class="p_add">+			return __FAIL(ops);</span>
+<span class="p_add">+		i++;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Full unmap */</span>
+<span class="p_add">+	iova = 0;</span>
+<span class="p_add">+	i = find_first_bit(&amp;cfg.pgsize_bitmap, BITS_PER_LONG);</span>
+<span class="p_add">+	while (i != BITS_PER_LONG) {</span>
+<span class="p_add">+		size = 1UL &lt;&lt; i;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (ops-&gt;unmap(ops, iova, size) != size)</span>
+<span class="p_add">+			return __FAIL(ops);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (ops-&gt;iova_to_phys(ops, iova + 42))</span>
+<span class="p_add">+			return __FAIL(ops);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/* Remap full block */</span>
+<span class="p_add">+		if (ops-&gt;map(ops, iova, iova, size, IOMMU_WRITE))</span>
+<span class="p_add">+			return __FAIL(ops);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (ops-&gt;iova_to_phys(ops, iova + 42) != (iova + 42))</span>
+<span class="p_add">+			return __FAIL(ops);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		iova += SZ_16M;</span>
+<span class="p_add">+		i++;</span>
+<span class="p_add">+		i = find_next_bit(&amp;cfg.pgsize_bitmap, BITS_PER_LONG, i);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	free_io_pgtable_ops(ops);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	selftest_running = false;</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+subsys_initcall(arm_short_do_selftests);</span>
+<span class="p_add">+#endif</span>
+<span class="p_header">diff --git a/drivers/iommu/io-pgtable-arm.c b/drivers/iommu/io-pgtable-arm.c</span>
+<span class="p_header">index e4bc2b2..9978eca 100644</span>
+<span class="p_header">--- a/drivers/iommu/io-pgtable-arm.c</span>
+<span class="p_header">+++ b/drivers/iommu/io-pgtable-arm.c</span>
+<span class="p_chunk">@@ -38,9 +38,6 @@</span> <span class="p_context"></span>
+ #define io_pgtable_to_data(x)						\
+ 	container_of((x), struct arm_lpae_io_pgtable, iop)
+ 
+<span class="p_del">-#define io_pgtable_ops_to_pgtable(x)					\</span>
+<span class="p_del">-	container_of((x), struct io_pgtable, ops)</span>
+<span class="p_del">-</span>
+ #define io_pgtable_ops_to_data(x)					\
+ 	io_pgtable_to_data(io_pgtable_ops_to_pgtable(x))
+ 
+<span class="p_header">diff --git a/drivers/iommu/io-pgtable.c b/drivers/iommu/io-pgtable.c</span>
+<span class="p_header">index 6436fe2..14a9b3a 100644</span>
+<span class="p_header">--- a/drivers/iommu/io-pgtable.c</span>
+<span class="p_header">+++ b/drivers/iommu/io-pgtable.c</span>
+<span class="p_chunk">@@ -28,6 +28,7 @@</span> <span class="p_context"> extern struct io_pgtable_init_fns io_pgtable_arm_32_lpae_s1_init_fns;</span>
+ extern struct io_pgtable_init_fns io_pgtable_arm_32_lpae_s2_init_fns;
+ extern struct io_pgtable_init_fns io_pgtable_arm_64_lpae_s1_init_fns;
+ extern struct io_pgtable_init_fns io_pgtable_arm_64_lpae_s2_init_fns;
+<span class="p_add">+extern struct io_pgtable_init_fns io_pgtable_arm_short_init_fns;</span>
+ 
+ static const struct io_pgtable_init_fns *
+ io_pgtable_init_table[IO_PGTABLE_NUM_FMTS] =
+<span class="p_chunk">@@ -38,6 +39,9 @@</span> <span class="p_context"> io_pgtable_init_table[IO_PGTABLE_NUM_FMTS] =</span>
+ 	[ARM_64_LPAE_S1] = &amp;io_pgtable_arm_64_lpae_s1_init_fns,
+ 	[ARM_64_LPAE_S2] = &amp;io_pgtable_arm_64_lpae_s2_init_fns,
+ #endif
+<span class="p_add">+#ifdef CONFIG_IOMMU_IO_PGTABLE_SHORT</span>
+<span class="p_add">+	[ARM_SHORT_DESC] = &amp;io_pgtable_arm_short_init_fns,</span>
+<span class="p_add">+#endif</span>
+ };
+ 
+ struct io_pgtable_ops *alloc_io_pgtable_ops(enum io_pgtable_fmt fmt,
+<span class="p_header">diff --git a/drivers/iommu/io-pgtable.h b/drivers/iommu/io-pgtable.h</span>
+<span class="p_header">index 68c63d9..0f45e60 100644</span>
+<span class="p_header">--- a/drivers/iommu/io-pgtable.h</span>
+<span class="p_header">+++ b/drivers/iommu/io-pgtable.h</span>
+<span class="p_chunk">@@ -9,6 +9,7 @@</span> <span class="p_context"> enum io_pgtable_fmt {</span>
+ 	ARM_32_LPAE_S2,
+ 	ARM_64_LPAE_S1,
+ 	ARM_64_LPAE_S2,
+<span class="p_add">+	ARM_SHORT_DESC,</span>
+ 	IO_PGTABLE_NUM_FMTS,
+ };
+ 
+<span class="p_chunk">@@ -45,6 +46,9 @@</span> <span class="p_context"> struct iommu_gather_ops {</span>
+  */
+ struct io_pgtable_cfg {
+ 	#define IO_PGTABLE_QUIRK_ARM_NS	(1 &lt;&lt; 0)	/* Set NS bit in PTEs */
+<span class="p_add">+	#define IO_PGTABLE_QUIRK_SHORT_SUPERSECTION     BIT(1)</span>
+<span class="p_add">+	#define IO_PGTABLE_QUIRK_SHORT_NO_XN		BIT(2) /* No XN bit */</span>
+<span class="p_add">+	#define IO_PGTABLE_QUIRK_SHORT_NO_PERMS		BIT(3) /* No AP bit */</span>
+ 	int				quirks;
+ 	unsigned long			pgsize_bitmap;
+ 	unsigned int			ias;
+<span class="p_chunk">@@ -64,6 +68,13 @@</span> <span class="p_context"> struct io_pgtable_cfg {</span>
+ 			u64	vttbr;
+ 			u64	vtcr;
+ 		} arm_lpae_s2_cfg;
+<span class="p_add">+</span>
+<span class="p_add">+		struct {</span>
+<span class="p_add">+			u32	ttbr[2];</span>
+<span class="p_add">+			u32	tcr;</span>
+<span class="p_add">+			u32	nmrr;</span>
+<span class="p_add">+			u32	prrr;</span>
+<span class="p_add">+		} arm_short_cfg;</span>
+ 	};
+ };
+ 
+<span class="p_chunk">@@ -130,6 +141,9 @@</span> <span class="p_context"> struct io_pgtable {</span>
+ 	struct io_pgtable_ops	ops;
+ };
+ 
+<span class="p_add">+#define io_pgtable_ops_to_pgtable(x)		\</span>
+<span class="p_add">+	container_of((x), struct io_pgtable, ops)</span>
+<span class="p_add">+</span>
+ /**
+  * struct io_pgtable_init_fns - Alloc/free a set of page tables for a
+  *                              particular format.
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

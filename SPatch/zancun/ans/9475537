@@ -1,0 +1,474 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[09/11] powerpc/kvm: Outline of KVM-HV HPT resizing implementation - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [09/11] powerpc/kvm: Outline of KVM-HV HPT resizing implementation</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=1741">David Gibson</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Dec. 15, 2016, 5:54 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20161215055404.29351-10-david@gibson.dropbear.id.au&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9475537/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9475537/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9475537/">/patch/9475537/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	3FA7060826 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 15 Dec 2016 05:59:30 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 2FA6A286AA
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 15 Dec 2016 05:59:30 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 244F4286C1; Thu, 15 Dec 2016 05:59:30 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-7.0 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID, DKIM_VALID_AU,
+	RCVD_IN_DNSWL_HI autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 87F32286AD
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 15 Dec 2016 05:59:29 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1757404AbcLOF7M (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 15 Dec 2016 00:59:12 -0500
+Received: from ozlabs.org ([103.22.144.67]:60689 &quot;EHLO ozlabs.org&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1755201AbcLOF6z (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 15 Dec 2016 00:58:55 -0500
+Received: by ozlabs.org (Postfix, from userid 1007)
+	id 3tfN6Z1qZTz9tlB; Thu, 15 Dec 2016 16:58:46 +1100 (AEDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple;
+	d=gibson.dropbear.id.au; s=201602; t=1481781526;
+	bh=NSZZbcq8HACtPN8rQKk3/yI58jHq6VSeyltUUo5T7iI=;
+	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
+	b=iap9G3xo66rFQqlthbHWZtq/5D6Yhl6HXfJj8/Z62BNGFsSX0k6li5LXfONLcdWId
+	/fTCY+rnuH1fs+zogvaO8RmyHBLew3RznYHLbg5jaDe28piZxAJb1xWW/J/Wm2P96w
+	ud5vJhlVbyrU8wK8qaAfyKsS3+7bgB61xsbHe7Co=
+From: David Gibson &lt;david@gibson.dropbear.id.au&gt;
+To: paulus@samba.org
+Cc: michael@ellerman.id.au, benh@kernel.crashing.org,
+	sjitindarsingh@gmail.com, thuth@redhat.com, lvivier@redhat.com,
+	linuxppc-dev@lists.ozlabs.org, linux-kernel@vger.kernel.org,
+	kvm@vger.kernel.org, David Gibson &lt;david@gibson.dropbear.id.au&gt;
+Subject: [PATCH 09/11] powerpc/kvm: Outline of KVM-HV HPT resizing
+	implementation
+Date: Thu, 15 Dec 2016 16:54:02 +1100
+Message-Id: &lt;20161215055404.29351-10-david@gibson.dropbear.id.au&gt;
+X-Mailer: git-send-email 2.9.3
+In-Reply-To: &lt;20161215055404.29351-1-david@gibson.dropbear.id.au&gt;
+References: &lt;20161215055404.29351-1-david@gibson.dropbear.id.au&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=1741">David Gibson</a> - Dec. 15, 2016, 5:54 a.m.</div>
+<pre class="content">
+This adds an outline (not yet working) of an implementation for the HPT
+resizing PAPR extension.  Specifically it adds the work function which will
+handle preparation for the resize, and synchronization between this, the
+the HPT resizing hypercalls, the guest page fault path and guest HPT update
+paths.
+<span class="signed-off-by">
+Signed-off-by: David Gibson &lt;david@gibson.dropbear.id.au&gt;</span>
+---
+ arch/powerpc/include/asm/kvm_host.h |   3 +
+ arch/powerpc/kvm/book3s_64_mmu_hv.c | 179 +++++++++++++++++++++++++++++++++++-
+ arch/powerpc/kvm/book3s_hv.c        |   3 +
+ 3 files changed, 183 insertions(+), 2 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/powerpc/include/asm/kvm_host.h b/arch/powerpc/include/asm/kvm_host.h</span>
+<span class="p_header">index 3900f63..23559c3 100644</span>
+<span class="p_header">--- a/arch/powerpc/include/asm/kvm_host.h</span>
+<span class="p_header">+++ b/arch/powerpc/include/asm/kvm_host.h</span>
+<span class="p_chunk">@@ -248,6 +248,8 @@</span> <span class="p_context"> struct kvm_hpt_info {</span>
+ 	int cma;
+ };
+ 
+<span class="p_add">+struct kvm_resize_hpt;</span>
+<span class="p_add">+</span>
+ struct kvm_arch {
+ 	unsigned int lpid;
+ #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+<span class="p_chunk">@@ -268,6 +270,7 @@</span> <span class="p_context"> struct kvm_arch {</span>
+ 	cpumask_t need_tlb_flush;
+ 	struct dentry *debugfs_dir;
+ 	struct dentry *htab_dentry;
+<span class="p_add">+	struct kvm_resize_hpt *resize_hpt; /* protected by kvm-&gt;lock */</span>
+ #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
+ #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
+ 	struct mutex hpt_mutex;
+<span class="p_header">diff --git a/arch/powerpc/kvm/book3s_64_mmu_hv.c b/arch/powerpc/kvm/book3s_64_mmu_hv.c</span>
+<span class="p_header">index ac0f18b..a2ac749 100644</span>
+<span class="p_header">--- a/arch/powerpc/kvm/book3s_64_mmu_hv.c</span>
+<span class="p_header">+++ b/arch/powerpc/kvm/book3s_64_mmu_hv.c</span>
+<span class="p_chunk">@@ -40,9 +40,34 @@</span> <span class="p_context"></span>
+ 
+ #include &quot;trace_hv.h&quot;
+ 
+<span class="p_add">+//#define DEBUG_RESIZE_HPT	1</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifdef DEBUG_RESIZE_HPT</span>
+<span class="p_add">+#define resize_hpt_debug(resize, ...)				\</span>
+<span class="p_add">+	do {							\</span>
+<span class="p_add">+		printk(KERN_DEBUG &quot;RESIZE HPT %p: &quot;, resize);	\</span>
+<span class="p_add">+		printk(__VA_ARGS__);				\</span>
+<span class="p_add">+	} while (0)</span>
+<span class="p_add">+#else</span>
+<span class="p_add">+#define resize_hpt_debug(resize, ...)				\</span>
+<span class="p_add">+	do { } while (0)</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ static long kvmppc_virtmode_do_h_enter(struct kvm *kvm, unsigned long flags,
+ 				long pte_index, unsigned long pteh,
+ 				unsigned long ptel, unsigned long *pte_idx_ret);
+<span class="p_add">+</span>
+<span class="p_add">+struct kvm_resize_hpt {</span>
+<span class="p_add">+	/* These fields read-only after init */</span>
+<span class="p_add">+	struct kvm *kvm;</span>
+<span class="p_add">+	struct work_struct work;</span>
+<span class="p_add">+	u32 order;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* These fields protected by kvm-&gt;lock */</span>
+<span class="p_add">+	int error;</span>
+<span class="p_add">+	bool prepare_done;</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+ static void kvmppc_rmap_reset(struct kvm *kvm);
+ 
+ int kvmppc_allocate_hpt(struct kvm_hpt_info *info, u32 order)
+<span class="p_chunk">@@ -1162,17 +1187,167 @@</span> <span class="p_context"> void kvmppc_unpin_guest_page(struct kvm *kvm, void *va, unsigned long gpa,</span>
+ /*
+  * HPT resizing
+  */
+<span class="p_add">+static int resize_hpt_allocate(struct kvm_resize_hpt *resize)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int resize_hpt_rehash(struct kvm_resize_hpt *resize)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return -EIO;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void resize_hpt_pivot(struct kvm_resize_hpt *resize)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void resize_hpt_release(struct kvm *kvm, struct kvm_resize_hpt *resize)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	BUG_ON(kvm-&gt;arch.resize_hpt != resize);</span>
+<span class="p_add">+	kvm-&gt;arch.resize_hpt = NULL;</span>
+<span class="p_add">+	kfree(resize);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void resize_hpt_prepare_work(struct work_struct *work)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct kvm_resize_hpt *resize = container_of(work,</span>
+<span class="p_add">+						     struct kvm_resize_hpt,</span>
+<span class="p_add">+						     work);</span>
+<span class="p_add">+	struct kvm *kvm = resize-&gt;kvm;</span>
+<span class="p_add">+	int err;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	resize_hpt_debug(resize, &quot;resize_hpt_prepare_work(): order = %d\n&quot;,</span>
+<span class="p_add">+			 resize-&gt;order);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	err = resize_hpt_allocate(resize);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	mutex_lock(&amp;kvm-&gt;lock);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	resize-&gt;error = err;</span>
+<span class="p_add">+	resize-&gt;prepare_done = true;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	mutex_unlock(&amp;kvm-&gt;lock);</span>
+<span class="p_add">+}</span>
+ 
+ long kvm_vm_ioctl_resize_hpt_prepare(struct kvm *kvm,
+ 				     struct kvm_ppc_resize_hpt *rhpt)
+ {
+<span class="p_del">-	return -EIO;</span>
+<span class="p_add">+	unsigned long flags = rhpt-&gt;flags;</span>
+<span class="p_add">+	unsigned long shift = rhpt-&gt;shift;</span>
+<span class="p_add">+	struct kvm_resize_hpt *resize;</span>
+<span class="p_add">+	int ret;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (flags != 0)</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (shift &amp;&amp; ((shift &lt; 18) || (shift &gt; 46)))</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	mutex_lock(&amp;kvm-&gt;lock);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	resize = kvm-&gt;arch.resize_hpt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (resize) {</span>
+<span class="p_add">+		if (resize-&gt;order == shift) {</span>
+<span class="p_add">+			/* Suitable resize in progress */</span>
+<span class="p_add">+			if (resize-&gt;prepare_done) {</span>
+<span class="p_add">+				ret = resize-&gt;error;</span>
+<span class="p_add">+				if (ret != 0)</span>
+<span class="p_add">+					resize_hpt_release(kvm, resize);</span>
+<span class="p_add">+			} else {</span>
+<span class="p_add">+				ret = 100; /* estimated time in ms */</span>
+<span class="p_add">+			}</span>
+<span class="p_add">+</span>
+<span class="p_add">+			goto out;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/* not suitable, cancel it */</span>
+<span class="p_add">+		resize_hpt_release(kvm, resize);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ret = 0;</span>
+<span class="p_add">+	if (!shift)</span>
+<span class="p_add">+		goto out; /* nothing to do */</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* start new resize */</span>
+<span class="p_add">+</span>
+<span class="p_add">+	resize = kzalloc(sizeof(*resize), GFP_KERNEL);</span>
+<span class="p_add">+	resize-&gt;order = shift;</span>
+<span class="p_add">+	resize-&gt;kvm = kvm;</span>
+<span class="p_add">+	INIT_WORK(&amp;resize-&gt;work, resize_hpt_prepare_work);</span>
+<span class="p_add">+	kvm-&gt;arch.resize_hpt = resize;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	schedule_work(&amp;resize-&gt;work);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ret = 100; /* estimated time in ms */</span>
+<span class="p_add">+</span>
+<span class="p_add">+out:</span>
+<span class="p_add">+	mutex_unlock(&amp;kvm-&gt;lock);</span>
+<span class="p_add">+	return ret;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void resize_hpt_boot_vcpu(void *opaque)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	/* Nothing to do, just force a KVM exit */</span>
+ }
+ 
+ long kvm_vm_ioctl_resize_hpt_commit(struct kvm *kvm,
+ 				    struct kvm_ppc_resize_hpt *rhpt)
+ {
+<span class="p_del">-	return -EIO;</span>
+<span class="p_add">+	unsigned long flags = rhpt-&gt;flags;</span>
+<span class="p_add">+	unsigned long shift = rhpt-&gt;shift;</span>
+<span class="p_add">+	struct kvm_resize_hpt *resize;</span>
+<span class="p_add">+	long ret;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (flags != 0)</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (shift &amp;&amp; ((shift &lt; 18) || (shift &gt; 46)))</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	mutex_lock(&amp;kvm-&gt;lock);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	resize = kvm-&gt;arch.resize_hpt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* This shouldn&#39;t be possible */</span>
+<span class="p_add">+	ret = -EIO;</span>
+<span class="p_add">+	if (WARN_ON(!kvm-&gt;arch.hpte_setup_done))</span>
+<span class="p_add">+		goto out_no_hpt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Stop VCPUs from running while we mess with the HPT */</span>
+<span class="p_add">+	kvm-&gt;arch.hpte_setup_done = 0;</span>
+<span class="p_add">+	smp_mb();</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Boot all CPUs out of the guest so they re-read</span>
+<span class="p_add">+	 * hpte_setup_done */</span>
+<span class="p_add">+	on_each_cpu(resize_hpt_boot_vcpu, NULL, 1);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ret = -ENXIO;</span>
+<span class="p_add">+	if (!resize || (resize-&gt;order != shift))</span>
+<span class="p_add">+		goto out;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ret = -EBUSY;</span>
+<span class="p_add">+	if (!resize-&gt;prepare_done)</span>
+<span class="p_add">+		goto out;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ret = resize-&gt;error;</span>
+<span class="p_add">+	if (ret != 0)</span>
+<span class="p_add">+		goto out;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ret = resize_hpt_rehash(resize);</span>
+<span class="p_add">+	if (ret != 0)</span>
+<span class="p_add">+		goto out;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	resize_hpt_pivot(resize);</span>
+<span class="p_add">+</span>
+<span class="p_add">+out:</span>
+<span class="p_add">+	/* Let VCPUs run again */</span>
+<span class="p_add">+	kvm-&gt;arch.hpte_setup_done = 1;</span>
+<span class="p_add">+	smp_mb();</span>
+<span class="p_add">+out_no_hpt:</span>
+<span class="p_add">+	resize_hpt_release(kvm, resize);</span>
+<span class="p_add">+	mutex_unlock(&amp;kvm-&gt;lock);</span>
+<span class="p_add">+	return ret;</span>
+ }
+ 
+ /*
+<span class="p_header">diff --git a/arch/powerpc/kvm/book3s_hv.c b/arch/powerpc/kvm/book3s_hv.c</span>
+<span class="p_header">index d022322..613b8a5 100644</span>
+<span class="p_header">--- a/arch/powerpc/kvm/book3s_hv.c</span>
+<span class="p_header">+++ b/arch/powerpc/kvm/book3s_hv.c</span>
+<span class="p_chunk">@@ -3323,6 +3323,9 @@</span> <span class="p_context"> static int kvmppc_core_init_vm_hv(struct kvm *kvm)</span>
+ 
+ 	kvm-&gt;arch.lpcr = lpcr;
+ 
+<span class="p_add">+	/* Initialization for future HPT resizes */</span>
+<span class="p_add">+	kvm-&gt;arch.resize_hpt = NULL;</span>
+<span class="p_add">+</span>
+ 	/*
+ 	 * Work out how many sets the TLB has, for the use of
+ 	 * the TLB invalidation loop in book3s_hv_rmhandlers.S.
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

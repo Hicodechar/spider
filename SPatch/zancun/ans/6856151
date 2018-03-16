@@ -1,0 +1,779 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>hugetlb: cond_resched for set_max_huge_pages and follow_hugetlb_page - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    hugetlb: cond_resched for set_max_huge_pages and follow_hugetlb_page</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=138081">Spencer Baugh</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>July 23, 2015, 9:54 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1437688476-3399-1-git-send-email-sbaugh@catern.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/6856151/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/6856151/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/6856151/">/patch/6856151/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id C35CDC05AC
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 23 Jul 2015 21:54:57 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id F394D20779
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 23 Jul 2015 21:54:56 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 81ED620735
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 23 Jul 2015 21:54:55 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1754509AbbGWVyq (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 23 Jul 2015 17:54:46 -0400
+Received: from catern.com ([104.131.201.120]:43920 &quot;EHLO mail.catern.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1754239AbbGWVyn (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 23 Jul 2015 17:54:43 -0400
+Received: from [127.0.0.1] (localhost [127.0.0.1])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128
+	bits)) (No client certificate requested)
+	by mail.catern.com (Postfix) with ESMTPSA id 5BF98479FF;
+	Thu, 23 Jul 2015 21:54:41 +0000 (UTC)
+From: Spencer Baugh &lt;sbaugh@catern.com&gt;
+To: Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;,
+	David Rientjes &lt;rientjes@google.com&gt;,
+	Davidlohr Bueso &lt;dave@stgolabs.net&gt;,
+	Mike Kravetz &lt;mike.kravetz@oracle.com&gt;,
+	Luiz Capitulino &lt;lcapitulino@redhat.com&gt;,
+	linux-mm@kvack.org (open list:MEMORY MANAGEMENT),
+	linux-kernel@vger.kernel.org (open list)
+Cc: Joern Engel &lt;joern@purestorage.com&gt;,
+	Spencer Baugh &lt;Spencer.baugh@purestorage.com&gt;,
+	Joern Engel &lt;joern@logfs.org&gt;, Spencer Baugh &lt;sbaugh@catern.com&gt;
+Subject: [PATCH] hugetlb: cond_resched for set_max_huge_pages and
+	follow_hugetlb_page
+Date: Thu, 23 Jul 2015 14:54:31 -0700
+Message-Id: &lt;1437688476-3399-1-git-send-email-sbaugh@catern.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-8.1 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=138081">Spencer Baugh</a> - July 23, 2015, 9:54 p.m.</div>
+<pre class="content">
+<span class="from">From: Joern Engel &lt;joern@logfs.org&gt;</span>
+
+~150ms scheduler latency for both observed in the wild.
+<span class="signed-off-by">
+Signed-off-by: Joern Engel &lt;joern@logfs.org&gt;</span>
+<span class="signed-off-by">Signed-off-by: Spencer Baugh &lt;sbaugh@catern.com&gt;</span>
+---
+ mm/hugetlb.c | 2 ++
+ 1 file changed, 2 insertions(+)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=579">David Rientjes</a> - July 23, 2015, 10:08 p.m.</div>
+<pre class="content">
+On Thu, 23 Jul 2015, Spencer Baugh wrote:
+<span class="quote">
+&gt; From: Joern Engel &lt;joern@logfs.org&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; ~150ms scheduler latency for both observed in the wild.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Joern Engel &lt;joern@logfs.org&gt;</span>
+<span class="quote">&gt; Signed-off-by: Spencer Baugh &lt;sbaugh@catern.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  mm/hugetlb.c | 2 ++</span>
+<span class="quote">&gt;  1 file changed, 2 insertions(+)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="quote">&gt; index a8c3087..2eb6919 100644</span>
+<span class="quote">&gt; --- a/mm/hugetlb.c</span>
+<span class="quote">&gt; +++ b/mm/hugetlb.c</span>
+<span class="quote">&gt; @@ -1836,6 +1836,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,</span>
+<span class="quote">&gt;  			ret = alloc_fresh_gigantic_page(h, nodes_allowed);</span>
+<span class="quote">&gt;  		else</span>
+<span class="quote">&gt;  			ret = alloc_fresh_huge_page(h, nodes_allowed);</span>
+<span class="quote">&gt; +		cond_resched();</span>
+<span class="quote">&gt;  		spin_lock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt;  		if (!ret)</span>
+<span class="quote">&gt;  			goto out;</span>
+
+This is wrong, you&#39;d want to do any cond_resched() before the page 
+allocation to avoid racing with an update to h-&gt;nr_huge_pages or 
+h-&gt;surplus_huge_pages while hugetlb_lock was dropped that would result in 
+the page having been uselessly allocated.
+<span class="quote">
+&gt; @@ -3521,6 +3522,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,</span>
+<span class="quote">&gt;  				spin_unlock(ptl);</span>
+<span class="quote">&gt;  			ret = hugetlb_fault(mm, vma, vaddr,</span>
+<span class="quote">&gt;  				(flags &amp; FOLL_WRITE) ? FAULT_FLAG_WRITE : 0);</span>
+<span class="quote">&gt; +			cond_resched();</span>
+<span class="quote">&gt;  			if (!(ret &amp; VM_FAULT_ERROR))</span>
+<span class="quote">&gt;  				continue;</span>
+<span class="quote">&gt;  </span>
+
+This is almost certainly the wrong placement as well since it&#39;s inserted 
+inside a conditional inside a while loop and there&#39;s no reason to 
+hugetlb_fault(), schedule, and then check the return value.  You need to 
+insert your cond_resched()&#39;s in legitimate places.
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137441">Jörn Engel</a> - July 23, 2015, 10:36 p.m.</div>
+<pre class="content">
+On Thu, Jul 23, 2015 at 03:08:58PM -0700, David Rientjes wrote:
+<span class="quote">&gt; On Thu, 23 Jul 2015, Spencer Baugh wrote:</span>
+<span class="quote">&gt; &gt; From: Joern Engel &lt;joern@logfs.org&gt;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; ~150ms scheduler latency for both observed in the wild.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Signed-off-by: Joern Engel &lt;joern@logfs.org&gt;</span>
+<span class="quote">&gt; &gt; Signed-off-by: Spencer Baugh &lt;sbaugh@catern.com&gt;</span>
+<span class="quote">&gt; &gt; ---</span>
+<span class="quote">&gt; &gt;  mm/hugetlb.c | 2 ++</span>
+<span class="quote">&gt; &gt;  1 file changed, 2 insertions(+)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="quote">&gt; &gt; index a8c3087..2eb6919 100644</span>
+<span class="quote">&gt; &gt; --- a/mm/hugetlb.c</span>
+<span class="quote">&gt; &gt; +++ b/mm/hugetlb.c</span>
+<span class="quote">&gt; &gt; @@ -1836,6 +1836,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,</span>
+<span class="quote">&gt; &gt;  			ret = alloc_fresh_gigantic_page(h, nodes_allowed);</span>
+<span class="quote">&gt; &gt;  		else</span>
+<span class="quote">&gt; &gt;  			ret = alloc_fresh_huge_page(h, nodes_allowed);</span>
+<span class="quote">&gt; &gt; +		cond_resched();</span>
+<span class="quote">&gt; &gt;  		spin_lock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt; &gt;  		if (!ret)</span>
+<span class="quote">&gt; &gt;  			goto out;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This is wrong, you&#39;d want to do any cond_resched() before the page </span>
+<span class="quote">&gt; allocation to avoid racing with an update to h-&gt;nr_huge_pages or </span>
+<span class="quote">&gt; h-&gt;surplus_huge_pages while hugetlb_lock was dropped that would result in </span>
+<span class="quote">&gt; the page having been uselessly allocated.</span>
+
+There are three options.  Either
+	/* some allocation */
+	cond_resched();
+or
+	cond_resched();
+	/* some allocation */
+or
+	if (cond_resched()) {
+		spin_lock(&amp;hugetlb_lock);
+		continue;
+	}
+	/* some allocation */
+
+I think you want the second option instead of the first.  That way we
+have a little less memory allocation for the time we are scheduled out.
+Sure, we can do that.  It probably doesn&#39;t make a big difference either
+way, but why not.
+
+If you are asking for the third option, I would rather avoid that.  It
+makes the code more complex and doesn&#39;t change the fact that we have a
+race and better be able to handle the race.  The code size growth will
+likely cost us more performance that we would ever gain.  nr_huge_pages
+tends to get updated once per system boot.
+<span class="quote">
+&gt; &gt; @@ -3521,6 +3522,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,</span>
+<span class="quote">&gt; &gt;  				spin_unlock(ptl);</span>
+<span class="quote">&gt; &gt;  			ret = hugetlb_fault(mm, vma, vaddr,</span>
+<span class="quote">&gt; &gt;  				(flags &amp; FOLL_WRITE) ? FAULT_FLAG_WRITE : 0);</span>
+<span class="quote">&gt; &gt; +			cond_resched();</span>
+<span class="quote">&gt; &gt;  			if (!(ret &amp; VM_FAULT_ERROR))</span>
+<span class="quote">&gt; &gt;  				continue;</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This is almost certainly the wrong placement as well since it&#39;s inserted </span>
+<span class="quote">&gt; inside a conditional inside a while loop and there&#39;s no reason to </span>
+<span class="quote">&gt; hugetlb_fault(), schedule, and then check the return value.  You need to </span>
+<span class="quote">&gt; insert your cond_resched()&#39;s in legitimate places.</span>
+
+I assume you want the second option here as well.  Am I right?
+
+Jörn
+
+--
+Sometimes it pays to stay in bed on Monday, rather than spending the rest
+of the week debugging Monday&#39;s code.
+-- Christopher Thompson
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=579">David Rientjes</a> - July 23, 2015, 10:54 p.m.</div>
+<pre class="content">
+On Thu, 23 Jul 2015, Jörn Engel wrote:
+<span class="quote">
+&gt; &gt; This is wrong, you&#39;d want to do any cond_resched() before the page </span>
+<span class="quote">&gt; &gt; allocation to avoid racing with an update to h-&gt;nr_huge_pages or </span>
+<span class="quote">&gt; &gt; h-&gt;surplus_huge_pages while hugetlb_lock was dropped that would result in </span>
+<span class="quote">&gt; &gt; the page having been uselessly allocated.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; There are three options.  Either</span>
+<span class="quote">&gt; 	/* some allocation */</span>
+<span class="quote">&gt; 	cond_resched();</span>
+<span class="quote">&gt; or</span>
+<span class="quote">&gt; 	cond_resched();</span>
+<span class="quote">&gt; 	/* some allocation */</span>
+<span class="quote">&gt; or</span>
+<span class="quote">&gt; 	if (cond_resched()) {</span>
+<span class="quote">&gt; 		spin_lock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt; 		continue;</span>
+<span class="quote">&gt; 	}</span>
+<span class="quote">&gt; 	/* some allocation */</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I think you want the second option instead of the first.  That way we</span>
+<span class="quote">&gt; have a little less memory allocation for the time we are scheduled out.</span>
+<span class="quote">&gt; Sure, we can do that.  It probably doesn&#39;t make a big difference either</span>
+<span class="quote">&gt; way, but why not.</span>
+<span class="quote">&gt; </span>
+
+The loop is dropping the lock simply to do the allocation and it needs to 
+compare with the user-written number of hugepages to allocate.
+
+What we don&#39;t want is to allocate, reschedule, and check if we really 
+needed to allocate.  That&#39;s what your patch does because it races with 
+persistent_huge_page().  It&#39;s probably the worst place to do it.
+
+Rather, what you want to do is check if you need to allocate, reschedule 
+if needed (and if so, recheck), and then allocate.
+<span class="quote">
+&gt; If you are asking for the third option, I would rather avoid that.  It</span>
+<span class="quote">&gt; makes the code more complex and doesn&#39;t change the fact that we have a</span>
+<span class="quote">&gt; race and better be able to handle the race.  The code size growth will</span>
+<span class="quote">&gt; likely cost us more performance that we would ever gain.  nr_huge_pages</span>
+<span class="quote">&gt; tends to get updated once per system boot.</span>
+<span class="quote">&gt; </span>
+
+Your third option is nonsensical, you didn&#39;t save the state of whether you 
+locked the lock so you can&#39;t reliably unlock it, and you cannot hold a 
+spinlock while allocating in this context.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137441">Jörn Engel</a> - July 23, 2015, 11:09 p.m.</div>
+<pre class="content">
+On Thu, Jul 23, 2015 at 03:54:43PM -0700, David Rientjes wrote:
+<span class="quote">&gt; On Thu, 23 Jul 2015, Jörn Engel wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; &gt; This is wrong, you&#39;d want to do any cond_resched() before the page </span>
+<span class="quote">&gt; &gt; &gt; allocation to avoid racing with an update to h-&gt;nr_huge_pages or </span>
+<span class="quote">&gt; &gt; &gt; h-&gt;surplus_huge_pages while hugetlb_lock was dropped that would result in </span>
+<span class="quote">&gt; &gt; &gt; the page having been uselessly allocated.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; There are three options.  Either</span>
+<span class="quote">&gt; &gt; 	/* some allocation */</span>
+<span class="quote">&gt; &gt; 	cond_resched();</span>
+<span class="quote">&gt; &gt; or</span>
+<span class="quote">&gt; &gt; 	cond_resched();</span>
+<span class="quote">&gt; &gt; 	/* some allocation */</span>
+<span class="quote">&gt; &gt; or</span>
+<span class="quote">&gt; &gt; 	if (cond_resched()) {</span>
+<span class="quote">&gt; &gt; 		spin_lock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt; &gt; 		continue;</span>
+<span class="quote">&gt; &gt; 	}</span>
+<span class="quote">&gt; &gt; 	/* some allocation */</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I think you want the second option instead of the first.  That way we</span>
+<span class="quote">&gt; &gt; have a little less memory allocation for the time we are scheduled out.</span>
+<span class="quote">&gt; &gt; Sure, we can do that.  It probably doesn&#39;t make a big difference either</span>
+<span class="quote">&gt; &gt; way, but why not.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The loop is dropping the lock simply to do the allocation and it needs to </span>
+<span class="quote">&gt; compare with the user-written number of hugepages to allocate.</span>
+
+And at this point the existing code is racy.  Page allocation might
+block for minutes trying to free some memory.  A cond_resched doesn&#39;t
+change that - it only increases the odds of hitting the race window.
+<span class="quote">
+&gt; What we don&#39;t want is to allocate, reschedule, and check if we really </span>
+<span class="quote">&gt; needed to allocate.  That&#39;s what your patch does because it races with </span>
+<span class="quote">&gt; persistent_huge_page().  It&#39;s probably the worst place to do it.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Rather, what you want to do is check if you need to allocate, reschedule </span>
+<span class="quote">&gt; if needed (and if so, recheck), and then allocate.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; If you are asking for the third option, I would rather avoid that.  It</span>
+<span class="quote">&gt; &gt; makes the code more complex and doesn&#39;t change the fact that we have a</span>
+<span class="quote">&gt; &gt; race and better be able to handle the race.  The code size growth will</span>
+<span class="quote">&gt; &gt; likely cost us more performance that we would ever gain.  nr_huge_pages</span>
+<span class="quote">&gt; &gt; tends to get updated once per system boot.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Your third option is nonsensical, you didn&#39;t save the state of whether you </span>
+<span class="quote">&gt; locked the lock so you can&#39;t reliably unlock it, and you cannot hold a </span>
+<span class="quote">&gt; spinlock while allocating in this context.</span>
+
+Are we looking at the same code?  Mine looks like this:
+	while (count &gt; persistent_huge_pages(h)) {
+		/*
+		 * If this allocation races such that we no longer need the
+		 * page, free_huge_page will handle it by freeing the page
+		 * and reducing the surplus.
+		 */
+		spin_unlock(&amp;hugetlb_lock);
+		if (hstate_is_gigantic(h))
+			ret = alloc_fresh_gigantic_page(h, nodes_allowed);
+		else
+			ret = alloc_fresh_huge_page(h, nodes_allowed);
+		spin_lock(&amp;hugetlb_lock);
+		if (!ret)
+			goto out;
+
+		/* Bail for signals. Probably ctrl-c from user */
+		if (signal_pending(current))
+			goto out;
+	}
+
+What state is there to save?  We just called spin_unlock, we did a
+schedule and if we want to continue without doing page allocation we
+better take the lock again.  Or do you want to go even more complex and
+check for signals as well?
+
+The case you are concerned about is rare.  It is so rare that it doesn&#39;t
+matter from a performance point of view, only for correctness.  And if
+we hit the rare case, the worst harm would be an unnecessary allocation
+that we return back to the system.  How much complexity do you think it
+is worth to avoid this allocation?  How much runtime will the bigger
+text size cost you in the common cases?
+
+What matters to me is the scheduler latency.  That is real and happens
+reliably once per boot.
+
+Jörn
+
+--
+Chance favors only the prepared mind.
+-- Louis Pasteur
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - July 24, 2015, 6:59 a.m.</div>
+<pre class="content">
+On Thu 23-07-15 14:54:31, Spencer Baugh wrote:
+<span class="quote">&gt; From: Joern Engel &lt;joern@logfs.org&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; ~150ms scheduler latency for both observed in the wild.</span>
+
+This is way to vague. Could you describe your problem somehow more,
+please?
+There are schduling points in the page allocator (when it triggers the
+reclaim), why are those not sufficient? Or do you manage to allocate
+many hugetlb pages without performing the reclaim and that leads to
+soft lockups?
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; Signed-off-by: Joern Engel &lt;joern@logfs.org&gt;</span>
+<span class="quote">&gt; Signed-off-by: Spencer Baugh &lt;sbaugh@catern.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  mm/hugetlb.c | 2 ++</span>
+<span class="quote">&gt;  1 file changed, 2 insertions(+)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="quote">&gt; index a8c3087..2eb6919 100644</span>
+<span class="quote">&gt; --- a/mm/hugetlb.c</span>
+<span class="quote">&gt; +++ b/mm/hugetlb.c</span>
+<span class="quote">&gt; @@ -1836,6 +1836,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,</span>
+<span class="quote">&gt;  			ret = alloc_fresh_gigantic_page(h, nodes_allowed);</span>
+<span class="quote">&gt;  		else</span>
+<span class="quote">&gt;  			ret = alloc_fresh_huge_page(h, nodes_allowed);</span>
+<span class="quote">&gt; +		cond_resched();</span>
+<span class="quote">&gt;  		spin_lock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt;  		if (!ret)</span>
+<span class="quote">&gt;  			goto out;</span>
+<span class="quote">&gt; @@ -3521,6 +3522,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,</span>
+<span class="quote">&gt;  				spin_unlock(ptl);</span>
+<span class="quote">&gt;  			ret = hugetlb_fault(mm, vma, vaddr,</span>
+<span class="quote">&gt;  				(flags &amp; FOLL_WRITE) ? FAULT_FLAG_WRITE : 0);</span>
+<span class="quote">&gt; +			cond_resched();</span>
+<span class="quote">&gt;  			if (!(ret &amp; VM_FAULT_ERROR))</span>
+<span class="quote">&gt;  				continue;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -- </span>
+<span class="quote">&gt; 2.5.0.rc3</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; --</span>
+<span class="quote">&gt; To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in</span>
+<span class="quote">&gt; the body of a message to majordomo@vger.kernel.org</span>
+<span class="quote">&gt; More majordomo info at  http://vger.kernel.org/majordomo-info.html</span>
+<span class="quote">&gt; Please read the FAQ at  http://www.tux.org/lkml/</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137441">Jörn Engel</a> - July 24, 2015, 5:12 p.m.</div>
+<pre class="content">
+On Fri, Jul 24, 2015 at 08:59:59AM +0200, Michal Hocko wrote:
+<span class="quote">&gt; On Thu 23-07-15 14:54:31, Spencer Baugh wrote:</span>
+<span class="quote">&gt; &gt; From: Joern Engel &lt;joern@logfs.org&gt;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; ~150ms scheduler latency for both observed in the wild.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This is way to vague. Could you describe your problem somehow more,</span>
+<span class="quote">&gt; please?</span>
+<span class="quote">&gt; There are schduling points in the page allocator (when it triggers the</span>
+<span class="quote">&gt; reclaim), why are those not sufficient? Or do you manage to allocate</span>
+<span class="quote">&gt; many hugetlb pages without performing the reclaim and that leads to</span>
+<span class="quote">&gt; soft lockups?</span>
+
+We don&#39;t use transparent hugepages - they cause too much latency.
+Instead we reserve somewhere around 3/4 or so of physical memory for
+hugepages.  &quot;sysctl -w vm.nr_hugepages=100000&quot; or something similar in a
+startup script.
+
+Since it is early in boot we don&#39;t go through page reclaim.
+
+Jörn
+
+--
+Everything should be made as simple as possible, but not simpler.
+-- Albert Einstein
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=579">David Rientjes</a> - July 24, 2015, 7:49 p.m.</div>
+<pre class="content">
+On Thu, 23 Jul 2015, Jörn Engel wrote:
+<span class="quote">
+&gt; &gt; The loop is dropping the lock simply to do the allocation and it needs to </span>
+<span class="quote">&gt; &gt; compare with the user-written number of hugepages to allocate.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; And at this point the existing code is racy.  Page allocation might</span>
+<span class="quote">&gt; block for minutes trying to free some memory.  A cond_resched doesn&#39;t</span>
+<span class="quote">&gt; change that - it only increases the odds of hitting the race window.</span>
+<span class="quote">&gt; </span>
+
+The existing code has always been racy, it explicitly admits this, the 
+problem is that your patch is making the race window larger.
+<span class="quote">
+&gt; Are we looking at the same code?  Mine looks like this:</span>
+<span class="quote">&gt; 	while (count &gt; persistent_huge_pages(h)) {</span>
+<span class="quote">&gt; 		/*</span>
+<span class="quote">&gt; 		 * If this allocation races such that we no longer need the</span>
+<span class="quote">&gt; 		 * page, free_huge_page will handle it by freeing the page</span>
+<span class="quote">&gt; 		 * and reducing the surplus.</span>
+<span class="quote">&gt; 		 */</span>
+<span class="quote">&gt; 		spin_unlock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt; 		if (hstate_is_gigantic(h))</span>
+<span class="quote">&gt; 			ret = alloc_fresh_gigantic_page(h, nodes_allowed);</span>
+<span class="quote">&gt; 		else</span>
+<span class="quote">&gt; 			ret = alloc_fresh_huge_page(h, nodes_allowed);</span>
+<span class="quote">&gt; 		spin_lock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt; 		if (!ret)</span>
+<span class="quote">&gt; 			goto out;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 		/* Bail for signals. Probably ctrl-c from user */</span>
+<span class="quote">&gt; 		if (signal_pending(current))</span>
+<span class="quote">&gt; 			goto out;</span>
+<span class="quote">&gt; 	}</span>
+<span class="quote">&gt; </span>
+
+I don&#39;t see the cond_resched() you propose to add, but the need for it is 
+obvious with a large user-written nr_hugepages in the above loop.
+
+The suggestion is to check the conditional, reschedule if needed (and if 
+so, recheck the conditional), and then allocate.
+
+Your third option looks fine and the best place to do the cond_resched().  
+I was looking at your second option when I responded and compared it to 
+the first.  We don&#39;t want to do cond_resched() immediately before or after 
+the allocation, the net result is the same: we may be pointlessly 
+allocating the hugepage and each hugepage allocation can be very 
+heavyweight.
+
+So I agree with your third option from the previous email.
+
+You may also want to include the actual text of the warning from the 
+kernel log in your commit message.  When people encounter this, then will 
+probably grep in the kernel logs for some keywords to see if it was 
+already fixed and I fear your current commit message may allow it to be 
+missed.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=106071">Davidlohr Bueso</a> - July 24, 2015, 8:28 p.m.</div>
+<pre class="content">
+On Fri, 2015-07-24 at 10:12 -0700, Jörn Engel wrote:
+<span class="quote">&gt; On Fri, Jul 24, 2015 at 08:59:59AM +0200, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; On Thu 23-07-15 14:54:31, Spencer Baugh wrote:</span>
+<span class="quote">&gt; &gt; &gt; From: Joern Engel &lt;joern@logfs.org&gt;</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; ~150ms scheduler latency for both observed in the wild.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; This is way to vague. Could you describe your problem somehow more,</span>
+<span class="quote">&gt; &gt; please?</span>
+<span class="quote">&gt; &gt; There are schduling points in the page allocator (when it triggers the</span>
+<span class="quote">&gt; &gt; reclaim), why are those not sufficient? Or do you manage to allocate</span>
+<span class="quote">&gt; &gt; many hugetlb pages without performing the reclaim and that leads to</span>
+<span class="quote">&gt; &gt; soft lockups?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; We don&#39;t use transparent hugepages - they cause too much latency.</span>
+<span class="quote">&gt; Instead we reserve somewhere around 3/4 or so of physical memory for</span>
+<span class="quote">&gt; hugepages.  &quot;sysctl -w vm.nr_hugepages=100000&quot; or something similar in a</span>
+<span class="quote">&gt; startup script.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Since it is early in boot we don&#39;t go through page reclaim.</span>
+
+Still, please be more verbose about what you _are_ encountering. Iow,
+please have decent changelog in v2.
+
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137441">Jörn Engel</a> - July 24, 2015, 8:49 p.m.</div>
+<pre class="content">
+On Fri, Jul 24, 2015 at 12:49:14PM -0700, David Rientjes wrote:
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I don&#39;t see the cond_resched() you propose to add, but the need for it is </span>
+<span class="quote">&gt; obvious with a large user-written nr_hugepages in the above loop.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The suggestion is to check the conditional, reschedule if needed (and if </span>
+<span class="quote">&gt; so, recheck the conditional), and then allocate.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Your third option looks fine and the best place to do the cond_resched().  </span>
+<span class="quote">&gt; I was looking at your second option when I responded and compared it to </span>
+<span class="quote">&gt; the first.  We don&#39;t want to do cond_resched() immediately before or after </span>
+<span class="quote">&gt; the allocation, the net result is the same: we may be pointlessly </span>
+<span class="quote">&gt; allocating the hugepage and each hugepage allocation can be very </span>
+<span class="quote">&gt; heavyweight.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So I agree with your third option from the previous email.</span>
+
+All right.  We are talking about the same thing now.  But I previously
+argued that the pointless allocation will a) not impact correctness and
+b) be so rare as to not impact performance.  The problem with the third
+option is that it adds a bit of constant overhead all the time to
+compensate for not doing the pointless allocation.
+
+On my systems at least, the pointless allocation will happen, on
+average, less than once per boot.  Unless my systems are vastly
+unrepresentative, the third option doesn&#39;t look appealing to me.
+<span class="quote">
+&gt; You may also want to include the actual text of the warning from the </span>
+<span class="quote">&gt; kernel log in your commit message.  When people encounter this, then will </span>
+<span class="quote">&gt; probably grep in the kernel logs for some keywords to see if it was </span>
+<span class="quote">&gt; already fixed and I fear your current commit message may allow it to be </span>
+<span class="quote">&gt; missed.</span>
+
+Ack.
+
+I should still have those warning in logfiles somewhere and can hunt
+them down.
+
+Jörn
+
+--
+Act only according to that maxim whereby you can, at the same time,
+will that it should become a universal law.
+-- Immanuel Kant
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="p_header">index a8c3087..2eb6919 100644</span>
+<span class="p_header">--- a/mm/hugetlb.c</span>
+<span class="p_header">+++ b/mm/hugetlb.c</span>
+<span class="p_chunk">@@ -1836,6 +1836,7 @@</span> <span class="p_context"> static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,</span>
+ 			ret = alloc_fresh_gigantic_page(h, nodes_allowed);
+ 		else
+ 			ret = alloc_fresh_huge_page(h, nodes_allowed);
+<span class="p_add">+		cond_resched();</span>
+ 		spin_lock(&amp;hugetlb_lock);
+ 		if (!ret)
+ 			goto out;
+<span class="p_chunk">@@ -3521,6 +3522,7 @@</span> <span class="p_context"> long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,</span>
+ 				spin_unlock(ptl);
+ 			ret = hugetlb_fault(mm, vma, vaddr,
+ 				(flags &amp; FOLL_WRITE) ? FAULT_FLAG_WRITE : 0);
+<span class="p_add">+			cond_resched();</span>
+ 			if (!(ret &amp; VM_FAULT_ERROR))
+ 				continue;
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

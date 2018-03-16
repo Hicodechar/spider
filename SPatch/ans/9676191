@@ -1,0 +1,792 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>hugetlbfs: fix offset overflow in huegtlbfs mmap - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    hugetlbfs: fix offset overflow in huegtlbfs mmap</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>April 11, 2017, 10:51 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1491951118-30678-1-git-send-email-mike.kravetz@oracle.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9676191/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9676191/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9676191/">/patch/9676191/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	0A90E60234 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 11 Apr 2017 22:53:31 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id E228E2851F
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 11 Apr 2017 22:53:30 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id D630B28589; Tue, 11 Apr 2017 22:53:30 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	UNPARSEABLE_RELAY autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 781292851F
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 11 Apr 2017 22:53:30 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752845AbdDKWxW (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 11 Apr 2017 18:53:22 -0400
+Received: from userp1040.oracle.com ([156.151.31.81]:30569 &quot;EHLO
+	userp1040.oracle.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752111AbdDKWxU (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 11 Apr 2017 18:53:20 -0400
+Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
+	by userp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with
+	ESMTP id v3BMr6ms015295
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256
+	verify=OK); Tue, 11 Apr 2017 22:53:07 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id
+	v3BMr5Ow019702
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK);
+	Tue, 11 Apr 2017 22:53:05 GMT
+Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
+	by aserv0121.oracle.com (8.13.8/8.13.8) with ESMTP id
+	v3BMr2xt005402; Tue, 11 Apr 2017 22:53:03 GMT
+Received: from monkey.oracle.com (/50.188.161.229)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 11 Apr 2017 15:53:02 -0700
+From: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Vegard Nossum &lt;vegard.nossum@gmail.com&gt;,
+	Dmitry Vyukov &lt;dvyukov@google.com&gt;,
+	Hillf Danton &lt;hillf.zj@alibaba-inc.com&gt;, Michal Hocko &lt;mhocko@suse.com&gt;,
+	&quot;Kirill A . Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;,
+	Andrey Ryabinin &lt;aryabinin@virtuozzo.com&gt;,
+	Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+Subject: [PATCH] hugetlbfs: fix offset overflow in huegtlbfs mmap
+Date: Tue, 11 Apr 2017 15:51:58 -0700
+Message-Id: &lt;1491951118-30678-1-git-send-email-mike.kravetz@oracle.com&gt;
+X-Mailer: git-send-email 2.7.4
+X-Source-IP: userv0022.oracle.com [156.151.31.74]
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - April 11, 2017, 10:51 p.m.</div>
+<pre class="content">
+If mmap() maps a file, it can be passed an offset into the file at
+which the mapping is to start.  Offset could be a negative value when
+represented as a loff_t.  The offset plus length will be used to
+update the file size (i_size) which is also a loff_t.  Validate the
+value of offset and offset + length to make sure they do not overflow
+and appear as negative.
+
+Found by syzcaller with commit ff8c0c53c475 (&quot;mm/hugetlb.c: don&#39;t call
+region_abort if region_chg fails&quot;) applied.  Prior to this commit, the
+overflow would still occur but we would luckily return ENOMEM.
+To reproduce:
+mmap(0, 0x2000, 0, 0x40021, 0xffffffffffffffffULL, 0x8000000000000000ULL);
+
+Resulted in,
+kernel BUG at mm/hugetlb.c:742!
+Call Trace:
+ hugetlbfs_evict_inode+0x80/0xa0
+ ? hugetlbfs_setattr+0x3c0/0x3c0
+ evict+0x24a/0x620
+ iput+0x48f/0x8c0
+ dentry_unlink_inode+0x31f/0x4d0
+ __dentry_kill+0x292/0x5e0
+ dput+0x730/0x830
+ __fput+0x438/0x720
+ ____fput+0x1a/0x20
+ task_work_run+0xfe/0x180
+ exit_to_usermode_loop+0x133/0x150
+ syscall_return_slowpath+0x184/0x1c0
+ entry_SYSCALL_64_fastpath+0xab/0xad
+
+Reported-by: Vegard Nossum &lt;vegard.nossum@gmail.com&gt;
+<span class="signed-off-by">Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+---
+ fs/hugetlbfs/inode.c | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=113021">Hillf Danton</a> - April 12, 2017, 3:13 a.m.</div>
+<pre class="content">
+On April 12, 2017 6:52 AM Mike Kravetz wrote: 
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If mmap() maps a file, it can be passed an offset into the file at</span>
+<span class="quote">&gt; which the mapping is to start.  Offset could be a negative value when</span>
+<span class="quote">&gt; represented as a loff_t.  The offset plus length will be used to</span>
+<span class="quote">&gt; update the file size (i_size) which is also a loff_t.  Validate the</span>
+<span class="quote">&gt; value of offset and offset + length to make sure they do not overflow</span>
+<span class="quote">&gt; and appear as negative.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Found by syzcaller with commit ff8c0c53c475 (&quot;mm/hugetlb.c: don&#39;t call</span>
+<span class="quote">&gt; region_abort if region_chg fails&quot;) applied.  Prior to this commit, the</span>
+<span class="quote">&gt; overflow would still occur but we would luckily return ENOMEM.</span>
+<span class="quote">&gt; To reproduce:</span>
+<span class="quote">&gt; mmap(0, 0x2000, 0, 0x40021, 0xffffffffffffffffULL, 0x8000000000000000ULL);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Resulted in,</span>
+<span class="quote">&gt; kernel BUG at mm/hugetlb.c:742!</span>
+<span class="quote">&gt; Call Trace:</span>
+<span class="quote">&gt;  hugetlbfs_evict_inode+0x80/0xa0</span>
+<span class="quote">&gt;  ? hugetlbfs_setattr+0x3c0/0x3c0</span>
+<span class="quote">&gt;  evict+0x24a/0x620</span>
+<span class="quote">&gt;  iput+0x48f/0x8c0</span>
+<span class="quote">&gt;  dentry_unlink_inode+0x31f/0x4d0</span>
+<span class="quote">&gt;  __dentry_kill+0x292/0x5e0</span>
+<span class="quote">&gt;  dput+0x730/0x830</span>
+<span class="quote">&gt;  __fput+0x438/0x720</span>
+<span class="quote">&gt;  ____fput+0x1a/0x20</span>
+<span class="quote">&gt;  task_work_run+0xfe/0x180</span>
+<span class="quote">&gt;  exit_to_usermode_loop+0x133/0x150</span>
+<span class="quote">&gt;  syscall_return_slowpath+0x184/0x1c0</span>
+<span class="quote">&gt;  entry_SYSCALL_64_fastpath+0xab/0xad</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Reported-by: Vegard Nossum &lt;vegard.nossum@gmail.com&gt;</span>
+<span class="quote">&gt; Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="acked-by">
+Acked-by: Hillf Danton &lt;hillf.zj@alibaba-inc.com&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=728">Vegard Nossum</a> - April 12, 2017, 8:58 a.m.</div>
+<pre class="content">
+On 12 April 2017 at 00:51, Mike Kravetz &lt;mike.kravetz@oracle.com&gt; wrote:
+<span class="quote">&gt; If mmap() maps a file, it can be passed an offset into the file at</span>
+<span class="quote">&gt; which the mapping is to start.  Offset could be a negative value when</span>
+<span class="quote">&gt; represented as a loff_t.  The offset plus length will be used to</span>
+<span class="quote">&gt; update the file size (i_size) which is also a loff_t.  Validate the</span>
+<span class="quote">&gt; value of offset and offset + length to make sure they do not overflow</span>
+<span class="quote">&gt; and appear as negative.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Found by syzcaller with commit ff8c0c53c475 (&quot;mm/hugetlb.c: don&#39;t call</span>
+<span class="quote">&gt; region_abort if region_chg fails&quot;) applied.  Prior to this commit, the</span>
+<span class="quote">&gt; overflow would still occur but we would luckily return ENOMEM.</span>
+<span class="quote">&gt; To reproduce:</span>
+<span class="quote">&gt; mmap(0, 0x2000, 0, 0x40021, 0xffffffffffffffffULL, 0x8000000000000000ULL);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Resulted in,</span>
+<span class="quote">&gt; kernel BUG at mm/hugetlb.c:742!</span>
+<span class="quote">&gt; Call Trace:</span>
+<span class="quote">&gt;  hugetlbfs_evict_inode+0x80/0xa0</span>
+<span class="quote">&gt;  ? hugetlbfs_setattr+0x3c0/0x3c0</span>
+<span class="quote">&gt;  evict+0x24a/0x620</span>
+<span class="quote">&gt;  iput+0x48f/0x8c0</span>
+<span class="quote">&gt;  dentry_unlink_inode+0x31f/0x4d0</span>
+<span class="quote">&gt;  __dentry_kill+0x292/0x5e0</span>
+<span class="quote">&gt;  dput+0x730/0x830</span>
+<span class="quote">&gt;  __fput+0x438/0x720</span>
+<span class="quote">&gt;  ____fput+0x1a/0x20</span>
+<span class="quote">&gt;  task_work_run+0xfe/0x180</span>
+<span class="quote">&gt;  exit_to_usermode_loop+0x133/0x150</span>
+<span class="quote">&gt;  syscall_return_slowpath+0x184/0x1c0</span>
+<span class="quote">&gt;  entry_SYSCALL_64_fastpath+0xab/0xad</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Reported-by: Vegard Nossum &lt;vegard.nossum@gmail.com&gt;</span>
+
+Please use &lt;vegard.nossum@oracle.com&gt; if possible :-)
+<span class="quote">
+&gt; Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  fs/hugetlbfs/inode.c | 15 ++++++++++++---</span>
+<span class="quote">&gt;  1 file changed, 12 insertions(+), 3 deletions(-)</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; index 7163fe0..dde8613 100644</span>
+<span class="quote">&gt; --- a/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; +++ b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; @@ -136,17 +136,26 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)</span>
+<span class="quote">&gt;         vma-&gt;vm_flags |= VM_HUGETLB | VM_DONTEXPAND;</span>
+<span class="quote">&gt;         vma-&gt;vm_ops = &amp;hugetlb_vm_ops;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; +       /*</span>
+<span class="quote">&gt; +        * Offset passed to mmap (before page shift) could have been</span>
+<span class="quote">&gt; +        * negative when represented as a (l)off_t.</span>
+<span class="quote">&gt; +        */</span>
+<span class="quote">&gt; +       if (((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT) &lt; 0)</span>
+<span class="quote">&gt; +               return -EINVAL;</span>
+<span class="quote">&gt; +</span>
+
+This is strictly speaking undefined behaviour in C and would get
+flagged by e.g. UBSAN. The kernel does compile with
+-fno-strict-overflow when supported, though, so maybe it&#39;s more of a
+theoretical issue.
+
+Another thing: wouldn&#39;t we want to detect all truncations, not just
+the ones that happen to end up negative?
+
+For example (with -fno-strict-overflow), (0x12345678 &lt;&lt; 12) ==
+0x45678000, which is still a positive integer, but obviously
+truncated.
+
+We can easily avoid the UB by moving the cast out (since -&gt;vm_pgoff is
+unsigned and unsigned shifts are always defined IIRC), but that still
+doesn&#39;t reliably detect the positive-result truncation/overflow.
+<span class="quote">
+&gt;         if (vma-&gt;vm_pgoff &amp; (~huge_page_mask(h) &gt;&gt; PAGE_SHIFT))</span>
+<span class="quote">&gt;                 return -EINVAL;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;         vma_len = (loff_t)(vma-&gt;vm_end - vma-&gt;vm_start);</span>
+<span class="quote">&gt; +       len = vma_len + ((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT);</span>
+<span class="quote">&gt; +       /* check for overflow */</span>
+<span class="quote">&gt; +       if (len &lt; vma_len)</span>
+<span class="quote">&gt; +               return -EINVAL;</span>
+
+Also strictly speaking UB. You can avoid it by casting vma_len to
+unsigned and dropping the loff_t cast, but it&#39;s admittedly somewhat
+verbose. There also isn&#39;t an &quot;unsigned loff_t&quot; AFAIK, but don&#39;t we
+have some helpers to safely check for overflows? Surely this isn&#39;t the
+only place that does loff_t arithmetic.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt;         inode_lock(inode);</span>
+<span class="quote">&gt;         file_accessed(file);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;         ret = -ENOMEM;</span>
+<span class="quote">&gt; -       len = vma_len + ((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT);</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt;         if (hugetlb_reserve_pages(inode,</span>
+<span class="quote">&gt;                                 vma-&gt;vm_pgoff &gt;&gt; huge_page_order(h),</span>
+<span class="quote">&gt;                                 len &gt;&gt; huge_page_shift(h), vma,</span>
+<span class="quote">&gt; @@ -155,7 +164,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;         ret = 0;</span>
+<span class="quote">&gt;         if (vma-&gt;vm_flags &amp; VM_WRITE &amp;&amp; inode-&gt;i_size &lt; len)</span>
+<span class="quote">&gt; -               inode-&gt;i_size = len;</span>
+<span class="quote">&gt; +               i_size_write(inode, len);</span>
+<span class="quote">&gt;  out:</span>
+<span class="quote">&gt;         inode_unlock(inode);</span>
+
+This hunk seems a bit out of place in the sense that I don&#39;t see how
+it relates to the overflow checking. I think this either belongs in a
+separate patch or it deserves a mention in the changelog.
+
+
+Vegard
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - April 12, 2017, 8:04 p.m.</div>
+<pre class="content">
+On 04/12/2017 01:58 AM, Vegard Nossum wrote:
+<span class="quote">&gt; On 12 April 2017 at 00:51, Mike Kravetz &lt;mike.kravetz@oracle.com&gt; wrote:</span>
+<span class="quote">&gt;&gt; If mmap() maps a file, it can be passed an offset into the file at</span>
+<span class="quote">&gt;&gt; which the mapping is to start.  Offset could be a negative value when</span>
+<span class="quote">&gt;&gt; represented as a loff_t.  The offset plus length will be used to</span>
+<span class="quote">&gt;&gt; update the file size (i_size) which is also a loff_t.  Validate the</span>
+<span class="quote">&gt;&gt; value of offset and offset + length to make sure they do not overflow</span>
+<span class="quote">&gt;&gt; and appear as negative.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Found by syzcaller with commit ff8c0c53c475 (&quot;mm/hugetlb.c: don&#39;t call</span>
+<span class="quote">&gt;&gt; region_abort if region_chg fails&quot;) applied.  Prior to this commit, the</span>
+<span class="quote">&gt;&gt; overflow would still occur but we would luckily return ENOMEM.</span>
+<span class="quote">&gt;&gt; To reproduce:</span>
+<span class="quote">&gt;&gt; mmap(0, 0x2000, 0, 0x40021, 0xffffffffffffffffULL, 0x8000000000000000ULL);</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Resulted in,</span>
+<span class="quote">&gt;&gt; kernel BUG at mm/hugetlb.c:742!</span>
+<span class="quote">&gt;&gt; Call Trace:</span>
+<span class="quote">&gt;&gt;  hugetlbfs_evict_inode+0x80/0xa0</span>
+<span class="quote">&gt;&gt;  ? hugetlbfs_setattr+0x3c0/0x3c0</span>
+<span class="quote">&gt;&gt;  evict+0x24a/0x620</span>
+<span class="quote">&gt;&gt;  iput+0x48f/0x8c0</span>
+<span class="quote">&gt;&gt;  dentry_unlink_inode+0x31f/0x4d0</span>
+<span class="quote">&gt;&gt;  __dentry_kill+0x292/0x5e0</span>
+<span class="quote">&gt;&gt;  dput+0x730/0x830</span>
+<span class="quote">&gt;&gt;  __fput+0x438/0x720</span>
+<span class="quote">&gt;&gt;  ____fput+0x1a/0x20</span>
+<span class="quote">&gt;&gt;  task_work_run+0xfe/0x180</span>
+<span class="quote">&gt;&gt;  exit_to_usermode_loop+0x133/0x150</span>
+<span class="quote">&gt;&gt;  syscall_return_slowpath+0x184/0x1c0</span>
+<span class="quote">&gt;&gt;  entry_SYSCALL_64_fastpath+0xab/0xad</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Reported-by: Vegard Nossum &lt;vegard.nossum@gmail.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Please use &lt;vegard.nossum@oracle.com&gt; if possible :-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt;&gt; ---</span>
+<span class="quote">&gt;&gt;  fs/hugetlbfs/inode.c | 15 ++++++++++++---</span>
+<span class="quote">&gt;&gt;  1 file changed, 12 insertions(+), 3 deletions(-)</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt; index 7163fe0..dde8613 100644</span>
+<span class="quote">&gt;&gt; --- a/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt; +++ b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt; @@ -136,17 +136,26 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)</span>
+<span class="quote">&gt;&gt;         vma-&gt;vm_flags |= VM_HUGETLB | VM_DONTEXPAND;</span>
+<span class="quote">&gt;&gt;         vma-&gt;vm_ops = &amp;hugetlb_vm_ops;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; +       /*</span>
+<span class="quote">&gt;&gt; +        * Offset passed to mmap (before page shift) could have been</span>
+<span class="quote">&gt;&gt; +        * negative when represented as a (l)off_t.</span>
+<span class="quote">&gt;&gt; +        */</span>
+<span class="quote">&gt;&gt; +       if (((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT) &lt; 0)</span>
+<span class="quote">&gt;&gt; +               return -EINVAL;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This is strictly speaking undefined behaviour in C and would get</span>
+<span class="quote">&gt; flagged by e.g. UBSAN. The kernel does compile with</span>
+<span class="quote">&gt; -fno-strict-overflow when supported, though, so maybe it&#39;s more of a</span>
+<span class="quote">&gt; theoretical issue.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Another thing: wouldn&#39;t we want to detect all truncations, not just</span>
+<span class="quote">&gt; the ones that happen to end up negative?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; For example (with -fno-strict-overflow), (0x12345678 &lt;&lt; 12) ==</span>
+<span class="quote">&gt; 0x45678000, which is still a positive integer, but obviously</span>
+<span class="quote">&gt; truncated.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; We can easily avoid the UB by moving the cast out (since -&gt;vm_pgoff is</span>
+<span class="quote">&gt; unsigned and unsigned shifts are always defined IIRC), but that still</span>
+<span class="quote">&gt; doesn&#39;t reliably detect the positive-result truncation/overflow.</span>
+
+The value in vm_pgoff was indirectly provided by the user.  This is the
+&#39;off_t offset&#39; value provided in the mmap system call.  Before, getting
+to this hugetlbfs mmap routine the value is shifted right (&gt;&gt; PAGE_SHIFT)
+so that the value in bytes provided by the user is converted to a page
+offset.  This shift right is done with an unsigned type so there is no
+sign extension.  As a result, I do not think we have to worry about
+anything but the negative check here.  Let me know if my thinking is
+not valid.
+
+As for the undefined behavior, I guess we can do the shift on the unsigned
+type and then cast to loff_t.  The reason for using loff_t is that this
+value may eventually be used in the calculation of a value assigned to
+i_size which is of this type.
+
+In the patch, I just used the same cast/assignment that previously existed
+in the code.  It could be changed to,
+
+if (((loff_t)(vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT)) &lt; 0)
+<span class="quote">
+&gt;&gt;         if (vma-&gt;vm_pgoff &amp; (~huge_page_mask(h) &gt;&gt; PAGE_SHIFT))</span>
+<span class="quote">&gt;&gt;                 return -EINVAL;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;         vma_len = (loff_t)(vma-&gt;vm_end - vma-&gt;vm_start);</span>
+<span class="quote">&gt;&gt; +       len = vma_len + ((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT);</span>
+<span class="quote">&gt;&gt; +       /* check for overflow */</span>
+<span class="quote">&gt;&gt; +       if (len &lt; vma_len)</span>
+<span class="quote">&gt;&gt; +               return -EINVAL;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Also strictly speaking UB. You can avoid it by casting vma_len to</span>
+<span class="quote">&gt; unsigned and dropping the loff_t cast, but it&#39;s admittedly somewhat</span>
+<span class="quote">&gt; verbose. There also isn&#39;t an &quot;unsigned loff_t&quot; AFAIK, but don&#39;t we</span>
+<span class="quote">&gt; have some helpers to safely check for overflows? Surely this isn&#39;t the</span>
+<span class="quote">&gt; only place that does loff_t arithmetic.</span>
+
+I came up empty in my search for helpers.  Actually, I spent more time
+trying to figure out how this was handled in other filesystems.  Then I
+quickly discovered that hugetlbfs is &#39;special&#39; and appears to be the
+only one which has to deal with this situation.
+
+The only &#39;similar code&#39; is in the vfs layer when the offset argument to
+fallocate is validated.  There it is a simple check for negative value.
+
+I am not sure if it make much sense to eliminate the shifting of signed
+values in this patch.  Certainly, this is strictly UB as you say.  But,
+after calculating these values the loff_t values are once again shifted
+only a few lines later.  I&#39;m afraid this happens is several places in
+this code.
+<span class="quote">
+&gt;&gt;</span>
+<span class="quote">&gt;&gt;         inode_lock(inode);</span>
+<span class="quote">&gt;&gt;         file_accessed(file);</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;         ret = -ENOMEM;</span>
+<span class="quote">&gt;&gt; -       len = vma_len + ((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT);</span>
+<span class="quote">&gt;&gt; -</span>
+<span class="quote">&gt;&gt;         if (hugetlb_reserve_pages(inode,</span>
+<span class="quote">&gt;&gt;                                 vma-&gt;vm_pgoff &gt;&gt; huge_page_order(h),</span>
+<span class="quote">&gt;&gt;                                 len &gt;&gt; huge_page_shift(h), vma,</span>
+<span class="quote">&gt;&gt; @@ -155,7 +164,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;         ret = 0;</span>
+<span class="quote">&gt;&gt;         if (vma-&gt;vm_flags &amp; VM_WRITE &amp;&amp; inode-&gt;i_size &lt; len)</span>
+<span class="quote">&gt;&gt; -               inode-&gt;i_size = len;</span>
+<span class="quote">&gt;&gt; +               i_size_write(inode, len);</span>
+<span class="quote">&gt;&gt;  out:</span>
+<span class="quote">&gt;&gt;         inode_unlock(inode);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This hunk seems a bit out of place in the sense that I don&#39;t see how</span>
+<span class="quote">&gt; it relates to the overflow checking. I think this either belongs in a</span>
+<span class="quote">&gt; separate patch or it deserves a mention in the changelog.</span>
+
+When looking at this bug, I was really concerned that i_size might be set
+to a negative value.  It was my hope that the helper routine inode_newsize_ok
+would validate the value, but it does not.  I left in the use of this helper,
+since the code was already being changed.  I can change as people see fit.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=4407">Naoya Horiguchi</a> - April 14, 2017, 3:32 a.m.</div>
+<pre class="content">
+On Tue, Apr 11, 2017 at 03:51:58PM -0700, Mike Kravetz wrote:
+...
+<span class="quote">&gt; diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; index 7163fe0..dde8613 100644</span>
+<span class="quote">&gt; --- a/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; +++ b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; @@ -136,17 +136,26 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)</span>
+<span class="quote">&gt;  	vma-&gt;vm_flags |= VM_HUGETLB | VM_DONTEXPAND;</span>
+<span class="quote">&gt;  	vma-&gt;vm_ops = &amp;hugetlb_vm_ops;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * Offset passed to mmap (before page shift) could have been</span>
+<span class="quote">&gt; +	 * negative when represented as a (l)off_t.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	if (((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT) &lt; 0)</span>
+<span class="quote">&gt; +		return -EINVAL;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  	if (vma-&gt;vm_pgoff &amp; (~huge_page_mask(h) &gt;&gt; PAGE_SHIFT))</span>
+<span class="quote">&gt;  		return -EINVAL;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	vma_len = (loff_t)(vma-&gt;vm_end - vma-&gt;vm_start);</span>
+<span class="quote">&gt; +	len = vma_len + ((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT);</span>
+<span class="quote">&gt; +	/* check for overflow */</span>
+<span class="quote">&gt; +	if (len &lt; vma_len)</span>
+<span class="quote">&gt; +		return -EINVAL;</span>
+
+Andrew sent this patch to Linus today, so I know it&#39;s a little too late, but
+I think that getting len directly from vma like below might be a simpler fix.
+
+  len = (loff_t)(vma-&gt;vm_end - vma-&gt;vm_start + (vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT)); 
+
+This shouldn&#39;t overflow because vma-&gt;vm_{end|start|pgoff} are unsigned long,
+but if worried you can add VM_BUG_ON_VMA(len &lt; 0, vma).
+
+Thanks,
+Naoya Horiguchi
+<span class="quote">
+&gt;  </span>
+<span class="quote">&gt;  	inode_lock(inode);</span>
+<span class="quote">&gt;  	file_accessed(file);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	ret = -ENOMEM;</span>
+<span class="quote">&gt; -	len = vma_len + ((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT);</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt;  	if (hugetlb_reserve_pages(inode,</span>
+<span class="quote">&gt;  				vma-&gt;vm_pgoff &gt;&gt; huge_page_order(h),</span>
+<span class="quote">&gt;  				len &gt;&gt; huge_page_shift(h), vma,</span>
+<span class="quote">&gt; @@ -155,7 +164,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	ret = 0;</span>
+<span class="quote">&gt;  	if (vma-&gt;vm_flags &amp; VM_WRITE &amp;&amp; inode-&gt;i_size &lt; len)</span>
+<span class="quote">&gt; -		inode-&gt;i_size = len;</span>
+<span class="quote">&gt; +		i_size_write(inode, len);</span>
+<span class="quote">&gt;  out:</span>
+<span class="quote">&gt;  	inode_unlock(inode);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -- </span>
+<span class="quote">&gt; 2.7.4</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - April 15, 2017, 10:58 p.m.</div>
+<pre class="content">
+On 04/13/2017 08:32 PM, Naoya Horiguchi wrote:
+<span class="quote">&gt; On Tue, Apr 11, 2017 at 03:51:58PM -0700, Mike Kravetz wrote:</span>
+<span class="quote">&gt; ...</span>
+<span class="quote">&gt;&gt; diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt; index 7163fe0..dde8613 100644</span>
+<span class="quote">&gt;&gt; --- a/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt; +++ b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt; @@ -136,17 +136,26 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)</span>
+<span class="quote">&gt;&gt;  	vma-&gt;vm_flags |= VM_HUGETLB | VM_DONTEXPAND;</span>
+<span class="quote">&gt;&gt;  	vma-&gt;vm_ops = &amp;hugetlb_vm_ops;</span>
+<span class="quote">&gt;&gt;  </span>
+<span class="quote">&gt;&gt; +	/*</span>
+<span class="quote">&gt;&gt; +	 * Offset passed to mmap (before page shift) could have been</span>
+<span class="quote">&gt;&gt; +	 * negative when represented as a (l)off_t.</span>
+<span class="quote">&gt;&gt; +	 */</span>
+<span class="quote">&gt;&gt; +	if (((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT) &lt; 0)</span>
+<span class="quote">&gt;&gt; +		return -EINVAL;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt;  	if (vma-&gt;vm_pgoff &amp; (~huge_page_mask(h) &gt;&gt; PAGE_SHIFT))</span>
+<span class="quote">&gt;&gt;  		return -EINVAL;</span>
+<span class="quote">&gt;&gt;  </span>
+<span class="quote">&gt;&gt;  	vma_len = (loff_t)(vma-&gt;vm_end - vma-&gt;vm_start);</span>
+<span class="quote">&gt;&gt; +	len = vma_len + ((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT);</span>
+<span class="quote">&gt;&gt; +	/* check for overflow */</span>
+<span class="quote">&gt;&gt; +	if (len &lt; vma_len)</span>
+<span class="quote">&gt;&gt; +		return -EINVAL;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Andrew sent this patch to Linus today, so I know it&#39;s a little too late, but</span>
+<span class="quote">&gt; I think that getting len directly from vma like below might be a simpler fix.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   len = (loff_t)(vma-&gt;vm_end - vma-&gt;vm_start + (vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT)); </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This shouldn&#39;t overflow because vma-&gt;vm_{end|start|pgoff} are unsigned long,</span>
+<span class="quote">&gt; but if worried you can add VM_BUG_ON_VMA(len &lt; 0, vma).</span>
+
+Thanks Naoya,
+
+I am pretty sure the checks are necessary.  You are correct in that
+vma-&gt;vm_{end|start|pgoff} are unsigned long.  However,  pgoff can be
+a REALLY big value that becomes negative when shifted.
+
+Note that pgoff is simply the off_t offset value passed from the user cast
+to unsigned long and shifted right by PAGE_SHIFT.  There is nothing to
+prevent a user from passing a &#39;signed&#39; negative value.  In the reproducer
+provided, the value passed from user space is 0x8000000000000000ULL.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=4407">Naoya Horiguchi</a> - April 16, 2017, 11:43 p.m.</div>
+<pre class="content">
+On Sat, Apr 15, 2017 at 03:58:59PM -0700, Mike Kravetz wrote:
+<span class="quote">&gt; On 04/13/2017 08:32 PM, Naoya Horiguchi wrote:</span>
+<span class="quote">&gt; &gt; On Tue, Apr 11, 2017 at 03:51:58PM -0700, Mike Kravetz wrote:</span>
+<span class="quote">&gt; &gt; ...</span>
+<span class="quote">&gt; &gt;&gt; diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; &gt;&gt; index 7163fe0..dde8613 100644</span>
+<span class="quote">&gt; &gt;&gt; --- a/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; &gt;&gt; +++ b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; &gt;&gt; @@ -136,17 +136,26 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)</span>
+<span class="quote">&gt; &gt;&gt;  	vma-&gt;vm_flags |= VM_HUGETLB | VM_DONTEXPAND;</span>
+<span class="quote">&gt; &gt;&gt;  	vma-&gt;vm_ops = &amp;hugetlb_vm_ops;</span>
+<span class="quote">&gt; &gt;&gt;  </span>
+<span class="quote">&gt; &gt;&gt; +	/*</span>
+<span class="quote">&gt; &gt;&gt; +	 * Offset passed to mmap (before page shift) could have been</span>
+<span class="quote">&gt; &gt;&gt; +	 * negative when represented as a (l)off_t.</span>
+<span class="quote">&gt; &gt;&gt; +	 */</span>
+<span class="quote">&gt; &gt;&gt; +	if (((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT) &lt; 0)</span>
+<span class="quote">&gt; &gt;&gt; +		return -EINVAL;</span>
+<span class="quote">&gt; &gt;&gt; +</span>
+<span class="quote">&gt; &gt;&gt;  	if (vma-&gt;vm_pgoff &amp; (~huge_page_mask(h) &gt;&gt; PAGE_SHIFT))</span>
+<span class="quote">&gt; &gt;&gt;  		return -EINVAL;</span>
+<span class="quote">&gt; &gt;&gt;  </span>
+<span class="quote">&gt; &gt;&gt;  	vma_len = (loff_t)(vma-&gt;vm_end - vma-&gt;vm_start);</span>
+<span class="quote">&gt; &gt;&gt; +	len = vma_len + ((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT);</span>
+<span class="quote">&gt; &gt;&gt; +	/* check for overflow */</span>
+<span class="quote">&gt; &gt;&gt; +	if (len &lt; vma_len)</span>
+<span class="quote">&gt; &gt;&gt; +		return -EINVAL;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Andrew sent this patch to Linus today, so I know it&#39;s a little too late, but</span>
+<span class="quote">&gt; &gt; I think that getting len directly from vma like below might be a simpler fix.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;   len = (loff_t)(vma-&gt;vm_end - vma-&gt;vm_start + (vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT)); </span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; This shouldn&#39;t overflow because vma-&gt;vm_{end|start|pgoff} are unsigned long,</span>
+<span class="quote">&gt; &gt; but if worried you can add VM_BUG_ON_VMA(len &lt; 0, vma).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Thanks Naoya,</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I am pretty sure the checks are necessary.  You are correct in that</span>
+<span class="quote">&gt; vma-&gt;vm_{end|start|pgoff} are unsigned long.  However,  pgoff can be</span>
+<span class="quote">&gt; a REALLY big value that becomes negative when shifted.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Note that pgoff is simply the off_t offset value passed from the user cast</span>
+<span class="quote">&gt; to unsigned long and shifted right by PAGE_SHIFT.  There is nothing to</span>
+<span class="quote">&gt; prevent a user from passing a &#39;signed&#39; negative value.  In the reproducer</span>
+<span class="quote">&gt; provided, the value passed from user space is 0x8000000000000000ULL.</span>
+
+OK, thank you for explanation. You&#39;re right.
+
+- Naoya
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="p_header">index 7163fe0..dde8613 100644</span>
+<span class="p_header">--- a/fs/hugetlbfs/inode.c</span>
+<span class="p_header">+++ b/fs/hugetlbfs/inode.c</span>
+<span class="p_chunk">@@ -136,17 +136,26 @@</span> <span class="p_context"> static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)</span>
+ 	vma-&gt;vm_flags |= VM_HUGETLB | VM_DONTEXPAND;
+ 	vma-&gt;vm_ops = &amp;hugetlb_vm_ops;
+ 
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Offset passed to mmap (before page shift) could have been</span>
+<span class="p_add">+	 * negative when represented as a (l)off_t.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT) &lt; 0)</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+</span>
+ 	if (vma-&gt;vm_pgoff &amp; (~huge_page_mask(h) &gt;&gt; PAGE_SHIFT))
+ 		return -EINVAL;
+ 
+ 	vma_len = (loff_t)(vma-&gt;vm_end - vma-&gt;vm_start);
+<span class="p_add">+	len = vma_len + ((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT);</span>
+<span class="p_add">+	/* check for overflow */</span>
+<span class="p_add">+	if (len &lt; vma_len)</span>
+<span class="p_add">+		return -EINVAL;</span>
+ 
+ 	inode_lock(inode);
+ 	file_accessed(file);
+ 
+ 	ret = -ENOMEM;
+<span class="p_del">-	len = vma_len + ((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT);</span>
+<span class="p_del">-</span>
+ 	if (hugetlb_reserve_pages(inode,
+ 				vma-&gt;vm_pgoff &gt;&gt; huge_page_order(h),
+ 				len &gt;&gt; huge_page_shift(h), vma,
+<span class="p_chunk">@@ -155,7 +164,7 @@</span> <span class="p_context"> static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)</span>
+ 
+ 	ret = 0;
+ 	if (vma-&gt;vm_flags &amp; VM_WRITE &amp;&amp; inode-&gt;i_size &lt; len)
+<span class="p_del">-		inode-&gt;i_size = len;</span>
+<span class="p_add">+		i_size_write(inode, len);</span>
+ out:
+ 	inode_unlock(inode);
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

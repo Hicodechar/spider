@@ -1,0 +1,688 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[PATCHv3,08/13] x86/mm: Handle boot-time paging mode switching at early boot - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [PATCHv3,08/13] x86/mm: Handle boot-time paging mode switching at early boot</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=40781">Kirill A. Shutemov</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Aug. 7, 2017, 2:14 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170807141451.80934-9-kirill.shutemov@linux.intel.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9885413/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9885413/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9885413/">/patch/9885413/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	ED0CA603B4 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  7 Aug 2017 14:15:49 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id DE46D28698
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  7 Aug 2017 14:15:49 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id D2F042869F; Mon,  7 Aug 2017 14:15:49 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id C8DB6286A4
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  7 Aug 2017 14:15:48 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752135AbdHGOPl (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 7 Aug 2017 10:15:41 -0400
+Received: from mga11.intel.com ([192.55.52.93]:34731 &quot;EHLO mga11.intel.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1751881AbdHGOPh (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 7 Aug 2017 10:15:37 -0400
+Received: from orsmga001.jf.intel.com ([10.7.209.18])
+	by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384;
+	07 Aug 2017 07:15:36 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i=&quot;5.41,338,1498546800&quot;; d=&quot;scan&#39;208&quot;;a=&quot;1160186628&quot;
+Received: from black.fi.intel.com ([10.237.72.28])
+	by orsmga001.jf.intel.com with ESMTP; 07 Aug 2017 07:15:33 -0700
+Received: by black.fi.intel.com (Postfix, from userid 1000)
+	id 1819F36D; Mon,  7 Aug 2017 17:14:58 +0300 (EEST)
+From: &quot;Kirill A. Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;
+To: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;, x86@kernel.org,
+	Thomas Gleixner &lt;tglx@linutronix.de&gt;, Ingo Molnar &lt;mingo@redhat.com&gt;,
+	&quot;H. Peter Anvin&quot; &lt;hpa@zytor.com&gt;
+Cc: Andi Kleen &lt;ak@linux.intel.com&gt;, Dave Hansen &lt;dave.hansen@intel.com&gt;,
+	Andy Lutomirski &lt;luto@amacapital.net&gt;,
+	Michal Hocko &lt;mhocko@kernel.org&gt;, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	&quot;Kirill A. Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;
+Subject: [PATCHv3 08/13] x86/mm: Handle boot-time paging mode switching at
+	early boot
+Date: Mon,  7 Aug 2017 17:14:46 +0300
+Message-Id: &lt;20170807141451.80934-9-kirill.shutemov@linux.intel.com&gt;
+X-Mailer: git-send-email 2.13.2
+In-Reply-To: &lt;20170807141451.80934-1-kirill.shutemov@linux.intel.com&gt;
+References: &lt;20170807141451.80934-1-kirill.shutemov@linux.intel.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=40781">Kirill A. Shutemov</a> - Aug. 7, 2017, 2:14 p.m.</div>
+<pre class="content">
+This patch adds detection of 5-level paging at boot-time and adjusts
+virtual memory layout and folds p4d page table layer if needed.
+<span class="signed-off-by">
+Signed-off-by: Kirill A. Shutemov &lt;kirill.shutemov@linux.intel.com&gt;</span>
+---
+ arch/x86/boot/compressed/kaslr.c        | 13 +++++--
+ arch/x86/entry/entry_64.S               | 12 +++++++
+ arch/x86/include/asm/page_64_types.h    | 13 +++----
+ arch/x86/include/asm/pgtable_64_types.h | 33 +++++++++++-------
+ arch/x86/include/asm/processor.h        |  2 +-
+ arch/x86/include/asm/sparsemem.h        |  9 ++---
+ arch/x86/kernel/head64.c                | 62 +++++++++++++++++++++++++--------
+ arch/x86/kernel/head_64.S               | 18 ++++++----
+ arch/x86/kernel/setup.c                 |  5 ++-
+ arch/x86/mm/dump_pagetables.c           |  8 +++--
+ arch/x86/mm/kaslr.c                     | 13 ++++---
+ 11 files changed, 127 insertions(+), 61 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/boot/compressed/kaslr.c b/arch/x86/boot/compressed/kaslr.c</span>
+<span class="p_header">index afde5eb91358..6eb2fd1732c3 100644</span>
+<span class="p_header">--- a/arch/x86/boot/compressed/kaslr.c</span>
+<span class="p_header">+++ b/arch/x86/boot/compressed/kaslr.c</span>
+<span class="p_chunk">@@ -44,8 +44,9 @@</span> <span class="p_context"></span>
+ #include &lt;linux/decompress/mm.h&gt;
+ 
+ #ifdef CONFIG_X86_5LEVEL
+<span class="p_del">-unsigned int pgdir_shift = 48;</span>
+<span class="p_del">-unsigned int ptrs_per_p4d = 512;</span>
+<span class="p_add">+unsigned int p4d_folded = 1;</span>
+<span class="p_add">+unsigned int pgdir_shift = 39;</span>
+<span class="p_add">+unsigned int ptrs_per_p4d = 1;</span>
+ #endif
+ 
+ extern unsigned long get_cmd_line_ptr(void);
+<span class="p_chunk">@@ -642,6 +643,14 @@</span> <span class="p_context"> void choose_random_location(unsigned long input,</span>
+ 		return;
+ 	}
+ 
+<span class="p_add">+#ifdef CONFIG_X86_5LEVEL</span>
+<span class="p_add">+	if (__read_cr4() &amp; X86_CR4_LA57) {</span>
+<span class="p_add">+		p4d_folded = 0;</span>
+<span class="p_add">+		pgdir_shift = 48;</span>
+<span class="p_add">+		ptrs_per_p4d = 512;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ 	boot_params-&gt;hdr.loadflags |= KASLR_FLAG;
+ 
+ 	/* Prepare to add new identity pagetables on demand. */
+<span class="p_header">diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S</span>
+<span class="p_header">index daf8936d0628..077e8b45784c 100644</span>
+<span class="p_header">--- a/arch/x86/entry/entry_64.S</span>
+<span class="p_header">+++ b/arch/x86/entry/entry_64.S</span>
+<span class="p_chunk">@@ -273,8 +273,20 @@</span> <span class="p_context"> return_from_SYSCALL_64:</span>
+ 	 * Change top bits to match most significant bit (47th or 56th bit
+ 	 * depending on paging mode) in the address.
+ 	 */
+<span class="p_add">+#ifdef CONFIG_X86_5LEVEL</span>
+<span class="p_add">+	testl	$1, p4d_folded(%rip)</span>
+<span class="p_add">+	jnz	1f</span>
+<span class="p_add">+	shl	$(64 - 57), %rcx</span>
+<span class="p_add">+	sar	$(64 - 57), %rcx</span>
+<span class="p_add">+	jmp	2f</span>
+<span class="p_add">+1:</span>
+<span class="p_add">+	shl	$(64 - 48), %rcx</span>
+<span class="p_add">+	sar	$(64 - 48), %rcx</span>
+<span class="p_add">+2:</span>
+<span class="p_add">+#else</span>
+ 	shl	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
+ 	sar	$(64 - (__VIRTUAL_MASK_SHIFT+1)), %rcx
+<span class="p_add">+#endif</span>
+ 
+ 	/* If this changed %rcx, it was not canonical */
+ 	cmpq	%rcx, %r11
+<span class="p_header">diff --git a/arch/x86/include/asm/page_64_types.h b/arch/x86/include/asm/page_64_types.h</span>
+<span class="p_header">index 0126d6bc2eb1..26056ef366b8 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/page_64_types.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/page_64_types.h</span>
+<span class="p_chunk">@@ -36,24 +36,21 @@</span> <span class="p_context"></span>
+  * hypervisor to fit.  Choosing 16 slots here is arbitrary, but it&#39;s
+  * what Xen requires.
+  */
+<span class="p_del">-#ifdef CONFIG_X86_5LEVEL</span>
+<span class="p_del">-#define __PAGE_OFFSET_BASE      _AC(0xff10000000000000, UL)</span>
+<span class="p_del">-#else</span>
+<span class="p_del">-#define __PAGE_OFFSET_BASE      _AC(0xffff880000000000, UL)</span>
+<span class="p_del">-#endif</span>
+<span class="p_add">+#define __PAGE_OFFSET_BASE57	_AC(0xff10000000000000, UL)</span>
+<span class="p_add">+#define __PAGE_OFFSET_BASE48	_AC(0xffff880000000000, UL)</span>
+ 
+ #if defined(CONFIG_RANDOMIZE_MEMORY) || defined(CONFIG_X86_5LEVEL)
+ #define __PAGE_OFFSET           page_offset_base
+ #else
+<span class="p_del">-#define __PAGE_OFFSET           __PAGE_OFFSET_BASE</span>
+<span class="p_add">+#define __PAGE_OFFSET           __PAGE_OFFSET_BASE48</span>
+ #endif /* CONFIG_RANDOMIZE_MEMORY */
+ 
+ #define __START_KERNEL_map	_AC(0xffffffff80000000, UL)
+ 
+ /* See Documentation/x86/x86_64/mm.txt for a description of the memory map. */
+ #ifdef CONFIG_X86_5LEVEL
+<span class="p_del">-#define __PHYSICAL_MASK_SHIFT	52</span>
+<span class="p_del">-#define __VIRTUAL_MASK_SHIFT	56</span>
+<span class="p_add">+#define __PHYSICAL_MASK_SHIFT	(p4d_folded ? 52 : 46)</span>
+<span class="p_add">+#define __VIRTUAL_MASK_SHIFT	(p4d_folded ? 47 : 56)</span>
+ #else
+ #define __PHYSICAL_MASK_SHIFT	46
+ #define __VIRTUAL_MASK_SHIFT	47
+<span class="p_header">diff --git a/arch/x86/include/asm/pgtable_64_types.h b/arch/x86/include/asm/pgtable_64_types.h</span>
+<span class="p_header">index a5338b0936ad..a29cc23e96b8 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/pgtable_64_types.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/pgtable_64_types.h</span>
+<span class="p_chunk">@@ -20,7 +20,7 @@</span> <span class="p_context"> typedef unsigned long	pgprotval_t;</span>
+ typedef struct { pteval_t pte; } pte_t;
+ 
+ #ifdef CONFIG_X86_5LEVEL
+<span class="p_del">-#define p4d_folded 0</span>
+<span class="p_add">+extern unsigned int p4d_folded;</span>
+ #else
+ #define p4d_folded 1
+ #endif
+<span class="p_chunk">@@ -87,23 +87,30 @@</span> <span class="p_context"> extern unsigned int ptrs_per_p4d;</span>
+ 
+ /* See Documentation/x86/x86_64/mm.txt for a description of the memory map. */
+ #define MAXMEM		_AC(__AC(1, UL) &lt;&lt; MAX_PHYSMEM_BITS, UL)
+<span class="p_del">-#ifdef CONFIG_X86_5LEVEL</span>
+<span class="p_del">-#define VMALLOC_SIZE_TB _AC(16384, UL)</span>
+<span class="p_del">-#define __VMALLOC_BASE	_AC(0xff92000000000000, UL)</span>
+<span class="p_del">-#define __VMEMMAP_BASE	_AC(0xffd4000000000000, UL)</span>
+<span class="p_del">-#else</span>
+<span class="p_del">-#define VMALLOC_SIZE_TB	_AC(32, UL)</span>
+<span class="p_del">-#define __VMALLOC_BASE	_AC(0xffffc90000000000, UL)</span>
+<span class="p_del">-#define __VMEMMAP_BASE	_AC(0xffffea0000000000, UL)</span>
+<span class="p_del">-#endif</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifndef __ASSEMBLY__</span>
+<span class="p_add">+#define __VMALLOC_BASE48	0xffffc90000000000</span>
+<span class="p_add">+#define __VMALLOC_BASE57	0xff92000000000000</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define VMALLOC_SIZE_TB48	32UL</span>
+<span class="p_add">+#define VMALLOC_SIZE_TB57	16384UL</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define __VMEMMAP_BASE48	0xffffea0000000000</span>
+<span class="p_add">+#define __VMEMMAP_BASE57	0xffd4000000000000</span>
+<span class="p_add">+</span>
+ #if defined(CONFIG_RANDOMIZE_MEMORY) || defined(CONFIG_X86_5LEVEL)
+ #define VMALLOC_START	vmalloc_base
+<span class="p_add">+#define VMALLOC_SIZE_TB	(!p4d_folded ? VMALLOC_SIZE_TB57 : VMALLOC_SIZE_TB48)</span>
+ #define VMEMMAP_START	vmemmap_base
+ #else
+<span class="p_del">-#define VMALLOC_START	__VMALLOC_BASE</span>
+<span class="p_del">-#define VMEMMAP_START	__VMEMMAP_BASE</span>
+<span class="p_add">+#define VMALLOC_START	__VMALLOC_BASE48</span>
+<span class="p_add">+#define VMALLOC_SIZE_TB	VMALLOC_SIZE_TB48</span>
+<span class="p_add">+#define VMEMMAP_START	__VMEMMAP_BASE48</span>
+ #endif /* CONFIG_RANDOMIZE_MEMORY */
+<span class="p_del">-#define VMALLOC_END	(VMALLOC_START + _AC((VMALLOC_SIZE_TB &lt;&lt; 40) - 1, UL))</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define VMALLOC_END	(VMALLOC_START + (VMALLOC_SIZE_TB &lt;&lt; 40) - 1)</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ #define MODULES_VADDR    (__START_KERNEL_map + KERNEL_IMAGE_SIZE)
+ /* The module sections ends with the start of the fixmap */
+ #define MODULES_END   __fix_to_virt(__end_of_fixed_addresses + 1)
+<span class="p_header">diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h</span>
+<span class="p_header">index c1352771b2f6..cb2958b88de5 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/processor.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/processor.h</span>
+<span class="p_chunk">@@ -871,7 +871,7 @@</span> <span class="p_context"> static inline void spin_lock_prefetch(const void *x)</span>
+ 					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
+ 
+ #define STACK_TOP		TASK_SIZE_LOW
+<span class="p_del">-#define STACK_TOP_MAX		TASK_SIZE_MAX</span>
+<span class="p_add">+#define STACK_TOP_MAX		(!p4d_folded ? TASK_SIZE_MAX : DEFAULT_MAP_WINDOW)</span>
+ 
+ #define INIT_THREAD  {						\
+ 	.sp0			= TOP_OF_INIT_STACK,		\
+<span class="p_header">diff --git a/arch/x86/include/asm/sparsemem.h b/arch/x86/include/asm/sparsemem.h</span>
+<span class="p_header">index 1f5bee2c202f..ba67afd870b7 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/sparsemem.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/sparsemem.h</span>
+<span class="p_chunk">@@ -26,13 +26,8 @@</span> <span class="p_context"></span>
+ # endif
+ #else /* CONFIG_X86_32 */
+ # define SECTION_SIZE_BITS	27 /* matt - 128 is convenient right now */
+<span class="p_del">-# ifdef CONFIG_X86_5LEVEL</span>
+<span class="p_del">-#  define MAX_PHYSADDR_BITS	52</span>
+<span class="p_del">-#  define MAX_PHYSMEM_BITS	52</span>
+<span class="p_del">-# else</span>
+<span class="p_del">-#  define MAX_PHYSADDR_BITS	44</span>
+<span class="p_del">-#  define MAX_PHYSMEM_BITS	46</span>
+<span class="p_del">-# endif</span>
+<span class="p_add">+# define MAX_PHYSADDR_BITS	(p4d_folded ? 44 : 52)</span>
+<span class="p_add">+# define MAX_PHYSMEM_BITS	(p4d_folded ? 46 : 52)</span>
+ #endif
+ 
+ #endif /* CONFIG_SPARSEMEM */
+<span class="p_header">diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c</span>
+<span class="p_header">index f81e61ee5e9d..4c9ffb58a3b5 100644</span>
+<span class="p_header">--- a/arch/x86/kernel/head64.c</span>
+<span class="p_header">+++ b/arch/x86/kernel/head64.c</span>
+<span class="p_chunk">@@ -39,20 +39,18 @@</span> <span class="p_context"> static unsigned int __initdata next_early_pgt;</span>
+ pmdval_t early_pmd_flags = __PAGE_KERNEL_LARGE &amp; ~(_PAGE_GLOBAL | _PAGE_NX);
+ 
+ #ifdef CONFIG_X86_5LEVEL
+<span class="p_del">-unsigned int pgdir_shift = 48;</span>
+<span class="p_add">+unsigned int pgdir_shift = 39;</span>
+ EXPORT_SYMBOL(pgdir_shift);
+<span class="p_del">-unsigned int ptrs_per_p4d = 512;</span>
+<span class="p_add">+unsigned int ptrs_per_p4d = 1;</span>
+ EXPORT_SYMBOL(ptrs_per_p4d);
+ #endif
+ 
+<span class="p_del">-#if defined(CONFIG_RANDOMIZE_MEMORY) || defined(CONFIG_X86_5LEVEL)</span>
+<span class="p_del">-unsigned long page_offset_base = __PAGE_OFFSET_BASE;</span>
+<span class="p_add">+unsigned long page_offset_base = __PAGE_OFFSET_BASE48;</span>
+ EXPORT_SYMBOL(page_offset_base);
+<span class="p_del">-unsigned long vmalloc_base = __VMALLOC_BASE;</span>
+<span class="p_add">+unsigned long vmalloc_base = __VMALLOC_BASE48;</span>
+ EXPORT_SYMBOL(vmalloc_base);
+<span class="p_del">-unsigned long vmemmap_base = __VMEMMAP_BASE;</span>
+<span class="p_add">+unsigned long vmemmap_base = __VMEMMAP_BASE48;</span>
+ EXPORT_SYMBOL(vmemmap_base);
+<span class="p_del">-#endif</span>
+ 
+ #define __head	__section(.head.text)
+ 
+<span class="p_chunk">@@ -61,6 +59,36 @@</span> <span class="p_context"> static void __head *fixup_pointer(void *ptr, unsigned long physaddr)</span>
+ 	return ptr - (void *)_text + (void *)physaddr;
+ }
+ 
+<span class="p_add">+static unsigned long __head *fixup_long(void *ptr, unsigned long physaddr)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return fixup_pointer(ptr, physaddr);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+#ifdef CONFIG_X86_5LEVEL</span>
+<span class="p_add">+static unsigned int __head *fixup_int(void *ptr, unsigned long physaddr)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return fixup_pointer(ptr, physaddr);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void __head check_la57_support(unsigned long physaddr)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (native_cpuid_eax(0) &lt; 7)</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!(native_cpuid_ecx(7) &amp; (1 &lt;&lt; (X86_FEATURE_LA57 &amp; 31))))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	*fixup_int(&amp;p4d_folded, physaddr) = 0;</span>
+<span class="p_add">+	*fixup_int(&amp;pgdir_shift, physaddr) = 48;</span>
+<span class="p_add">+	*fixup_int(&amp;ptrs_per_p4d, physaddr) = 512;</span>
+<span class="p_add">+	*fixup_long(&amp;page_offset_base, physaddr) = __PAGE_OFFSET_BASE57;</span>
+<span class="p_add">+	*fixup_long(&amp;vmalloc_base, physaddr) = __VMALLOC_BASE57;</span>
+<span class="p_add">+	*fixup_long(&amp;vmemmap_base, physaddr) = __VMEMMAP_BASE57;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+#else</span>
+<span class="p_add">+static void __head check_la57_support(unsigned long physaddr) {}</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ unsigned long __head __startup_64(unsigned long physaddr,
+ 				  struct boot_params *bp)
+ {
+<span class="p_chunk">@@ -72,6 +100,8 @@</span> <span class="p_context"> unsigned long __head __startup_64(unsigned long physaddr,</span>
+ 	pmdval_t *pmd, pmd_entry;
+ 	int i;
+ 
+<span class="p_add">+	check_la57_support(physaddr);</span>
+<span class="p_add">+</span>
+ 	/* Is the address too large? */
+ 	if (physaddr &gt;&gt; MAX_PHYSMEM_BITS)
+ 		for (;;);
+<span class="p_chunk">@@ -95,9 +125,14 @@</span> <span class="p_context"> unsigned long __head __startup_64(unsigned long physaddr,</span>
+ 	/* Fixup the physical addresses in the page table */
+ 
+ 	pgd = fixup_pointer(&amp;early_top_pgt, physaddr);
+<span class="p_del">-	pgd[pgd_index(__START_KERNEL_map)] += load_delta;</span>
+<span class="p_del">-</span>
+<span class="p_del">-	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {</span>
+<span class="p_add">+	p = pgd + pgd_index(__START_KERNEL_map);</span>
+<span class="p_add">+	if (p4d_folded)</span>
+<span class="p_add">+		*p = (unsigned long)level3_kernel_pgt;</span>
+<span class="p_add">+	else</span>
+<span class="p_add">+		*p = (unsigned long)level4_kernel_pgt;</span>
+<span class="p_add">+	*p += _PAGE_TABLE_NOENC - __START_KERNEL_map + load_delta;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!p4d_folded) {</span>
+ 		p4d = fixup_pointer(&amp;level4_kernel_pgt, physaddr);
+ 		p4d[511] += load_delta;
+ 	}
+<span class="p_chunk">@@ -120,7 +155,7 @@</span> <span class="p_context"> unsigned long __head __startup_64(unsigned long physaddr,</span>
+ 	pmd = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
+ 	pgtable_flags = _KERNPG_TABLE_NOENC + sme_get_me_mask();
+ 
+<span class="p_del">-	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {</span>
+<span class="p_add">+	if (!p4d_folded) {</span>
+ 		p4d = fixup_pointer(early_dynamic_pgts[next_early_pgt++], physaddr);
+ 
+ 		i = (physaddr &gt;&gt; PGDIR_SHIFT) % PTRS_PER_PGD;
+<span class="p_chunk">@@ -166,8 +201,7 @@</span> <span class="p_context"> unsigned long __head __startup_64(unsigned long physaddr,</span>
+ 	 * Fixup phys_base - remove the memory encryption mask to obtain
+ 	 * the true physical address.
+ 	 */
+<span class="p_del">-	p = fixup_pointer(&amp;phys_base, physaddr);</span>
+<span class="p_del">-	*p += load_delta - sme_get_me_mask();</span>
+<span class="p_add">+	*fixup_long(&amp;phys_base, physaddr) += load_delta - sme_get_me_mask();</span>
+ 
+ 	/* Encrypt the kernel (if SME is active) */
+ 	sme_encrypt_kernel();
+<span class="p_chunk">@@ -218,7 +252,7 @@</span> <span class="p_context"> int __init __early_make_pgtable(unsigned long address, pmdval_t pmd)</span>
+ 	 * critical -- __PAGE_OFFSET would point us back into the dynamic
+ 	 * range and we might end up looping forever...
+ 	 */
+<span class="p_del">-	if (!IS_ENABLED(CONFIG_X86_5LEVEL))</span>
+<span class="p_add">+	if (p4d_folded)</span>
+ 		p4d_p = pgd_p;
+ 	else if (pgd)
+ 		p4d_p = (p4dval_t *)((pgd &amp; PTE_PFN_MASK) + __START_KERNEL_map - phys_base);
+<span class="p_header">diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S</span>
+<span class="p_header">index 2be7d1e7fcf1..ebdcb08a91cb 100644</span>
+<span class="p_header">--- a/arch/x86/kernel/head_64.S</span>
+<span class="p_header">+++ b/arch/x86/kernel/head_64.S</span>
+<span class="p_chunk">@@ -40,7 +40,7 @@</span> <span class="p_context"></span>
+ #define pud_index(x)	(((x) &gt;&gt; PUD_SHIFT) &amp; (PTRS_PER_PUD-1))
+ 
+ #if defined(CONFIG_XEN_PV) || defined(CONFIG_XEN_PVH)
+<span class="p_del">-PGD_PAGE_OFFSET = pgd_index(__PAGE_OFFSET_BASE)</span>
+<span class="p_add">+PGD_PAGE_OFFSET = pgd_index(__PAGE_OFFSET_BASE48)</span>
+ PGD_START_KERNEL = pgd_index(__START_KERNEL_map)
+ #endif
+ L3_START_KERNEL = pud_index(__START_KERNEL_map)
+<span class="p_chunk">@@ -121,7 +121,10 @@</span> <span class="p_context"> ENTRY(secondary_startup_64)</span>
+ 	/* Enable PAE mode, PGE and LA57 */
+ 	movl	$(X86_CR4_PAE | X86_CR4_PGE), %ecx
+ #ifdef CONFIG_X86_5LEVEL
+<span class="p_add">+	testl	$1, p4d_folded(%rip)</span>
+<span class="p_add">+	jnz	1f</span>
+ 	orl	$X86_CR4_LA57, %ecx
+<span class="p_add">+1:</span>
+ #endif
+ 	movq	%rcx, %cr4
+ 
+<span class="p_chunk">@@ -350,12 +353,7 @@</span> <span class="p_context"> GLOBAL(name)</span>
+ 
+ 	__INITDATA
+ NEXT_PAGE(early_top_pgt)
+<span class="p_del">-	.fill	511,8,0</span>
+<span class="p_del">-#ifdef CONFIG_X86_5LEVEL</span>
+<span class="p_del">-	.quad	level4_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC</span>
+<span class="p_del">-#else</span>
+<span class="p_del">-	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC</span>
+<span class="p_del">-#endif</span>
+<span class="p_add">+	.fill	512,8,0</span>
+ 
+ NEXT_PAGE(early_dynamic_pgts)
+ 	.fill	512*EARLY_DYNAMIC_PAGE_TABLES,8,0
+<span class="p_chunk">@@ -434,6 +432,12 @@</span> <span class="p_context"> ENTRY(phys_base)</span>
+ 	.quad   0x0000000000000000
+ EXPORT_SYMBOL(phys_base)
+ 
+<span class="p_add">+#ifdef CONFIG_X86_5LEVEL</span>
+<span class="p_add">+ENTRY(p4d_folded)</span>
+<span class="p_add">+	.word	1</span>
+<span class="p_add">+EXPORT_SYMBOL(p4d_folded)</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ #include &quot;../../x86/xen/xen-head.S&quot;
+ 	
+ 	__PAGE_ALIGNED_BSS
+<span class="p_header">diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c</span>
+<span class="p_header">index 022ebddb3734..10e6dd1cb948 100644</span>
+<span class="p_header">--- a/arch/x86/kernel/setup.c</span>
+<span class="p_header">+++ b/arch/x86/kernel/setup.c</span>
+<span class="p_chunk">@@ -202,9 +202,7 @@</span> <span class="p_context"> struct ist_info ist_info;</span>
+ #endif
+ 
+ #else
+<span class="p_del">-struct cpuinfo_x86 boot_cpu_data __read_mostly = {</span>
+<span class="p_del">-	.x86_phys_bits = MAX_PHYSMEM_BITS,</span>
+<span class="p_del">-};</span>
+<span class="p_add">+struct cpuinfo_x86 boot_cpu_data __read_mostly;</span>
+ EXPORT_SYMBOL(boot_cpu_data);
+ #endif
+ 
+<span class="p_chunk">@@ -892,6 +890,7 @@</span> <span class="p_context"> void __init setup_arch(char **cmdline_p)</span>
+ 	__flush_tlb_all();
+ #else
+ 	printk(KERN_INFO &quot;Command line: %s\n&quot;, boot_command_line);
+<span class="p_add">+	boot_cpu_data.x86_phys_bits = MAX_PHYSMEM_BITS;</span>
+ #endif
+ 
+ 	/*
+<span class="p_header">diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c</span>
+<span class="p_header">index bad178deffba..acf264ab02f3 100644</span>
+<span class="p_header">--- a/arch/x86/mm/dump_pagetables.c</span>
+<span class="p_header">+++ b/arch/x86/mm/dump_pagetables.c</span>
+<span class="p_chunk">@@ -82,8 +82,8 @@</span> <span class="p_context"> static struct addr_marker address_markers[] = {</span>
+ 	{ 0/* VMALLOC_START */, &quot;vmalloc() Area&quot; },
+ 	{ 0/* VMEMMAP_START */, &quot;Vmemmap&quot; },
+ #ifdef CONFIG_KASAN
+<span class="p_del">-	{ KASAN_SHADOW_START,	&quot;KASAN shadow&quot; },</span>
+<span class="p_del">-	{ KASAN_SHADOW_END,	&quot;KASAN shadow end&quot; },</span>
+<span class="p_add">+	{ 0/* KASAN_SHADOW_START */,	&quot;KASAN shadow&quot; },</span>
+<span class="p_add">+	{ 0/* KASAN_SHADOW_END */,	&quot;KASAN shadow end&quot; },</span>
+ #endif
+ # ifdef CONFIG_X86_ESPFIX64
+ 	{ ESPFIX_BASE_ADDR,	&quot;ESPfix Area&quot;, 16 },
+<span class="p_chunk">@@ -515,6 +515,10 @@</span> <span class="p_context"> static int __init pt_dump_init(void)</span>
+ 	address_markers[LOW_KERNEL_NR].start_address = PAGE_OFFSET;
+ 	address_markers[VMALLOC_START_NR].start_address = VMALLOC_START;
+ 	address_markers[VMEMMAP_START_NR].start_address = VMEMMAP_START;
+<span class="p_add">+#ifdef CONFIG_KASAN</span>
+<span class="p_add">+	address_markers[KASAN_SHADOW_START_NR].start_address = KASAN_SHADOW_START;</span>
+<span class="p_add">+	address_markers[KASAN_SHADOW_END_NR].start_address = KASAN_SHADOW_END;</span>
+<span class="p_add">+#endif</span>
+ #endif
+ #ifdef CONFIG_X86_32
+ 	address_markers[VMALLOC_START_NR].start_address = VMALLOC_START;
+<span class="p_header">diff --git a/arch/x86/mm/kaslr.c b/arch/x86/mm/kaslr.c</span>
+<span class="p_header">index e6420b18f6e0..2f6ba5c72905 100644</span>
+<span class="p_header">--- a/arch/x86/mm/kaslr.c</span>
+<span class="p_header">+++ b/arch/x86/mm/kaslr.c</span>
+<span class="p_chunk">@@ -43,7 +43,6 @@</span> <span class="p_context"></span>
+  * before. You also need to add a BUILD_BUG_ON() in kernel_randomize_memory() to
+  * ensure that this order is correct and won&#39;t be changed.
+  */
+<span class="p_del">-static const unsigned long vaddr_start = __PAGE_OFFSET_BASE;</span>
+ 
+ #if defined(CONFIG_X86_ESPFIX64)
+ static const unsigned long vaddr_end = ESPFIX_BASE_ADDR;
+<span class="p_chunk">@@ -62,8 +61,8 @@</span> <span class="p_context"> static __initdata struct kaslr_memory_region {</span>
+ 	unsigned long *base;
+ 	unsigned long size_tb;
+ } kaslr_regions[] = {
+<span class="p_del">-	{ &amp;page_offset_base, 1 &lt;&lt; (__PHYSICAL_MASK_SHIFT - TB_SHIFT) /* Maximum */ },</span>
+<span class="p_del">-	{ &amp;vmalloc_base, VMALLOC_SIZE_TB },</span>
+<span class="p_add">+	{ &amp;page_offset_base, 0 },</span>
+<span class="p_add">+	{ &amp;vmalloc_base, 0 },</span>
+ 	{ &amp;vmemmap_base, 1 },
+ };
+ 
+<span class="p_chunk">@@ -86,11 +85,14 @@</span> <span class="p_context"> static inline bool kaslr_memory_enabled(void)</span>
+ void __init kernel_randomize_memory(void)
+ {
+ 	size_t i;
+<span class="p_del">-	unsigned long vaddr = vaddr_start;</span>
+<span class="p_add">+	unsigned long vaddr_start, vaddr;</span>
+ 	unsigned long rand, memory_tb;
+ 	struct rnd_state rand_state;
+ 	unsigned long remain_entropy;
+ 
+<span class="p_add">+	vaddr_start = p4d_folded ? __PAGE_OFFSET_BASE48 : __PAGE_OFFSET_BASE57;</span>
+<span class="p_add">+	vaddr = vaddr_start;</span>
+<span class="p_add">+</span>
+ 	/*
+ 	 * All these BUILD_BUG_ON checks ensures the memory layout is
+ 	 * consistent with the vaddr_start/vaddr_end variables.
+<span class="p_chunk">@@ -106,6 +108,9 @@</span> <span class="p_context"> void __init kernel_randomize_memory(void)</span>
+ 	if (!kaslr_memory_enabled())
+ 		return;
+ 
+<span class="p_add">+	kaslr_regions[0].size_tb = 1 &lt;&lt; (__PHYSICAL_MASK_SHIFT - TB_SHIFT);</span>
+<span class="p_add">+	kaslr_regions[1].size_tb = VMALLOC_SIZE_TB;</span>
+<span class="p_add">+</span>
+ 	/*
+ 	 * Update Physical memory mapping to available and
+ 	 * add padding if needed (especially for memory hotplug support).
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

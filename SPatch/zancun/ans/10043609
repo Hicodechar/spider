@@ -1,0 +1,339 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v2,4/9] hugetlbfs: implement memfd sealing - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v2,4/9] hugetlbfs: implement memfd sealing</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=137831">Marc-André Lureau</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Nov. 6, 2017, 2:39 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20171106143944.13821-5-marcandre.lureau@redhat.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10043609/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10043609/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10043609/">/patch/10043609/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	9B4BC60247 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  6 Nov 2017 14:40:20 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 848DA223B2
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  6 Nov 2017 14:40:20 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 78C6E29D73; Mon,  6 Nov 2017 14:40:20 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 4E27B223B2
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  6 Nov 2017 14:40:19 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753655AbdKFOkR (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 6 Nov 2017 09:40:17 -0500
+Received: from mx1.redhat.com ([209.132.183.28]:52124 &quot;EHLO mx1.redhat.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1753625AbdKFOkL (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 6 Nov 2017 09:40:11 -0500
+Received: from smtp.corp.redhat.com
+	(int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 09B8BC058ECA;
+	Mon,  6 Nov 2017 14:40:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mx1.redhat.com 09B8BC058ECA
+Authentication-Results: ext-mx08.extmail.prod.ext.phx2.redhat.com;
+	dmarc=none (p=none dis=none) header.from=redhat.com
+Authentication-Results: ext-mx08.extmail.prod.ext.phx2.redhat.com;
+	spf=fail smtp.mailfrom=marcandre.lureau@redhat.com
+Received: from localhost (ovpn-112-67.ams2.redhat.com [10.36.112.67])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 88BB060C95;
+	Mon,  6 Nov 2017 14:40:04 +0000 (UTC)
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= &lt;marcandre.lureau@redhat.com&gt;
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: aarcange@redhat.com, hughd@google.com, nyc@holomorphy.com,
+	mike.kravetz@oracle.com,
+	=?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= &lt;marcandre.lureau@redhat.com&gt;
+Subject: [PATCH v2 4/9] hugetlbfs: implement memfd sealing
+Date: Mon,  6 Nov 2017 15:39:39 +0100
+Message-Id: &lt;20171106143944.13821-5-marcandre.lureau@redhat.com&gt;
+In-Reply-To: &lt;20171106143944.13821-1-marcandre.lureau@redhat.com&gt;
+References: &lt;20171106143944.13821-1-marcandre.lureau@redhat.com&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16
+	(mx1.redhat.com [10.5.110.32]);
+	Mon, 06 Nov 2017 14:40:11 +0000 (UTC)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137831">Marc-André Lureau</a> - Nov. 6, 2017, 2:39 p.m.</div>
+<pre class="content">
+Implements memfd sealing, similar to shmem:
+- WRITE: deny fallocate(PUNCH_HOLE). mmap() write is denied in
+  memfd_add_seals(). write() doesn&#39;t exist for hugetlbfs.
+- SHRINK: added similar check as shmem_setattr()
+- GROW: added similar check as shmem_setattr() &amp; shmem_fallocate()
+
+Except write() operation that doesn&#39;t exist with hugetlbfs, that
+should make sealing as close as it can be to shmem support.
+<span class="signed-off-by">
+Signed-off-by: Marc-André Lureau &lt;marcandre.lureau@redhat.com&gt;</span>
+<span class="reviewed-by">Reviewed-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+---
+ fs/hugetlbfs/inode.c    | 29 +++++++++++++++++++++++++++--
+ include/linux/hugetlb.h |  1 +
+ 2 files changed, 28 insertions(+), 2 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="p_header">index f57aab929e41..01f5aa6ea57a 100644</span>
+<span class="p_header">--- a/fs/hugetlbfs/inode.c</span>
+<span class="p_header">+++ b/fs/hugetlbfs/inode.c</span>
+<span class="p_chunk">@@ -510,8 +510,16 @@</span> <span class="p_context"> static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)</span>
+ 
+ 	if (hole_end &gt; hole_start) {
+ 		struct address_space *mapping = inode-&gt;i_mapping;
+<span class="p_add">+		struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);</span>
+ 
+ 		inode_lock(inode);
+<span class="p_add">+</span>
+<span class="p_add">+		/* protected by i_mutex */</span>
+<span class="p_add">+		if (info-&gt;seals &amp; F_SEAL_WRITE) {</span>
+<span class="p_add">+			inode_unlock(inode);</span>
+<span class="p_add">+			return -EPERM;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+</span>
+ 		i_mmap_lock_write(mapping);
+ 		if (!RB_EMPTY_ROOT(&amp;mapping-&gt;i_mmap.rb_root))
+ 			hugetlb_vmdelete_list(&amp;mapping-&gt;i_mmap,
+<span class="p_chunk">@@ -529,6 +537,7 @@</span> <span class="p_context"> static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,</span>
+ 				loff_t len)
+ {
+ 	struct inode *inode = file_inode(file);
+<span class="p_add">+	struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);</span>
+ 	struct address_space *mapping = inode-&gt;i_mapping;
+ 	struct hstate *h = hstate_inode(inode);
+ 	struct vm_area_struct pseudo_vma;
+<span class="p_chunk">@@ -560,6 +569,11 @@</span> <span class="p_context"> static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,</span>
+ 	if (error)
+ 		goto out;
+ 
+<span class="p_add">+	if ((info-&gt;seals &amp; F_SEAL_GROW) &amp;&amp; offset + len &gt; inode-&gt;i_size) {</span>
+<span class="p_add">+		error = -EPERM;</span>
+<span class="p_add">+		goto out;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+ 	/*
+ 	 * Initialize a pseudo vma as this is required by the huge page
+ 	 * allocation routines.  If NUMA is configured, use page index
+<span class="p_chunk">@@ -650,6 +664,7 @@</span> <span class="p_context"> static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)</span>
+ 	struct hstate *h = hstate_inode(inode);
+ 	int error;
+ 	unsigned int ia_valid = attr-&gt;ia_valid;
+<span class="p_add">+	struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);</span>
+ 
+ 	BUG_ON(!inode);
+ 
+<span class="p_chunk">@@ -658,10 +673,17 @@</span> <span class="p_context"> static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)</span>
+ 		return error;
+ 
+ 	if (ia_valid &amp; ATTR_SIZE) {
+<span class="p_add">+		loff_t oldsize = inode-&gt;i_size;</span>
+<span class="p_add">+		loff_t newsize = attr-&gt;ia_size;</span>
+<span class="p_add">+</span>
+ 		error = -EINVAL;
+<span class="p_del">-		if (attr-&gt;ia_size &amp; ~huge_page_mask(h))</span>
+<span class="p_add">+		if (newsize &amp; ~huge_page_mask(h))</span>
+ 			return -EINVAL;
+<span class="p_del">-		error = hugetlb_vmtruncate(inode, attr-&gt;ia_size);</span>
+<span class="p_add">+		/* protected by i_mutex */</span>
+<span class="p_add">+		if ((newsize &lt; oldsize &amp;&amp; (info-&gt;seals &amp; F_SEAL_SHRINK)) ||</span>
+<span class="p_add">+		    (newsize &gt; oldsize &amp;&amp; (info-&gt;seals &amp; F_SEAL_GROW)))</span>
+<span class="p_add">+			return -EPERM;</span>
+<span class="p_add">+		error = hugetlb_vmtruncate(inode, newsize);</span>
+ 		if (error)
+ 			return error;
+ 	}
+<span class="p_chunk">@@ -713,6 +735,8 @@</span> <span class="p_context"> static struct inode *hugetlbfs_get_inode(struct super_block *sb,</span>
+ 
+ 	inode = new_inode(sb);
+ 	if (inode) {
+<span class="p_add">+		struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);</span>
+<span class="p_add">+</span>
+ 		inode-&gt;i_ino = get_next_ino();
+ 		inode_init_owner(inode, dir, mode);
+ 		lockdep_set_class(&amp;inode-&gt;i_mapping-&gt;i_mmap_rwsem,
+<span class="p_chunk">@@ -720,6 +744,7 @@</span> <span class="p_context"> static struct inode *hugetlbfs_get_inode(struct super_block *sb,</span>
+ 		inode-&gt;i_mapping-&gt;a_ops = &amp;hugetlbfs_aops;
+ 		inode-&gt;i_atime = inode-&gt;i_mtime = inode-&gt;i_ctime = current_time(inode);
+ 		inode-&gt;i_mapping-&gt;private_data = resv_map;
+<span class="p_add">+		info-&gt;seals = F_SEAL_SEAL;</span>
+ 		switch (mode &amp; S_IFMT) {
+ 		default:
+ 			init_special_inode(inode, mode, dev);
+<span class="p_header">diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h</span>
+<span class="p_header">index 590a77433a14..2a21c59a9952 100644</span>
+<span class="p_header">--- a/include/linux/hugetlb.h</span>
+<span class="p_header">+++ b/include/linux/hugetlb.h</span>
+<span class="p_chunk">@@ -282,6 +282,7 @@</span> <span class="p_context"> static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)</span>
+ struct hugetlbfs_inode_info {
+ 	struct shared_policy policy;
+ 	struct inode vfs_inode;
+<span class="p_add">+	unsigned int seals;</span>
+ };
+ 
+ static inline struct hugetlbfs_inode_info *HUGETLBFS_I(struct inode *inode)
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

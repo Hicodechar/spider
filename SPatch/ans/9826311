@@ -1,0 +1,677 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[tip:x86/mm] x86/mm: Rework lazy TLB mode and TLB freshness tracking - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [tip:x86/mm] x86/mm: Rework lazy TLB mode and TLB freshness tracking</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=60001">tip-bot for Jacob Shin</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>July 5, 2017, 10:31 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;tip-94b1b03b519b81c494900cb112aa00ed205cc2d9@git.kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9826311/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9826311/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9826311/">/patch/9826311/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	0CC2D603B5 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  5 Jul 2017 10:38:04 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id EE71C22AFC
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  5 Jul 2017 10:38:03 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id E2C4D283D0; Wed,  5 Jul 2017 10:38:03 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 5FB4822AFC
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  5 Jul 2017 10:38:01 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752730AbdGEKhs (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 5 Jul 2017 06:37:48 -0400
+Received: from terminus.zytor.com ([65.50.211.136]:42527 &quot;EHLO
+	terminus.zytor.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752684AbdGEKhp (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 5 Jul 2017 06:37:45 -0400
+Received: from terminus.zytor.com (localhost [127.0.0.1])
+	by terminus.zytor.com (8.15.2/8.15.2) with ESMTP id v65AVixm013238;
+	Wed, 5 Jul 2017 03:31:44 -0700
+Received: (from tipbot@localhost)
+	by terminus.zytor.com (8.15.2/8.15.2/Submit) id v65AViu4013233;
+	Wed, 5 Jul 2017 03:31:44 -0700
+Date: Wed, 5 Jul 2017 03:31:44 -0700
+X-Authentication-Warning: terminus.zytor.com: tipbot set sender to
+	tipbot@zytor.com using -f
+From: tip-bot for Andy Lutomirski &lt;tipbot@zytor.com&gt;
+Message-ID: &lt;tip-94b1b03b519b81c494900cb112aa00ed205cc2d9@git.kernel.org&gt;
+Cc: hpa@zytor.com, dave.hansen@intel.com, luto@kernel.org,
+	nadav.amit@gmail.com, tglx@linutronix.de, sivanich@sgi.com,
+	abanman@sgi.com, arjan@linux.intel.com,
+	linux-kernel@vger.kernel.org, travis@sgi.com, riel@redhat.com,
+	torvalds@linux-foundation.org, mgorman@suse.de, bp@alien8.de,
+	boris.ostrovsky@oracle.com, mingo@kernel.org,
+	akpm@linux-foundation.org, jgross@suse.com, peterz@infradead.org
+Reply-To: torvalds@linux-foundation.org, mgorman@suse.de, riel@redhat.com,
+	peterz@infradead.org, jgross@suse.com, akpm@linux-foundation.org,
+	bp@alien8.de, mingo@kernel.org, boris.ostrovsky@oracle.com,
+	nadav.amit@gmail.com, sivanich@sgi.com, abanman@sgi.com,
+	tglx@linutronix.de, hpa@zytor.com, dave.hansen@intel.com,
+	luto@kernel.org, linux-kernel@vger.kernel.org, travis@sgi.com,
+	arjan@linux.intel.com
+In-Reply-To: &lt;ddf2c92962339f4ba39d8fc41b853936ec0b44f1.1498751203.git.luto@kernel.org&gt;
+References: &lt;ddf2c92962339f4ba39d8fc41b853936ec0b44f1.1498751203.git.luto@kernel.org&gt;
+To: linux-tip-commits@vger.kernel.org
+Subject: [tip:x86/mm] x86/mm: Rework lazy TLB mode and TLB freshness tracking
+Git-Commit-ID: 94b1b03b519b81c494900cb112aa00ed205cc2d9
+X-Mailer: tip-git-log-daemon
+Robot-ID: &lt;tip-bot.git.kernel.org&gt;
+Robot-Unsubscribe: Contact &lt;mailto:hpa@kernel.org&gt; to get blacklisted from
+	these emails
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=60001">tip-bot for Jacob Shin</a> - July 5, 2017, 10:31 a.m.</div>
+<pre class="content">
+Commit-ID:  94b1b03b519b81c494900cb112aa00ed205cc2d9
+Gitweb:     http://git.kernel.org/tip/94b1b03b519b81c494900cb112aa00ed205cc2d9
+Author:     Andy Lutomirski &lt;luto@kernel.org&gt;
+AuthorDate: Thu, 29 Jun 2017 08:53:17 -0700
+Committer:  Ingo Molnar &lt;mingo@kernel.org&gt;
+CommitDate: Wed, 5 Jul 2017 10:52:57 +0200
+
+x86/mm: Rework lazy TLB mode and TLB freshness tracking
+
+x86&#39;s lazy TLB mode used to be fairly weak -- it would switch to
+init_mm the first time it tried to flush a lazy TLB.  This meant an
+unnecessary CR3 write and, if the flush was remote, an unnecessary
+IPI.
+
+Rewrite it entirely.  When we enter lazy mode, we simply remove the
+CPU from mm_cpumask.  This means that we need a way to figure out
+whether we&#39;ve missed a flush when we switch back out of lazy mode.
+I use the tlb_gen machinery to track whether a context is up to
+date.
+
+Note to reviewers: this patch, my itself, looks a bit odd.  I&#39;m
+using an array of length 1 containing (ctx_id, tlb_gen) rather than
+just storing tlb_gen, and making it at array isn&#39;t necessary yet.
+I&#39;m doing this because the next few patches add PCID support, and,
+with PCID, we need ctx_id, and the array will end up with a length
+greater than 1.  Making it an array now means that there will be
+less churn and therefore less stress on your eyeballs.
+
+NB: This is dubious but, AFAICT, still correct on Xen and UV.
+xen_exit_mmap() uses mm_cpumask() for nefarious purposes and this
+patch changes the way that mm_cpumask() works.  This should be okay,
+since Xen *also* iterates all online CPUs to find all the CPUs it
+needs to twiddle.
+
+The UV tlbflush code is rather dated and should be changed.
+
+Here are some benchmark results, done on a Skylake laptop at 2.3 GHz
+(turbo off, intel_pstate requesting max performance) under KVM with
+the guest using idle=poll (to avoid artifacts when bouncing between
+CPUs).  I haven&#39;t done any real statistics here -- I just ran them
+in a loop and picked the fastest results that didn&#39;t look like
+outliers.  Unpatched means commit a4eb8b993554, so all the
+bookkeeping overhead is gone.
+
+MADV_DONTNEED; touch the page; switch CPUs using sched_setaffinity.  In
+an unpatched kernel, MADV_DONTNEED will send an IPI to the previous CPU.
+This is intended to be a nearly worst-case test.
+
+  patched:         13.4µs
+  unpatched:       21.6µs
+
+Vitaly&#39;s pthread_mmap microbenchmark with 8 threads (on four cores),
+nrounds = 100, 256M data
+
+  patched:         1.1 seconds or so
+  unpatched:       1.9 seconds or so
+
+The sleepup on Vitaly&#39;s test appearss to be because it spends a lot
+of time blocked on mmap_sem, and this patch avoids sending IPIs to
+blocked CPUs.
+<span class="signed-off-by">
+Signed-off-by: Andy Lutomirski &lt;luto@kernel.org&gt;</span>
+<span class="reviewed-by">Reviewed-by: Nadav Amit &lt;nadav.amit@gmail.com&gt;</span>
+<span class="reviewed-by">Reviewed-by: Thomas Gleixner &lt;tglx@linutronix.de&gt;</span>
+Cc: Andrew Banman &lt;abanman@sgi.com&gt;
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: Arjan van de Ven &lt;arjan@linux.intel.com&gt;
+Cc: Boris Ostrovsky &lt;boris.ostrovsky@oracle.com&gt;
+Cc: Borislav Petkov &lt;bp@alien8.de&gt;
+Cc: Dave Hansen &lt;dave.hansen@intel.com&gt;
+Cc: Dimitri Sivanich &lt;sivanich@sgi.com&gt;
+Cc: Juergen Gross &lt;jgross@suse.com&gt;
+Cc: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+Cc: Mel Gorman &lt;mgorman@suse.de&gt;
+Cc: Mike Travis &lt;travis@sgi.com&gt;
+Cc: Peter Zijlstra &lt;peterz@infradead.org&gt;
+Cc: Rik van Riel &lt;riel@redhat.com&gt;
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/ddf2c92962339f4ba39d8fc41b853936ec0b44f1.1498751203.git.luto@kernel.org
+<span class="signed-off-by">Signed-off-by: Ingo Molnar &lt;mingo@kernel.org&gt;</span>
+---
+ arch/x86/include/asm/mmu_context.h |   6 +-
+ arch/x86/include/asm/tlbflush.h    |   4 -
+ arch/x86/mm/init.c                 |   1 -
+ arch/x86/mm/tlb.c                  | 197 ++++++++++++++++++++++---------------
+ arch/x86/xen/mmu_pv.c              |   5 +-
+ 5 files changed, 124 insertions(+), 89 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_header">index ae19b9d..85f6b55 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_chunk">@@ -128,8 +128,10 @@</span> <span class="p_context"> static inline void switch_ldt(struct mm_struct *prev, struct mm_struct *next)</span>
+ 
+ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
+ {
+<span class="p_del">-	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)</span>
+<span class="p_del">-		this_cpu_write(cpu_tlbstate.state, TLBSTATE_LAZY);</span>
+<span class="p_add">+	int cpu = smp_processor_id();</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (cpumask_test_cpu(cpu, mm_cpumask(mm)))</span>
+<span class="p_add">+		cpumask_clear_cpu(cpu, mm_cpumask(mm));</span>
+ }
+ 
+ static inline int init_new_context(struct task_struct *tsk,
+<span class="p_header">diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">index d7df54c..06e997a 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -95,7 +95,6 @@</span> <span class="p_context"> struct tlb_state {</span>
+ 	 * mode even if we&#39;ve already switched back to swapper_pg_dir.
+ 	 */
+ 	struct mm_struct *loaded_mm;
+<span class="p_del">-	int state;</span>
+ 
+ 	/*
+ 	 * Access to this CR4 shadow and to H/W CR4 is protected by
+<span class="p_chunk">@@ -310,9 +309,6 @@</span> <span class="p_context"> static inline void flush_tlb_page(struct vm_area_struct *vma, unsigned long a)</span>
+ void native_flush_tlb_others(const struct cpumask *cpumask,
+ 			     const struct flush_tlb_info *info);
+ 
+<span class="p_del">-#define TLBSTATE_OK	1</span>
+<span class="p_del">-#define TLBSTATE_LAZY	2</span>
+<span class="p_del">-</span>
+ static inline void arch_tlbbatch_add_mm(struct arch_tlbflush_unmap_batch *batch,
+ 					struct mm_struct *mm)
+ {
+<span class="p_header">diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c</span>
+<span class="p_header">index 673541e..4d353ef 100644</span>
+<span class="p_header">--- a/arch/x86/mm/init.c</span>
+<span class="p_header">+++ b/arch/x86/mm/init.c</span>
+<span class="p_chunk">@@ -812,7 +812,6 @@</span> <span class="p_context"> void __init zone_sizes_init(void)</span>
+ 
+ DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate) = {
+ 	.loaded_mm = &amp;init_mm,
+<span class="p_del">-	.state = 0,</span>
+ 	.cr4 = ~0UL,	/* fail hard if we screw up cr4 shadow initialization */
+ };
+ EXPORT_SYMBOL_GPL(cpu_tlbstate);
+<span class="p_header">diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c</span>
+<span class="p_header">index 4e5a5dd..0982c99 100644</span>
+<span class="p_header">--- a/arch/x86/mm/tlb.c</span>
+<span class="p_header">+++ b/arch/x86/mm/tlb.c</span>
+<span class="p_chunk">@@ -45,8 +45,8 @@</span> <span class="p_context"> void leave_mm(int cpu)</span>
+ 	if (loaded_mm == &amp;init_mm)
+ 		return;
+ 
+<span class="p_del">-	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)</span>
+<span class="p_del">-		BUG();</span>
+<span class="p_add">+	/* Warn if we&#39;re not lazy. */</span>
+<span class="p_add">+	WARN_ON(cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm)));</span>
+ 
+ 	switch_mm(NULL, &amp;init_mm, NULL);
+ }
+<span class="p_chunk">@@ -65,94 +65,117 @@</span> <span class="p_context"> void switch_mm(struct mm_struct *prev, struct mm_struct *next,</span>
+ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
+ 			struct task_struct *tsk)
+ {
+<span class="p_del">-	unsigned cpu = smp_processor_id();</span>
+ 	struct mm_struct *real_prev = this_cpu_read(cpu_tlbstate.loaded_mm);
+<span class="p_add">+	unsigned cpu = smp_processor_id();</span>
+<span class="p_add">+	u64 next_tlb_gen;</span>
+ 
+ 	/*
+<span class="p_del">-	 * NB: The scheduler will call us with prev == next when</span>
+<span class="p_del">-	 * switching from lazy TLB mode to normal mode if active_mm</span>
+<span class="p_del">-	 * isn&#39;t changing.  When this happens, there is no guarantee</span>
+<span class="p_del">-	 * that CR3 (and hence cpu_tlbstate.loaded_mm) matches next.</span>
+<span class="p_add">+	 * NB: The scheduler will call us with prev == next when switching</span>
+<span class="p_add">+	 * from lazy TLB mode to normal mode if active_mm isn&#39;t changing.</span>
+<span class="p_add">+	 * When this happens, we don&#39;t assume that CR3 (and hence</span>
+<span class="p_add">+	 * cpu_tlbstate.loaded_mm) matches next.</span>
+ 	 *
+ 	 * NB: leave_mm() calls us with prev == NULL and tsk == NULL.
+ 	 */
+ 
+<span class="p_del">-	this_cpu_write(cpu_tlbstate.state, TLBSTATE_OK);</span>
+<span class="p_add">+	/* We don&#39;t want flush_tlb_func_* to run concurrently with us. */</span>
+<span class="p_add">+	if (IS_ENABLED(CONFIG_PROVE_LOCKING))</span>
+<span class="p_add">+		WARN_ON_ONCE(!irqs_disabled());</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Verify that CR3 is what we think it is.  This will catch</span>
+<span class="p_add">+	 * hypothetical buggy code that directly switches to swapper_pg_dir</span>
+<span class="p_add">+	 * without going through leave_mm() / switch_mm_irqs_off().</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	VM_BUG_ON(read_cr3_pa() != __pa(real_prev-&gt;pgd));</span>
+ 
+ 	if (real_prev == next) {
+<span class="p_del">-		/*</span>
+<span class="p_del">-		 * There&#39;s nothing to do: we always keep the per-mm control</span>
+<span class="p_del">-		 * regs in sync with cpu_tlbstate.loaded_mm.  Just</span>
+<span class="p_del">-		 * sanity-check mm_cpumask.</span>
+<span class="p_del">-		 */</span>
+<span class="p_del">-		if (WARN_ON_ONCE(!cpumask_test_cpu(cpu, mm_cpumask(next))))</span>
+<span class="p_del">-			cpumask_set_cpu(cpu, mm_cpumask(next));</span>
+<span class="p_del">-		return;</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=</span>
+<span class="p_add">+			  next-&gt;context.ctx_id);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (cpumask_test_cpu(cpu, mm_cpumask(next))) {</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * There&#39;s nothing to do: we weren&#39;t lazy, and we</span>
+<span class="p_add">+			 * aren&#39;t changing our mm.  We don&#39;t need to flush</span>
+<span class="p_add">+			 * anything, nor do we need to update CR3, CR4, or</span>
+<span class="p_add">+			 * LDTR.</span>
+<span class="p_add">+			 */</span>
+<span class="p_add">+			return;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/* Resume remote flushes and then read tlb_gen. */</span>
+<span class="p_add">+		cpumask_set_cpu(cpu, mm_cpumask(next));</span>
+<span class="p_add">+		next_tlb_gen = atomic64_read(&amp;next-&gt;context.tlb_gen);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (this_cpu_read(cpu_tlbstate.ctxs[0].tlb_gen) &lt; next_tlb_gen) {</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * Ideally, we&#39;d have a flush_tlb() variant that</span>
+<span class="p_add">+			 * takes the known CR3 value as input.  This would</span>
+<span class="p_add">+			 * be faster on Xen PV and on hypothetical CPUs</span>
+<span class="p_add">+			 * on which INVPCID is fast.</span>
+<span class="p_add">+			 */</span>
+<span class="p_add">+			this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen,</span>
+<span class="p_add">+				       next_tlb_gen);</span>
+<span class="p_add">+			write_cr3(__pa(next-&gt;pgd));</span>
+<span class="p_add">+</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * This gets called via leave_mm() in the idle path</span>
+<span class="p_add">+			 * where RCU functions differently.  Tracing normally</span>
+<span class="p_add">+			 * uses RCU, so we have to call the tracepoint</span>
+<span class="p_add">+			 * specially here.</span>
+<span class="p_add">+			 */</span>
+<span class="p_add">+			trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH,</span>
+<span class="p_add">+						TLB_FLUSH_ALL);</span>
+<span class="p_add">+		}</span>
+ 
+<span class="p_del">-	if (IS_ENABLED(CONFIG_VMAP_STACK)) {</span>
+ 		/*
+<span class="p_del">-		 * If our current stack is in vmalloc space and isn&#39;t</span>
+<span class="p_del">-		 * mapped in the new pgd, we&#39;ll double-fault.  Forcibly</span>
+<span class="p_del">-		 * map it.</span>
+<span class="p_add">+		 * We just exited lazy mode, which means that CR4 and/or LDTR</span>
+<span class="p_add">+		 * may be stale.  (Changes to the required CR4 and LDTR states</span>
+<span class="p_add">+		 * are not reflected in tlb_gen.)</span>
+ 		 */
+<span class="p_del">-		unsigned int stack_pgd_index = pgd_index(current_stack_pointer());</span>
+<span class="p_del">-</span>
+<span class="p_del">-		pgd_t *pgd = next-&gt;pgd + stack_pgd_index;</span>
+<span class="p_del">-</span>
+<span class="p_del">-		if (unlikely(pgd_none(*pgd)))</span>
+<span class="p_del">-			set_pgd(pgd, init_mm.pgd[stack_pgd_index]);</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) ==</span>
+<span class="p_add">+			  next-&gt;context.ctx_id);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (IS_ENABLED(CONFIG_VMAP_STACK)) {</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * If our current stack is in vmalloc space and isn&#39;t</span>
+<span class="p_add">+			 * mapped in the new pgd, we&#39;ll double-fault.  Forcibly</span>
+<span class="p_add">+			 * map it.</span>
+<span class="p_add">+			 */</span>
+<span class="p_add">+			unsigned int index = pgd_index(current_stack_pointer());</span>
+<span class="p_add">+			pgd_t *pgd = next-&gt;pgd + index;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			if (unlikely(pgd_none(*pgd)))</span>
+<span class="p_add">+				set_pgd(pgd, init_mm.pgd[index]);</span>
+<span class="p_add">+		}</span>
+ 
+<span class="p_del">-	this_cpu_write(cpu_tlbstate.loaded_mm, next);</span>
+<span class="p_del">-	this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, next-&gt;context.ctx_id);</span>
+<span class="p_del">-	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, atomic64_read(&amp;next-&gt;context.tlb_gen));</span>
+<span class="p_add">+		/* Stop remote flushes for the previous mm */</span>
+<span class="p_add">+		if (cpumask_test_cpu(cpu, mm_cpumask(real_prev)))</span>
+<span class="p_add">+			cpumask_clear_cpu(cpu, mm_cpumask(real_prev));</span>
+ 
+<span class="p_del">-	WARN_ON_ONCE(cpumask_test_cpu(cpu, mm_cpumask(next)));</span>
+<span class="p_del">-	cpumask_set_cpu(cpu, mm_cpumask(next));</span>
+<span class="p_add">+		VM_WARN_ON_ONCE(cpumask_test_cpu(cpu, mm_cpumask(next)));</span>
+ 
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * Re-load page tables.</span>
+<span class="p_del">-	 *</span>
+<span class="p_del">-	 * This logic has an ordering constraint:</span>
+<span class="p_del">-	 *</span>
+<span class="p_del">-	 *  CPU 0: Write to a PTE for &#39;next&#39;</span>
+<span class="p_del">-	 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.</span>
+<span class="p_del">-	 *  CPU 1: set bit 1 in next&#39;s mm_cpumask</span>
+<span class="p_del">-	 *  CPU 1: load from the PTE that CPU 0 writes (implicit)</span>
+<span class="p_del">-	 *</span>
+<span class="p_del">-	 * We need to prevent an outcome in which CPU 1 observes</span>
+<span class="p_del">-	 * the new PTE value and CPU 0 observes bit 1 clear in</span>
+<span class="p_del">-	 * mm_cpumask.  (If that occurs, then the IPI will never</span>
+<span class="p_del">-	 * be sent, and CPU 0&#39;s TLB will contain a stale entry.)</span>
+<span class="p_del">-	 *</span>
+<span class="p_del">-	 * The bad outcome can occur if either CPU&#39;s load is</span>
+<span class="p_del">-	 * reordered before that CPU&#39;s store, so both CPUs must</span>
+<span class="p_del">-	 * execute full barriers to prevent this from happening.</span>
+<span class="p_del">-	 *</span>
+<span class="p_del">-	 * Thus, switch_mm needs a full barrier between the</span>
+<span class="p_del">-	 * store to mm_cpumask and any operation that could load</span>
+<span class="p_del">-	 * from next-&gt;pgd.  TLB fills are special and can happen</span>
+<span class="p_del">-	 * due to instruction fetches or for no reason at all,</span>
+<span class="p_del">-	 * and neither LOCK nor MFENCE orders them.</span>
+<span class="p_del">-	 * Fortunately, load_cr3() is serializing and gives the</span>
+<span class="p_del">-	 * ordering guarantee we need.</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	load_cr3(next-&gt;pgd);</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Start remote flushes and then read tlb_gen.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		cpumask_set_cpu(cpu, mm_cpumask(next));</span>
+<span class="p_add">+		next_tlb_gen = atomic64_read(&amp;next-&gt;context.tlb_gen);</span>
+ 
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * This gets called via leave_mm() in the idle path where RCU</span>
+<span class="p_del">-	 * functions differently.  Tracing normally uses RCU, so we have to</span>
+<span class="p_del">-	 * call the tracepoint specially here.</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);</span>
+<span class="p_add">+		this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, next-&gt;context.ctx_id);</span>
+<span class="p_add">+		this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, next_tlb_gen);</span>
+<span class="p_add">+		this_cpu_write(cpu_tlbstate.loaded_mm, next);</span>
+<span class="p_add">+		write_cr3(__pa(next-&gt;pgd));</span>
+ 
+<span class="p_del">-	/* Stop flush ipis for the previous mm */</span>
+<span class="p_del">-	WARN_ON_ONCE(!cpumask_test_cpu(cpu, mm_cpumask(real_prev)) &amp;&amp;</span>
+<span class="p_del">-		     real_prev != &amp;init_mm);</span>
+<span class="p_del">-	cpumask_clear_cpu(cpu, mm_cpumask(real_prev));</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * This gets called via leave_mm() in the idle path where RCU</span>
+<span class="p_add">+		 * functions differently.  Tracing normally uses RCU, so we</span>
+<span class="p_add">+		 * have to call the tracepoint specially here.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH,</span>
+<span class="p_add">+					TLB_FLUSH_ALL);</span>
+<span class="p_add">+	}</span>
+ 
+<span class="p_del">-	/* Load per-mm CR4 and LDTR state */</span>
+ 	load_mm_cr4(next);
+ 	switch_ldt(real_prev, next);
+ }
+<span class="p_chunk">@@ -186,13 +209,13 @@</span> <span class="p_context"> static void flush_tlb_func_common(const struct flush_tlb_info *f,</span>
+ 	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=
+ 		   loaded_mm-&gt;context.ctx_id);
+ 
+<span class="p_del">-	if (this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK) {</span>
+<span class="p_add">+	if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm))) {</span>
+ 		/*
+<span class="p_del">-		 * leave_mm() is adequate to handle any type of flush, and</span>
+<span class="p_del">-		 * we would prefer not to receive further IPIs.  leave_mm()</span>
+<span class="p_del">-		 * clears this CPU&#39;s bit in mm_cpumask().</span>
+<span class="p_add">+		 * We&#39;re in lazy mode -- don&#39;t flush.  We can get here on</span>
+<span class="p_add">+		 * remote flushes due to races and on local flushes if a</span>
+<span class="p_add">+		 * kernel thread coincidentally flushes the mm it&#39;s lazily</span>
+<span class="p_add">+		 * still using.</span>
+ 		 */
+<span class="p_del">-		leave_mm(smp_processor_id());</span>
+ 		return;
+ 	}
+ 
+<span class="p_chunk">@@ -203,6 +226,7 @@</span> <span class="p_context"> static void flush_tlb_func_common(const struct flush_tlb_info *f,</span>
+ 		 * be handled can catch us all the way up, leaving no work for
+ 		 * the second flush.
+ 		 */
+<span class="p_add">+		trace_tlb_flush(reason, 0);</span>
+ 		return;
+ 	}
+ 
+<span class="p_chunk">@@ -304,6 +328,21 @@</span> <span class="p_context"> void native_flush_tlb_others(const struct cpumask *cpumask,</span>
+ 				(info-&gt;end - info-&gt;start) &gt;&gt; PAGE_SHIFT);
+ 
+ 	if (is_uv_system()) {
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * This whole special case is confused.  UV has a &quot;Broadcast</span>
+<span class="p_add">+		 * Assist Unit&quot;, which seems to be a fancy way to send IPIs.</span>
+<span class="p_add">+		 * Back when x86 used an explicit TLB flush IPI, UV was</span>
+<span class="p_add">+		 * optimized to use its own mechanism.  These days, x86 uses</span>
+<span class="p_add">+		 * smp_call_function_many(), but UV still uses a manual IPI,</span>
+<span class="p_add">+		 * and that IPI&#39;s action is out of date -- it does a manual</span>
+<span class="p_add">+		 * flush instead of calling flush_tlb_func_remote().  This</span>
+<span class="p_add">+		 * means that the percpu tlb_gen variables won&#39;t be updated</span>
+<span class="p_add">+		 * and we&#39;ll do pointless flushes on future context switches.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * Rather than hooking native_flush_tlb_others() here, I think</span>
+<span class="p_add">+		 * that UV should be updated so that smp_call_function_many(),</span>
+<span class="p_add">+		 * etc, are optimal on UV.</span>
+<span class="p_add">+		 */</span>
+ 		unsigned int cpu;
+ 
+ 		cpu = smp_processor_id();
+<span class="p_chunk">@@ -363,6 +402,7 @@</span> <span class="p_context"> void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,</span>
+ 
+ 	if (cpumask_any_but(mm_cpumask(mm), cpu) &lt; nr_cpu_ids)
+ 		flush_tlb_others(mm_cpumask(mm), &amp;info);
+<span class="p_add">+</span>
+ 	put_cpu();
+ }
+ 
+<span class="p_chunk">@@ -371,8 +411,6 @@</span> <span class="p_context"> static void do_flush_tlb_all(void *info)</span>
+ {
+ 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
+ 	__flush_tlb_all();
+<span class="p_del">-	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_LAZY)</span>
+<span class="p_del">-		leave_mm(smp_processor_id());</span>
+ }
+ 
+ void flush_tlb_all(void)
+<span class="p_chunk">@@ -425,6 +463,7 @@</span> <span class="p_context"> void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)</span>
+ 
+ 	if (cpumask_any_but(&amp;batch-&gt;cpumask, cpu) &lt; nr_cpu_ids)
+ 		flush_tlb_others(&amp;batch-&gt;cpumask, &amp;info);
+<span class="p_add">+</span>
+ 	cpumask_clear(&amp;batch-&gt;cpumask);
+ 
+ 	put_cpu();
+<span class="p_header">diff --git a/arch/x86/xen/mmu_pv.c b/arch/x86/xen/mmu_pv.c</span>
+<span class="p_header">index 1d7a721..0472790 100644</span>
+<span class="p_header">--- a/arch/x86/xen/mmu_pv.c</span>
+<span class="p_header">+++ b/arch/x86/xen/mmu_pv.c</span>
+<span class="p_chunk">@@ -1005,14 +1005,12 @@</span> <span class="p_context"> static void xen_drop_mm_ref(struct mm_struct *mm)</span>
+ 	/* Get the &quot;official&quot; set of cpus referring to our pagetable. */
+ 	if (!alloc_cpumask_var(&amp;mask, GFP_ATOMIC)) {
+ 		for_each_online_cpu(cpu) {
+<span class="p_del">-			if (!cpumask_test_cpu(cpu, mm_cpumask(mm))</span>
+<span class="p_del">-			    &amp;&amp; per_cpu(xen_current_cr3, cpu) != __pa(mm-&gt;pgd))</span>
+<span class="p_add">+			if (per_cpu(xen_current_cr3, cpu) != __pa(mm-&gt;pgd))</span>
+ 				continue;
+ 			smp_call_function_single(cpu, drop_mm_ref_this_cpu, mm, 1);
+ 		}
+ 		return;
+ 	}
+<span class="p_del">-	cpumask_copy(mask, mm_cpumask(mm));</span>
+ 
+ 	/*
+ 	 * It&#39;s possible that a vcpu may have a stale reference to our
+<span class="p_chunk">@@ -1021,6 +1019,7 @@</span> <span class="p_context"> static void xen_drop_mm_ref(struct mm_struct *mm)</span>
+ 	 * look at its actual current cr3 value, and force it to flush
+ 	 * if needed.
+ 	 */
+<span class="p_add">+	cpumask_clear(mask);</span>
+ 	for_each_online_cpu(cpu) {
+ 		if (per_cpu(xen_current_cr3, cpu) == __pa(mm-&gt;pgd))
+ 			cpumask_set_cpu(cpu, mask);
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

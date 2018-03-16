@@ -1,0 +1,827 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>mm/hugetlbfs: Unmap pages if page fault raced with hole punch - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    mm/hugetlbfs: Unmap pages if page fault raced with hole punch</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=113021">Hillf Danton</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Jan. 7, 2016, 8:06 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;04d801d14922$5d1e2f30$175a8d90$@alibaba-inc.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7974081/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7974081/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7974081/">/patch/7974081/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork1.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork1.web.kernel.org (Postfix) with ESMTP id 2305A9F38D
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  7 Jan 2016 08:07:28 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 0E4D120172
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  7 Jan 2016 08:07:27 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id C82E72015E
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  7 Jan 2016 08:07:25 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751998AbcAGIHX (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 7 Jan 2016 03:07:23 -0500
+Received: from out4133-18.mail.aliyun.com ([42.120.133.18]:64132 &quot;EHLO
+	out4133-18.mail.aliyun.com&quot; rhost-flags-OK-OK-OK-OK)
+	by vger.kernel.org with ESMTP id S1750707AbcAGIHT (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 7 Jan 2016 03:07:19 -0500
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=alibaba-inc.com; s=default; t=1452154026;
+	h=From:To:Subject:Date:Message-ID:MIME-Version:Content-Type; 
+	bh=XzdiAYXstUrCBAKK9TMdzbql0rnlEPXA64zhA25/P2w=;
+	b=qx73dWaF7xRit3RN/a2gtYtwfdvANySFilMtTQEX9zKz6cCIc7OwVvUoRIXuKpnJos6uCYGZAl1X61Ygkqz4oktADotWQDeqm4mwRF+ABVZjWDPx5PqCn6PnhHos4nM35XGwIWwq+xYm22ZGEMxBilhtC4o2aPM+PQMfUYs6PZM=
+X-Alimail-AntiSpam: AC=PASS; BC=-1|-1; BR=01201311R181e4;
+	FP=0|-1|-1|-1|0|-1|-1|-1; HT=e01l10436;
+	MF=hillf.zj@alibaba-inc.com; NM=1; PH=DS; RN=9; SR=0;
+	TI=SMTPD_----4QbmtWP_1452154010; 
+Received: from ali074300n(mailfrom:hillf.zj@alibaba-inc.com ip:182.92.253.16)
+	by smtp.aliyun-inc.com(127.0.0.1); Thu, 07 Jan 2016 16:06:51 +0800
+Reply-To: &quot;Hillf Danton&quot; &lt;hillf.zj@alibaba-inc.com&gt;
+From: &quot;Hillf Danton&quot; &lt;hillf.zj@alibaba-inc.com&gt;
+To: &quot;&#39;Mike Kravetz&#39;&quot; &lt;mike.kravetz@oracle.com&gt;,
+	&lt;linux-kernel@vger.kernel.org&gt;, &lt;linux-mm@kvack.org&gt;
+Cc: &quot;&#39;Hugh Dickins&#39;&quot; &lt;hughd@google.com&gt;,
+	&quot;&#39;Naoya Horiguchi&#39;&quot; &lt;n-horiguchi@ah.jp.nec.com&gt;,
+	&quot;&#39;Davidlohr Bueso&#39;&quot; &lt;dave@stgolabs.net&gt;,
+	&quot;&#39;Dave Hansen&#39;&quot; &lt;dave.hansen@linux.intel.com&gt;,
+	&quot;&#39;Andrew Morton&#39;&quot; &lt;akpm@linux-foundation.org&gt;,
+	&quot;&#39;Michel Lespinasse&#39;&quot; &lt;walken@google.com&gt;
+References: &lt;1452119824-32715-1-git-send-email-mike.kravetz@oracle.com&gt;
+In-Reply-To: &lt;1452119824-32715-1-git-send-email-mike.kravetz@oracle.com&gt;
+Subject: Re: [PATCH] mm/hugetlbfs: Unmap pages if page fault raced with hole
+	punch
+Date: Thu, 07 Jan 2016 16:06:50 +0800
+Message-ID: &lt;04d801d14922$5d1e2f30$175a8d90$@alibaba-inc.com&gt;
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset=&quot;us-ascii&quot;
+Content-Transfer-Encoding: 7bit
+X-Mailer: Microsoft Outlook 14.0
+Thread-Index: AQGZZo3LeJzNy1EStXSpOK8PRTamW59fcJRA
+Content-Language: zh-cn
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.8 required=5.0 tests=BAYES_00,DKIM_SIGNED,
+	RCVD_IN_DNSWL_HI,RP_MATCHES_RCVD,T_DKIM_INVALID,UNPARSEABLE_RELAY
+	autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=113021">Hillf Danton</a> - Jan. 7, 2016, 8:06 a.m.</div>
+<pre class="content">
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Page faults can race with fallocate hole punch.  If a page fault happens</span>
+<span class="quote">&gt; between the unmap and remove operations, the page is not removed and</span>
+<span class="quote">&gt; remains within the hole.  This is not the desired behavior.  The race</span>
+<span class="quote">&gt; is difficult to detect in user level code as even in the non-race</span>
+<span class="quote">&gt; case, a page within the hole could be faulted back in before fallocate</span>
+<span class="quote">&gt; returns.  If userfaultfd is expanded to support hugetlbfs in the future,</span>
+<span class="quote">&gt; this race will be easier to observe.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If this race is detected and a page is mapped, the remove operation</span>
+<span class="quote">&gt; (remove_inode_hugepages) will unmap the page before removing.  The unmap</span>
+<span class="quote">&gt; within remove_inode_hugepages occurs with the hugetlb_fault_mutex held</span>
+<span class="quote">&gt; so that no other faults will be processed until the page is removed.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The (unmodified) routine hugetlb_vmdelete_list was moved ahead of</span>
+<span class="quote">&gt; remove_inode_hugepages to satisfy the new reference.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  fs/hugetlbfs/inode.c | 139 +++++++++++++++++++++++++++------------------------</span>
+<span class="quote">&gt;  1 file changed, 73 insertions(+), 66 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; index 0444760..0871d70 100644</span>
+<span class="quote">&gt; --- a/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; +++ b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; @@ -324,11 +324,46 @@ static void remove_huge_page(struct page *page)</span>
+<span class="quote">&gt;  	delete_from_page_cache(page);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; +static inline void</span>
+<span class="quote">&gt; +hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	struct vm_area_struct *vma;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * end == 0 indicates that the entire range after</span>
+<span class="quote">&gt; +	 * start should be unmapped.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {</span>
+
+[1] perhaps end can be reused.
+<span class="quote">
+&gt; +		unsigned long v_offset;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +		/*</span>
+<span class="quote">&gt; +		 * Can the expression below overflow on 32-bit arches?</span>
+<span class="quote">&gt; +		 * No, because the interval tree returns us only those vmas</span>
+<span class="quote">&gt; +		 * which overlap the truncated area starting at pgoff,</span>
+<span class="quote">&gt; +		 * and no vma on a 32-bit arch can span beyond the 4GB.</span>
+<span class="quote">&gt; +		 */</span>
+<span class="quote">&gt; +		if (vma-&gt;vm_pgoff &lt; start)</span>
+<span class="quote">&gt; +			v_offset = (start - vma-&gt;vm_pgoff) &lt;&lt; PAGE_SHIFT;</span>
+<span class="quote">&gt; +		else</span>
+<span class="quote">&gt; +			v_offset = 0;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +		if (end) {</span>
+<span class="quote">&gt; +			end = ((end - start) &lt;&lt; PAGE_SHIFT) +</span>
+<span class="quote">&gt; +			       vma-&gt;vm_start + v_offset;</span>
+
+[2] end is input to be pgoff_t, but changed to be the type of v_offset.
+Further we cannot handle the case that end is input to be zero.
+See the diff below please.
+<span class="quote">
+&gt; +			if (end &gt; vma-&gt;vm_end)</span>
+<span class="quote">&gt; +				end = vma-&gt;vm_end;</span>
+<span class="quote">&gt; +		} else</span>
+<span class="quote">&gt; +			end = vma-&gt;vm_end;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +		unmap_hugepage_range(vma, vma-&gt;vm_start + v_offset, end, NULL);</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  /*</span>
+<span class="quote">&gt;   * remove_inode_hugepages handles two distinct cases: truncation and hole</span>
+<span class="quote">&gt;   * punch.  There are subtle differences in operation for each case.</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; + *</span>
+<span class="quote">&gt;   * truncation is indicated by end of range being LLONG_MAX</span>
+<span class="quote">&gt;   *	In this case, we first scan the range and release found pages.</span>
+<span class="quote">&gt;   *	After releasing pages, hugetlb_unreserve_pages cleans up region/reserv</span>
+<span class="quote">&gt; @@ -379,6 +414,7 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  		for (i = 0; i &lt; pagevec_count(&amp;pvec); ++i) {</span>
+<span class="quote">&gt;  			struct page *page = pvec.pages[i];</span>
+<span class="quote">&gt; +			bool rsv_on_error;</span>
+<span class="quote">&gt;  			u32 hash;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  			/*</span>
+<span class="quote">&gt; @@ -395,37 +431,43 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,</span>
+<span class="quote">&gt;  							mapping, next, 0);</span>
+<span class="quote">&gt;  			mutex_lock(&amp;hugetlb_fault_mutex_table[hash]);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; -			lock_page(page);</span>
+<span class="quote">&gt; -			if (likely(!page_mapped(page))) {</span>
+<span class="quote">&gt; -				bool rsv_on_error = !PagePrivate(page);</span>
+<span class="quote">&gt; -				/*</span>
+<span class="quote">&gt; -				 * We must free the huge page and remove</span>
+<span class="quote">&gt; -				 * from page cache (remove_huge_page) BEFORE</span>
+<span class="quote">&gt; -				 * removing the region/reserve map</span>
+<span class="quote">&gt; -				 * (hugetlb_unreserve_pages).  In rare out</span>
+<span class="quote">&gt; -				 * of memory conditions, removal of the</span>
+<span class="quote">&gt; -				 * region/reserve map could fail.  Before</span>
+<span class="quote">&gt; -				 * free&#39;ing the page, note PagePrivate which</span>
+<span class="quote">&gt; -				 * is used in case of error.</span>
+<span class="quote">&gt; -				 */</span>
+<span class="quote">&gt; -				remove_huge_page(page);</span>
+<span class="quote">&gt; -				freed++;</span>
+<span class="quote">&gt; -				if (!truncate_op) {</span>
+<span class="quote">&gt; -					if (unlikely(hugetlb_unreserve_pages(</span>
+<span class="quote">&gt; -							inode, next,</span>
+<span class="quote">&gt; -							next + 1, 1)))</span>
+<span class="quote">&gt; -						hugetlb_fix_reserve_counts(</span>
+<span class="quote">&gt; -							inode, rsv_on_error);</span>
+<span class="quote">&gt; -				}</span>
+<span class="quote">&gt; -			} else {</span>
+<span class="quote">&gt; -				/*</span>
+<span class="quote">&gt; -				 * If page is mapped, it was faulted in after</span>
+<span class="quote">&gt; -				 * being unmapped.  It indicates a race between</span>
+<span class="quote">&gt; -				 * hole punch and page fault.  Do nothing in</span>
+<span class="quote">&gt; -				 * this case.  Getting here in a truncate</span>
+<span class="quote">&gt; -				 * operation is a bug.</span>
+<span class="quote">&gt; -				 */</span>
+<span class="quote">&gt; +			/*</span>
+<span class="quote">&gt; +			 * If page is mapped, it was faulted in after being</span>
+<span class="quote">&gt; +			 * unmapped in caller.  Unmap (again) now after taking</span>
+<span class="quote">&gt; +			 * the fault mutex.  The mutex will prevent faults</span>
+<span class="quote">&gt; +			 * until we finish removing the page.</span>
+<span class="quote">&gt; +			 *</span>
+<span class="quote">&gt; +			 * This race can only happen in the hole punch case.</span>
+<span class="quote">&gt; +			 * Getting here in a truncate operation is a bug.</span>
+<span class="quote">&gt; +			 */</span>
+<span class="quote">&gt; +			if (unlikely(page_mapped(page))) {</span>
+<span class="quote">&gt;  				BUG_ON(truncate_op);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +				i_mmap_lock_write(mapping);</span>
+<span class="quote">&gt; +				hugetlb_vmdelete_list(&amp;mapping-&gt;i_mmap,</span>
+<span class="quote">&gt; +					next * pages_per_huge_page(h),</span>
+<span class="quote">&gt; +					(next + 1) * pages_per_huge_page(h));</span>
+<span class="quote">&gt; +				i_mmap_unlock_write(mapping);</span>
+<span class="quote">&gt; +			}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +			lock_page(page);</span>
+<span class="quote">&gt; +			/*</span>
+<span class="quote">&gt; +			 * We must free the huge page and remove from page</span>
+<span class="quote">&gt; +			 * cache (remove_huge_page) BEFORE removing the</span>
+<span class="quote">&gt; +			 * region/reserve map (hugetlb_unreserve_pages).  In</span>
+<span class="quote">&gt; +			 * rare out of memory conditions, removal of the</span>
+<span class="quote">&gt; +			 * region/reserve map could fail.  Before free&#39;ing</span>
+<span class="quote">&gt; +			 * the page, note PagePrivate which is used in case</span>
+<span class="quote">&gt; +			 * of error.</span>
+<span class="quote">&gt; +			 */</span>
+<span class="quote">&gt; +			rsv_on_error = !PagePrivate(page);</span>
+<span class="quote">&gt; +			remove_huge_page(page);</span>
+<span class="quote">&gt; +			freed++;</span>
+<span class="quote">&gt; +			if (!truncate_op) {</span>
+<span class="quote">&gt; +				if (unlikely(hugetlb_unreserve_pages(inode,</span>
+<span class="quote">&gt; +							next, next + 1, 1)))</span>
+<span class="quote">&gt; +					hugetlb_fix_reserve_counts(inode,</span>
+<span class="quote">&gt; +								rsv_on_error);</span>
+<span class="quote">&gt;  			}</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  			unlock_page(page);</span>
+<span class="quote">&gt; @@ -452,41 +494,6 @@ static void hugetlbfs_evict_inode(struct inode *inode)</span>
+<span class="quote">&gt;  	clear_inode(inode);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; -static inline void</span>
+<span class="quote">&gt; -hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)</span>
+<span class="quote">&gt; -{</span>
+<span class="quote">&gt; -	struct vm_area_struct *vma;</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; -	/*</span>
+<span class="quote">&gt; -	 * end == 0 indicates that the entire range after</span>
+<span class="quote">&gt; -	 * start should be unmapped.</span>
+<span class="quote">&gt; -	 */</span>
+<span class="quote">&gt; -	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {</span>
+<span class="quote">&gt; -		unsigned long v_offset;</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; -		/*</span>
+<span class="quote">&gt; -		 * Can the expression below overflow on 32-bit arches?</span>
+<span class="quote">&gt; -		 * No, because the interval tree returns us only those vmas</span>
+<span class="quote">&gt; -		 * which overlap the truncated area starting at pgoff,</span>
+<span class="quote">&gt; -		 * and no vma on a 32-bit arch can span beyond the 4GB.</span>
+<span class="quote">&gt; -		 */</span>
+<span class="quote">&gt; -		if (vma-&gt;vm_pgoff &lt; start)</span>
+<span class="quote">&gt; -			v_offset = (start - vma-&gt;vm_pgoff) &lt;&lt; PAGE_SHIFT;</span>
+<span class="quote">&gt; -		else</span>
+<span class="quote">&gt; -			v_offset = 0;</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; -		if (end) {</span>
+<span class="quote">&gt; -			end = ((end - start) &lt;&lt; PAGE_SHIFT) +</span>
+<span class="quote">&gt; -			       vma-&gt;vm_start + v_offset;</span>
+<span class="quote">&gt; -			if (end &gt; vma-&gt;vm_end)</span>
+<span class="quote">&gt; -				end = vma-&gt;vm_end;</span>
+<span class="quote">&gt; -		} else</span>
+<span class="quote">&gt; -			end = vma-&gt;vm_end;</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; -		unmap_hugepage_range(vma, vma-&gt;vm_start + v_offset, end, NULL);</span>
+<span class="quote">&gt; -	}</span>
+<span class="quote">&gt; -}</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt;  static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	pgoff_t pgoff;</span>
+<span class="quote">&gt; --</span>
+<span class="quote">&gt; 2.4.3</span>
+<span class="quote">&gt; </span>
+
+--
+
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Jan. 7, 2016, 4:46 p.m.</div>
+<pre class="content">
+On 01/07/2016 12:06 AM, Hillf Danton wrote:
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Page faults can race with fallocate hole punch.  If a page fault happens</span>
+<span class="quote">&gt;&gt; between the unmap and remove operations, the page is not removed and</span>
+<span class="quote">&gt;&gt; remains within the hole.  This is not the desired behavior.  The race</span>
+<span class="quote">&gt;&gt; is difficult to detect in user level code as even in the non-race</span>
+<span class="quote">&gt;&gt; case, a page within the hole could be faulted back in before fallocate</span>
+<span class="quote">&gt;&gt; returns.  If userfaultfd is expanded to support hugetlbfs in the future,</span>
+<span class="quote">&gt;&gt; this race will be easier to observe.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; If this race is detected and a page is mapped, the remove operation</span>
+<span class="quote">&gt;&gt; (remove_inode_hugepages) will unmap the page before removing.  The unmap</span>
+<span class="quote">&gt;&gt; within remove_inode_hugepages occurs with the hugetlb_fault_mutex held</span>
+<span class="quote">&gt;&gt; so that no other faults will be processed until the page is removed.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; The (unmodified) routine hugetlb_vmdelete_list was moved ahead of</span>
+<span class="quote">&gt;&gt; remove_inode_hugepages to satisfy the new reference.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt;&gt; ---</span>
+<span class="quote">&gt;&gt;  fs/hugetlbfs/inode.c | 139 +++++++++++++++++++++++++++------------------------</span>
+<span class="quote">&gt;&gt;  1 file changed, 73 insertions(+), 66 deletions(-)</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt; index 0444760..0871d70 100644</span>
+<span class="quote">&gt;&gt; --- a/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt; +++ b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt; @@ -324,11 +324,46 @@ static void remove_huge_page(struct page *page)</span>
+<span class="quote">&gt;&gt;  	delete_from_page_cache(page);</span>
+<span class="quote">&gt;&gt;  }</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; +static inline void</span>
+<span class="quote">&gt;&gt; +hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)</span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +	struct vm_area_struct *vma;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	/*</span>
+<span class="quote">&gt;&gt; +	 * end == 0 indicates that the entire range after</span>
+<span class="quote">&gt;&gt; +	 * start should be unmapped.</span>
+<span class="quote">&gt;&gt; +	 */</span>
+<span class="quote">&gt;&gt; +	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; [1] perhaps end can be reused.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; +		unsigned long v_offset;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +		/*</span>
+<span class="quote">&gt;&gt; +		 * Can the expression below overflow on 32-bit arches?</span>
+<span class="quote">&gt;&gt; +		 * No, because the interval tree returns us only those vmas</span>
+<span class="quote">&gt;&gt; +		 * which overlap the truncated area starting at pgoff,</span>
+<span class="quote">&gt;&gt; +		 * and no vma on a 32-bit arch can span beyond the 4GB.</span>
+<span class="quote">&gt;&gt; +		 */</span>
+<span class="quote">&gt;&gt; +		if (vma-&gt;vm_pgoff &lt; start)</span>
+<span class="quote">&gt;&gt; +			v_offset = (start - vma-&gt;vm_pgoff) &lt;&lt; PAGE_SHIFT;</span>
+<span class="quote">&gt;&gt; +		else</span>
+<span class="quote">&gt;&gt; +			v_offset = 0;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +		if (end) {</span>
+<span class="quote">&gt;&gt; +			end = ((end - start) &lt;&lt; PAGE_SHIFT) +</span>
+<span class="quote">&gt;&gt; +			       vma-&gt;vm_start + v_offset;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; [2] end is input to be pgoff_t, but changed to be the type of v_offset.</span>
+<span class="quote">&gt; Further we cannot handle the case that end is input to be zero.</span>
+<span class="quote">&gt; See the diff below please.</span>
+
+Thanks Hillf.
+
+This bug is part of the existing code.  I did not modify current
+hugetlb_vmdelete_list code, just moved it as part of this patch.
+Therefore, I will create a separate patch to fix this issue.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Jan. 8, 2016, 4:39 a.m.</div>
+<pre class="content">
+On 01/07/2016 12:06 AM, Hillf Danton wrote:
+<span class="quote">&gt;&gt; diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt; index 0444760..0871d70 100644</span>
+<span class="quote">&gt;&gt; --- a/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt; +++ b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt; @@ -324,11 +324,46 @@ static void remove_huge_page(struct page *page)</span>
+<span class="quote">&gt;&gt;  	delete_from_page_cache(page);</span>
+<span class="quote">&gt;&gt;  }</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; +static inline void</span>
+<span class="quote">&gt;&gt; +hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)</span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +	struct vm_area_struct *vma;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	/*</span>
+<span class="quote">&gt;&gt; +	 * end == 0 indicates that the entire range after</span>
+<span class="quote">&gt;&gt; +	 * start should be unmapped.</span>
+<span class="quote">&gt;&gt; +	 */</span>
+<span class="quote">&gt;&gt; +	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; [1] perhaps end can be reused.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; +		unsigned long v_offset;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +		/*</span>
+<span class="quote">&gt;&gt; +		 * Can the expression below overflow on 32-bit arches?</span>
+<span class="quote">&gt;&gt; +		 * No, because the interval tree returns us only those vmas</span>
+<span class="quote">&gt;&gt; +		 * which overlap the truncated area starting at pgoff,</span>
+<span class="quote">&gt;&gt; +		 * and no vma on a 32-bit arch can span beyond the 4GB.</span>
+<span class="quote">&gt;&gt; +		 */</span>
+<span class="quote">&gt;&gt; +		if (vma-&gt;vm_pgoff &lt; start)</span>
+<span class="quote">&gt;&gt; +			v_offset = (start - vma-&gt;vm_pgoff) &lt;&lt; PAGE_SHIFT;</span>
+<span class="quote">&gt;&gt; +		else</span>
+<span class="quote">&gt;&gt; +			v_offset = 0;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +		if (end) {</span>
+<span class="quote">&gt;&gt; +			end = ((end - start) &lt;&lt; PAGE_SHIFT) +</span>
+<span class="quote">&gt;&gt; +			       vma-&gt;vm_start + v_offset;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; [2] end is input to be pgoff_t, but changed to be the type of v_offset.</span>
+<span class="quote">&gt; Further we cannot handle the case that end is input to be zero.</span>
+<span class="quote">&gt; See the diff below please.</span>
+<span class="quote">&gt;</span>
+&lt;snip&gt;
+<span class="quote">&gt; </span>
+<span class="quote">&gt; --- a/fs/hugetlbfs/inode.c	Thu Jan  7 15:04:35 2016</span>
+<span class="quote">&gt; +++ b/fs/hugetlbfs/inode.c	Thu Jan  7 15:31:03 2016</span>
+<span class="quote">&gt; @@ -461,8 +461,11 @@ hugetlb_vmdelete_list(struct rb_root *ro</span>
+<span class="quote">&gt;  	 * end == 0 indicates that the entire range after</span>
+<span class="quote">&gt;  	 * start should be unmapped.</span>
+<span class="quote">&gt;  	 */</span>
+<span class="quote">&gt; -	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {</span>
+<span class="quote">&gt; +	if (!end)</span>
+<span class="quote">&gt; +		end = ULONG_MAX;</span>
+<span class="quote">&gt; +	vma_interval_tree_foreach(vma, root, start, end) {</span>
+<span class="quote">&gt;  		unsigned long v_offset;</span>
+<span class="quote">&gt; +		unsigned long v_end;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  		/*</span>
+<span class="quote">&gt;  		 * Can the expression below overflow on 32-bit arches?</span>
+<span class="quote">&gt; @@ -475,15 +478,12 @@ hugetlb_vmdelete_list(struct rb_root *ro</span>
+<span class="quote">&gt;  		else</span>
+<span class="quote">&gt;  			v_offset = 0;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -		if (end) {</span>
+<span class="quote">&gt; -			end = ((end - start) &lt;&lt; PAGE_SHIFT) +</span>
+<span class="quote">&gt; +		v_end = ((end - start) &lt;&lt; PAGE_SHIFT) +</span>
+<span class="quote">&gt;  			       vma-&gt;vm_start + v_offset;</span>
+<span class="quote">&gt; -			if (end &gt; vma-&gt;vm_end)</span>
+<span class="quote">&gt; -				end = vma-&gt;vm_end;</span>
+<span class="quote">&gt; -		} else</span>
+<span class="quote">&gt; -			end = vma-&gt;vm_end;</span>
+<span class="quote">&gt; +		if (v_end &gt; vma-&gt;vm_end)</span>
+<span class="quote">&gt; +			v_end = vma-&gt;vm_end;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -		unmap_hugepage_range(vma, vma-&gt;vm_start + v_offset, end, NULL);</span>
+<span class="quote">&gt; +		unmap_hugepage_range(vma, vma-&gt;vm_start + v_offset, v_end, NULL);</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; --</span>
+
+Unfortunately, that calculation of v_end is not correct.  I know it
+is based on the existing code, but the existing code it not correct.
+
+I attempted to fix in a patch earlier today, but that was not correct
+either.  Below is a proposed new version of hugetlb_vmdelete_list.
+Let me know what you think.
+
+static inline void
+hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)
+{
+	struct vm_area_struct *vma;
+
+	/*
+	 * end == 0 indicates that the entire range after
+	 * start should be unmapped.
+	 */
+	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {
+		unsigned long v_offset;
+		unsigned long v_end;
+
+		/*
+		 * Can the expression below overflow on 32-bit arches?
+		 * No, because the interval tree returns us only those vmas
+		 * which overlap the truncated area starting at pgoff,
+		 * and no vma on a 32-bit arch can span beyond the 4GB.
+		 */
+		if (vma-&gt;vm_pgoff &lt; start)
+			v_offset = (start - vma-&gt;vm_pgoff) &lt;&lt; PAGE_SHIFT;
+		else
+			v_offset = 0;
+
+		if (!end)
+			v_end = vma-&gt;vm_end;
+		else {
+			v_end = ((end - vma-&gt;vm_pgoff) &lt;&lt; PAGE_SHIFT)
+							+ vma-&gt;vm_start;
+			if (v_end &gt; vma-&gt;vm_end)
+				v_end = vma-&gt;vm_end;
+		}
+
+		unmap_hugepage_range(vma, vma-&gt;vm_start + v_offset, v_end,
+									NULL);
+	}
+}
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=113021">Hillf Danton</a> - Jan. 8, 2016, 6:25 a.m.</div>
+<pre class="content">
+<span class="quote">&gt; On 01/07/2016 12:06 AM, Hillf Danton wrote:</span>
+<span class="quote">&gt; &gt;&gt; diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; &gt;&gt; index 0444760..0871d70 100644</span>
+<span class="quote">&gt; &gt;&gt; --- a/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; &gt;&gt; +++ b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; &gt;&gt; @@ -324,11 +324,46 @@ static void remove_huge_page(struct page *page)</span>
+<span class="quote">&gt; &gt;&gt;  	delete_from_page_cache(page);</span>
+<span class="quote">&gt; &gt;&gt;  }</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; +static inline void</span>
+<span class="quote">&gt; &gt;&gt; +hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)</span>
+<span class="quote">&gt; &gt;&gt; +{</span>
+<span class="quote">&gt; &gt;&gt; +	struct vm_area_struct *vma;</span>
+<span class="quote">&gt; &gt;&gt; +</span>
+<span class="quote">&gt; &gt;&gt; +	/*</span>
+<span class="quote">&gt; &gt;&gt; +	 * end == 0 indicates that the entire range after</span>
+<span class="quote">&gt; &gt;&gt; +	 * start should be unmapped.</span>
+<span class="quote">&gt; &gt;&gt; +	 */</span>
+<span class="quote">&gt; &gt;&gt; +	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; [1] perhaps end can be reused.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; +		unsigned long v_offset;</span>
+<span class="quote">&gt; &gt;&gt; +</span>
+<span class="quote">&gt; &gt;&gt; +		/*</span>
+<span class="quote">&gt; &gt;&gt; +		 * Can the expression below overflow on 32-bit arches?</span>
+<span class="quote">&gt; &gt;&gt; +		 * No, because the interval tree returns us only those vmas</span>
+<span class="quote">&gt; &gt;&gt; +		 * which overlap the truncated area starting at pgoff,</span>
+<span class="quote">&gt; &gt;&gt; +		 * and no vma on a 32-bit arch can span beyond the 4GB.</span>
+<span class="quote">&gt; &gt;&gt; +		 */</span>
+<span class="quote">&gt; &gt;&gt; +		if (vma-&gt;vm_pgoff &lt; start)</span>
+<span class="quote">&gt; &gt;&gt; +			v_offset = (start - vma-&gt;vm_pgoff) &lt;&lt; PAGE_SHIFT;</span>
+<span class="quote">&gt; &gt;&gt; +		else</span>
+<span class="quote">&gt; &gt;&gt; +			v_offset = 0;</span>
+<span class="quote">&gt; &gt;&gt; +</span>
+<span class="quote">&gt; &gt;&gt; +		if (end) {</span>
+<span class="quote">&gt; &gt;&gt; +			end = ((end - start) &lt;&lt; PAGE_SHIFT) +</span>
+<span class="quote">&gt; &gt;&gt; +			       vma-&gt;vm_start + v_offset;</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; [2] end is input to be pgoff_t, but changed to be the type of v_offset.</span>
+<span class="quote">&gt; &gt; Further we cannot handle the case that end is input to be zero.</span>
+<span class="quote">&gt; &gt; See the diff below please.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &lt;snip&gt;</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; --- a/fs/hugetlbfs/inode.c	Thu Jan  7 15:04:35 2016</span>
+<span class="quote">&gt; &gt; +++ b/fs/hugetlbfs/inode.c	Thu Jan  7 15:31:03 2016</span>
+<span class="quote">&gt; &gt; @@ -461,8 +461,11 @@ hugetlb_vmdelete_list(struct rb_root *ro</span>
+<span class="quote">&gt; &gt;  	 * end == 0 indicates that the entire range after</span>
+<span class="quote">&gt; &gt;  	 * start should be unmapped.</span>
+<span class="quote">&gt; &gt;  	 */</span>
+<span class="quote">&gt; &gt; -	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {</span>
+<span class="quote">&gt; &gt; +	if (!end)</span>
+<span class="quote">&gt; &gt; +		end = ULONG_MAX;</span>
+<span class="quote">&gt; &gt; +	vma_interval_tree_foreach(vma, root, start, end) {</span>
+<span class="quote">&gt; &gt;  		unsigned long v_offset;</span>
+<span class="quote">&gt; &gt; +		unsigned long v_end;</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt;  		/*</span>
+<span class="quote">&gt; &gt;  		 * Can the expression below overflow on 32-bit arches?</span>
+<span class="quote">&gt; &gt; @@ -475,15 +478,12 @@ hugetlb_vmdelete_list(struct rb_root *ro</span>
+<span class="quote">&gt; &gt;  		else</span>
+<span class="quote">&gt; &gt;  			v_offset = 0;</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; -		if (end) {</span>
+<span class="quote">&gt; &gt; -			end = ((end - start) &lt;&lt; PAGE_SHIFT) +</span>
+<span class="quote">&gt; &gt; +		v_end = ((end - start) &lt;&lt; PAGE_SHIFT) +</span>
+<span class="quote">&gt; &gt;  			       vma-&gt;vm_start + v_offset;</span>
+<span class="quote">&gt; &gt; -			if (end &gt; vma-&gt;vm_end)</span>
+<span class="quote">&gt; &gt; -				end = vma-&gt;vm_end;</span>
+<span class="quote">&gt; &gt; -		} else</span>
+<span class="quote">&gt; &gt; -			end = vma-&gt;vm_end;</span>
+<span class="quote">&gt; &gt; +		if (v_end &gt; vma-&gt;vm_end)</span>
+<span class="quote">&gt; &gt; +			v_end = vma-&gt;vm_end;</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; -		unmap_hugepage_range(vma, vma-&gt;vm_start + v_offset, end, NULL);</span>
+<span class="quote">&gt; &gt; +		unmap_hugepage_range(vma, vma-&gt;vm_start + v_offset, v_end, NULL);</span>
+<span class="quote">&gt; &gt;  	}</span>
+<span class="quote">&gt; &gt;  }</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; --</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Unfortunately, that calculation of v_end is not correct.  I know it</span>
+<span class="quote">&gt; is based on the existing code, but the existing code it not correct.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I attempted to fix in a patch earlier today, but that was not correct</span>
+<span class="quote">&gt; either.  Below is a proposed new version of hugetlb_vmdelete_list.</span>
+
+Thanks Mike.
+<span class="quote">
+&gt; Let me know what you think.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; static inline void</span>
+<span class="quote">&gt; hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)</span>
+<span class="quote">&gt; {</span>
+<span class="quote">&gt; 	struct vm_area_struct *vma;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 	/*</span>
+<span class="quote">&gt; 	 * end == 0 indicates that the entire range after</span>
+<span class="quote">&gt; 	 * start should be unmapped.</span>
+<span class="quote">&gt; 	 */</span>
+<span class="quote">&gt; 	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {</span>
+<span class="quote">&gt; 		unsigned long v_offset;</span>
+<span class="quote">&gt; 		unsigned long v_end;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 		/*</span>
+<span class="quote">&gt; 		 * Can the expression below overflow on 32-bit arches?</span>
+<span class="quote">&gt; 		 * No, because the interval tree returns us only those vmas</span>
+<span class="quote">&gt; 		 * which overlap the truncated area starting at pgoff,</span>
+<span class="quote">&gt; 		 * and no vma on a 32-bit arch can span beyond the 4GB.</span>
+<span class="quote">&gt; 		 */</span>
+<span class="quote">&gt; 		if (vma-&gt;vm_pgoff &lt; start)</span>
+<span class="quote">&gt; 			v_offset = (start - vma-&gt;vm_pgoff) &lt;&lt; PAGE_SHIFT;</span>
+<span class="quote">&gt; 		else</span>
+<span class="quote">&gt; 			v_offset = 0;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 		if (!end)</span>
+<span class="quote">&gt; 			v_end = vma-&gt;vm_end;</span>
+<span class="quote">&gt; 		else {</span>
+<span class="quote">&gt; 			v_end = ((end - vma-&gt;vm_pgoff) &lt;&lt; PAGE_SHIFT)</span>
+<span class="quote">&gt; 							+ vma-&gt;vm_start;</span>
+<span class="quote">&gt; 			if (v_end &gt; vma-&gt;vm_end)</span>
+<span class="quote">&gt; 				v_end = vma-&gt;vm_end;</span>
+<span class="quote">&gt; 		}</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 		unmap_hugepage_range(vma, vma-&gt;vm_start + v_offset, v_end,</span>
+<span class="quote">&gt; 									NULL);</span>
+<span class="quote">&gt; 	}</span>
+<span class="quote">&gt; }</span>
+<span class="quote">&gt; </span>
+Looks good to me.
+
+Hillf
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- a/fs/hugetlbfs/inode.c	Thu Jan  7 15:04:35 2016</span>
+<span class="p_header">+++ b/fs/hugetlbfs/inode.c	Thu Jan  7 15:31:03 2016</span>
+<span class="p_chunk">@@ -461,8 +461,11 @@</span> <span class="p_context"> hugetlb_vmdelete_list(struct rb_root *ro</span>
+ 	 * end == 0 indicates that the entire range after
+ 	 * start should be unmapped.
+ 	 */
+<span class="p_del">-	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {</span>
+<span class="p_add">+	if (!end)</span>
+<span class="p_add">+		end = ULONG_MAX;</span>
+<span class="p_add">+	vma_interval_tree_foreach(vma, root, start, end) {</span>
+ 		unsigned long v_offset;
+<span class="p_add">+		unsigned long v_end;</span>
+ 
+ 		/*
+ 		 * Can the expression below overflow on 32-bit arches?
+<span class="p_chunk">@@ -475,15 +478,12 @@</span> <span class="p_context"> hugetlb_vmdelete_list(struct rb_root *ro</span>
+ 		else
+ 			v_offset = 0;
+ 
+<span class="p_del">-		if (end) {</span>
+<span class="p_del">-			end = ((end - start) &lt;&lt; PAGE_SHIFT) +</span>
+<span class="p_add">+		v_end = ((end - start) &lt;&lt; PAGE_SHIFT) +</span>
+ 			       vma-&gt;vm_start + v_offset;
+<span class="p_del">-			if (end &gt; vma-&gt;vm_end)</span>
+<span class="p_del">-				end = vma-&gt;vm_end;</span>
+<span class="p_del">-		} else</span>
+<span class="p_del">-			end = vma-&gt;vm_end;</span>
+<span class="p_add">+		if (v_end &gt; vma-&gt;vm_end)</span>
+<span class="p_add">+			v_end = vma-&gt;vm_end;</span>
+ 
+<span class="p_del">-		unmap_hugepage_range(vma, vma-&gt;vm_start + v_offset, end, NULL);</span>
+<span class="p_add">+		unmap_hugepage_range(vma, vma-&gt;vm_start + v_offset, v_end, NULL);</span>
+ 	}
+ }
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

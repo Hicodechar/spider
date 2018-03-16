@@ -1,0 +1,1466 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v2] cpuset: fix a deadlock due to incomplete patching of cpusets_enabled() - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v2] cpuset: fix a deadlock due to incomplete patching of cpusets_enabled()</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=175585">Dima Zavin</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>July 27, 2017, 4:46 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170727164608.12701-1-dmitriyz@waymo.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9867387/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9867387/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9867387/">/patch/9867387/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	90E726035E for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 27 Jul 2017 16:46:18 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 81C3F287F1
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 27 Jul 2017 16:46:18 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 7691A2882C; Thu, 27 Jul 2017 16:46:18 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 6CB26287F1
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 27 Jul 2017 16:46:17 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751867AbdG0QqO (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 27 Jul 2017 12:46:14 -0400
+Received: from mail-pg0-f74.google.com ([74.125.83.74]:37555 &quot;EHLO
+	mail-pg0-f74.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751593AbdG0QqM (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 27 Jul 2017 12:46:12 -0400
+Received: by mail-pg0-f74.google.com with SMTP id v190so4882564pgv.4
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Thu, 27 Jul 2017 09:46:11 -0700 (PDT)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:mime-version:date:in-reply-to:message-id
+	:references:subject:from:to:cc;
+	bh=7r/yovPETCDB5iEJMuFtn9Xvn6iW8VocxjK9AXmDUW4=;
+	b=ocziUMgFu1QM3BHPh6z+upBisLdIV2ENMk7f3m3XIxo6gV4wMNXjwCNlZOQNFFdRLE
+	ewP5fwbaYO2t8nd6+hB/FHlKc5lf0SCJvHwdLH1/oLC7DyyendpJpvpGDzb8cwP11ZGv
+	116A1aFrbmxJy9fagdTSKvrzVPkcd8CvmPtqgy1mpBh/U0ExjHmC8qbV9JTcCeAGO/ap
+	DM/bsB663tJDJqeMexpUva0hydbgOD6JpmtZT+t4JYDN+/KdcX0+wQpVTXTIFtS0hOpc
+	aS6qfTzH1or6IjKNWKXsLXyiNLutIMDyVp+MvmEkX7QNjD+orlwGs35ZJVafYQtXoUPc
+	H/Kg==
+X-Gm-Message-State: AIVw110q5VvKxReIh5DQswy5wIR86SA8BGGl+75VWECkPCwW0QO/91YY
+	0r/bo+7mkuI39WVDfCHWsohe
+MIME-Version: 1.0
+X-Received: by 10.99.121.131 with SMTP id u125mr3468456pgc.142.1501173971409;
+	Thu, 27 Jul 2017 09:46:11 -0700 (PDT)
+Date: Thu, 27 Jul 2017 09:46:08 -0700
+In-Reply-To: &lt;alpine.DEB.2.20.1707261158560.9311@nuc-kabylake&gt;
+Message-Id: &lt;20170727164608.12701-1-dmitriyz@waymo.com&gt;
+References: &lt;alpine.DEB.2.20.1707261158560.9311@nuc-kabylake&gt;
+X-Mailer: git-send-email 2.14.0.rc0.400.g1c36432dff-goog
+Subject: [PATCH v2] cpuset: fix a deadlock due to incomplete patching of
+	cpusets_enabled()
+From: Dima Zavin &lt;dmitriyz@waymo.com&gt;
+To: Christopher Lameter &lt;cl@linux.com&gt;
+Cc: Li Zefan &lt;lizefan@huawei.com&gt;, Pekka Enberg &lt;penberg@kernel.org&gt;,
+	David Rientjes &lt;rientjes@google.com&gt;,
+	Joonsoo Kim &lt;iamjoonsoo.kim@lge.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, Cliff Spradlin &lt;cspradlin@waymo.com&gt;,
+	Mel Gorman &lt;mgorman@techsingularity.net&gt;
+Content-Type: text/plain; charset=&quot;UTF-8&quot;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=175585">Dima Zavin</a> - July 27, 2017, 4:46 p.m.</div>
+<pre class="content">
+In codepaths that use the begin/retry interface for reading
+mems_allowed_seq with irqs disabled, there exists a race condition that
+stalls the patch process after only modifying a subset of the
+static_branch call sites.
+
+This problem manifested itself as a dead lock in the slub
+allocator, inside get_any_partial. The loop reads
+mems_allowed_seq value (via read_mems_allowed_begin),
+performs the defrag operation, and then verifies the consistency
+of mem_allowed via the read_mems_allowed_retry and the cookie
+returned by xxx_begin. The issue here is that both begin and retry
+first check if cpusets are enabled via cpusets_enabled() static branch.
+This branch can be rewritted dynamically (via cpuset_inc) if a new
+cpuset is created. The x86 jump label code fully synchronizes across
+all CPUs for every entry it rewrites. If it rewrites only one of the
+callsites (specifically the one in read_mems_allowed_retry) and then
+waits for the smp_call_function(do_sync_core) to complete while a CPU is
+inside the begin/retry section with IRQs off and the mems_allowed value
+is changed, we can hang. This is because begin() will always return 0
+(since it wasn&#39;t patched yet) while retry() will test the 0 against
+the actual value of the seq counter.
+
+The fix is to cache the value that&#39;s returned by cpusets_enabled() at the
+top of the loop, and only operate on the seqcount (both begin and retry) if
+it was true.
+
+The relevant stack traces of the two stuck threads:
+
+  CPU: 107 PID: 1415 Comm: mkdir Tainted: G L  4.9.36-00104-g540c51286237 #4
+  Hardware name: Default string Default string/Hardware, BIOS 4.29.1-20170526215256 05/26/2017
+  task: ffff8817f9c28000 task.stack: ffffc9000ffa4000
+  RIP: smp_call_function_many+0x1f9/0x260
+  Call Trace:
+    ? setup_data_read+0xa0/0xa0
+    ? ___slab_alloc+0x28b/0x5a0
+    smp_call_function+0x3b/0x70
+    ? setup_data_read+0xa0/0xa0
+    on_each_cpu+0x2f/0x90
+    ? ___slab_alloc+0x28a/0x5a0
+    ? ___slab_alloc+0x28b/0x5a0
+    text_poke_bp+0x87/0xd0
+    ? ___slab_alloc+0x28a/0x5a0
+    arch_jump_label_transform+0x93/0x100
+    __jump_label_update+0x77/0x90
+    jump_label_update+0xaa/0xc0
+    static_key_slow_inc+0x9e/0xb0
+    cpuset_css_online+0x70/0x2e0
+    online_css+0x2c/0xa0
+    cgroup_apply_control_enable+0x27f/0x3d0
+    cgroup_mkdir+0x2b7/0x420
+    kernfs_iop_mkdir+0x5a/0x80
+    vfs_mkdir+0xf6/0x1a0
+    SyS_mkdir+0xb7/0xe0
+    entry_SYSCALL_64_fastpath+0x18/0xad
+
+  ...
+
+  CPU: 22 PID: 1 Comm: init Tainted: G L  4.9.36-00104-g540c51286237 #4
+  Hardware name: Default string Default string/Hardware, BIOS 4.29.1-20170526215256 05/26/2017
+  task: ffff8818087c0000 task.stack: ffffc90000030000
+  RIP: int3+0x39/0x70
+  Call Trace:
+    &lt;#DB&gt; ? ___slab_alloc+0x28b/0x5a0
+    &lt;EOE&gt; ? copy_process.part.40+0xf7/0x1de0
+    ? __slab_alloc.isra.80+0x54/0x90
+    ? copy_process.part.40+0xf7/0x1de0
+    ? copy_process.part.40+0xf7/0x1de0
+    ? kmem_cache_alloc_node+0x8a/0x280
+    ? copy_process.part.40+0xf7/0x1de0
+    ? _do_fork+0xe7/0x6c0
+    ? _raw_spin_unlock_irq+0x2d/0x60
+    ? trace_hardirqs_on_caller+0x136/0x1d0
+    ? entry_SYSCALL_64_fastpath+0x5/0xad
+    ? do_syscall_64+0x27/0x350
+    ? SyS_clone+0x19/0x20
+    ? do_syscall_64+0x60/0x350
+    ? entry_SYSCALL64_slow_path+0x25/0x25
+
+Reported-by: Cliff Spradlin &lt;cspradlin@waymo.com&gt;
+<span class="signed-off-by">Signed-off-by: Dima Zavin &lt;dmitriyz@waymo.com&gt;</span>
+---
+
+v2:
+ - Moved the cached cpusets_enabled() state into the cookie, turned
+   the cookie into a struct and updated all the other call sites.
+ - Applied on top of v4.12 since one of the callers in page_alloc.c changed.
+   Still only tested on v4.9.36 and compile tested against v4.12.
+
+ include/linux/cpuset.h | 27 +++++++++++++++++----------
+ mm/filemap.c           |  6 +++---
+ mm/hugetlb.c           | 12 ++++++------
+ mm/mempolicy.c         | 12 ++++++------
+ mm/page_alloc.c        |  8 ++++----
+ mm/slab.c              |  6 +++---
+ mm/slub.c              |  6 +++---
+ 7 files changed, 42 insertions(+), 35 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41">Andrew Morton</a> - July 27, 2017, 7:48 p.m.</div>
+<pre class="content">
+On Thu, 27 Jul 2017 09:46:08 -0700 Dima Zavin &lt;dmitriyz@waymo.com&gt; wrote:
+<span class="quote">
+&gt; In codepaths that use the begin/retry interface for reading</span>
+<span class="quote">&gt; mems_allowed_seq with irqs disabled, there exists a race condition that</span>
+<span class="quote">&gt; stalls the patch process after only modifying a subset of the</span>
+<span class="quote">&gt; static_branch call sites.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This problem manifested itself as a dead lock in the slub</span>
+<span class="quote">&gt; allocator, inside get_any_partial. The loop reads</span>
+<span class="quote">&gt; mems_allowed_seq value (via read_mems_allowed_begin),</span>
+<span class="quote">&gt; performs the defrag operation, and then verifies the consistency</span>
+<span class="quote">&gt; of mem_allowed via the read_mems_allowed_retry and the cookie</span>
+<span class="quote">&gt; returned by xxx_begin. The issue here is that both begin and retry</span>
+<span class="quote">&gt; first check if cpusets are enabled via cpusets_enabled() static branch.</span>
+<span class="quote">&gt; This branch can be rewritted dynamically (via cpuset_inc) if a new</span>
+<span class="quote">&gt; cpuset is created. The x86 jump label code fully synchronizes across</span>
+<span class="quote">&gt; all CPUs for every entry it rewrites. If it rewrites only one of the</span>
+<span class="quote">&gt; callsites (specifically the one in read_mems_allowed_retry) and then</span>
+<span class="quote">&gt; waits for the smp_call_function(do_sync_core) to complete while a CPU is</span>
+<span class="quote">&gt; inside the begin/retry section with IRQs off and the mems_allowed value</span>
+<span class="quote">&gt; is changed, we can hang. This is because begin() will always return 0</span>
+<span class="quote">&gt; (since it wasn&#39;t patched yet) while retry() will test the 0 against</span>
+<span class="quote">&gt; the actual value of the seq counter.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The fix is to cache the value that&#39;s returned by cpusets_enabled() at the</span>
+<span class="quote">&gt; top of the loop, and only operate on the seqcount (both begin and retry) if</span>
+<span class="quote">&gt; it was true.</span>
+
+Tricky.  Hence we should have a nice code comment somewhere describing
+all of this.
+<span class="quote">
+&gt; --- a/include/linux/cpuset.h</span>
+<span class="quote">&gt; +++ b/include/linux/cpuset.h</span>
+<span class="quote">&gt; @@ -16,6 +16,11 @@</span>
+<span class="quote">&gt;  #include &lt;linux/mm.h&gt;</span>
+<span class="quote">&gt;  #include &lt;linux/jump_label.h&gt;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +struct cpuset_mems_cookie {</span>
+<span class="quote">&gt; +	unsigned int seq;</span>
+<span class="quote">&gt; +	bool was_enabled;</span>
+<span class="quote">&gt; +};</span>
+
+At cpuset_mems_cookie would be a good site - why it exists, what it
+does, when it is used and how.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41">Andrew Morton</a> - July 27, 2017, 7:51 p.m.</div>
+<pre class="content">
+On Thu, 27 Jul 2017 09:46:08 -0700 Dima Zavin &lt;dmitriyz@waymo.com&gt; wrote:
+<span class="quote">
+&gt;  - Applied on top of v4.12 since one of the callers in page_alloc.c changed.</span>
+<span class="quote">&gt;    Still only tested on v4.9.36 and compile tested against v4.12.</span>
+
+That&#39;s a problem - this doesn&#39;t come close to applying on current
+mainline.  I can fix that I guess, but the result should be tested
+well.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=175585">Dima Zavin</a> - July 27, 2017, 9:41 p.m.</div>
+<pre class="content">
+On Thu, Jul 27, 2017 at 12:48 PM, Andrew Morton
+&lt;akpm@linux-foundation.org&gt; wrote:
+<span class="quote">&gt; On Thu, 27 Jul 2017 09:46:08 -0700 Dima Zavin &lt;dmitriyz@waymo.com&gt; wrote:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; In codepaths that use the begin/retry interface for reading</span>
+<span class="quote">&gt;&gt; mems_allowed_seq with irqs disabled, there exists a race condition that</span>
+<span class="quote">&gt;&gt; stalls the patch process after only modifying a subset of the</span>
+<span class="quote">&gt;&gt; static_branch call sites.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; This problem manifested itself as a dead lock in the slub</span>
+<span class="quote">&gt;&gt; allocator, inside get_any_partial. The loop reads</span>
+<span class="quote">&gt;&gt; mems_allowed_seq value (via read_mems_allowed_begin),</span>
+<span class="quote">&gt;&gt; performs the defrag operation, and then verifies the consistency</span>
+<span class="quote">&gt;&gt; of mem_allowed via the read_mems_allowed_retry and the cookie</span>
+<span class="quote">&gt;&gt; returned by xxx_begin. The issue here is that both begin and retry</span>
+<span class="quote">&gt;&gt; first check if cpusets are enabled via cpusets_enabled() static branch.</span>
+<span class="quote">&gt;&gt; This branch can be rewritted dynamically (via cpuset_inc) if a new</span>
+<span class="quote">&gt;&gt; cpuset is created. The x86 jump label code fully synchronizes across</span>
+<span class="quote">&gt;&gt; all CPUs for every entry it rewrites. If it rewrites only one of the</span>
+<span class="quote">&gt;&gt; callsites (specifically the one in read_mems_allowed_retry) and then</span>
+<span class="quote">&gt;&gt; waits for the smp_call_function(do_sync_core) to complete while a CPU is</span>
+<span class="quote">&gt;&gt; inside the begin/retry section with IRQs off and the mems_allowed value</span>
+<span class="quote">&gt;&gt; is changed, we can hang. This is because begin() will always return 0</span>
+<span class="quote">&gt;&gt; (since it wasn&#39;t patched yet) while retry() will test the 0 against</span>
+<span class="quote">&gt;&gt; the actual value of the seq counter.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; The fix is to cache the value that&#39;s returned by cpusets_enabled() at the</span>
+<span class="quote">&gt;&gt; top of the loop, and only operate on the seqcount (both begin and retry) if</span>
+<span class="quote">&gt;&gt; it was true.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Tricky.  Hence we should have a nice code comment somewhere describing</span>
+<span class="quote">&gt; all of this.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; --- a/include/linux/cpuset.h</span>
+<span class="quote">&gt;&gt; +++ b/include/linux/cpuset.h</span>
+<span class="quote">&gt;&gt; @@ -16,6 +16,11 @@</span>
+<span class="quote">&gt;&gt;  #include &lt;linux/mm.h&gt;</span>
+<span class="quote">&gt;&gt;  #include &lt;linux/jump_label.h&gt;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; +struct cpuset_mems_cookie {</span>
+<span class="quote">&gt;&gt; +     unsigned int seq;</span>
+<span class="quote">&gt;&gt; +     bool was_enabled;</span>
+<span class="quote">&gt;&gt; +};</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; At cpuset_mems_cookie would be a good site - why it exists, what it</span>
+<span class="quote">&gt; does, when it is used and how.</span>
+
+Will do. I actually had a comment here but removed it in lieu of
+commit message :) Will put it back.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=175585">Dima Zavin</a> - July 27, 2017, 9:41 p.m.</div>
+<pre class="content">
+On Thu, Jul 27, 2017 at 12:51 PM, Andrew Morton
+&lt;akpm@linux-foundation.org&gt; wrote:
+<span class="quote">&gt; On Thu, 27 Jul 2017 09:46:08 -0700 Dima Zavin &lt;dmitriyz@waymo.com&gt; wrote:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt;  - Applied on top of v4.12 since one of the callers in page_alloc.c changed.</span>
+<span class="quote">&gt;&gt;    Still only tested on v4.9.36 and compile tested against v4.12.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; That&#39;s a problem - this doesn&#39;t come close to applying on current</span>
+<span class="quote">&gt; mainline.  I can fix that I guess, but the result should be tested</span>
+<span class="quote">&gt; well.</span>
+<span class="quote">&gt;</span>
+
+I&#39;ll fix up for latest, and see if I can test it. I should be able to
+boot vanilla with not too much trouble. May take a few days.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=72672">Vlastimil Babka</a> - July 28, 2017, 7:45 a.m.</div>
+<pre class="content">
+[+CC PeterZ]
+
+On 07/27/2017 06:46 PM, Dima Zavin wrote:
+<span class="quote">&gt; In codepaths that use the begin/retry interface for reading</span>
+<span class="quote">&gt; mems_allowed_seq with irqs disabled, there exists a race condition that</span>
+<span class="quote">&gt; stalls the patch process after only modifying a subset of the</span>
+<span class="quote">&gt; static_branch call sites.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This problem manifested itself as a dead lock in the slub</span>
+<span class="quote">&gt; allocator, inside get_any_partial. The loop reads</span>
+<span class="quote">&gt; mems_allowed_seq value (via read_mems_allowed_begin),</span>
+<span class="quote">&gt; performs the defrag operation, and then verifies the consistency</span>
+<span class="quote">&gt; of mem_allowed via the read_mems_allowed_retry and the cookie</span>
+<span class="quote">&gt; returned by xxx_begin. The issue here is that both begin and retry</span>
+<span class="quote">&gt; first check if cpusets are enabled via cpusets_enabled() static branch.</span>
+<span class="quote">&gt; This branch can be rewritted dynamically (via cpuset_inc) if a new</span>
+<span class="quote">&gt; cpuset is created. The x86 jump label code fully synchronizes across</span>
+<span class="quote">&gt; all CPUs for every entry it rewrites. If it rewrites only one of the</span>
+<span class="quote">&gt; callsites (specifically the one in read_mems_allowed_retry) and then</span>
+<span class="quote">&gt; waits for the smp_call_function(do_sync_core) to complete while a CPU is</span>
+<span class="quote">&gt; inside the begin/retry section with IRQs off and the mems_allowed value</span>
+<span class="quote">&gt; is changed, we can hang. This is because begin() will always return 0</span>
+<span class="quote">&gt; (since it wasn&#39;t patched yet) while retry() will test the 0 against</span>
+<span class="quote">&gt; the actual value of the seq counter.</span>
+
+Hm I wonder if there are other static branch users potentially having
+similar problem. Then it would be best to fix this at static branch
+level. Any idea, Peter? An inelegant solution would be to have indicate
+static_branch_(un)likely() callsites ordering for the patching. I.e.
+here we would make sure that read_mems_allowed_begin() callsites are
+patched before read_mems_allowed_retry() when enabling the static key,
+and the opposite order when disabling the static key.
+<span class="quote">
+&gt; The fix is to cache the value that&#39;s returned by cpusets_enabled() at the</span>
+<span class="quote">&gt; top of the loop, and only operate on the seqcount (both begin and retry) if</span>
+<span class="quote">&gt; it was true.</span>
+
+Maybe we could just return e.g. -1 in read_mems_allowed_begin() when
+cpusets are disabled, and test it in read_mems_allowed_retry() before
+doing a proper seqcount retry check? Also I think you can still do the
+cpusets_enabled() check in read_mems_allowed_retry() before the
+was_enabled (or cookie == -1) test?
+<span class="quote">
+&gt; The relevant stack traces of the two stuck threads:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   CPU: 107 PID: 1415 Comm: mkdir Tainted: G L  4.9.36-00104-g540c51286237 #4</span>
+<span class="quote">&gt;   Hardware name: Default string Default string/Hardware, BIOS 4.29.1-20170526215256 05/26/2017</span>
+<span class="quote">&gt;   task: ffff8817f9c28000 task.stack: ffffc9000ffa4000</span>
+<span class="quote">&gt;   RIP: smp_call_function_many+0x1f9/0x260</span>
+<span class="quote">&gt;   Call Trace:</span>
+<span class="quote">&gt;     ? setup_data_read+0xa0/0xa0</span>
+<span class="quote">&gt;     ? ___slab_alloc+0x28b/0x5a0</span>
+<span class="quote">&gt;     smp_call_function+0x3b/0x70</span>
+<span class="quote">&gt;     ? setup_data_read+0xa0/0xa0</span>
+<span class="quote">&gt;     on_each_cpu+0x2f/0x90</span>
+<span class="quote">&gt;     ? ___slab_alloc+0x28a/0x5a0</span>
+<span class="quote">&gt;     ? ___slab_alloc+0x28b/0x5a0</span>
+<span class="quote">&gt;     text_poke_bp+0x87/0xd0</span>
+<span class="quote">&gt;     ? ___slab_alloc+0x28a/0x5a0</span>
+<span class="quote">&gt;     arch_jump_label_transform+0x93/0x100</span>
+<span class="quote">&gt;     __jump_label_update+0x77/0x90</span>
+<span class="quote">&gt;     jump_label_update+0xaa/0xc0</span>
+<span class="quote">&gt;     static_key_slow_inc+0x9e/0xb0</span>
+<span class="quote">&gt;     cpuset_css_online+0x70/0x2e0</span>
+<span class="quote">&gt;     online_css+0x2c/0xa0</span>
+<span class="quote">&gt;     cgroup_apply_control_enable+0x27f/0x3d0</span>
+<span class="quote">&gt;     cgroup_mkdir+0x2b7/0x420</span>
+<span class="quote">&gt;     kernfs_iop_mkdir+0x5a/0x80</span>
+<span class="quote">&gt;     vfs_mkdir+0xf6/0x1a0</span>
+<span class="quote">&gt;     SyS_mkdir+0xb7/0xe0</span>
+<span class="quote">&gt;     entry_SYSCALL_64_fastpath+0x18/0xad</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   ...</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   CPU: 22 PID: 1 Comm: init Tainted: G L  4.9.36-00104-g540c51286237 #4</span>
+<span class="quote">&gt;   Hardware name: Default string Default string/Hardware, BIOS 4.29.1-20170526215256 05/26/2017</span>
+<span class="quote">&gt;   task: ffff8818087c0000 task.stack: ffffc90000030000</span>
+<span class="quote">&gt;   RIP: int3+0x39/0x70</span>
+<span class="quote">&gt;   Call Trace:</span>
+<span class="quote">&gt;     &lt;#DB&gt; ? ___slab_alloc+0x28b/0x5a0</span>
+<span class="quote">&gt;     &lt;EOE&gt; ? copy_process.part.40+0xf7/0x1de0</span>
+<span class="quote">&gt;     ? __slab_alloc.isra.80+0x54/0x90</span>
+<span class="quote">&gt;     ? copy_process.part.40+0xf7/0x1de0</span>
+<span class="quote">&gt;     ? copy_process.part.40+0xf7/0x1de0</span>
+<span class="quote">&gt;     ? kmem_cache_alloc_node+0x8a/0x280</span>
+<span class="quote">&gt;     ? copy_process.part.40+0xf7/0x1de0</span>
+<span class="quote">&gt;     ? _do_fork+0xe7/0x6c0</span>
+<span class="quote">&gt;     ? _raw_spin_unlock_irq+0x2d/0x60</span>
+<span class="quote">&gt;     ? trace_hardirqs_on_caller+0x136/0x1d0</span>
+<span class="quote">&gt;     ? entry_SYSCALL_64_fastpath+0x5/0xad</span>
+<span class="quote">&gt;     ? do_syscall_64+0x27/0x350</span>
+<span class="quote">&gt;     ? SyS_clone+0x19/0x20</span>
+<span class="quote">&gt;     ? do_syscall_64+0x60/0x350</span>
+<span class="quote">&gt;     ? entry_SYSCALL64_slow_path+0x25/0x25</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Reported-by: Cliff Spradlin &lt;cspradlin@waymo.com&gt;</span>
+<span class="quote">&gt; Signed-off-by: Dima Zavin &lt;dmitriyz@waymo.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; v2:</span>
+<span class="quote">&gt;  - Moved the cached cpusets_enabled() state into the cookie, turned</span>
+<span class="quote">&gt;    the cookie into a struct and updated all the other call sites.</span>
+<span class="quote">&gt;  - Applied on top of v4.12 since one of the callers in page_alloc.c changed.</span>
+<span class="quote">&gt;    Still only tested on v4.9.36 and compile tested against v4.12.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  include/linux/cpuset.h | 27 +++++++++++++++++----------</span>
+<span class="quote">&gt;  mm/filemap.c           |  6 +++---</span>
+<span class="quote">&gt;  mm/hugetlb.c           | 12 ++++++------</span>
+<span class="quote">&gt;  mm/mempolicy.c         | 12 ++++++------</span>
+<span class="quote">&gt;  mm/page_alloc.c        |  8 ++++----</span>
+<span class="quote">&gt;  mm/slab.c              |  6 +++---</span>
+<span class="quote">&gt;  mm/slub.c              |  6 +++---</span>
+<span class="quote">&gt;  7 files changed, 42 insertions(+), 35 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h</span>
+<span class="quote">&gt; index 119a3f9604b0..f64f6d3b1dce 100644</span>
+<span class="quote">&gt; --- a/include/linux/cpuset.h</span>
+<span class="quote">&gt; +++ b/include/linux/cpuset.h</span>
+<span class="quote">&gt; @@ -16,6 +16,11 @@</span>
+<span class="quote">&gt;  #include &lt;linux/mm.h&gt;</span>
+<span class="quote">&gt;  #include &lt;linux/jump_label.h&gt;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +struct cpuset_mems_cookie {</span>
+<span class="quote">&gt; +	unsigned int seq;</span>
+<span class="quote">&gt; +	bool was_enabled;</span>
+<span class="quote">&gt; +};</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  #ifdef CONFIG_CPUSETS</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  extern struct static_key_false cpusets_enabled_key;</span>
+<span class="quote">&gt; @@ -113,12 +118,15 @@ extern void cpuset_print_current_mems_allowed(void);</span>
+<span class="quote">&gt;   * causing process failure. A retry loop with read_mems_allowed_begin and</span>
+<span class="quote">&gt;   * read_mems_allowed_retry prevents these artificial failures.</span>
+<span class="quote">&gt;   */</span>
+<span class="quote">&gt; -static inline unsigned int read_mems_allowed_begin(void)</span>
+<span class="quote">&gt; +static inline void read_mems_allowed_begin(struct cpuset_mems_cookie *cookie)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; -	if (!cpusets_enabled())</span>
+<span class="quote">&gt; -		return 0;</span>
+<span class="quote">&gt; +	if (!cpusets_enabled()) {</span>
+<span class="quote">&gt; +		cookie-&gt;was_enabled = false;</span>
+<span class="quote">&gt; +		return;</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	return read_seqcount_begin(&amp;current-&gt;mems_allowed_seq);</span>
+<span class="quote">&gt; +	cookie-&gt;was_enabled = true;</span>
+<span class="quote">&gt; +	cookie-&gt;seq = read_seqcount_begin(&amp;current-&gt;mems_allowed_seq);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  /*</span>
+<span class="quote">&gt; @@ -127,12 +135,11 @@ static inline unsigned int read_mems_allowed_begin(void)</span>
+<span class="quote">&gt;   * update of mems_allowed. It is up to the caller to retry the operation if</span>
+<span class="quote">&gt;   * appropriate.</span>
+<span class="quote">&gt;   */</span>
+<span class="quote">&gt; -static inline bool read_mems_allowed_retry(unsigned int seq)</span>
+<span class="quote">&gt; +static inline bool read_mems_allowed_retry(struct cpuset_mems_cookie *cookie)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; -	if (!cpusets_enabled())</span>
+<span class="quote">&gt; +	if (!cookie-&gt;was_enabled)</span>
+<span class="quote">&gt;  		return false;</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; -	return read_seqcount_retry(&amp;current-&gt;mems_allowed_seq, seq);</span>
+<span class="quote">&gt; +	return read_seqcount_retry(&amp;current-&gt;mems_allowed_seq, cookie-&gt;seq);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static inline void set_mems_allowed(nodemask_t nodemask)</span>
+<span class="quote">&gt; @@ -249,12 +256,12 @@ static inline void set_mems_allowed(nodemask_t nodemask)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -static inline unsigned int read_mems_allowed_begin(void)</span>
+<span class="quote">&gt; +static inline void read_mems_allowed_begin(struct cpuset_mems_cookie *cookie)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	return 0;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -static inline bool read_mems_allowed_retry(unsigned int seq)</span>
+<span class="quote">&gt; +static inline bool read_mems_allowed_retry(struct cpuset_mems_cookie *cookie)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	return false;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt; diff --git a/mm/filemap.c b/mm/filemap.c</span>
+<span class="quote">&gt; index 6f1be573a5e6..c0730b377519 100644</span>
+<span class="quote">&gt; --- a/mm/filemap.c</span>
+<span class="quote">&gt; +++ b/mm/filemap.c</span>
+<span class="quote">&gt; @@ -716,12 +716,12 @@ struct page *__page_cache_alloc(gfp_t gfp)</span>
+<span class="quote">&gt;  	struct page *page;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	if (cpuset_do_page_mem_spread()) {</span>
+<span class="quote">&gt; -		unsigned int cpuset_mems_cookie;</span>
+<span class="quote">&gt; +		struct cpuset_mems_cookie cpuset_mems_cookie;</span>
+<span class="quote">&gt;  		do {</span>
+<span class="quote">&gt; -			cpuset_mems_cookie = read_mems_allowed_begin();</span>
+<span class="quote">&gt; +			read_mems_allowed_begin(&amp;cpuset_mems_cookie);</span>
+<span class="quote">&gt;  			n = cpuset_mem_spread_node();</span>
+<span class="quote">&gt;  			page = __alloc_pages_node(n, gfp, 0);</span>
+<span class="quote">&gt; -		} while (!page &amp;&amp; read_mems_allowed_retry(cpuset_mems_cookie));</span>
+<span class="quote">&gt; +		} while (!page &amp;&amp; read_mems_allowed_retry(&amp;cpuset_mems_cookie));</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  		return page;</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt; diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="quote">&gt; index 3eedb187e549..1defa44f4fe6 100644</span>
+<span class="quote">&gt; --- a/mm/hugetlb.c</span>
+<span class="quote">&gt; +++ b/mm/hugetlb.c</span>
+<span class="quote">&gt; @@ -907,7 +907,7 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,</span>
+<span class="quote">&gt;  	struct zonelist *zonelist;</span>
+<span class="quote">&gt;  	struct zone *zone;</span>
+<span class="quote">&gt;  	struct zoneref *z;</span>
+<span class="quote">&gt; -	unsigned int cpuset_mems_cookie;</span>
+<span class="quote">&gt; +	struct cpuset_mems_cookie cpuset_mems_cookie;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/*</span>
+<span class="quote">&gt;  	 * A child process with MAP_PRIVATE mappings created by their parent</span>
+<span class="quote">&gt; @@ -923,7 +923,7 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,</span>
+<span class="quote">&gt;  		goto err;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  retry_cpuset:</span>
+<span class="quote">&gt; -	cpuset_mems_cookie = read_mems_allowed_begin();</span>
+<span class="quote">&gt; +	read_mems_allowed_begin(&amp;cpuset_mems_cookie);</span>
+<span class="quote">&gt;  	zonelist = huge_zonelist(vma, address,</span>
+<span class="quote">&gt;  					htlb_alloc_mask(h), &amp;mpol, &amp;nodemask);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; @@ -945,7 +945,7 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	mpol_cond_put(mpol);</span>
+<span class="quote">&gt; -	if (unlikely(!page &amp;&amp; read_mems_allowed_retry(cpuset_mems_cookie)))</span>
+<span class="quote">&gt; +	if (unlikely(!page &amp;&amp; read_mems_allowed_retry(&amp;cpuset_mems_cookie)))</span>
+<span class="quote">&gt;  		goto retry_cpuset;</span>
+<span class="quote">&gt;  	return page;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; @@ -1511,7 +1511,7 @@ static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	int order = huge_page_order(h);</span>
+<span class="quote">&gt;  	gfp_t gfp = htlb_alloc_mask(h)|__GFP_COMP|__GFP_REPEAT|__GFP_NOWARN;</span>
+<span class="quote">&gt; -	unsigned int cpuset_mems_cookie;</span>
+<span class="quote">&gt; +	struct cpuset_mems_cookie cpuset_mems_cookie;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/*</span>
+<span class="quote">&gt;  	 * We need a VMA to get a memory policy.  If we do not</span>
+<span class="quote">&gt; @@ -1548,13 +1548,13 @@ static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,</span>
+<span class="quote">&gt;  		struct zonelist *zl;</span>
+<span class="quote">&gt;  		nodemask_t *nodemask;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -		cpuset_mems_cookie = read_mems_allowed_begin();</span>
+<span class="quote">&gt; +		read_mems_allowed_begin(&amp;cpuset_mems_cookie);</span>
+<span class="quote">&gt;  		zl = huge_zonelist(vma, addr, gfp, &amp;mpol, &amp;nodemask);</span>
+<span class="quote">&gt;  		mpol_cond_put(mpol);</span>
+<span class="quote">&gt;  		page = __alloc_pages_nodemask(gfp, order, zl, nodemask);</span>
+<span class="quote">&gt;  		if (page)</span>
+<span class="quote">&gt;  			return page;</span>
+<span class="quote">&gt; -	} while (read_mems_allowed_retry(cpuset_mems_cookie));</span>
+<span class="quote">&gt; +	} while (read_mems_allowed_retry(&amp;cpuset_mems_cookie));</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	return NULL;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt; diff --git a/mm/mempolicy.c b/mm/mempolicy.c</span>
+<span class="quote">&gt; index 37d0b334bfe9..b4f2513a2296 100644</span>
+<span class="quote">&gt; --- a/mm/mempolicy.c</span>
+<span class="quote">&gt; +++ b/mm/mempolicy.c</span>
+<span class="quote">&gt; @@ -1971,13 +1971,13 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	struct mempolicy *pol;</span>
+<span class="quote">&gt;  	struct page *page;</span>
+<span class="quote">&gt; -	unsigned int cpuset_mems_cookie;</span>
+<span class="quote">&gt; +	struct cpuset_mems_cookie cpuset_mems_cookie;</span>
+<span class="quote">&gt;  	struct zonelist *zl;</span>
+<span class="quote">&gt;  	nodemask_t *nmask;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  retry_cpuset:</span>
+<span class="quote">&gt;  	pol = get_vma_policy(vma, addr);</span>
+<span class="quote">&gt; -	cpuset_mems_cookie = read_mems_allowed_begin();</span>
+<span class="quote">&gt; +	read_mems_allowed_begin(&amp;cpuset_mems_cookie);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	if (pol-&gt;mode == MPOL_INTERLEAVE) {</span>
+<span class="quote">&gt;  		unsigned nid;</span>
+<span class="quote">&gt; @@ -2019,7 +2019,7 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,</span>
+<span class="quote">&gt;  	page = __alloc_pages_nodemask(gfp, order, zl, nmask);</span>
+<span class="quote">&gt;  	mpol_cond_put(pol);</span>
+<span class="quote">&gt;  out:</span>
+<span class="quote">&gt; -	if (unlikely(!page &amp;&amp; read_mems_allowed_retry(cpuset_mems_cookie)))</span>
+<span class="quote">&gt; +	if (unlikely(!page &amp;&amp; read_mems_allowed_retry(&amp;cpuset_mems_cookie)))</span>
+<span class="quote">&gt;  		goto retry_cpuset;</span>
+<span class="quote">&gt;  	return page;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt; @@ -2047,13 +2047,13 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	struct mempolicy *pol = &amp;default_policy;</span>
+<span class="quote">&gt;  	struct page *page;</span>
+<span class="quote">&gt; -	unsigned int cpuset_mems_cookie;</span>
+<span class="quote">&gt; +	struct cpuset_mems_cookie cpuset_mems_cookie;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	if (!in_interrupt() &amp;&amp; !(gfp &amp; __GFP_THISNODE))</span>
+<span class="quote">&gt;  		pol = get_task_policy(current);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  retry_cpuset:</span>
+<span class="quote">&gt; -	cpuset_mems_cookie = read_mems_allowed_begin();</span>
+<span class="quote">&gt; +	read_mems_allowed_begin(&amp;cpuset_mems_cookie);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/*</span>
+<span class="quote">&gt;  	 * No reference counting needed for current-&gt;mempolicy</span>
+<span class="quote">&gt; @@ -2066,7 +2066,7 @@ struct page *alloc_pages_current(gfp_t gfp, unsigned order)</span>
+<span class="quote">&gt;  				policy_zonelist(gfp, pol, numa_node_id()),</span>
+<span class="quote">&gt;  				policy_nodemask(gfp, pol));</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	if (unlikely(!page &amp;&amp; read_mems_allowed_retry(cpuset_mems_cookie)))</span>
+<span class="quote">&gt; +	if (unlikely(!page &amp;&amp; read_mems_allowed_retry(&amp;cpuset_mems_cookie)))</span>
+<span class="quote">&gt;  		goto retry_cpuset;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	return page;</span>
+<span class="quote">&gt; diff --git a/mm/page_alloc.c b/mm/page_alloc.c</span>
+<span class="quote">&gt; index 2302f250d6b1..36cd4e95fb38 100644</span>
+<span class="quote">&gt; --- a/mm/page_alloc.c</span>
+<span class="quote">&gt; +++ b/mm/page_alloc.c</span>
+<span class="quote">&gt; @@ -3688,7 +3688,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,</span>
+<span class="quote">&gt;  	int no_progress_loops;</span>
+<span class="quote">&gt;  	unsigned long alloc_start = jiffies;</span>
+<span class="quote">&gt;  	unsigned int stall_timeout = 10 * HZ;</span>
+<span class="quote">&gt; -	unsigned int cpuset_mems_cookie;</span>
+<span class="quote">&gt; +	struct cpuset_mems_cookie cpuset_mems_cookie;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/*</span>
+<span class="quote">&gt;  	 * In the slowpath, we sanity check order to avoid ever trying to</span>
+<span class="quote">&gt; @@ -3713,7 +3713,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,</span>
+<span class="quote">&gt;  	compaction_retries = 0;</span>
+<span class="quote">&gt;  	no_progress_loops = 0;</span>
+<span class="quote">&gt;  	compact_priority = DEF_COMPACT_PRIORITY;</span>
+<span class="quote">&gt; -	cpuset_mems_cookie = read_mems_allowed_begin();</span>
+<span class="quote">&gt; +	read_mems_allowed_begin(&amp;cpuset_mems_cookie);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/*</span>
+<span class="quote">&gt;  	 * The fast path uses conservative alloc_flags to succeed only until</span>
+<span class="quote">&gt; @@ -3872,7 +3872,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,</span>
+<span class="quote">&gt;  	 * It&#39;s possible we raced with cpuset update so the OOM would be</span>
+<span class="quote">&gt;  	 * premature (see below the nopage: label for full explanation).</span>
+<span class="quote">&gt;  	 */</span>
+<span class="quote">&gt; -	if (read_mems_allowed_retry(cpuset_mems_cookie))</span>
+<span class="quote">&gt; +	if (read_mems_allowed_retry(&amp;cpuset_mems_cookie))</span>
+<span class="quote">&gt;  		goto retry_cpuset;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/* Reclaim has failed us, start killing things */</span>
+<span class="quote">&gt; @@ -3900,7 +3900,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,</span>
+<span class="quote">&gt;  	 * to fail, check if the cpuset changed during allocation and if so,</span>
+<span class="quote">&gt;  	 * retry.</span>
+<span class="quote">&gt;  	 */</span>
+<span class="quote">&gt; -	if (read_mems_allowed_retry(cpuset_mems_cookie))</span>
+<span class="quote">&gt; +	if (read_mems_allowed_retry(&amp;cpuset_mems_cookie))</span>
+<span class="quote">&gt;  		goto retry_cpuset;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/*</span>
+<span class="quote">&gt; diff --git a/mm/slab.c b/mm/slab.c</span>
+<span class="quote">&gt; index 2a31ee3c5814..391fe9d9d24e 100644</span>
+<span class="quote">&gt; --- a/mm/slab.c</span>
+<span class="quote">&gt; +++ b/mm/slab.c</span>
+<span class="quote">&gt; @@ -3195,13 +3195,13 @@ static void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)</span>
+<span class="quote">&gt;  	void *obj = NULL;</span>
+<span class="quote">&gt;  	struct page *page;</span>
+<span class="quote">&gt;  	int nid;</span>
+<span class="quote">&gt; -	unsigned int cpuset_mems_cookie;</span>
+<span class="quote">&gt; +	struct cpuset_mems_cookie cpuset_mems_cookie;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	if (flags &amp; __GFP_THISNODE)</span>
+<span class="quote">&gt;  		return NULL;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  retry_cpuset:</span>
+<span class="quote">&gt; -	cpuset_mems_cookie = read_mems_allowed_begin();</span>
+<span class="quote">&gt; +	read_mems_allowed_begin(&amp;cpuset_mems_cookie);</span>
+<span class="quote">&gt;  	zonelist = node_zonelist(mempolicy_slab_node(), flags);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  retry:</span>
+<span class="quote">&gt; @@ -3245,7 +3245,7 @@ static void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)</span>
+<span class="quote">&gt;  		}</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	if (unlikely(!obj &amp;&amp; read_mems_allowed_retry(cpuset_mems_cookie)))</span>
+<span class="quote">&gt; +	if (unlikely(!obj &amp;&amp; read_mems_allowed_retry(&amp;cpuset_mems_cookie)))</span>
+<span class="quote">&gt;  		goto retry_cpuset;</span>
+<span class="quote">&gt;  	return obj;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt; diff --git a/mm/slub.c b/mm/slub.c</span>
+<span class="quote">&gt; index 8addc535bcdc..55c4862852ec 100644</span>
+<span class="quote">&gt; --- a/mm/slub.c</span>
+<span class="quote">&gt; +++ b/mm/slub.c</span>
+<span class="quote">&gt; @@ -1849,7 +1849,7 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,</span>
+<span class="quote">&gt;  	struct zone *zone;</span>
+<span class="quote">&gt;  	enum zone_type high_zoneidx = gfp_zone(flags);</span>
+<span class="quote">&gt;  	void *object;</span>
+<span class="quote">&gt; -	unsigned int cpuset_mems_cookie;</span>
+<span class="quote">&gt; +	struct cpuset_mems_cookie cpuset_mems_cookie;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/*</span>
+<span class="quote">&gt;  	 * The defrag ratio allows a configuration of the tradeoffs between</span>
+<span class="quote">&gt; @@ -1874,7 +1874,7 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,</span>
+<span class="quote">&gt;  		return NULL;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	do {</span>
+<span class="quote">&gt; -		cpuset_mems_cookie = read_mems_allowed_begin();</span>
+<span class="quote">&gt; +		read_mems_allowed_begin(&amp;cpuset_mems_cookie);</span>
+<span class="quote">&gt;  		zonelist = node_zonelist(mempolicy_slab_node(), flags);</span>
+<span class="quote">&gt;  		for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {</span>
+<span class="quote">&gt;  			struct kmem_cache_node *n;</span>
+<span class="quote">&gt; @@ -1896,7 +1896,7 @@ static void *get_any_partial(struct kmem_cache *s, gfp_t flags,</span>
+<span class="quote">&gt;  				}</span>
+<span class="quote">&gt;  			}</span>
+<span class="quote">&gt;  		}</span>
+<span class="quote">&gt; -	} while (read_mems_allowed_retry(cpuset_mems_cookie));</span>
+<span class="quote">&gt; +	} while (read_mems_allowed_retry(&amp;cpuset_mems_cookie));</span>
+<span class="quote">&gt;  #endif</span>
+<span class="quote">&gt;  	return NULL;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=175585">Dima Zavin</a> - July 28, 2017, 8:48 a.m.</div>
+<pre class="content">
+On Fri, Jul 28, 2017 at 12:45 AM, Vlastimil Babka &lt;vbabka@suse.cz&gt; wrote:
+<span class="quote">&gt; [+CC PeterZ]</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; On 07/27/2017 06:46 PM, Dima Zavin wrote:</span>
+<span class="quote">&gt;&gt; In codepaths that use the begin/retry interface for reading</span>
+<span class="quote">&gt;&gt; mems_allowed_seq with irqs disabled, there exists a race condition that</span>
+<span class="quote">&gt;&gt; stalls the patch process after only modifying a subset of the</span>
+<span class="quote">&gt;&gt; static_branch call sites.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; This problem manifested itself as a dead lock in the slub</span>
+<span class="quote">&gt;&gt; allocator, inside get_any_partial. The loop reads</span>
+<span class="quote">&gt;&gt; mems_allowed_seq value (via read_mems_allowed_begin),</span>
+<span class="quote">&gt;&gt; performs the defrag operation, and then verifies the consistency</span>
+<span class="quote">&gt;&gt; of mem_allowed via the read_mems_allowed_retry and the cookie</span>
+<span class="quote">&gt;&gt; returned by xxx_begin. The issue here is that both begin and retry</span>
+<span class="quote">&gt;&gt; first check if cpusets are enabled via cpusets_enabled() static branch.</span>
+<span class="quote">&gt;&gt; This branch can be rewritted dynamically (via cpuset_inc) if a new</span>
+<span class="quote">&gt;&gt; cpuset is created. The x86 jump label code fully synchronizes across</span>
+<span class="quote">&gt;&gt; all CPUs for every entry it rewrites. If it rewrites only one of the</span>
+<span class="quote">&gt;&gt; callsites (specifically the one in read_mems_allowed_retry) and then</span>
+<span class="quote">&gt;&gt; waits for the smp_call_function(do_sync_core) to complete while a CPU is</span>
+<span class="quote">&gt;&gt; inside the begin/retry section with IRQs off and the mems_allowed value</span>
+<span class="quote">&gt;&gt; is changed, we can hang. This is because begin() will always return 0</span>
+<span class="quote">&gt;&gt; (since it wasn&#39;t patched yet) while retry() will test the 0 against</span>
+<span class="quote">&gt;&gt; the actual value of the seq counter.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Hm I wonder if there are other static branch users potentially having</span>
+<span class="quote">&gt; similar problem. Then it would be best to fix this at static branch</span>
+<span class="quote">&gt; level. Any idea, Peter? An inelegant solution would be to have indicate</span>
+<span class="quote">&gt; static_branch_(un)likely() callsites ordering for the patching. I.e.</span>
+<span class="quote">&gt; here we would make sure that read_mems_allowed_begin() callsites are</span>
+<span class="quote">&gt; patched before read_mems_allowed_retry() when enabling the static key,</span>
+<span class="quote">&gt; and the opposite order when disabling the static key.</span>
+<span class="quote">&gt;</span>
+
+This was my main worry, that I&#39;m just patching up one incarnation of
+this problem
+and other clients will eventually trip over this.
+<span class="quote">
+&gt;&gt; The fix is to cache the value that&#39;s returned by cpusets_enabled() at the</span>
+<span class="quote">&gt;&gt; top of the loop, and only operate on the seqcount (both begin and retry) if</span>
+<span class="quote">&gt;&gt; it was true.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Maybe we could just return e.g. -1 in read_mems_allowed_begin() when</span>
+<span class="quote">&gt; cpusets are disabled, and test it in read_mems_allowed_retry() before</span>
+<span class="quote">&gt; doing a proper seqcount retry check? Also I think you can still do the</span>
+<span class="quote">&gt; cpusets_enabled() check in read_mems_allowed_retry() before the</span>
+<span class="quote">&gt; was_enabled (or cookie == -1) test?</span>
+
+Hmm, good point! If cpusets_enabled() is true, then we can still test against
+was_enabled and do the right thing (adds one extra branch in that case). When
+it&#39;s false, we still benefit from the static_branch fanciness. Thanks!
+
+Re setting the cookie to -1, I didn&#39;t really want to overload the
+cookie value but
+rather just make the state explicit so it&#39;s easier to grawk as this is
+all already
+subtle enough.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - July 28, 2017, 9:30 a.m.</div>
+<pre class="content">
+On Fri, Jul 28, 2017 at 09:45:16AM +0200, Vlastimil Babka wrote:
+<span class="quote">&gt; [+CC PeterZ]</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; On 07/27/2017 06:46 PM, Dima Zavin wrote:</span>
+<span class="quote">&gt; &gt; In codepaths that use the begin/retry interface for reading</span>
+<span class="quote">&gt; &gt; mems_allowed_seq with irqs disabled, there exists a race condition that</span>
+<span class="quote">&gt; &gt; stalls the patch process after only modifying a subset of the</span>
+<span class="quote">&gt; &gt; static_branch call sites.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; This problem manifested itself as a dead lock in the slub</span>
+<span class="quote">&gt; &gt; allocator, inside get_any_partial. The loop reads</span>
+<span class="quote">&gt; &gt; mems_allowed_seq value (via read_mems_allowed_begin),</span>
+<span class="quote">&gt; &gt; performs the defrag operation, and then verifies the consistency</span>
+<span class="quote">&gt; &gt; of mem_allowed via the read_mems_allowed_retry and the cookie</span>
+<span class="quote">&gt; &gt; returned by xxx_begin. The issue here is that both begin and retry</span>
+<span class="quote">&gt; &gt; first check if cpusets are enabled via cpusets_enabled() static branch.</span>
+<span class="quote">&gt; &gt; This branch can be rewritted dynamically (via cpuset_inc) if a new</span>
+<span class="quote">&gt; &gt; cpuset is created. The x86 jump label code fully synchronizes across</span>
+<span class="quote">&gt; &gt; all CPUs for every entry it rewrites. If it rewrites only one of the</span>
+<span class="quote">&gt; &gt; callsites (specifically the one in read_mems_allowed_retry) and then</span>
+<span class="quote">&gt; &gt; waits for the smp_call_function(do_sync_core) to complete while a CPU is</span>
+<span class="quote">&gt; &gt; inside the begin/retry section with IRQs off and the mems_allowed value</span>
+<span class="quote">&gt; &gt; is changed, we can hang. This is because begin() will always return 0</span>
+<span class="quote">&gt; &gt; (since it wasn&#39;t patched yet) while retry() will test the 0 against</span>
+<span class="quote">&gt; &gt; the actual value of the seq counter.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Hm I wonder if there are other static branch users potentially having</span>
+<span class="quote">&gt; similar problem. Then it would be best to fix this at static branch</span>
+<span class="quote">&gt; level. Any idea, Peter? An inelegant solution would be to have indicate</span>
+<span class="quote">&gt; static_branch_(un)likely() callsites ordering for the patching. I.e.</span>
+<span class="quote">&gt; here we would make sure that read_mems_allowed_begin() callsites are</span>
+<span class="quote">&gt; patched before read_mems_allowed_retry() when enabling the static key,</span>
+<span class="quote">&gt; and the opposite order when disabling the static key.</span>
+
+I&#39;m not aware of any other sure ordering requirements. But you can
+manually create this order by using 2 static keys. Then flip them in the
+desired order.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=72672">Vlastimil Babka</a> - July 28, 2017, 2:05 p.m.</div>
+<pre class="content">
+On 07/28/2017 11:30 AM, Peter Zijlstra wrote:
+<span class="quote">&gt; On Fri, Jul 28, 2017 at 09:45:16AM +0200, Vlastimil Babka wrote:</span>
+<span class="quote">&gt;&gt; [+CC PeterZ]</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; On 07/27/2017 06:46 PM, Dima Zavin wrote:</span>
+<span class="quote">&gt;&gt;&gt; In codepaths that use the begin/retry interface for reading</span>
+<span class="quote">&gt;&gt;&gt; mems_allowed_seq with irqs disabled, there exists a race condition that</span>
+<span class="quote">&gt;&gt;&gt; stalls the patch process after only modifying a subset of the</span>
+<span class="quote">&gt;&gt;&gt; static_branch call sites.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; This problem manifested itself as a dead lock in the slub</span>
+<span class="quote">&gt;&gt;&gt; allocator, inside get_any_partial. The loop reads</span>
+<span class="quote">&gt;&gt;&gt; mems_allowed_seq value (via read_mems_allowed_begin),</span>
+<span class="quote">&gt;&gt;&gt; performs the defrag operation, and then verifies the consistency</span>
+<span class="quote">&gt;&gt;&gt; of mem_allowed via the read_mems_allowed_retry and the cookie</span>
+<span class="quote">&gt;&gt;&gt; returned by xxx_begin. The issue here is that both begin and retry</span>
+<span class="quote">&gt;&gt;&gt; first check if cpusets are enabled via cpusets_enabled() static branch.</span>
+<span class="quote">&gt;&gt;&gt; This branch can be rewritted dynamically (via cpuset_inc) if a new</span>
+<span class="quote">&gt;&gt;&gt; cpuset is created. The x86 jump label code fully synchronizes across</span>
+<span class="quote">&gt;&gt;&gt; all CPUs for every entry it rewrites. If it rewrites only one of the</span>
+<span class="quote">&gt;&gt;&gt; callsites (specifically the one in read_mems_allowed_retry) and then</span>
+<span class="quote">&gt;&gt;&gt; waits for the smp_call_function(do_sync_core) to complete while a CPU is</span>
+<span class="quote">&gt;&gt;&gt; inside the begin/retry section with IRQs off and the mems_allowed value</span>
+<span class="quote">&gt;&gt;&gt; is changed, we can hang. This is because begin() will always return 0</span>
+<span class="quote">&gt;&gt;&gt; (since it wasn&#39;t patched yet) while retry() will test the 0 against</span>
+<span class="quote">&gt;&gt;&gt; the actual value of the seq counter.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Hm I wonder if there are other static branch users potentially having</span>
+<span class="quote">&gt;&gt; similar problem. Then it would be best to fix this at static branch</span>
+<span class="quote">&gt;&gt; level. Any idea, Peter? An inelegant solution would be to have indicate</span>
+<span class="quote">&gt;&gt; static_branch_(un)likely() callsites ordering for the patching. I.e.</span>
+<span class="quote">&gt;&gt; here we would make sure that read_mems_allowed_begin() callsites are</span>
+<span class="quote">&gt;&gt; patched before read_mems_allowed_retry() when enabling the static key,</span>
+<span class="quote">&gt;&gt; and the opposite order when disabling the static key.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I&#39;m not aware of any other sure ordering requirements. But you can</span>
+<span class="quote">&gt; manually create this order by using 2 static keys. Then flip them in the</span>
+<span class="quote">&gt; desired order.</span>
+
+Right, thanks for the suggestion. I think that would be preferable to
+complicating the cookie handling. Add a new key next to
+cpusets_enabled_key, let&#39;s say &quot;cpusets_enabled_pre_key&quot;. Make
+read_mems_allowed_begin() check this key instead of cpusets_enabled().
+Change cpuset_inc/dec to inc/dec also this new key in the right order
+and that should be it. Dima, can you try that or should I?
+
+Thanks,
+Vlastimil
+<span class="quote">
+&gt; --</span>
+<span class="quote">&gt; To unsubscribe, send a message with &#39;unsubscribe linux-mm&#39; in</span>
+<span class="quote">&gt; the body to majordomo@kvack.org.  For more info on Linux MM,</span>
+<span class="quote">&gt; see: http://www.linux-mm.org/ .</span>
+<span class="quote">&gt; Don&#39;t email: &lt;a href=mailto:&quot;dont@kvack.org&quot;&gt; email@kvack.org &lt;/a&gt;</span>
+<span class="quote">&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=175585">Dima Zavin</a> - July 28, 2017, 4:52 p.m.</div>
+<pre class="content">
+On Fri, Jul 28, 2017 at 7:05 AM, Vlastimil Babka &lt;vbabka@suse.cz&gt; wrote:
+<span class="quote">&gt; On 07/28/2017 11:30 AM, Peter Zijlstra wrote:</span>
+<span class="quote">&gt;&gt; On Fri, Jul 28, 2017 at 09:45:16AM +0200, Vlastimil Babka wrote:</span>
+<span class="quote">&gt;&gt;&gt; [+CC PeterZ]</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; On 07/27/2017 06:46 PM, Dima Zavin wrote:</span>
+<span class="quote">&gt;&gt;&gt;&gt; In codepaths that use the begin/retry interface for reading</span>
+<span class="quote">&gt;&gt;&gt;&gt; mems_allowed_seq with irqs disabled, there exists a race condition that</span>
+<span class="quote">&gt;&gt;&gt;&gt; stalls the patch process after only modifying a subset of the</span>
+<span class="quote">&gt;&gt;&gt;&gt; static_branch call sites.</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; This problem manifested itself as a dead lock in the slub</span>
+<span class="quote">&gt;&gt;&gt;&gt; allocator, inside get_any_partial. The loop reads</span>
+<span class="quote">&gt;&gt;&gt;&gt; mems_allowed_seq value (via read_mems_allowed_begin),</span>
+<span class="quote">&gt;&gt;&gt;&gt; performs the defrag operation, and then verifies the consistency</span>
+<span class="quote">&gt;&gt;&gt;&gt; of mem_allowed via the read_mems_allowed_retry and the cookie</span>
+<span class="quote">&gt;&gt;&gt;&gt; returned by xxx_begin. The issue here is that both begin and retry</span>
+<span class="quote">&gt;&gt;&gt;&gt; first check if cpusets are enabled via cpusets_enabled() static branch.</span>
+<span class="quote">&gt;&gt;&gt;&gt; This branch can be rewritted dynamically (via cpuset_inc) if a new</span>
+<span class="quote">&gt;&gt;&gt;&gt; cpuset is created. The x86 jump label code fully synchronizes across</span>
+<span class="quote">&gt;&gt;&gt;&gt; all CPUs for every entry it rewrites. If it rewrites only one of the</span>
+<span class="quote">&gt;&gt;&gt;&gt; callsites (specifically the one in read_mems_allowed_retry) and then</span>
+<span class="quote">&gt;&gt;&gt;&gt; waits for the smp_call_function(do_sync_core) to complete while a CPU is</span>
+<span class="quote">&gt;&gt;&gt;&gt; inside the begin/retry section with IRQs off and the mems_allowed value</span>
+<span class="quote">&gt;&gt;&gt;&gt; is changed, we can hang. This is because begin() will always return 0</span>
+<span class="quote">&gt;&gt;&gt;&gt; (since it wasn&#39;t patched yet) while retry() will test the 0 against</span>
+<span class="quote">&gt;&gt;&gt;&gt; the actual value of the seq counter.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; Hm I wonder if there are other static branch users potentially having</span>
+<span class="quote">&gt;&gt;&gt; similar problem. Then it would be best to fix this at static branch</span>
+<span class="quote">&gt;&gt;&gt; level. Any idea, Peter? An inelegant solution would be to have indicate</span>
+<span class="quote">&gt;&gt;&gt; static_branch_(un)likely() callsites ordering for the patching. I.e.</span>
+<span class="quote">&gt;&gt;&gt; here we would make sure that read_mems_allowed_begin() callsites are</span>
+<span class="quote">&gt;&gt;&gt; patched before read_mems_allowed_retry() when enabling the static key,</span>
+<span class="quote">&gt;&gt;&gt; and the opposite order when disabling the static key.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; I&#39;m not aware of any other sure ordering requirements. But you can</span>
+<span class="quote">&gt;&gt; manually create this order by using 2 static keys. Then flip them in the</span>
+<span class="quote">&gt;&gt; desired order.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Right, thanks for the suggestion. I think that would be preferable to</span>
+<span class="quote">&gt; complicating the cookie handling. Add a new key next to</span>
+<span class="quote">&gt; cpusets_enabled_key, let&#39;s say &quot;cpusets_enabled_pre_key&quot;. Make</span>
+<span class="quote">&gt; read_mems_allowed_begin() check this key instead of cpusets_enabled().</span>
+<span class="quote">&gt; Change cpuset_inc/dec to inc/dec also this new key in the right order</span>
+<span class="quote">&gt; and that should be it. Dima, can you try that or should I?</span>
+
+Yeah, I like that approach much better. I&#39;ll re-spin a new version in a bit.
+
+--Dima
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt; Thanks,</span>
+<span class="quote">&gt; Vlastimil</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; --</span>
+<span class="quote">&gt;&gt; To unsubscribe, send a message with &#39;unsubscribe linux-mm&#39; in</span>
+<span class="quote">&gt;&gt; the body to majordomo@kvack.org.  For more info on Linux MM,</span>
+<span class="quote">&gt;&gt; see: http://www.linux-mm.org/ .</span>
+<span class="quote">&gt;&gt; Don&#39;t email: &lt;a href=mailto:&quot;dont@kvack.org&quot;&gt; email@kvack.org &lt;/a&gt;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=143191">kbuild test robot</a> - July 29, 2017, 4:56 a.m.</div>
+<pre class="content">
+Hi Dima,
+
+[auto build test WARNING on v4.12]
+[cannot apply to cgroup/for-next linus/master v4.13-rc2 v4.13-rc1 next-20170728]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+
+url:    https://github.com/0day-ci/linux/commits/Dima-Zavin/cpuset-fix-a-deadlock-due-to-incomplete-patching-of-cpusets_enabled/20170729-123852
+config: i386-randconfig-x019-201730 (attached as .config)
+compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+reproduce:
+        # save the attached .config to linux build tree
+        make ARCH=i386 
+
+All warnings (new ones prefixed by &gt;&gt;):
+
+   In file included from kernel/sched/core.c:13:0:
+   include/linux/cpuset.h: In function &#39;read_mems_allowed_begin&#39;:
+<span class="quote">&gt;&gt; include/linux/cpuset.h:261:9: warning: &#39;return&#39; with a value, in function returning void</span>
+     return 0;
+            ^
+   include/linux/cpuset.h:259:20: note: declared here
+    static inline void read_mems_allowed_begin(struct cpuset_mems_cookie *cookie)
+                       ^~~~~~~~~~~~~~~~~~~~~~~
+
+vim +/return +261 include/linux/cpuset.h
+
+58568d2a Miao Xie   2009-06-16  258  
+6b828cc9 Dima Zavin 2017-07-27  259  static inline void read_mems_allowed_begin(struct cpuset_mems_cookie *cookie)
+c0ff7453 Miao Xie   2010-05-24  260  {
+cc9a6c87 Mel Gorman 2012-03-21 @261  	return 0;
+c0ff7453 Miao Xie   2010-05-24  262  }
+c0ff7453 Miao Xie   2010-05-24  263  
+
+:::::: The code at line 261 was first introduced by commit
+:::::: cc9a6c8776615f9c194ccf0b63a0aa5628235545 cpuset: mm: reduce large amounts of memory barrier related damage v3
+
+:::::: TO: Mel Gorman &lt;mgorman@suse.de&gt;
+:::::: CC: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/include/linux/cpuset.h b/include/linux/cpuset.h</span>
+<span class="p_header">index 119a3f9604b0..f64f6d3b1dce 100644</span>
+<span class="p_header">--- a/include/linux/cpuset.h</span>
+<span class="p_header">+++ b/include/linux/cpuset.h</span>
+<span class="p_chunk">@@ -16,6 +16,11 @@</span> <span class="p_context"></span>
+ #include &lt;linux/mm.h&gt;
+ #include &lt;linux/jump_label.h&gt;
+ 
+<span class="p_add">+struct cpuset_mems_cookie {</span>
+<span class="p_add">+	unsigned int seq;</span>
+<span class="p_add">+	bool was_enabled;</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+ #ifdef CONFIG_CPUSETS
+ 
+ extern struct static_key_false cpusets_enabled_key;
+<span class="p_chunk">@@ -113,12 +118,15 @@</span> <span class="p_context"> extern void cpuset_print_current_mems_allowed(void);</span>
+  * causing process failure. A retry loop with read_mems_allowed_begin and
+  * read_mems_allowed_retry prevents these artificial failures.
+  */
+<span class="p_del">-static inline unsigned int read_mems_allowed_begin(void)</span>
+<span class="p_add">+static inline void read_mems_allowed_begin(struct cpuset_mems_cookie *cookie)</span>
+ {
+<span class="p_del">-	if (!cpusets_enabled())</span>
+<span class="p_del">-		return 0;</span>
+<span class="p_add">+	if (!cpusets_enabled()) {</span>
+<span class="p_add">+		cookie-&gt;was_enabled = false;</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	}</span>
+ 
+<span class="p_del">-	return read_seqcount_begin(&amp;current-&gt;mems_allowed_seq);</span>
+<span class="p_add">+	cookie-&gt;was_enabled = true;</span>
+<span class="p_add">+	cookie-&gt;seq = read_seqcount_begin(&amp;current-&gt;mems_allowed_seq);</span>
+ }
+ 
+ /*
+<span class="p_chunk">@@ -127,12 +135,11 @@</span> <span class="p_context"> static inline unsigned int read_mems_allowed_begin(void)</span>
+  * update of mems_allowed. It is up to the caller to retry the operation if
+  * appropriate.
+  */
+<span class="p_del">-static inline bool read_mems_allowed_retry(unsigned int seq)</span>
+<span class="p_add">+static inline bool read_mems_allowed_retry(struct cpuset_mems_cookie *cookie)</span>
+ {
+<span class="p_del">-	if (!cpusets_enabled())</span>
+<span class="p_add">+	if (!cookie-&gt;was_enabled)</span>
+ 		return false;
+<span class="p_del">-</span>
+<span class="p_del">-	return read_seqcount_retry(&amp;current-&gt;mems_allowed_seq, seq);</span>
+<span class="p_add">+	return read_seqcount_retry(&amp;current-&gt;mems_allowed_seq, cookie-&gt;seq);</span>
+ }
+ 
+ static inline void set_mems_allowed(nodemask_t nodemask)
+<span class="p_chunk">@@ -249,12 +256,12 @@</span> <span class="p_context"> static inline void set_mems_allowed(nodemask_t nodemask)</span>
+ {
+ }
+ 
+<span class="p_del">-static inline unsigned int read_mems_allowed_begin(void)</span>
+<span class="p_add">+static inline void read_mems_allowed_begin(struct cpuset_mems_cookie *cookie)</span>
+ {
+ 	return 0;
+ }
+ 
+<span class="p_del">-static inline bool read_mems_allowed_retry(unsigned int seq)</span>
+<span class="p_add">+static inline bool read_mems_allowed_retry(struct cpuset_mems_cookie *cookie)</span>
+ {
+ 	return false;
+ }
+<span class="p_header">diff --git a/mm/filemap.c b/mm/filemap.c</span>
+<span class="p_header">index 6f1be573a5e6..c0730b377519 100644</span>
+<span class="p_header">--- a/mm/filemap.c</span>
+<span class="p_header">+++ b/mm/filemap.c</span>
+<span class="p_chunk">@@ -716,12 +716,12 @@</span> <span class="p_context"> struct page *__page_cache_alloc(gfp_t gfp)</span>
+ 	struct page *page;
+ 
+ 	if (cpuset_do_page_mem_spread()) {
+<span class="p_del">-		unsigned int cpuset_mems_cookie;</span>
+<span class="p_add">+		struct cpuset_mems_cookie cpuset_mems_cookie;</span>
+ 		do {
+<span class="p_del">-			cpuset_mems_cookie = read_mems_allowed_begin();</span>
+<span class="p_add">+			read_mems_allowed_begin(&amp;cpuset_mems_cookie);</span>
+ 			n = cpuset_mem_spread_node();
+ 			page = __alloc_pages_node(n, gfp, 0);
+<span class="p_del">-		} while (!page &amp;&amp; read_mems_allowed_retry(cpuset_mems_cookie));</span>
+<span class="p_add">+		} while (!page &amp;&amp; read_mems_allowed_retry(&amp;cpuset_mems_cookie));</span>
+ 
+ 		return page;
+ 	}
+<span class="p_header">diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="p_header">index 3eedb187e549..1defa44f4fe6 100644</span>
+<span class="p_header">--- a/mm/hugetlb.c</span>
+<span class="p_header">+++ b/mm/hugetlb.c</span>
+<span class="p_chunk">@@ -907,7 +907,7 @@</span> <span class="p_context"> static struct page *dequeue_huge_page_vma(struct hstate *h,</span>
+ 	struct zonelist *zonelist;
+ 	struct zone *zone;
+ 	struct zoneref *z;
+<span class="p_del">-	unsigned int cpuset_mems_cookie;</span>
+<span class="p_add">+	struct cpuset_mems_cookie cpuset_mems_cookie;</span>
+ 
+ 	/*
+ 	 * A child process with MAP_PRIVATE mappings created by their parent
+<span class="p_chunk">@@ -923,7 +923,7 @@</span> <span class="p_context"> static struct page *dequeue_huge_page_vma(struct hstate *h,</span>
+ 		goto err;
+ 
+ retry_cpuset:
+<span class="p_del">-	cpuset_mems_cookie = read_mems_allowed_begin();</span>
+<span class="p_add">+	read_mems_allowed_begin(&amp;cpuset_mems_cookie);</span>
+ 	zonelist = huge_zonelist(vma, address,
+ 					htlb_alloc_mask(h), &amp;mpol, &amp;nodemask);
+ 
+<span class="p_chunk">@@ -945,7 +945,7 @@</span> <span class="p_context"> static struct page *dequeue_huge_page_vma(struct hstate *h,</span>
+ 	}
+ 
+ 	mpol_cond_put(mpol);
+<span class="p_del">-	if (unlikely(!page &amp;&amp; read_mems_allowed_retry(cpuset_mems_cookie)))</span>
+<span class="p_add">+	if (unlikely(!page &amp;&amp; read_mems_allowed_retry(&amp;cpuset_mems_cookie)))</span>
+ 		goto retry_cpuset;
+ 	return page;
+ 
+<span class="p_chunk">@@ -1511,7 +1511,7 @@</span> <span class="p_context"> static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,</span>
+ {
+ 	int order = huge_page_order(h);
+ 	gfp_t gfp = htlb_alloc_mask(h)|__GFP_COMP|__GFP_REPEAT|__GFP_NOWARN;
+<span class="p_del">-	unsigned int cpuset_mems_cookie;</span>
+<span class="p_add">+	struct cpuset_mems_cookie cpuset_mems_cookie;</span>
+ 
+ 	/*
+ 	 * We need a VMA to get a memory policy.  If we do not
+<span class="p_chunk">@@ -1548,13 +1548,13 @@</span> <span class="p_context"> static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,</span>
+ 		struct zonelist *zl;
+ 		nodemask_t *nodemask;
+ 
+<span class="p_del">-		cpuset_mems_cookie = read_mems_allowed_begin();</span>
+<span class="p_add">+		read_mems_allowed_begin(&amp;cpuset_mems_cookie);</span>
+ 		zl = huge_zonelist(vma, addr, gfp, &amp;mpol, &amp;nodemask);
+ 		mpol_cond_put(mpol);
+ 		page = __alloc_pages_nodemask(gfp, order, zl, nodemask);
+ 		if (page)
+ 			return page;
+<span class="p_del">-	} while (read_mems_allowed_retry(cpuset_mems_cookie));</span>
+<span class="p_add">+	} while (read_mems_allowed_retry(&amp;cpuset_mems_cookie));</span>
+ 
+ 	return NULL;
+ }
+<span class="p_header">diff --git a/mm/mempolicy.c b/mm/mempolicy.c</span>
+<span class="p_header">index 37d0b334bfe9..b4f2513a2296 100644</span>
+<span class="p_header">--- a/mm/mempolicy.c</span>
+<span class="p_header">+++ b/mm/mempolicy.c</span>
+<span class="p_chunk">@@ -1971,13 +1971,13 @@</span> <span class="p_context"> alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,</span>
+ {
+ 	struct mempolicy *pol;
+ 	struct page *page;
+<span class="p_del">-	unsigned int cpuset_mems_cookie;</span>
+<span class="p_add">+	struct cpuset_mems_cookie cpuset_mems_cookie;</span>
+ 	struct zonelist *zl;
+ 	nodemask_t *nmask;
+ 
+ retry_cpuset:
+ 	pol = get_vma_policy(vma, addr);
+<span class="p_del">-	cpuset_mems_cookie = read_mems_allowed_begin();</span>
+<span class="p_add">+	read_mems_allowed_begin(&amp;cpuset_mems_cookie);</span>
+ 
+ 	if (pol-&gt;mode == MPOL_INTERLEAVE) {
+ 		unsigned nid;
+<span class="p_chunk">@@ -2019,7 +2019,7 @@</span> <span class="p_context"> alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,</span>
+ 	page = __alloc_pages_nodemask(gfp, order, zl, nmask);
+ 	mpol_cond_put(pol);
+ out:
+<span class="p_del">-	if (unlikely(!page &amp;&amp; read_mems_allowed_retry(cpuset_mems_cookie)))</span>
+<span class="p_add">+	if (unlikely(!page &amp;&amp; read_mems_allowed_retry(&amp;cpuset_mems_cookie)))</span>
+ 		goto retry_cpuset;
+ 	return page;
+ }
+<span class="p_chunk">@@ -2047,13 +2047,13 @@</span> <span class="p_context"> struct page *alloc_pages_current(gfp_t gfp, unsigned order)</span>
+ {
+ 	struct mempolicy *pol = &amp;default_policy;
+ 	struct page *page;
+<span class="p_del">-	unsigned int cpuset_mems_cookie;</span>
+<span class="p_add">+	struct cpuset_mems_cookie cpuset_mems_cookie;</span>
+ 
+ 	if (!in_interrupt() &amp;&amp; !(gfp &amp; __GFP_THISNODE))
+ 		pol = get_task_policy(current);
+ 
+ retry_cpuset:
+<span class="p_del">-	cpuset_mems_cookie = read_mems_allowed_begin();</span>
+<span class="p_add">+	read_mems_allowed_begin(&amp;cpuset_mems_cookie);</span>
+ 
+ 	/*
+ 	 * No reference counting needed for current-&gt;mempolicy
+<span class="p_chunk">@@ -2066,7 +2066,7 @@</span> <span class="p_context"> struct page *alloc_pages_current(gfp_t gfp, unsigned order)</span>
+ 				policy_zonelist(gfp, pol, numa_node_id()),
+ 				policy_nodemask(gfp, pol));
+ 
+<span class="p_del">-	if (unlikely(!page &amp;&amp; read_mems_allowed_retry(cpuset_mems_cookie)))</span>
+<span class="p_add">+	if (unlikely(!page &amp;&amp; read_mems_allowed_retry(&amp;cpuset_mems_cookie)))</span>
+ 		goto retry_cpuset;
+ 
+ 	return page;
+<span class="p_header">diff --git a/mm/page_alloc.c b/mm/page_alloc.c</span>
+<span class="p_header">index 2302f250d6b1..36cd4e95fb38 100644</span>
+<span class="p_header">--- a/mm/page_alloc.c</span>
+<span class="p_header">+++ b/mm/page_alloc.c</span>
+<span class="p_chunk">@@ -3688,7 +3688,7 @@</span> <span class="p_context"> __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,</span>
+ 	int no_progress_loops;
+ 	unsigned long alloc_start = jiffies;
+ 	unsigned int stall_timeout = 10 * HZ;
+<span class="p_del">-	unsigned int cpuset_mems_cookie;</span>
+<span class="p_add">+	struct cpuset_mems_cookie cpuset_mems_cookie;</span>
+ 
+ 	/*
+ 	 * In the slowpath, we sanity check order to avoid ever trying to
+<span class="p_chunk">@@ -3713,7 +3713,7 @@</span> <span class="p_context"> __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,</span>
+ 	compaction_retries = 0;
+ 	no_progress_loops = 0;
+ 	compact_priority = DEF_COMPACT_PRIORITY;
+<span class="p_del">-	cpuset_mems_cookie = read_mems_allowed_begin();</span>
+<span class="p_add">+	read_mems_allowed_begin(&amp;cpuset_mems_cookie);</span>
+ 
+ 	/*
+ 	 * The fast path uses conservative alloc_flags to succeed only until
+<span class="p_chunk">@@ -3872,7 +3872,7 @@</span> <span class="p_context"> __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,</span>
+ 	 * It&#39;s possible we raced with cpuset update so the OOM would be
+ 	 * premature (see below the nopage: label for full explanation).
+ 	 */
+<span class="p_del">-	if (read_mems_allowed_retry(cpuset_mems_cookie))</span>
+<span class="p_add">+	if (read_mems_allowed_retry(&amp;cpuset_mems_cookie))</span>
+ 		goto retry_cpuset;
+ 
+ 	/* Reclaim has failed us, start killing things */
+<span class="p_chunk">@@ -3900,7 +3900,7 @@</span> <span class="p_context"> __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,</span>
+ 	 * to fail, check if the cpuset changed during allocation and if so,
+ 	 * retry.
+ 	 */
+<span class="p_del">-	if (read_mems_allowed_retry(cpuset_mems_cookie))</span>
+<span class="p_add">+	if (read_mems_allowed_retry(&amp;cpuset_mems_cookie))</span>
+ 		goto retry_cpuset;
+ 
+ 	/*
+<span class="p_header">diff --git a/mm/slab.c b/mm/slab.c</span>
+<span class="p_header">index 2a31ee3c5814..391fe9d9d24e 100644</span>
+<span class="p_header">--- a/mm/slab.c</span>
+<span class="p_header">+++ b/mm/slab.c</span>
+<span class="p_chunk">@@ -3195,13 +3195,13 @@</span> <span class="p_context"> static void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)</span>
+ 	void *obj = NULL;
+ 	struct page *page;
+ 	int nid;
+<span class="p_del">-	unsigned int cpuset_mems_cookie;</span>
+<span class="p_add">+	struct cpuset_mems_cookie cpuset_mems_cookie;</span>
+ 
+ 	if (flags &amp; __GFP_THISNODE)
+ 		return NULL;
+ 
+ retry_cpuset:
+<span class="p_del">-	cpuset_mems_cookie = read_mems_allowed_begin();</span>
+<span class="p_add">+	read_mems_allowed_begin(&amp;cpuset_mems_cookie);</span>
+ 	zonelist = node_zonelist(mempolicy_slab_node(), flags);
+ 
+ retry:
+<span class="p_chunk">@@ -3245,7 +3245,7 @@</span> <span class="p_context"> static void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)</span>
+ 		}
+ 	}
+ 
+<span class="p_del">-	if (unlikely(!obj &amp;&amp; read_mems_allowed_retry(cpuset_mems_cookie)))</span>
+<span class="p_add">+	if (unlikely(!obj &amp;&amp; read_mems_allowed_retry(&amp;cpuset_mems_cookie)))</span>
+ 		goto retry_cpuset;
+ 	return obj;
+ }
+<span class="p_header">diff --git a/mm/slub.c b/mm/slub.c</span>
+<span class="p_header">index 8addc535bcdc..55c4862852ec 100644</span>
+<span class="p_header">--- a/mm/slub.c</span>
+<span class="p_header">+++ b/mm/slub.c</span>
+<span class="p_chunk">@@ -1849,7 +1849,7 @@</span> <span class="p_context"> static void *get_any_partial(struct kmem_cache *s, gfp_t flags,</span>
+ 	struct zone *zone;
+ 	enum zone_type high_zoneidx = gfp_zone(flags);
+ 	void *object;
+<span class="p_del">-	unsigned int cpuset_mems_cookie;</span>
+<span class="p_add">+	struct cpuset_mems_cookie cpuset_mems_cookie;</span>
+ 
+ 	/*
+ 	 * The defrag ratio allows a configuration of the tradeoffs between
+<span class="p_chunk">@@ -1874,7 +1874,7 @@</span> <span class="p_context"> static void *get_any_partial(struct kmem_cache *s, gfp_t flags,</span>
+ 		return NULL;
+ 
+ 	do {
+<span class="p_del">-		cpuset_mems_cookie = read_mems_allowed_begin();</span>
+<span class="p_add">+		read_mems_allowed_begin(&amp;cpuset_mems_cookie);</span>
+ 		zonelist = node_zonelist(mempolicy_slab_node(), flags);
+ 		for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+ 			struct kmem_cache_node *n;
+<span class="p_chunk">@@ -1896,7 +1896,7 @@</span> <span class="p_context"> static void *get_any_partial(struct kmem_cache *s, gfp_t flags,</span>
+ 				}
+ 			}
+ 		}
+<span class="p_del">-	} while (read_mems_allowed_retry(cpuset_mems_cookie));</span>
+<span class="p_add">+	} while (read_mems_allowed_retry(&amp;cpuset_mems_cookie));</span>
+ #endif
+ 	return NULL;
+ }
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

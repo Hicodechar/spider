@@ -1,0 +1,1274 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[1/2] mm, oom: introduce oom reaper - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [1/2] mm, oom: introduce oom reaper</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Dec. 15, 2015, 6:36 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1450204575-13052-1-git-send-email-mhocko@kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7856711/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7856711/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7856711/">/patch/7856711/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id 72436BEEE1
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 15 Dec 2015 18:36:37 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 28D08203E3
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 15 Dec 2015 18:36:36 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 9979B203C2
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 15 Dec 2015 18:36:34 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S965377AbbLOSgb (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 15 Dec 2015 13:36:31 -0500
+Received: from mail-wm0-f54.google.com ([74.125.82.54]:33481 &quot;EHLO
+	mail-wm0-f54.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S932620AbbLOSg3 (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 15 Dec 2015 13:36:29 -0500
+Received: by mail-wm0-f54.google.com with SMTP id n186so108410843wmn.0
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Tue, 15 Dec 2015 10:36:29 -0800 (PST)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20130820;
+	h=from:to:cc:subject:date:message-id;
+	bh=Bo/6Cl3buJD5aKu7WIYddjFMT5zFK5WlL95s4excGxw=;
+	b=ZwTgUXFx/mpUhCuGG8Rj+mAYawNTH2JMGViUS5KGT2Q4R0lNmhi7H9Umq0Nzh3WsHn
+	zO7BIGWZJbfCtKeTTgskPhmw1SHUALyG3C+Y+pVU9kJqwFmRhfgpaxE7vYmzD8nq2Vn7
+	561c4NFacXF7gg2b4oZxCTvc6oSqJCFmMciz0xfBN1jfWeJ49rjg/bBqI1qRZSyrOKX0
+	BShMHi3b3J+9+paaBW2Rwe953tgz7VbRgIEbRfcyw3YA1AGwzENB2C/FFLPHENms1UuO
+	FurmZMIKlYEbknZr1Jv8CcUPlTXbmPHSJoOK9GMh1CL064aeaUzL7Br5mA5A0D9FvH8b
+	VL6g==
+X-Received: by 10.28.18.138 with SMTP id 132mr6582873wms.6.1450204588554;
+	Tue, 15 Dec 2015 10:36:28 -0800 (PST)
+Received: from tiehlicka.suse.cz (ip-86-49-65-8.net.upcbroadband.cz.
+	[86.49.65.8]) by smtp.gmail.com with ESMTPSA id
+	q7sm2556649wjz.12.2015.12.15.10.36.27
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+	Tue, 15 Dec 2015 10:36:27 -0800 (PST)
+From: Michal Hocko &lt;mhocko@kernel.org&gt;
+To: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: Mel Gorman &lt;mgorman@suse.de&gt;,
+	Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;,
+	David Rientjes &lt;rientjes@google.com&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Oleg Nesterov &lt;oleg@redhat.com&gt;, Hugh Dickins &lt;hughd@google.com&gt;,
+	Andrea Argangeli &lt;andrea@kernel.org&gt;,
+	Rik van Riel &lt;riel@redhat.com&gt;, &lt;linux-mm@kvack.org&gt;,
+	LKML &lt;linux-kernel@vger.kernel.org&gt;, Michal Hocko &lt;mhocko@suse.com&gt;
+Subject: [PATCH 1/2] mm, oom: introduce oom reaper
+Date: Tue, 15 Dec 2015 19:36:15 +0100
+Message-Id: &lt;1450204575-13052-1-git-send-email-mhocko@kernel.org&gt;
+X-Mailer: git-send-email 2.6.2
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	T_RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Dec. 15, 2015, 6:36 p.m.</div>
+<pre class="content">
+<span class="from">From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+
+This is based on the idea from Mel Gorman discussed during LSFMM 2015 and
+independently brought up by Oleg Nesterov.
+
+The OOM killer currently allows to kill only a single task in a good
+hope that the task will terminate in a reasonable time and frees up its
+memory.  Such a task (oom victim) will get an access to memory reserves
+via mark_oom_victim to allow a forward progress should there be a need
+for additional memory during exit path.
+
+It has been shown (e.g. by Tetsuo Handa) that it is not that hard to
+construct workloads which break the core assumption mentioned above and
+the OOM victim might take unbounded amount of time to exit because it
+might be blocked in the uninterruptible state waiting for on an event
+(e.g. lock) which is blocked by another task looping in the page
+allocator.
+
+This patch reduces the probability of such a lockup by introducing a
+specialized kernel thread (oom_reaper) which tries to reclaim additional
+memory by preemptively reaping the anonymous or swapped out memory
+owned by the oom victim under an assumption that such a memory won&#39;t
+be needed when its owner is killed and kicked from the userspace anyway.
+There is one notable exception to this, though, if the OOM victim was
+in the process of coredumping the result would be incomplete. This is
+considered a reasonable constrain because the overall system health is
+more important than debugability of a particular application.
+
+A kernel thread has been chosen because we need a reliable way of
+invocation so workqueue context is not appropriate because all the
+workers might be busy (e.g. allocating memory). Kswapd which sounds
+like another good fit is not appropriate as well because it might get
+blocked on locks during reclaim as well.
+
+oom_reaper has to take mmap_sem on the target task for reading so the
+solution is not 100% because the semaphore might be held or blocked for
+write but the probability is reduced considerably wrt. basically any
+lock blocking forward progress as described above. In order to prevent
+from blocking on the lock without any forward progress we are using only
+a trylock and retry 10 times with a short sleep in between.
+Users of mmap_sem which need it for write should be carefully reviewed
+to use _killable waiting as much as possible and reduce allocations
+requests done with the lock held to absolute minimum to reduce the risk
+even further.
+
+The API between oom killer and oom reaper is quite trivial. wake_oom_reaper
+updates mm_to_reap with cmpxchg to guarantee only NULL-&gt;mm transition
+and oom_reaper clear this atomically once it is done with the work. This
+means that only a single mm_struct can be reaped at the time. As the
+operation is potentially disruptive we are trying to limit it to the
+ncessary minimum and the reaper blocks any updates while it operates on
+an mm. mm_struct is pinned by mm_count to allow parallel exit_mmap and a
+race is detected by atomic_inc_not_zero(mm_users).
+
+Changes since v2
+- fix mm_count refernce leak reported by Tetsuo
+- make sure oom_reaper_th is NULL after kthread_run fails - Tetsuo
+- use wait_event_freezable rather than open coded wait loop - suggested
+  by Tetsuo
+Changes since v1
+- fix the screwed up detail-&gt;check_swap_entries - Johannes
+- do not use kthread_should_stop because that would need a cleanup
+  and we do not have anybody to stop us - Tetsuo
+- move wake_oom_reaper to oom_kill_process because we have to wait
+  for all tasks sharing the same mm to get killed - Tetsuo
+- do not reap mm structs which are shared with unkillable tasks - Tetsuo
+<span class="acked-by">
+Acked-by: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+<span class="signed-off-by">Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+---
+Hi,
+this is version 3 of the patch. Thanks to Tetsuo for his exhaustive
+review.  There haven&#39;t been any fundamental objections to the approach
+so I have dropped the RFC status. Any further feedback is welcome of
+course.
+
+ include/linux/mm.h |   2 +
+ mm/internal.h      |   5 ++
+ mm/memory.c        |  12 ++---
+ mm/oom_kill.c      | 139 +++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 4 files changed, 149 insertions(+), 9 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41">Andrew Morton</a> - Dec. 17, 2015, 12:50 a.m.</div>
+<pre class="content">
+On Tue, 15 Dec 2015 19:36:15 +0100 Michal Hocko &lt;mhocko@kernel.org&gt; wrote:
+<span class="quote">
+&gt; From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This is based on the idea from Mel Gorman discussed during LSFMM 2015 and</span>
+<span class="quote">&gt; independently brought up by Oleg Nesterov.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The OOM killer currently allows to kill only a single task in a good</span>
+<span class="quote">&gt; hope that the task will terminate in a reasonable time and frees up its</span>
+<span class="quote">&gt; memory.  Such a task (oom victim) will get an access to memory reserves</span>
+<span class="quote">&gt; via mark_oom_victim to allow a forward progress should there be a need</span>
+<span class="quote">&gt; for additional memory during exit path.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; ...</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; +static void oom_reap_vmas(struct mm_struct *mm)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	int attempts = 0;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	while (attempts++ &lt; 10 &amp;&amp; !__oom_reap_vmas(mm))</span>
+<span class="quote">&gt; +		schedule_timeout(HZ/10);</span>
+
+schedule_timeout() in state TASK_RUNNING doesn&#39;t do anything.  Use
+msleep() or msleep_interruptible().  I can&#39;t decide which is more
+appropriate - it only affects the load average display.
+
+Which prompts the obvious question: as the no-operativeness of this
+call wasn&#39;t noticed in testing, why do we have it there...
+
+I guess it means that the __oom_reap_vmas() success rate is nice and
+high ;)
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=1553">Paul Gortmaker</a> - Dec. 21, 2015, 8:38 p.m.</div>
+<pre class="content">
+On Tue, Dec 15, 2015 at 1:36 PM, Michal Hocko &lt;mhocko@kernel.org&gt; wrote:
+<span class="quote">&gt; From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; This is based on the idea from Mel Gorman discussed during LSFMM 2015 and</span>
+<span class="quote">&gt; independently brought up by Oleg Nesterov.</span>
+<span class="quote">&gt;</span>
+
+[...]
+
+Since this is built-in always, can we....
+<span class="quote">
+&gt; diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="quote">&gt; index 5314b206caa5..48025a21f8c4 100644</span>
+<span class="quote">&gt; --- a/mm/oom_kill.c</span>
+<span class="quote">&gt; +++ b/mm/oom_kill.c</span>
+<span class="quote">&gt; @@ -35,6 +35,11 @@</span>
+<span class="quote">&gt;  #include &lt;linux/freezer.h&gt;</span>
+<span class="quote">&gt;  #include &lt;linux/ftrace.h&gt;</span>
+<span class="quote">&gt;  #include &lt;linux/ratelimit.h&gt;</span>
+<span class="quote">&gt; +#include &lt;linux/kthread.h&gt;</span>
+<span class="quote">&gt; +#include &lt;linux/module.h&gt;</span>
+
+...use &lt;linux/init.h&gt; instead above, and then...
+<span class="quote">
+&gt; +</span>
+<span class="quote">&gt; +#include &lt;asm/tlb.h&gt;</span>
+<span class="quote">&gt; +#include &quot;internal.h&quot;</span>
+<span class="quote">&gt;</span>
+
+[...]
+<span class="quote">
+&gt; +                * Make sure our oom reaper thread will get scheduled when</span>
+<span class="quote">&gt; +                * ASAP and that it won&#39;t get preempted by malicious userspace.</span>
+<span class="quote">&gt; +                */</span>
+<span class="quote">&gt; +               sched_setscheduler(oom_reaper_th, SCHED_FIFO, &amp;param);</span>
+<span class="quote">&gt; +       }</span>
+<span class="quote">&gt; +       return 0;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +module_init(oom_init)</span>
+
+...use one of the non-modular initcalls here?   I&#39;m trying to clean up most of
+the non-modular uses of modular macros etc. since:
+
+ (1) it is easy to accidentally code up an unused module_exit function
+ (2) it can be misleading when reading the source, thinking it can be
+      modular when the Makefile and/or Kconfig prohibit it
+ (3) it requires the include of the module.h header file which in turn
+     includes nearly everything else, thus increasing CPP overhead.
+
+I figured no point in sending a follow on patch since this came in via
+the akpm tree into next and that gets rebased/updated regularly.
+
+Thanks,
+Paul.
+--
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=133391">Ross Zwisler</a> - Dec. 23, 2015, 11 p.m.</div>
+<pre class="content">
+On Tue, Dec 15, 2015 at 11:36 AM, Michal Hocko &lt;mhocko@kernel.org&gt; wrote:
+<span class="quote">&gt; From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; This is based on the idea from Mel Gorman discussed during LSFMM 2015 and</span>
+<span class="quote">&gt; independently brought up by Oleg Nesterov.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; The OOM killer currently allows to kill only a single task in a good</span>
+<span class="quote">&gt; hope that the task will terminate in a reasonable time and frees up its</span>
+<span class="quote">&gt; memory.  Such a task (oom victim) will get an access to memory reserves</span>
+<span class="quote">&gt; via mark_oom_victim to allow a forward progress should there be a need</span>
+<span class="quote">&gt; for additional memory during exit path.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; It has been shown (e.g. by Tetsuo Handa) that it is not that hard to</span>
+<span class="quote">&gt; construct workloads which break the core assumption mentioned above and</span>
+<span class="quote">&gt; the OOM victim might take unbounded amount of time to exit because it</span>
+<span class="quote">&gt; might be blocked in the uninterruptible state waiting for on an event</span>
+<span class="quote">&gt; (e.g. lock) which is blocked by another task looping in the page</span>
+<span class="quote">&gt; allocator.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; This patch reduces the probability of such a lockup by introducing a</span>
+<span class="quote">&gt; specialized kernel thread (oom_reaper) which tries to reclaim additional</span>
+<span class="quote">&gt; memory by preemptively reaping the anonymous or swapped out memory</span>
+<span class="quote">&gt; owned by the oom victim under an assumption that such a memory won&#39;t</span>
+<span class="quote">&gt; be needed when its owner is killed and kicked from the userspace anyway.</span>
+<span class="quote">&gt; There is one notable exception to this, though, if the OOM victim was</span>
+<span class="quote">&gt; in the process of coredumping the result would be incomplete. This is</span>
+<span class="quote">&gt; considered a reasonable constrain because the overall system health is</span>
+<span class="quote">&gt; more important than debugability of a particular application.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; A kernel thread has been chosen because we need a reliable way of</span>
+<span class="quote">&gt; invocation so workqueue context is not appropriate because all the</span>
+<span class="quote">&gt; workers might be busy (e.g. allocating memory). Kswapd which sounds</span>
+<span class="quote">&gt; like another good fit is not appropriate as well because it might get</span>
+<span class="quote">&gt; blocked on locks during reclaim as well.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; oom_reaper has to take mmap_sem on the target task for reading so the</span>
+<span class="quote">&gt; solution is not 100% because the semaphore might be held or blocked for</span>
+<span class="quote">&gt; write but the probability is reduced considerably wrt. basically any</span>
+<span class="quote">&gt; lock blocking forward progress as described above. In order to prevent</span>
+<span class="quote">&gt; from blocking on the lock without any forward progress we are using only</span>
+<span class="quote">&gt; a trylock and retry 10 times with a short sleep in between.</span>
+<span class="quote">&gt; Users of mmap_sem which need it for write should be carefully reviewed</span>
+<span class="quote">&gt; to use _killable waiting as much as possible and reduce allocations</span>
+<span class="quote">&gt; requests done with the lock held to absolute minimum to reduce the risk</span>
+<span class="quote">&gt; even further.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; The API between oom killer and oom reaper is quite trivial. wake_oom_reaper</span>
+<span class="quote">&gt; updates mm_to_reap with cmpxchg to guarantee only NULL-&gt;mm transition</span>
+<span class="quote">&gt; and oom_reaper clear this atomically once it is done with the work. This</span>
+<span class="quote">&gt; means that only a single mm_struct can be reaped at the time. As the</span>
+<span class="quote">&gt; operation is potentially disruptive we are trying to limit it to the</span>
+<span class="quote">&gt; ncessary minimum and the reaper blocks any updates while it operates on</span>
+<span class="quote">&gt; an mm. mm_struct is pinned by mm_count to allow parallel exit_mmap and a</span>
+<span class="quote">&gt; race is detected by atomic_inc_not_zero(mm_users).</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Changes since v2</span>
+<span class="quote">&gt; - fix mm_count refernce leak reported by Tetsuo</span>
+<span class="quote">&gt; - make sure oom_reaper_th is NULL after kthread_run fails - Tetsuo</span>
+<span class="quote">&gt; - use wait_event_freezable rather than open coded wait loop - suggested</span>
+<span class="quote">&gt;   by Tetsuo</span>
+<span class="quote">&gt; Changes since v1</span>
+<span class="quote">&gt; - fix the screwed up detail-&gt;check_swap_entries - Johannes</span>
+<span class="quote">&gt; - do not use kthread_should_stop because that would need a cleanup</span>
+<span class="quote">&gt;   and we do not have anybody to stop us - Tetsuo</span>
+<span class="quote">&gt; - move wake_oom_reaper to oom_kill_process because we have to wait</span>
+<span class="quote">&gt;   for all tasks sharing the same mm to get killed - Tetsuo</span>
+<span class="quote">&gt; - do not reap mm structs which are shared with unkillable tasks - Tetsuo</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Acked-by: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+<span class="quote">&gt; Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+
+While running xfstests on next-20151223 I hit a pair of kernel BUGs
+that bisected to this commit:
+
+1eb3a80d8239 (&quot;mm, oom: introduce oom reaper&quot;)
+
+Here is a BUG produced by generic/029 when run against XFS:
+
+[  235.751723] ------------[ cut here ]------------
+[  235.752194] kernel BUG at mm/filemap.c:208!
+[  235.752595] invalid opcode: 0000 [#1] SMP
+[  235.753036] Modules linked in: nd_pmem nd_btt nd_e820 libnvdimm
+[  235.753681] CPU: 3 PID: 17586 Comm: xfs_io Not tainted
+4.4.0-rc6-next-20151223_new_fsync_v6+ #8
+[  235.754535] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996),
+BIOS 1.7.5-20140709_153950- 04/01/2014
+[  235.755451] task: ffff88040bde19c0 ti: ffff8800bab80000 task.ti:
+ffff8800bab80000
+[  235.756202] RIP: 0010:[&lt;ffffffff811c81f6&gt;]  [&lt;ffffffff811c81f6&gt;]
+__delete_from_page_cache+0x206/0x440
+[  235.757151] RSP: 0018:ffff8800bab83b60  EFLAGS: 00010082
+[  235.757679] RAX: 0000000000000021 RBX: ffffea0007d37e00 RCX: 0000000000000006
+[  235.758360] RDX: 0000000000000000 RSI: 0000000000000001 RDI: ffff8804117ce380
+[  235.759043] RBP: ffff8800bab83bb8 R08: 0000000000000001 R09: 0000000000000001
+[  235.759749] R10: 00000000ffffffff R11: 0000000000028dc0 R12: ffff8800b1e7db00
+[  235.760444] R13: ffff8800b1e7daf8 R14: 0000000000000000 R15: 0000000000000003
+[  235.761122] FS:  00007f65dd009700(0000) GS:ffff880411600000(0000)
+knlGS:0000000000000000
+[  235.761888] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  235.762432] CR2: 00007f65dd01f000 CR3: 00000000ba9d7000 CR4: 00000000000406e0
+[  235.763150] Stack:
+[  235.763347]  ffff88040cf1a800 0000000000000001 0000000000000001
+ffff8800ae2a3b50
+[  235.764123]  ffff8800ae2a3b80 00000000b4ca5e1a ffffea0007d37e00
+ffff8800b1e7db10
+[  235.764900]  ffff88040cf1a800 0000000000000000 0000000000000292
+ffff8800bab83bf0
+[  235.765638] Call Trace:
+[  235.765903]  [&lt;ffffffff811c8493&gt;] delete_from_page_cache+0x63/0xd0
+[  235.766513]  [&lt;ffffffff811dc3e5&gt;] truncate_inode_page+0xa5/0x120
+[  235.767088]  [&lt;ffffffff811dc648&gt;] truncate_inode_pages_range+0x1a8/0x7f0
+[  235.767725]  [&lt;ffffffff81021459&gt;] ? sched_clock+0x9/0x10
+[  235.768239]  [&lt;ffffffff810db37c&gt;] ? local_clock+0x1c/0x20
+[  235.768779]  [&lt;ffffffff811feba4&gt;] ? unmap_mapping_range+0x64/0x130
+[  235.769385]  [&lt;ffffffff811febb4&gt;] ? unmap_mapping_range+0x74/0x130
+[  235.770010]  [&lt;ffffffff810f5c3f&gt;] ? up_write+0x1f/0x40
+[  235.770501]  [&lt;ffffffff811febb4&gt;] ? unmap_mapping_range+0x74/0x130
+[  235.771092]  [&lt;ffffffff811dcd58&gt;] truncate_pagecache+0x48/0x70
+[  235.771646]  [&lt;ffffffff811dcdb2&gt;] truncate_setsize+0x32/0x40
+[  235.772276]  [&lt;ffffffff8148e972&gt;] xfs_setattr_size+0x232/0x470
+[  235.772839]  [&lt;ffffffff8148ec64&gt;] xfs_vn_setattr+0xb4/0xc0
+[  235.773369]  [&lt;ffffffff8127af87&gt;] notify_change+0x237/0x350
+[  235.773945]  [&lt;ffffffff81257c87&gt;] do_truncate+0x77/0xc0
+[  235.774446]  [&lt;ffffffff8125800f&gt;] do_sys_ftruncate.constprop.15+0xef/0x150
+[  235.775156]  [&lt;ffffffff812580ae&gt;] SyS_ftruncate+0xe/0x10
+[  235.775650]  [&lt;ffffffff81a527b2&gt;] entry_SYSCALL_64_fastpath+0x12/0x76
+[  235.776257] Code: 5f 5d c3 48 8b 43 20 48 8d 78 ff a8 01 48 0f 44
+fb 8b 47 48 85 c0 0f 88 2b 01 00 00 48 c7 c6 a8 57 f0 81 48 89 df e8
+fa 1a 03 00 &lt;0f&gt; 0b 4c 89 ce 44 89 fa 4c 89 e7 4c 89 45 b0 4c 89 4d b8
+e8 32
+[  235.778695] RIP  [&lt;ffffffff811c81f6&gt;] __delete_from_page_cache+0x206/0x440
+[  235.779350]  RSP &lt;ffff8800bab83b60&gt;
+[  235.779694] ---[ end trace fac9dd65c4cdd828 ]---
+
+And a different BUG produced by generic/095, also with XFS:
+
+[  609.398897] ------------[ cut here ]------------
+[  609.399843] kernel BUG at mm/truncate.c:629!
+[  609.400666] invalid opcode: 0000 [#1] SMP
+[  609.401512] Modules linked in: nd_pmem nd_btt nd_e820 libnvdimm
+[  609.402719] CPU: 4 PID: 26782 Comm: fio Tainted: G        W
+4.4.0-rc6-next-20151223+ #1
+[  609.404267] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996),
+BIOS 1.7.5-20140709_153950- 04/01/2014
+[  609.405851] task: ffff8801e52119c0 ti: ffff8801f6540000 task.ti:
+ffff8801f6540000
+[  609.407272] RIP: 0010:[&lt;ffffffff811dc0ab&gt;]  [&lt;ffffffff811dc0ab&gt;]
+invalidate_inode_pages2_range+0x30b/0x550
+[  609.409111] RSP: 0018:ffff8801f6543c88  EFLAGS: 00010202
+[  609.410105] RAX: 0000000000000001 RBX: 0000000000000061 RCX: ffff88041180e440
+[  609.411417] RDX: ffffffff00000001 RSI: 0000000000000000 RDI: 0000000000000286
+[  609.412737] RBP: ffff8801f6543dd0 R08: 0000000000000008 R09: 0000000000000001
+[  609.414069] R10: 0000000000000001 R11: 0000000000000000 R12: ffff8801f6dfb438
+[  609.415388] R13: ffffffffffffffff R14: 000000000000000b R15: ffffea0002877c80
+[  609.416681] FS:  00007f48e13ed740(0000) GS:ffff880411800000(0000)
+knlGS:0000000000000000
+[  609.418190] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  609.419261] CR2: 00000000012e0000 CR3: 000000040f24c000 CR4: 00000000000406e0
+[  609.420577] Stack:
+[  609.420968]  0000000000000292 ffff8800ba6f7800 ffff8801f6dfb450
+0000000000000000
+[  609.422423]  0000000000000001 0000000000000056 0000000000000057
+0000000000000058
+[  609.423878]  0000000000000059 000000000000005a 000000000000005b
+000000000000005c
+[  609.425325] Call Trace:
+[  609.425797]  [&lt;ffffffff811dc307&gt;] invalidate_inode_pages2+0x17/0x20
+[  609.426971]  [&lt;ffffffff81482167&gt;] xfs_file_read_iter+0x297/0x300
+[  609.428097]  [&lt;ffffffff81259ac9&gt;] __vfs_read+0xc9/0x100
+[  609.429073]  [&lt;ffffffff8125a319&gt;] vfs_read+0x89/0x130
+[  609.430010]  [&lt;ffffffff8125b418&gt;] SyS_read+0x58/0xd0
+[  609.430943]  [&lt;ffffffff81a527b2&gt;] entry_SYSCALL_64_fastpath+0x12/0x76
+[  609.432139] Code: 85 d8 fe ff ff 01 00 00 00 f6 c4 40 0f 84 59 ff
+ff ff 49 8b 47 20 48 8d 78 ff a8 01 49 0f 44 ff 8b 47 48 85 c0 0f 88
+bd 01 00 00 &lt;0f&gt; 0b 4d 3b 67 08 0f 85 70 ff ff ff 49 f7 07 00 18 00 00
+74 15
+[  609.436956] RIP  [&lt;ffffffff811dc0ab&gt;]
+invalidate_inode_pages2_range+0x30b/0x550
+[  609.438373]  RSP &lt;ffff8801f6543c88&gt;
+[  609.439080] ---[ end trace 10616a16523ccb2c ]---
+
+They both fail 100% of the time with the above signatures with the
+&quot;oom reaper&quot; commit, and succeed 100% of the time with the parent
+commit.
+
+My test setup is a qemu guest machine with a pair of 4 GiB PMEM
+ramdisk test devices, one for the xfstest test disk and one for the
+scratch disk.
+
+Please let me know if you have trouble reproducing this.  I&#39;m also
+happy to test fixes.
+
+Thanks,
+- Ross
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Dec. 24, 2015, 9:47 a.m.</div>
+<pre class="content">
+On Wed 23-12-15 16:00:09, Ross Zwisler wrote:
+[...]
+<span class="quote">&gt; While running xfstests on next-20151223 I hit a pair of kernel BUGs</span>
+<span class="quote">&gt; that bisected to this commit:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 1eb3a80d8239 (&quot;mm, oom: introduce oom reaper&quot;)</span>
+
+Thank you for the report and the bisection.
+<span class="quote">
+&gt; Here is a BUG produced by generic/029 when run against XFS:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; [  235.751723] ------------[ cut here ]------------</span>
+<span class="quote">&gt; [  235.752194] kernel BUG at mm/filemap.c:208!</span>
+
+This is VM_BUG_ON_PAGE(page_mapped(page), page), right? Could you attach
+the full kernel log? It all smells like a race when OOM reaper tears
+down the mapping and there is a truncate still in progress. But hitting
+the BUG_ON just because of that doesn&#39;t make much sense to me. OOM
+reaper is essentially MADV_DONTNEED. I have to think about this some
+more, though, but I am in a holiday mode until early next year so please
+bear with me.
+
+[...]
+<span class="quote">&gt; [  235.765638] Call Trace:</span>
+<span class="quote">&gt; [  235.765903]  [&lt;ffffffff811c8493&gt;] delete_from_page_cache+0x63/0xd0</span>
+<span class="quote">&gt; [  235.766513]  [&lt;ffffffff811dc3e5&gt;] truncate_inode_page+0xa5/0x120</span>
+<span class="quote">&gt; [  235.767088]  [&lt;ffffffff811dc648&gt;] truncate_inode_pages_range+0x1a8/0x7f0</span>
+<span class="quote">&gt; [  235.767725]  [&lt;ffffffff81021459&gt;] ? sched_clock+0x9/0x10</span>
+<span class="quote">&gt; [  235.768239]  [&lt;ffffffff810db37c&gt;] ? local_clock+0x1c/0x20</span>
+<span class="quote">&gt; [  235.768779]  [&lt;ffffffff811feba4&gt;] ? unmap_mapping_range+0x64/0x130</span>
+<span class="quote">&gt; [  235.769385]  [&lt;ffffffff811febb4&gt;] ? unmap_mapping_range+0x74/0x130</span>
+<span class="quote">&gt; [  235.770010]  [&lt;ffffffff810f5c3f&gt;] ? up_write+0x1f/0x40</span>
+<span class="quote">&gt; [  235.770501]  [&lt;ffffffff811febb4&gt;] ? unmap_mapping_range+0x74/0x130</span>
+<span class="quote">&gt; [  235.771092]  [&lt;ffffffff811dcd58&gt;] truncate_pagecache+0x48/0x70</span>
+<span class="quote">&gt; [  235.771646]  [&lt;ffffffff811dcdb2&gt;] truncate_setsize+0x32/0x40</span>
+<span class="quote">&gt; [  235.772276]  [&lt;ffffffff8148e972&gt;] xfs_setattr_size+0x232/0x470</span>
+<span class="quote">&gt; [  235.772839]  [&lt;ffffffff8148ec64&gt;] xfs_vn_setattr+0xb4/0xc0</span>
+<span class="quote">&gt; [  235.773369]  [&lt;ffffffff8127af87&gt;] notify_change+0x237/0x350</span>
+<span class="quote">&gt; [  235.773945]  [&lt;ffffffff81257c87&gt;] do_truncate+0x77/0xc0</span>
+<span class="quote">&gt; [  235.774446]  [&lt;ffffffff8125800f&gt;] do_sys_ftruncate.constprop.15+0xef/0x150</span>
+<span class="quote">&gt; [  235.775156]  [&lt;ffffffff812580ae&gt;] SyS_ftruncate+0xe/0x10</span>
+<span class="quote">&gt; [  235.775650]  [&lt;ffffffff81a527b2&gt;] entry_SYSCALL_64_fastpath+0x12/0x76</span>
+<span class="quote">&gt; [  235.776257] Code: 5f 5d c3 48 8b 43 20 48 8d 78 ff a8 01 48 0f 44</span>
+<span class="quote">&gt; fb 8b 47 48 85 c0 0f 88 2b 01 00 00 48 c7 c6 a8 57 f0 81 48 89 df e8</span>
+<span class="quote">&gt; fa 1a 03 00 &lt;0f&gt; 0b 4c 89 ce 44 89 fa 4c 89 e7 4c 89 45 b0 4c 89 4d b8</span>
+<span class="quote">&gt; e8 32</span>
+<span class="quote">&gt; [  235.778695] RIP  [&lt;ffffffff811c81f6&gt;] __delete_from_page_cache+0x206/0x440</span>
+<span class="quote">&gt; [  235.779350]  RSP &lt;ffff8800bab83b60&gt;</span>
+<span class="quote">&gt; [  235.779694] ---[ end trace fac9dd65c4cdd828 ]---</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; And a different BUG produced by generic/095, also with XFS:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; [  609.398897] ------------[ cut here ]------------</span>
+<span class="quote">&gt; [  609.399843] kernel BUG at mm/truncate.c:629!</span>
+
+Hmm, I do not see any BUG_ON at this line. But there is
+BUG_ON(page_mapped(page)) at line 620.
+<span class="quote">
+&gt; [  609.400666] invalid opcode: 0000 [#1] SMP</span>
+<span class="quote">&gt; [  609.401512] Modules linked in: nd_pmem nd_btt nd_e820 libnvdimm</span>
+<span class="quote">&gt; [  609.402719] CPU: 4 PID: 26782 Comm: fio Tainted: G        W</span>
+
+There was a warning before this triggered. The full kernel log would be
+helpful as well.
+
+[...]
+<span class="quote">&gt; [  609.425325] Call Trace:</span>
+<span class="quote">&gt; [  609.425797]  [&lt;ffffffff811dc307&gt;] invalidate_inode_pages2+0x17/0x20</span>
+<span class="quote">&gt; [  609.426971]  [&lt;ffffffff81482167&gt;] xfs_file_read_iter+0x297/0x300</span>
+<span class="quote">&gt; [  609.428097]  [&lt;ffffffff81259ac9&gt;] __vfs_read+0xc9/0x100</span>
+<span class="quote">&gt; [  609.429073]  [&lt;ffffffff8125a319&gt;] vfs_read+0x89/0x130</span>
+<span class="quote">&gt; [  609.430010]  [&lt;ffffffff8125b418&gt;] SyS_read+0x58/0xd0</span>
+<span class="quote">&gt; [  609.430943]  [&lt;ffffffff81a527b2&gt;] entry_SYSCALL_64_fastpath+0x12/0x76</span>
+<span class="quote">&gt; [  609.432139] Code: 85 d8 fe ff ff 01 00 00 00 f6 c4 40 0f 84 59 ff</span>
+<span class="quote">&gt; ff ff 49 8b 47 20 48 8d 78 ff a8 01 49 0f 44 ff 8b 47 48 85 c0 0f 88</span>
+<span class="quote">&gt; bd 01 00 00 &lt;0f&gt; 0b 4d 3b 67 08 0f 85 70 ff ff ff 49 f7 07 00 18 00 00</span>
+<span class="quote">&gt; 74 15</span>
+[...]
+<span class="quote">&gt; My test setup is a qemu guest machine with a pair of 4 GiB PMEM</span>
+<span class="quote">&gt; ramdisk test devices, one for the xfstest test disk and one for the</span>
+<span class="quote">&gt; scratch disk.</span>
+
+Is this just a plain ramdisk device or it needs a special configuration?
+Is this somehow DAX related?
+
+Thanks!
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=28">Tetsuo Handa</a> - Dec. 24, 2015, 11:06 a.m.</div>
+<pre class="content">
+Michal Hocko wrote:
+<span class="quote">&gt; This is VM_BUG_ON_PAGE(page_mapped(page), page), right? Could you attach</span>
+<span class="quote">&gt; the full kernel log? It all smells like a race when OOM reaper tears</span>
+<span class="quote">&gt; down the mapping and there is a truncate still in progress. But hitting</span>
+<span class="quote">&gt; the BUG_ON just because of that doesn&#39;t make much sense to me. OOM</span>
+<span class="quote">&gt; reaper is essentially MADV_DONTNEED. I have to think about this some</span>
+<span class="quote">&gt; more, though, but I am in a holiday mode until early next year so please</span>
+<span class="quote">&gt; bear with me.</span>
+
+I don&#39;t know whether the OOM killer was invoked just before this
+VM_BUG_ON_PAGE().
+<span class="quote">
+&gt; Is this somehow DAX related?</span>
+
+4.4.0-rc6-next-20151223_new_fsync_v6+ suggests that this kernel
+has &quot;[PATCH v6 0/7] DAX fsync/msync support&quot; applied. But I think
+http://marc.info/?l=linux-mm&amp;m=145068666428057 should be applied
+when retesting. (20151223 does not have this fix.)
+
+[  235.768779]  [&lt;ffffffff811feba4&gt;] ? unmap_mapping_range+0x64/0x130
+[  235.769385]  [&lt;ffffffff811febb4&gt;] ? unmap_mapping_range+0x74/0x130
+[  235.770010]  [&lt;ffffffff810f5c3f&gt;] ? up_write+0x1f/0x40
+[  235.770501]  [&lt;ffffffff811febb4&gt;] ? unmap_mapping_range+0x74/0x130
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=133391">Ross Zwisler</a> - Dec. 24, 2015, 8:39 p.m.</div>
+<pre class="content">
+On Thu, Dec 24, 2015 at 4:06 AM, Tetsuo Handa
+&lt;penguin-kernel@i-love.sakura.ne.jp&gt; wrote:
+<span class="quote">&gt; Michal Hocko wrote:</span>
+<span class="quote">&gt;&gt; This is VM_BUG_ON_PAGE(page_mapped(page), page), right? Could you attach</span>
+<span class="quote">&gt;&gt; the full kernel log? It all smells like a race when OOM reaper tears</span>
+<span class="quote">&gt;&gt; down the mapping and there is a truncate still in progress. But hitting</span>
+<span class="quote">&gt;&gt; the BUG_ON just because of that doesn&#39;t make much sense to me. OOM</span>
+<span class="quote">&gt;&gt; reaper is essentially MADV_DONTNEED. I have to think about this some</span>
+<span class="quote">&gt;&gt; more, though, but I am in a holiday mode until early next year so please</span>
+<span class="quote">&gt;&gt; bear with me.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I don&#39;t know whether the OOM killer was invoked just before this</span>
+<span class="quote">&gt; VM_BUG_ON_PAGE().</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; Is this somehow DAX related?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; 4.4.0-rc6-next-20151223_new_fsync_v6+ suggests that this kernel</span>
+<span class="quote">&gt; has &quot;[PATCH v6 0/7] DAX fsync/msync support&quot; applied. But I think</span>
+<span class="quote">&gt; http://marc.info/?l=linux-mm&amp;m=145068666428057 should be applied</span>
+<span class="quote">&gt; when retesting. (20151223 does not have this fix.)</span>
+
+No, DAX was not turned on, and while my fsync/msync patches were the initial
+reason I was testing (hence the new_fsync_v6 kernel name) they were not
+applied during the bisect, so I&#39;m sure they are not related to this issue.
+
+I will retest with the patch referenced above, but it probably won&#39;t
+happen until
+the new year.
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=133391">Ross Zwisler</a> - Dec. 24, 2015, 8:44 p.m.</div>
+<pre class="content">
+On Thu, Dec 24, 2015 at 2:47 AM, Michal Hocko &lt;mhocko@kernel.org&gt; wrote:
+<span class="quote">&gt; On Wed 23-12-15 16:00:09, Ross Zwisler wrote:</span>
+<span class="quote">&gt; [...]</span>
+<span class="quote">&gt;&gt; While running xfstests on next-20151223 I hit a pair of kernel BUGs</span>
+<span class="quote">&gt;&gt; that bisected to this commit:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; 1eb3a80d8239 (&quot;mm, oom: introduce oom reaper&quot;)</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Thank you for the report and the bisection.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; Here is a BUG produced by generic/029 when run against XFS:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; [  235.751723] ------------[ cut here ]------------</span>
+<span class="quote">&gt;&gt; [  235.752194] kernel BUG at mm/filemap.c:208!</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; This is VM_BUG_ON_PAGE(page_mapped(page), page), right? Could you attach</span>
+<span class="quote">&gt; the full kernel log? It all smells like a race when OOM reaper tears</span>
+<span class="quote">&gt; down the mapping and there is a truncate still in progress. But hitting</span>
+<span class="quote">&gt; the BUG_ON just because of that doesn&#39;t make much sense to me. OOM</span>
+<span class="quote">&gt; reaper is essentially MADV_DONTNEED. I have to think about this some</span>
+<span class="quote">&gt; more, though, but I am in a holiday mode until early next year so please</span>
+<span class="quote">&gt; bear with me.</span>
+
+The two stack traces were gathered with next-20151223, so the line numbers
+may have moved around a bit when compared to the actual &quot;mm, oom: introduce
+oom reaper&quot; commit.
+<span class="quote">
+&gt; [...]</span>
+<span class="quote">&gt;&gt; [  235.765638] Call Trace:</span>
+<span class="quote">&gt;&gt; [  235.765903]  [&lt;ffffffff811c8493&gt;] delete_from_page_cache+0x63/0xd0</span>
+<span class="quote">&gt;&gt; [  235.766513]  [&lt;ffffffff811dc3e5&gt;] truncate_inode_page+0xa5/0x120</span>
+<span class="quote">&gt;&gt; [  235.767088]  [&lt;ffffffff811dc648&gt;] truncate_inode_pages_range+0x1a8/0x7f0</span>
+<span class="quote">&gt;&gt; [  235.767725]  [&lt;ffffffff81021459&gt;] ? sched_clock+0x9/0x10</span>
+<span class="quote">&gt;&gt; [  235.768239]  [&lt;ffffffff810db37c&gt;] ? local_clock+0x1c/0x20</span>
+<span class="quote">&gt;&gt; [  235.768779]  [&lt;ffffffff811feba4&gt;] ? unmap_mapping_range+0x64/0x130</span>
+<span class="quote">&gt;&gt; [  235.769385]  [&lt;ffffffff811febb4&gt;] ? unmap_mapping_range+0x74/0x130</span>
+<span class="quote">&gt;&gt; [  235.770010]  [&lt;ffffffff810f5c3f&gt;] ? up_write+0x1f/0x40</span>
+<span class="quote">&gt;&gt; [  235.770501]  [&lt;ffffffff811febb4&gt;] ? unmap_mapping_range+0x74/0x130</span>
+<span class="quote">&gt;&gt; [  235.771092]  [&lt;ffffffff811dcd58&gt;] truncate_pagecache+0x48/0x70</span>
+<span class="quote">&gt;&gt; [  235.771646]  [&lt;ffffffff811dcdb2&gt;] truncate_setsize+0x32/0x40</span>
+<span class="quote">&gt;&gt; [  235.772276]  [&lt;ffffffff8148e972&gt;] xfs_setattr_size+0x232/0x470</span>
+<span class="quote">&gt;&gt; [  235.772839]  [&lt;ffffffff8148ec64&gt;] xfs_vn_setattr+0xb4/0xc0</span>
+<span class="quote">&gt;&gt; [  235.773369]  [&lt;ffffffff8127af87&gt;] notify_change+0x237/0x350</span>
+<span class="quote">&gt;&gt; [  235.773945]  [&lt;ffffffff81257c87&gt;] do_truncate+0x77/0xc0</span>
+<span class="quote">&gt;&gt; [  235.774446]  [&lt;ffffffff8125800f&gt;] do_sys_ftruncate.constprop.15+0xef/0x150</span>
+<span class="quote">&gt;&gt; [  235.775156]  [&lt;ffffffff812580ae&gt;] SyS_ftruncate+0xe/0x10</span>
+<span class="quote">&gt;&gt; [  235.775650]  [&lt;ffffffff81a527b2&gt;] entry_SYSCALL_64_fastpath+0x12/0x76</span>
+<span class="quote">&gt;&gt; [  235.776257] Code: 5f 5d c3 48 8b 43 20 48 8d 78 ff a8 01 48 0f 44</span>
+<span class="quote">&gt;&gt; fb 8b 47 48 85 c0 0f 88 2b 01 00 00 48 c7 c6 a8 57 f0 81 48 89 df e8</span>
+<span class="quote">&gt;&gt; fa 1a 03 00 &lt;0f&gt; 0b 4c 89 ce 44 89 fa 4c 89 e7 4c 89 45 b0 4c 89 4d b8</span>
+<span class="quote">&gt;&gt; e8 32</span>
+<span class="quote">&gt;&gt; [  235.778695] RIP  [&lt;ffffffff811c81f6&gt;] __delete_from_page_cache+0x206/0x440</span>
+<span class="quote">&gt;&gt; [  235.779350]  RSP &lt;ffff8800bab83b60&gt;</span>
+<span class="quote">&gt;&gt; [  235.779694] ---[ end trace fac9dd65c4cdd828 ]---</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; And a different BUG produced by generic/095, also with XFS:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; [  609.398897] ------------[ cut here ]------------</span>
+<span class="quote">&gt;&gt; [  609.399843] kernel BUG at mm/truncate.c:629!</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Hmm, I do not see any BUG_ON at this line. But there is</span>
+<span class="quote">&gt; BUG_ON(page_mapped(page)) at line 620.</span>
+
+Ditto - check out next-20151223 for real line numbers.
+<span class="quote">
+&gt;&gt; [  609.400666] invalid opcode: 0000 [#1] SMP</span>
+<span class="quote">&gt;&gt; [  609.401512] Modules linked in: nd_pmem nd_btt nd_e820 libnvdimm</span>
+<span class="quote">&gt;&gt; [  609.402719] CPU: 4 PID: 26782 Comm: fio Tainted: G        W</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; There was a warning before this triggered. The full kernel log would be</span>
+<span class="quote">&gt; helpful as well.</span>
+
+Sure, I can gather full kernel logs, but it&#39;ll probably after the new year.
+<span class="quote">
+&gt; [...]</span>
+<span class="quote">&gt;&gt; [  609.425325] Call Trace:</span>
+<span class="quote">&gt;&gt; [  609.425797]  [&lt;ffffffff811dc307&gt;] invalidate_inode_pages2+0x17/0x20</span>
+<span class="quote">&gt;&gt; [  609.426971]  [&lt;ffffffff81482167&gt;] xfs_file_read_iter+0x297/0x300</span>
+<span class="quote">&gt;&gt; [  609.428097]  [&lt;ffffffff81259ac9&gt;] __vfs_read+0xc9/0x100</span>
+<span class="quote">&gt;&gt; [  609.429073]  [&lt;ffffffff8125a319&gt;] vfs_read+0x89/0x130</span>
+<span class="quote">&gt;&gt; [  609.430010]  [&lt;ffffffff8125b418&gt;] SyS_read+0x58/0xd0</span>
+<span class="quote">&gt;&gt; [  609.430943]  [&lt;ffffffff81a527b2&gt;] entry_SYSCALL_64_fastpath+0x12/0x76</span>
+<span class="quote">&gt;&gt; [  609.432139] Code: 85 d8 fe ff ff 01 00 00 00 f6 c4 40 0f 84 59 ff</span>
+<span class="quote">&gt;&gt; ff ff 49 8b 47 20 48 8d 78 ff a8 01 49 0f 44 ff 8b 47 48 85 c0 0f 88</span>
+<span class="quote">&gt;&gt; bd 01 00 00 &lt;0f&gt; 0b 4d 3b 67 08 0f 85 70 ff ff ff 49 f7 07 00 18 00 00</span>
+<span class="quote">&gt;&gt; 74 15</span>
+<span class="quote">&gt; [...]</span>
+<span class="quote">&gt;&gt; My test setup is a qemu guest machine with a pair of 4 GiB PMEM</span>
+<span class="quote">&gt;&gt; ramdisk test devices, one for the xfstest test disk and one for the</span>
+<span class="quote">&gt;&gt; scratch disk.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Is this just a plain ramdisk device or it needs a special configuration?</span>
+
+Just a plain PMEM ram disk with DAX turned off.  Configuration instructions
+for PMEM can be found here:
+
+https://nvdimm.wiki.kernel.org/
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Dec. 25, 2015, 11:35 a.m.</div>
+<pre class="content">
+On Thu 24-12-15 13:44:03, Ross Zwisler wrote:
+<span class="quote">&gt; On Thu, Dec 24, 2015 at 2:47 AM, Michal Hocko &lt;mhocko@kernel.org&gt; wrote:</span>
+<span class="quote">&gt; &gt; On Wed 23-12-15 16:00:09, Ross Zwisler wrote:</span>
+<span class="quote">&gt; &gt; [...]</span>
+<span class="quote">&gt; &gt;&gt; While running xfstests on next-20151223 I hit a pair of kernel BUGs</span>
+<span class="quote">&gt; &gt;&gt; that bisected to this commit:</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; 1eb3a80d8239 (&quot;mm, oom: introduce oom reaper&quot;)</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Thank you for the report and the bisection.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; Here is a BUG produced by generic/029 when run against XFS:</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; [  235.751723] ------------[ cut here ]------------</span>
+<span class="quote">&gt; &gt;&gt; [  235.752194] kernel BUG at mm/filemap.c:208!</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; This is VM_BUG_ON_PAGE(page_mapped(page), page), right? Could you attach</span>
+<span class="quote">&gt; &gt; the full kernel log? It all smells like a race when OOM reaper tears</span>
+<span class="quote">&gt; &gt; down the mapping and there is a truncate still in progress. But hitting</span>
+<span class="quote">&gt; &gt; the BUG_ON just because of that doesn&#39;t make much sense to me. OOM</span>
+<span class="quote">&gt; &gt; reaper is essentially MADV_DONTNEED. I have to think about this some</span>
+<span class="quote">&gt; &gt; more, though, but I am in a holiday mode until early next year so please</span>
+<span class="quote">&gt; &gt; bear with me.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The two stack traces were gathered with next-20151223, so the line numbers</span>
+<span class="quote">&gt; may have moved around a bit when compared to the actual &quot;mm, oom: introduce</span>
+<span class="quote">&gt; oom reaper&quot; commit.</span>
+
+I was looking at the same next tree, I believe
+$ git describe
+next-20151223
+
+[...]
+<span class="quote">&gt; &gt; There was a warning before this triggered. The full kernel log would be</span>
+<span class="quote">&gt; &gt; helpful as well.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Sure, I can gather full kernel logs, but it&#39;ll probably after the new year.</span>
+
+OK, I will wait for the logs. It is really interesting to see what was
+the timing between OOM killer invocation and this trace.
+<span class="quote">
+&gt; &gt; [...]</span>
+<span class="quote">&gt; &gt;&gt; [  609.425325] Call Trace:</span>
+<span class="quote">&gt; &gt;&gt; [  609.425797]  [&lt;ffffffff811dc307&gt;] invalidate_inode_pages2+0x17/0x20</span>
+<span class="quote">&gt; &gt;&gt; [  609.426971]  [&lt;ffffffff81482167&gt;] xfs_file_read_iter+0x297/0x300</span>
+<span class="quote">&gt; &gt;&gt; [  609.428097]  [&lt;ffffffff81259ac9&gt;] __vfs_read+0xc9/0x100</span>
+<span class="quote">&gt; &gt;&gt; [  609.429073]  [&lt;ffffffff8125a319&gt;] vfs_read+0x89/0x130</span>
+<span class="quote">&gt; &gt;&gt; [  609.430010]  [&lt;ffffffff8125b418&gt;] SyS_read+0x58/0xd0</span>
+<span class="quote">&gt; &gt;&gt; [  609.430943]  [&lt;ffffffff81a527b2&gt;] entry_SYSCALL_64_fastpath+0x12/0x76</span>
+<span class="quote">&gt; &gt;&gt; [  609.432139] Code: 85 d8 fe ff ff 01 00 00 00 f6 c4 40 0f 84 59 ff</span>
+<span class="quote">&gt; &gt;&gt; ff ff 49 8b 47 20 48 8d 78 ff a8 01 49 0f 44 ff 8b 47 48 85 c0 0f 88</span>
+<span class="quote">&gt; &gt;&gt; bd 01 00 00 &lt;0f&gt; 0b 4d 3b 67 08 0f 85 70 ff ff ff 49 f7 07 00 18 00 00</span>
+<span class="quote">&gt; &gt;&gt; 74 15</span>
+<span class="quote">&gt; &gt; [...]</span>
+<span class="quote">&gt; &gt;&gt; My test setup is a qemu guest machine with a pair of 4 GiB PMEM</span>
+<span class="quote">&gt; &gt;&gt; ramdisk test devices, one for the xfstest test disk and one for the</span>
+<span class="quote">&gt; &gt;&gt; scratch disk.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Is this just a plain ramdisk device or it needs a special configuration?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Just a plain PMEM ram disk with DAX turned off.  Configuration instructions</span>
+<span class="quote">&gt; for PMEM can be found here:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; https://nvdimm.wiki.kernel.org/</span>
+
+Thanks I will try to reproduce early next year. But so far I think this
+is just a general issue of MADV_DONTNEED vs. truncate and oom_reaper is
+just lucky to trigger it. There shouldn&#39;t be anything oom_reaper
+specific here. Maybe there is some additional locking missing?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Dec. 25, 2015, 11:41 a.m.</div>
+<pre class="content">
+On Thu 24-12-15 20:06:50, Tetsuo Handa wrote:
+<span class="quote">&gt; Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; This is VM_BUG_ON_PAGE(page_mapped(page), page), right? Could you attach</span>
+<span class="quote">&gt; &gt; the full kernel log? It all smells like a race when OOM reaper tears</span>
+<span class="quote">&gt; &gt; down the mapping and there is a truncate still in progress. But hitting</span>
+<span class="quote">&gt; &gt; the BUG_ON just because of that doesn&#39;t make much sense to me. OOM</span>
+<span class="quote">&gt; &gt; reaper is essentially MADV_DONTNEED. I have to think about this some</span>
+<span class="quote">&gt; &gt; more, though, but I am in a holiday mode until early next year so please</span>
+<span class="quote">&gt; &gt; bear with me.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I don&#39;t know whether the OOM killer was invoked just before this</span>
+<span class="quote">&gt; VM_BUG_ON_PAGE().</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; Is this somehow DAX related?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 4.4.0-rc6-next-20151223_new_fsync_v6+ suggests that this kernel</span>
+<span class="quote">&gt; has &quot;[PATCH v6 0/7] DAX fsync/msync support&quot; applied. But I think</span>
+<span class="quote">&gt; http://marc.info/?l=linux-mm&amp;m=145068666428057 should be applied</span>
+<span class="quote">&gt; when retesting. (20151223 does not have this fix.)</span>
+
+Hmm, I think you are right! Very well spotted! If ignore_dirty ends up
+being true then we would simply skip over dirty page and wouldn&#39;t end up
+doing page_remove_rmap. I can see that the truncation code can later trip
+over this page.
+
+Thanks!
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Dec. 25, 2015, 11:44 a.m.</div>
+<pre class="content">
+On Fri 25-12-15 12:35:37, Michal Hocko wrote:
+[...]
+<span class="quote">&gt; Thanks I will try to reproduce early next year. But so far I think this</span>
+<span class="quote">&gt; is just a general issue of MADV_DONTNEED vs. truncate and oom_reaper is</span>
+<span class="quote">&gt; just lucky to trigger it. There shouldn&#39;t be anything oom_reaper</span>
+<span class="quote">&gt; specific here. Maybe there is some additional locking missing?</span>
+
+Hmm, scratch that. I think Tetsuo has nailed it. It seems like
+the missing initialization of details structure during unmap
+is the culprit. So there most probably was on OOM killing
+invoked. It is just a side effect of the patch and missing
+http://marc.info/?l=linux-mm&amp;m=145068666428057 follow up fix.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/include/linux/mm.h b/include/linux/mm.h</span>
+<span class="p_header">index 25cdec395f2c..d1ce03569942 100644</span>
+<span class="p_header">--- a/include/linux/mm.h</span>
+<span class="p_header">+++ b/include/linux/mm.h</span>
+<span class="p_chunk">@@ -1061,6 +1061,8 @@</span> <span class="p_context"> struct zap_details {</span>
+ 	struct address_space *check_mapping;	/* Check page-&gt;mapping if set */
+ 	pgoff_t	first_index;			/* Lowest page-&gt;index to unmap */
+ 	pgoff_t last_index;			/* Highest page-&gt;index to unmap */
+<span class="p_add">+	bool ignore_dirty;			/* Ignore dirty pages */</span>
+<span class="p_add">+	bool check_swap_entries;		/* Check also swap entries */</span>
+ };
+ 
+ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+<span class="p_header">diff --git a/mm/internal.h b/mm/internal.h</span>
+<span class="p_header">index 4ae7b7c7462b..9006ce1960ff 100644</span>
+<span class="p_header">--- a/mm/internal.h</span>
+<span class="p_header">+++ b/mm/internal.h</span>
+<span class="p_chunk">@@ -41,6 +41,11 @@</span> <span class="p_context"> extern int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,</span>
+ void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+ 		unsigned long floor, unsigned long ceiling);
+ 
+<span class="p_add">+void unmap_page_range(struct mmu_gather *tlb,</span>
+<span class="p_add">+			     struct vm_area_struct *vma,</span>
+<span class="p_add">+			     unsigned long addr, unsigned long end,</span>
+<span class="p_add">+			     struct zap_details *details);</span>
+<span class="p_add">+</span>
+ static inline void set_page_count(struct page *page, int v)
+ {
+ 	atomic_set(&amp;page-&gt;_count, v);
+<span class="p_header">diff --git a/mm/memory.c b/mm/memory.c</span>
+<span class="p_header">index f5b8e8c9f4c3..ccfd48c7286e 100644</span>
+<span class="p_header">--- a/mm/memory.c</span>
+<span class="p_header">+++ b/mm/memory.c</span>
+<span class="p_chunk">@@ -1104,6 +1104,9 @@</span> <span class="p_context"> static unsigned long zap_pte_range(struct mmu_gather *tlb,</span>
+ 
+ 			if (!PageAnon(page)) {
+ 				if (pte_dirty(ptent)) {
+<span class="p_add">+					/* oom_reaper cannot tear down dirty pages */</span>
+<span class="p_add">+					if (unlikely(details &amp;&amp; details-&gt;ignore_dirty))</span>
+<span class="p_add">+						continue;</span>
+ 					force_flush = 1;
+ 					set_page_dirty(page);
+ 				}
+<span class="p_chunk">@@ -1122,8 +1125,8 @@</span> <span class="p_context"> static unsigned long zap_pte_range(struct mmu_gather *tlb,</span>
+ 			}
+ 			continue;
+ 		}
+<span class="p_del">-		/* If details-&gt;check_mapping, we leave swap entries. */</span>
+<span class="p_del">-		if (unlikely(details))</span>
+<span class="p_add">+		/* only check swap_entries if explicitly asked for in details */</span>
+<span class="p_add">+		if (unlikely(details &amp;&amp; !details-&gt;check_swap_entries))</span>
+ 			continue;
+ 
+ 		entry = pte_to_swp_entry(ptent);
+<span class="p_chunk">@@ -1228,7 +1231,7 @@</span> <span class="p_context"> static inline unsigned long zap_pud_range(struct mmu_gather *tlb,</span>
+ 	return addr;
+ }
+ 
+<span class="p_del">-static void unmap_page_range(struct mmu_gather *tlb,</span>
+<span class="p_add">+void unmap_page_range(struct mmu_gather *tlb,</span>
+ 			     struct vm_area_struct *vma,
+ 			     unsigned long addr, unsigned long end,
+ 			     struct zap_details *details)
+<span class="p_chunk">@@ -1236,9 +1239,6 @@</span> <span class="p_context"> static void unmap_page_range(struct mmu_gather *tlb,</span>
+ 	pgd_t *pgd;
+ 	unsigned long next;
+ 
+<span class="p_del">-	if (details &amp;&amp; !details-&gt;check_mapping)</span>
+<span class="p_del">-		details = NULL;</span>
+<span class="p_del">-</span>
+ 	BUG_ON(addr &gt;= end);
+ 	tlb_start_vma(tlb, vma);
+ 	pgd = pgd_offset(vma-&gt;vm_mm, addr);
+<span class="p_header">diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="p_header">index 5314b206caa5..48025a21f8c4 100644</span>
+<span class="p_header">--- a/mm/oom_kill.c</span>
+<span class="p_header">+++ b/mm/oom_kill.c</span>
+<span class="p_chunk">@@ -35,6 +35,11 @@</span> <span class="p_context"></span>
+ #include &lt;linux/freezer.h&gt;
+ #include &lt;linux/ftrace.h&gt;
+ #include &lt;linux/ratelimit.h&gt;
+<span class="p_add">+#include &lt;linux/kthread.h&gt;</span>
+<span class="p_add">+#include &lt;linux/module.h&gt;</span>
+<span class="p_add">+</span>
+<span class="p_add">+#include &lt;asm/tlb.h&gt;</span>
+<span class="p_add">+#include &quot;internal.h&quot;</span>
+ 
+ #define CREATE_TRACE_POINTS
+ #include &lt;trace/events/oom.h&gt;
+<span class="p_chunk">@@ -408,6 +413,105 @@</span> <span class="p_context"> static DECLARE_WAIT_QUEUE_HEAD(oom_victims_wait);</span>
+ 
+ bool oom_killer_disabled __read_mostly;
+ 
+<span class="p_add">+/*</span>
+<span class="p_add">+ * OOM Reaper kernel thread which tries to reap the memory used by the OOM</span>
+<span class="p_add">+ * victim (if that is possible) to help the OOM killer to move on.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static struct task_struct *oom_reaper_th;</span>
+<span class="p_add">+static struct mm_struct *mm_to_reap;</span>
+<span class="p_add">+static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);</span>
+<span class="p_add">+</span>
+<span class="p_add">+static bool __oom_reap_vmas(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct mmu_gather tlb;</span>
+<span class="p_add">+	struct vm_area_struct *vma;</span>
+<span class="p_add">+	struct zap_details details = {.check_swap_entries = true,</span>
+<span class="p_add">+				      .ignore_dirty = true};</span>
+<span class="p_add">+	bool ret = true;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* We might have raced with exit path */</span>
+<span class="p_add">+	if (!atomic_inc_not_zero(&amp;mm-&gt;mm_users))</span>
+<span class="p_add">+		return true;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!down_read_trylock(&amp;mm-&gt;mmap_sem)) {</span>
+<span class="p_add">+		ret = false;</span>
+<span class="p_add">+		goto out;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	tlb_gather_mmu(&amp;tlb, mm, 0, -1);</span>
+<span class="p_add">+	for (vma = mm-&gt;mmap ; vma; vma = vma-&gt;vm_next) {</span>
+<span class="p_add">+		if (is_vm_hugetlb_page(vma))</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Only anonymous pages have a good chance to be dropped</span>
+<span class="p_add">+		 * without additional steps which we cannot afford as we</span>
+<span class="p_add">+		 * are OOM already.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * We do not even care about fs backed pages because all</span>
+<span class="p_add">+		 * which are reclaimable have already been reclaimed and</span>
+<span class="p_add">+		 * we do not want to block exit_mmap by keeping mm ref</span>
+<span class="p_add">+		 * count elevated without a good reason.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED))</span>
+<span class="p_add">+			unmap_page_range(&amp;tlb, vma, vma-&gt;vm_start, vma-&gt;vm_end,</span>
+<span class="p_add">+					 &amp;details);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	tlb_finish_mmu(&amp;tlb, 0, -1);</span>
+<span class="p_add">+	up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="p_add">+out:</span>
+<span class="p_add">+	mmput(mm);</span>
+<span class="p_add">+	return ret;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void oom_reap_vmas(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	int attempts = 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	while (attempts++ &lt; 10 &amp;&amp; !__oom_reap_vmas(mm))</span>
+<span class="p_add">+		schedule_timeout(HZ/10);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Drop a reference taken by wake_oom_reaper */</span>
+<span class="p_add">+	mmdrop(mm);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int oom_reaper(void *unused)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	while (true) {</span>
+<span class="p_add">+		struct mm_struct *mm;</span>
+<span class="p_add">+		wait_event_freezable(oom_reaper_wait, (mm = READ_ONCE(mm_to_reap)));</span>
+<span class="p_add">+		oom_reap_vmas(mm);</span>
+<span class="p_add">+		WRITE_ONCE(mm_to_reap, NULL);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void wake_oom_reaper(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct mm_struct *old_mm;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!oom_reaper_th)</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Pin the given mm. Use mm_count instead of mm_users because</span>
+<span class="p_add">+	 * we do not want to delay the address space tear down.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	atomic_inc(&amp;mm-&gt;mm_count);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Make sure that only a single mm is ever queued for the reaper</span>
+<span class="p_add">+	 * because multiple are not necessary and the operation might be</span>
+<span class="p_add">+	 * disruptive so better reduce it to the bare minimum.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	old_mm = cmpxchg(&amp;mm_to_reap, NULL, mm);</span>
+<span class="p_add">+	if (!old_mm)</span>
+<span class="p_add">+		wake_up(&amp;oom_reaper_wait);</span>
+<span class="p_add">+	else</span>
+<span class="p_add">+		mmdrop(mm);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ /**
+  * mark_oom_victim - mark the given task as OOM victim
+  * @tsk: task to mark
+<span class="p_chunk">@@ -517,6 +621,7 @@</span> <span class="p_context"> void oom_kill_process(struct oom_control *oc, struct task_struct *p,</span>
+ 	unsigned int victim_points = 0;
+ 	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+ 					      DEFAULT_RATELIMIT_BURST);
+<span class="p_add">+	bool can_oom_reap = true;</span>
+ 
+ 	/*
+ 	 * If the task is already exiting, don&#39;t alarm the sysadmin or kill
+<span class="p_chunk">@@ -607,15 +712,23 @@</span> <span class="p_context"> void oom_kill_process(struct oom_control *oc, struct task_struct *p,</span>
+ 			continue;
+ 		if (same_thread_group(p, victim))
+ 			continue;
+<span class="p_del">-		if (unlikely(p-&gt;flags &amp; PF_KTHREAD))</span>
+<span class="p_del">-			continue;</span>
+<span class="p_del">-		if (p-&gt;signal-&gt;oom_score_adj == OOM_SCORE_ADJ_MIN)</span>
+<span class="p_add">+		if (unlikely(p-&gt;flags &amp; PF_KTHREAD) ||</span>
+<span class="p_add">+		    p-&gt;signal-&gt;oom_score_adj == OOM_SCORE_ADJ_MIN) {</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * We cannot use oom_reaper for the mm shared by this process</span>
+<span class="p_add">+			 * because it wouldn&#39;t get killed and so the memory might be</span>
+<span class="p_add">+			 * still used.</span>
+<span class="p_add">+			 */</span>
+<span class="p_add">+			can_oom_reap = false;</span>
+ 			continue;
+<span class="p_add">+		}</span>
+ 
+ 		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
+ 	}
+ 	rcu_read_unlock();
+ 
+<span class="p_add">+	if (can_oom_reap)</span>
+<span class="p_add">+		wake_oom_reaper(mm);</span>
+ 	mmdrop(mm);
+ 	put_task_struct(victim);
+ }
+<span class="p_chunk">@@ -767,3 +880,23 @@</span> <span class="p_context"> void pagefault_out_of_memory(void)</span>
+ 
+ 	mutex_unlock(&amp;oom_lock);
+ }
+<span class="p_add">+</span>
+<span class="p_add">+static int __init oom_init(void)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	oom_reaper_th = kthread_run(oom_reaper, NULL, &quot;oom_reaper&quot;);</span>
+<span class="p_add">+	if (IS_ERR(oom_reaper_th)) {</span>
+<span class="p_add">+		pr_err(&quot;Unable to start OOM reaper %ld. Continuing regardless\n&quot;,</span>
+<span class="p_add">+				PTR_ERR(oom_reaper_th));</span>
+<span class="p_add">+		oom_reaper_th = NULL;</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Make sure our oom reaper thread will get scheduled when</span>
+<span class="p_add">+		 * ASAP and that it won&#39;t get preempted by malicious userspace.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		sched_setscheduler(oom_reaper_th, SCHED_FIFO, &amp;param);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+module_init(oom_init)</span>
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

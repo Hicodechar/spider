@@ -1,0 +1,478 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[HMM,v14,14/16] mm/hmm/migrate: optimize page map once in vma being migrated - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [HMM,v14,14/16] mm/hmm/migrate: optimize page map once in vma being migrated</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=2554">Jerome Glisse</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Dec. 8, 2016, 4:39 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1481215184-18551-15-git-send-email-jglisse@redhat.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9466567/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9466567/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9466567/">/patch/9466567/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	DFE7C6071E for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  8 Dec 2016 15:40:48 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id D1BDE284FE
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  8 Dec 2016 15:40:48 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id C6B5A28508; Thu,  8 Dec 2016 15:40:48 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 3DADE284FE
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  8 Dec 2016 15:40:38 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1754015AbcLHPkY (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 8 Dec 2016 10:40:24 -0500
+Received: from mx1.redhat.com ([209.132.183.28]:40390 &quot;EHLO mx1.redhat.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1753934AbcLHPjk (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 8 Dec 2016 10:39:40 -0500
+Received: from int-mx10.intmail.prod.int.phx2.redhat.com
+	(int-mx10.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256
+	bits)) (No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id B4D5F8FCE7;
+	Thu,  8 Dec 2016 15:39:39 +0000 (UTC)
+Received: from xgl-cortex.ml2.eng.bos.redhat.com
+	(xgl-cortex.ml2.eng.bos.redhat.com [10.19.160.80])
+	by int-mx10.intmail.prod.int.phx2.redhat.com (8.14.4/8.14.4) with
+	ESMTP id uB8FdM1X003774; Thu, 8 Dec 2016 10:39:38 -0500
+From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= &lt;jglisse@redhat.com&gt;
+To: akpm@linux-foundation.org, &lt;linux-kernel@vger.kernel.org&gt;,
+	linux-mm@kvack.org
+Cc: John Hubbard &lt;jhubbard@nvidia.com&gt;,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= &lt;jglisse@redhat.com&gt;,
+	Evgeny Baskakov &lt;ebaskakov@nvidia.com&gt;,
+	Mark Hairgrove &lt;mhairgrove@nvidia.com&gt;,
+	Sherry Cheung &lt;SCheung@nvidia.com&gt;, Subhash Gutti &lt;sgutti@nvidia.com&gt;
+Subject: [HMM v14 14/16] mm/hmm/migrate: optimize page map once in vma being
+	migrated
+Date: Thu,  8 Dec 2016 11:39:42 -0500
+Message-Id: &lt;1481215184-18551-15-git-send-email-jglisse@redhat.com&gt;
+In-Reply-To: &lt;1481215184-18551-1-git-send-email-jglisse@redhat.com&gt;
+References: &lt;1481215184-18551-1-git-send-email-jglisse@redhat.com&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.68 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16
+	(mx1.redhat.com [10.5.110.26]);
+	Thu, 08 Dec 2016 15:39:39 +0000 (UTC)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=2554">Jerome Glisse</a> - Dec. 8, 2016, 4:39 p.m.</div>
+<pre class="content">
+Common case for migration of virtual address range is page are map
+only once inside the vma in which migration is taking place. Because
+we already walk the CPU page table for that range we can directly do
+the unmap there and setup special migration swap entry.
+<span class="signed-off-by">
+Signed-off-by: Jérôme Glisse &lt;jglisse@redhat.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Evgeny Baskakov &lt;ebaskakov@nvidia.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: John Hubbard &lt;jhubbard@nvidia.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Mark Hairgrove &lt;mhairgrove@nvidia.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Sherry Cheung &lt;SCheung@nvidia.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Subhash Gutti &lt;sgutti@nvidia.com&gt;</span>
+---
+ mm/migrate.c | 180 +++++++++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 170 insertions(+), 10 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/migrate.c b/mm/migrate.c</span>
+<span class="p_header">index 5ebd3c5..39dad11 100644</span>
+<span class="p_header">--- a/mm/migrate.c</span>
+<span class="p_header">+++ b/mm/migrate.c</span>
+<span class="p_chunk">@@ -2116,6 +2116,7 @@</span> <span class="p_context"> static int hmm_collect_walk_pmd(pmd_t *pmdp,</span>
+ 	struct hmm_migrate *migrate = walk-&gt;private;
+ 	struct mm_struct *mm = walk-&gt;vma-&gt;vm_mm;
+ 	unsigned long addr = start;
+<span class="p_add">+	unsigned long unmaped = 0;</span>
+ 	hmm_pfn_t *src_pfns;
+ 	spinlock_t *ptl;
+ 	pte_t *ptep;
+<span class="p_chunk">@@ -2130,6 +2131,7 @@</span> <span class="p_context"> again:</span>
+ 
+ 	src_pfns = &amp;migrate-&gt;src_pfns[(addr - migrate-&gt;start) &gt;&gt; PAGE_SHIFT];
+ 	ptep = pte_offset_map_lock(mm, pmdp, addr, &amp;ptl);
+<span class="p_add">+	arch_enter_lazy_mmu_mode();</span>
+ 
+ 	for (; addr &lt; end; addr += PAGE_SIZE, src_pfns++, ptep++) {
+ 		unsigned long pfn;
+<span class="p_chunk">@@ -2194,9 +2196,44 @@</span> <span class="p_context"> again:</span>
+ 		 * can&#39;t be drop from it).
+ 		 */
+ 		get_page(page);
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Optimize for common case where page is only map once in one</span>
+<span class="p_add">+		 * process. If we can lock the page then we can safely setup</span>
+<span class="p_add">+		 * special migration page table entry now.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (!trylock_page(page)) {</span>
+<span class="p_add">+			set_pte_at(mm, addr, ptep, pte);</span>
+<span class="p_add">+		} else {</span>
+<span class="p_add">+			pte_t swp_pte;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			*src_pfns |= HMM_PFN_LOCKED;</span>
+<span class="p_add">+			ptep_get_and_clear(mm, addr, ptep);</span>
+<span class="p_add">+</span>
+<span class="p_add">+			/* Setup special migration page table entry */</span>
+<span class="p_add">+			entry = make_migration_entry(page, write);</span>
+<span class="p_add">+			swp_pte = swp_entry_to_pte(entry);</span>
+<span class="p_add">+			if (pte_soft_dirty(pte))</span>
+<span class="p_add">+				swp_pte = pte_swp_mksoft_dirty(swp_pte);</span>
+<span class="p_add">+			set_pte_at(mm, addr, ptep, swp_pte);</span>
+<span class="p_add">+</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * This is like regulat unmap we remove the rmap and</span>
+<span class="p_add">+			 * drop page refcount. Page won&#39;t be free as we took</span>
+<span class="p_add">+			 * a reference just above.</span>
+<span class="p_add">+			 */</span>
+<span class="p_add">+			page_remove_rmap(page, false);</span>
+<span class="p_add">+			put_page(page);</span>
+<span class="p_add">+			unmaped++;</span>
+<span class="p_add">+		}</span>
+ 	}
+<span class="p_add">+	arch_leave_lazy_mmu_mode();</span>
+ 	pte_unmap_unlock(ptep - 1, ptl);
+ 
+<span class="p_add">+	/* Only flush the TLB if we actually modified any entries */</span>
+<span class="p_add">+	if (unmaped)</span>
+<span class="p_add">+		flush_tlb_range(walk-&gt;vma, start, end);</span>
+<span class="p_add">+</span>
+ 	return 0;
+ }
+ 
+<span class="p_chunk">@@ -2279,18 +2316,26 @@</span> <span class="p_context"> static inline bool hmm_migrate_page_check(struct page *page)</span>
+ static void hmm_migrate_lock_and_isolate(struct hmm_migrate *migrate)
+ {
+ 	unsigned long addr = migrate-&gt;start, i = 0;
+<span class="p_add">+ 	struct mm_struct *mm = migrate-&gt;vma-&gt;vm_mm;</span>
+<span class="p_add">+ 	struct vm_area_struct *vma = migrate-&gt;vma;</span>
+<span class="p_add">+	hmm_pfn_t *src_pfns = migrate-&gt;src_pfns;</span>
+<span class="p_add">+	unsigned long restore = 0;</span>
+ 	bool allow_drain = true;
+ 
+ 	lru_add_drain();
+ 
+ 	for (; (addr&lt;migrate-&gt;end) &amp;&amp; migrate-&gt;npages; addr+=PAGE_SIZE, i++) {
+<span class="p_del">-		struct page *page = hmm_pfn_to_page(migrate-&gt;src_pfns[i]);</span>
+<span class="p_add">+		struct page *page = hmm_pfn_to_page(src_pfns[i]);</span>
+<span class="p_add">+		bool need_restore = true;</span>
+ 
+ 		if (!page)
+ 			continue;
+ 
+<span class="p_del">-		lock_page(page);</span>
+<span class="p_del">-		migrate-&gt;src_pfns[i] |= HMM_PFN_LOCKED;</span>
+<span class="p_add">+		if (!(src_pfns[i] &amp; HMM_PFN_LOCKED)) {</span>
+<span class="p_add">+			lock_page(page);</span>
+<span class="p_add">+			need_restore = false;</span>
+<span class="p_add">+			src_pfns[i] |= HMM_PFN_LOCKED;</span>
+<span class="p_add">+		}</span>
+ 
+ 		/* ZONE_DEVICE page are not on LRU */
+ 		if (!is_zone_device_page(page)) {
+<span class="p_chunk">@@ -2301,20 +2346,135 @@</span> <span class="p_context"> static void hmm_migrate_lock_and_isolate(struct hmm_migrate *migrate)</span>
+ 			}
+ 
+ 			if (isolate_lru_page(page)) {
+<span class="p_del">-				migrate-&gt;src_pfns[i] = 0;</span>
+<span class="p_del">-				migrate-&gt;npages--;</span>
+<span class="p_del">-				unlock_page(page);</span>
+<span class="p_del">-				put_page(page);</span>
+<span class="p_add">+				if (need_restore) {</span>
+<span class="p_add">+					src_pfns[i] &amp;= ~HMM_PFN_MIGRATE;</span>
+<span class="p_add">+					restore++;</span>
+<span class="p_add">+				} else {</span>
+<span class="p_add">+					migrate-&gt;npages--;</span>
+<span class="p_add">+					unlock_page(page);</span>
+<span class="p_add">+					src_pfns[i] = 0;</span>
+<span class="p_add">+					put_page(page);</span>
+<span class="p_add">+				}</span>
+ 			} else
+ 				/* Drop the reference we took in collect */
+ 				put_page(page);
+ 		}
+ 
+ 		if (!hmm_migrate_page_check(page)) {
+<span class="p_del">-			migrate-&gt;src_pfns[i] = 0;</span>
+<span class="p_del">-			migrate-&gt;npages--;</span>
+<span class="p_add">+			if (need_restore) {</span>
+<span class="p_add">+				src_pfns[i] &amp;= ~HMM_PFN_MIGRATE;</span>
+<span class="p_add">+				restore++;</span>
+<span class="p_add">+			} else {</span>
+<span class="p_add">+				migrate-&gt;npages--;</span>
+<span class="p_add">+				unlock_page(page);</span>
+<span class="p_add">+				src_pfns[i] = 0;</span>
+<span class="p_add">+				put_page(page);</span>
+<span class="p_add">+			}</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!restore)</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for (addr = migrate-&gt;start, i = 0; (addr &lt; migrate-&gt;end) &amp;&amp; restore;) {</span>
+<span class="p_add">+		struct page *page = hmm_pfn_to_page(src_pfns[i]);</span>
+<span class="p_add">+		unsigned long next, restart;</span>
+<span class="p_add">+		spinlock_t *ptl;</span>
+<span class="p_add">+		pgd_t *pgdp;</span>
+<span class="p_add">+		pud_t *pudp;</span>
+<span class="p_add">+		pmd_t *pmdp;</span>
+<span class="p_add">+		pte_t *ptep;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (!page || !(src_pfns[i] &amp; HMM_PFN_MIGRATE)) {</span>
+<span class="p_add">+			addr += PAGE_SIZE;</span>
+<span class="p_add">+			i++;</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+</span>
+<span class="p_add">+		restart = addr;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Some one might have zap the mapping. Truncate should be only</span>
+<span class="p_add">+		 * case for which this might happen while holding mmap_sem.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		pgdp = pgd_offset(mm, addr);</span>
+<span class="p_add">+		next = pgd_addr_end(addr, migrate-&gt;end);</span>
+<span class="p_add">+		if (!pgdp || pgd_none_or_clear_bad(pgdp))</span>
+<span class="p_add">+			goto unlock_release;</span>
+<span class="p_add">+		pudp = pud_offset(pgdp, addr);</span>
+<span class="p_add">+		next = pud_addr_end(addr, migrate-&gt;end);</span>
+<span class="p_add">+		if (!pudp || pud_none(*pudp))</span>
+<span class="p_add">+			goto unlock_release;</span>
+<span class="p_add">+		pmdp = pmd_offset(pudp, addr);</span>
+<span class="p_add">+		next = pmd_addr_end(addr, migrate-&gt;end);</span>
+<span class="p_add">+		if (!pmdp || pmd_none(*pmdp) || pmd_trans_huge(*pmdp))</span>
+<span class="p_add">+			goto unlock_release;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		ptep = pte_offset_map_lock(mm, pmdp, addr, &amp;ptl);</span>
+<span class="p_add">+		for (; addr &lt; next; addr += PAGE_SIZE, i++, ptep++) {</span>
+<span class="p_add">+			swp_entry_t entry;</span>
+<span class="p_add">+			bool write;</span>
+<span class="p_add">+			pte_t pte;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			page = hmm_pfn_to_page(src_pfns[i]);</span>
+<span class="p_add">+			if (!page || (src_pfns[i] &amp; HMM_PFN_MIGRATE))</span>
+<span class="p_add">+				continue;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			write = src_pfns[i] &amp; HMM_PFN_WRITE;</span>
+<span class="p_add">+			write &amp;= (vma-&gt;vm_flags &amp; VM_WRITE);</span>
+<span class="p_add">+</span>
+<span class="p_add">+			/* Here it means pte must be a valid migration entry */</span>
+<span class="p_add">+			pte = ptep_get_and_clear(mm, addr, ptep);</span>
+<span class="p_add">+			if (pte_none(pte) || pte_present(pte)) {</span>
+<span class="p_add">+				/* SOMETHING BAD IS GOING ON ! */</span>
+<span class="p_add">+				set_pte_at(mm, addr, ptep, pte);</span>
+<span class="p_add">+				continue;</span>
+<span class="p_add">+			}</span>
+<span class="p_add">+			entry = pte_to_swp_entry(pte);</span>
+<span class="p_add">+			if (!is_migration_entry(entry)) {</span>
+<span class="p_add">+				/* SOMETHING BAD IS GOING ON ! */</span>
+<span class="p_add">+				set_pte_at(mm, addr, ptep, pte);</span>
+<span class="p_add">+				continue;</span>
+<span class="p_add">+			}</span>
+<span class="p_add">+</span>
+<span class="p_add">+			if (is_zone_device_page(page) &amp;&amp;</span>
+<span class="p_add">+			    !is_addressable_page(page)) {</span>
+<span class="p_add">+				entry = make_device_entry(page, write);</span>
+<span class="p_add">+				pte = swp_entry_to_pte(entry);</span>
+<span class="p_add">+			} else {</span>
+<span class="p_add">+				pte = mk_pte(page, vma-&gt;vm_page_prot);</span>
+<span class="p_add">+				pte = pte_mkold(pte);</span>
+<span class="p_add">+				if (write)</span>
+<span class="p_add">+					pte = pte_mkwrite(pte);</span>
+<span class="p_add">+			}</span>
+<span class="p_add">+			if (pte_swp_soft_dirty(*ptep))</span>
+<span class="p_add">+				pte = pte_mksoft_dirty(pte);</span>
+<span class="p_add">+</span>
+<span class="p_add">+			get_page(page);</span>
+<span class="p_add">+			set_pte_at(mm, addr, ptep, pte);</span>
+<span class="p_add">+			if (PageAnon(page))</span>
+<span class="p_add">+				page_add_anon_rmap(page, vma, addr, false);</span>
+<span class="p_add">+			else</span>
+<span class="p_add">+				page_add_file_rmap(page, false);</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+		pte_unmap_unlock(ptep - 1, ptl);</span>
+<span class="p_add">+</span>
+<span class="p_add">+unlock_release:</span>
+<span class="p_add">+		addr = restart;</span>
+<span class="p_add">+		i = (addr - migrate-&gt;start) &gt;&gt; PAGE_SHIFT;</span>
+<span class="p_add">+		for (; addr &lt; next &amp;&amp; restore; addr += PAGE_SHIFT, i++) {</span>
+<span class="p_add">+			page = hmm_pfn_to_page(src_pfns[i]);</span>
+<span class="p_add">+			if (!page || (src_pfns[i] &amp; HMM_PFN_MIGRATE))</span>
+<span class="p_add">+				continue;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			src_pfns[i] = 0;</span>
+ 			unlock_page(page);
+<span class="p_del">-			put_page(page);</span>
+<span class="p_add">+			restore--;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			if (is_zone_device_page(page))</span>
+<span class="p_add">+				put_page(page);</span>
+<span class="p_add">+			else</span>
+<span class="p_add">+				putback_lru_page(page);</span>
+ 		}
+ 	}
+ }
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

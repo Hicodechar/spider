@@ -1,0 +1,990 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[PATCHv12,32/37] thp: reintroduce split_huge_page() - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [PATCHv12,32/37] thp: reintroduce split_huge_page()</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=40781">Kirill A. Shutemov</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Oct. 6, 2015, 3:23 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1444145044-72349-33-git-send-email-kirill.shutemov@linux.intel.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7336201/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7336201/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7336201/">/patch/7336201/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id A934CBEEA4
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  6 Oct 2015 15:25:12 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 3C08E205EB
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  6 Oct 2015 15:25:11 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 8407F2069B
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  6 Oct 2015 15:25:09 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753564AbbJFPZG (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 6 Oct 2015 11:25:06 -0400
+Received: from mga03.intel.com ([134.134.136.65]:39167 &quot;EHLO mga03.intel.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1753148AbbJFPZA (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 6 Oct 2015 11:25:00 -0400
+Received: from fmsmga003.fm.intel.com ([10.253.24.29])
+	by orsmga103.jf.intel.com with ESMTP; 06 Oct 2015 08:24:59 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i=&quot;5.17,644,1437462000&quot;; d=&quot;scan&#39;208&quot;;a=&quot;575199366&quot;
+Received: from black.fi.intel.com ([10.237.72.93])
+	by FMSMGA003.fm.intel.com with ESMTP; 06 Oct 2015 08:24:55 -0700
+Received: by black.fi.intel.com (Postfix, from userid 1000)
+	id E723B80A; Tue,  6 Oct 2015 18:24:09 +0300 (EEST)
+From: &quot;Kirill A. Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;
+To: Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Andrea Arcangeli &lt;aarcange@redhat.com&gt;, Hugh Dickins &lt;hughd@google.com&gt;
+Cc: Dave Hansen &lt;dave.hansen@intel.com&gt;, Mel Gorman &lt;mgorman@suse.de&gt;,
+	Rik van Riel &lt;riel@redhat.com&gt;, Vlastimil Babka &lt;vbabka@suse.cz&gt;,
+	Christoph Lameter &lt;cl@gentwo.org&gt;,
+	Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;,
+	Steve Capper &lt;steve.capper@linaro.org&gt;,
+	&quot;Aneesh Kumar K.V&quot; &lt;aneesh.kumar@linux.vnet.ibm.com&gt;,
+	Johannes Weiner &lt;hannes@cmpxchg.org&gt;, Michal Hocko &lt;mhocko@suse.cz&gt;,
+	Jerome Marchand &lt;jmarchan@redhat.com&gt;,
+	Sasha Levin &lt;sasha.levin@oracle.com&gt;,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	&quot;Kirill A. Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;
+Subject: [PATCHv12 32/37] thp: reintroduce split_huge_page()
+Date: Tue,  6 Oct 2015 18:23:59 +0300
+Message-Id: &lt;1444145044-72349-33-git-send-email-kirill.shutemov@linux.intel.com&gt;
+X-Mailer: git-send-email 2.5.3
+In-Reply-To: &lt;1444145044-72349-1-git-send-email-kirill.shutemov@linux.intel.com&gt;
+References: &lt;1444145044-72349-1-git-send-email-kirill.shutemov@linux.intel.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	T_RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=40781">Kirill A. Shutemov</a> - Oct. 6, 2015, 3:23 p.m.</div>
+<pre class="content">
+This patch adds implementation of split_huge_page() for new
+refcountings.
+
+Unlike previous implementation, new split_huge_page() can fail if
+somebody holds GUP pin on the page. It also means that pin on page
+would prevent it from bening split under you. It makes situation in
+many places much cleaner.
+
+The basic scheme of split_huge_page():
+
+  - Check that sum of mapcounts of all subpage is equal to page_count()
+    plus one (caller pin). Foll off with -EBUSY. This way we can avoid
+    useless PMD-splits.
+
+  - Freeze the page counters by splitting all PMD and setup migration
+    PTEs.
+
+  - Re-check sum of mapcounts against page_count(). Page&#39;s counts are
+    stable now. -EBUSY if page is pinned.
+
+  - Split compound page.
+
+  - Unfreeze the page by removing migration entries.
+<span class="signed-off-by">
+Signed-off-by: Kirill A. Shutemov &lt;kirill.shutemov@linux.intel.com&gt;</span>
+<span class="tested-by">Tested-by: Sasha Levin &lt;sasha.levin@oracle.com&gt;</span>
+<span class="tested-by">Tested-by: Aneesh Kumar K.V &lt;aneesh.kumar@linux.vnet.ibm.com&gt;</span>
+<span class="acked-by">Acked-by: Jerome Marchand &lt;jmarchan@redhat.com&gt;</span>
+---
+ include/linux/huge_mm.h |   7 +-
+ include/linux/pagemap.h |  13 +-
+ mm/huge_memory.c        | 317 ++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/internal.h           |  26 +++-
+ mm/rmap.c               |  21 ----
+ 5 files changed, 356 insertions(+), 28 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=49271">Sasha Levin</a> - Nov. 18, 2015, 4:24 p.m.</div>
+<pre class="content">
+On 10/06/2015 11:23 AM, Kirill A. Shutemov wrote:
+<span class="quote">&gt; This patch adds implementation of split_huge_page() for new</span>
+<span class="quote">&gt; refcountings.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Unlike previous implementation, new split_huge_page() can fail if</span>
+<span class="quote">&gt; somebody holds GUP pin on the page. It also means that pin on page</span>
+<span class="quote">&gt; would prevent it from bening split under you. It makes situation in</span>
+<span class="quote">&gt; many places much cleaner.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The basic scheme of split_huge_page():</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   - Check that sum of mapcounts of all subpage is equal to page_count()</span>
+<span class="quote">&gt;     plus one (caller pin). Foll off with -EBUSY. This way we can avoid</span>
+<span class="quote">&gt;     useless PMD-splits.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   - Freeze the page counters by splitting all PMD and setup migration</span>
+<span class="quote">&gt;     PTEs.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   - Re-check sum of mapcounts against page_count(). Page&#39;s counts are</span>
+<span class="quote">&gt;     stable now. -EBUSY if page is pinned.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   - Split compound page.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;   - Unfreeze the page by removing migration entries.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Kirill A. Shutemov &lt;kirill.shutemov@linux.intel.com&gt;</span>
+<span class="quote">&gt; Tested-by: Sasha Levin &lt;sasha.levin@oracle.com&gt;</span>
+<span class="quote">&gt; Tested-by: Aneesh Kumar K.V &lt;aneesh.kumar@linux.vnet.ibm.com&gt;</span>
+<span class="quote">&gt; Acked-by: Jerome Marchand &lt;jmarchan@redhat.com&gt;</span>
+
+Hey Kirill,
+
+I saw the following while fuzzing:
+
+[ 3400.024040] ==================================================================
+[ 3400.024040] BUG: KASAN: slab-out-of-bounds in unfreeze_page+0x706/0xbf0 at addr ffff880670dbc0c0
+[ 3400.024040] Read of size 8 by task run_vmtests/10752
+[ 3400.024040] =============================================================================
+[ 3400.024040] BUG vm_area_struct (Not tainted): kasan: bad access detected
+[ 3400.024040] -----------------------------------------------------------------------------
+[ 3400.024040]
+[ 3400.024040] Disabling lock debugging due to kernel taint
+[ 3400.024040] INFO: Allocated in copy_process+0x2d6d/0x5b00 age=18600 cpu=28 pid=9566
+[ 3400.024040]  ___slab_alloc+0x434/0x5b0
+[ 3400.024040]  __slab_alloc.isra.37+0x79/0xd0
+[ 3400.024040]  kmem_cache_alloc+0x103/0x330
+[ 3400.024040]  copy_process+0x2d6d/0x5b00
+[ 3400.024040]  _do_fork+0x180/0xbb0
+[ 3400.024040]  SyS_clone+0x3c/0x50
+[ 3400.024040]  tracesys_phase2+0x88/0x8d
+[ 3400.024040] INFO: Freed in remove_vma+0x170/0x180 age=18613 cpu=10 pid=21787
+[ 3400.024040]  __slab_free+0x64/0x260
+[ 3400.024040]  kmem_cache_free+0x1e1/0x3b0
+[ 3400.024040]  remove_vma+0x170/0x180
+[ 3400.024040]  exit_mmap+0x30a/0x3c0
+[ 3400.024040]  mmput+0x98/0x240
+[ 3400.024040]  do_exit+0xbe5/0x2830
+[ 3400.024040]  do_group_exit+0x1b5/0x300
+[ 3400.024040]  SyS_exit_group+0x22/0x30
+[ 3400.024040]  tracesys_phase2+0x88/0x8d
+[ 3400.024040] INFO: Slab 0xffffea0019c36f00 objects=33 used=33 fp=0x          (null) flags=0x12fffff80004080
+[ 3400.024040] INFO: Object 0xffff880670dbc000 @offset=0 fp=0x00007f6bff4e7000
+[ 3400.024040]
+[ 3400.024040] Object ffff880670dbc000: 00 70 4e ff 6b 7f 00 00 00 90 80 ff 6b 7f 00 00  .pN.k.......k...
+[ 3400.024040] Object ffff880670dbc010: f0 e0 db 70 06 88 ff ff e0 03 80 02 18 88 ff ff  ...p............
+[ 3400.024040] Object ffff880670dbc020: 01 04 80 02 18 88 ff ff 00 00 00 00 00 00 00 00  ................
+[ 3400.024040] Object ffff880670dbc030: 00 00 00 00 00 00 00 00 00 70 ce 7e 3f 7f 00 00  .........p.~?...
+[ 3400.024040] Object ffff880670dbc040: 00 f0 83 a6 06 88 ff ff 25 00 00 00 00 00 00 80  ........%.......
+[ 3400.024040] Object ffff880670dbc050: 73 00 10 08 00 00 00 00 00 00 00 00 00 00 00 00  s...............
+[ 3400.024040] Object ffff880670dbc060: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+[ 3400.024040] Object ffff880670dbc070: 00 00 00 00 00 00 00 00 90 dc cf a4 06 88 ff ff  ................
+[ 3400.024040] Object ffff880670dbc080: 10 d8 cf a4 06 88 ff ff b8 d1 ee 24 08 88 ff ff  ...........$....
+[ 3400.024040] Object ffff880670dbc090: 00 00 00 00 00 00 00 00 e7 f4 bf f6 07 00 00 00  ................
+[ 3400.024040] Object ffff880670dbc0a0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+[ 3400.024040] Object ffff880670dbc0b0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................
+[ 3400.024040] CPU: 20 PID: 10752 Comm: run_vmtests Tainted: G    B           4.3.0-next-20151115-sasha-00042-g0f5ce29 #2641
+[ 3400.024040]  0000000000000014 0000000076bf224e ffff880ef1b7ee70 ffffffffabe427db
+[ 3400.024040]  ffff880182342000 ffff880670dbc000 ffff880670dbc000 ffff880ef1b7eea0
+[ 3400.024040]  ffffffffaa792a7a ffff880182342000 ffffea0019c36f00 ffff880670dbc000
+[ 3400.024040] Call Trace:
+[ 3400.024040] dump_stack (lib/dump_stack.c:52)
+[ 3400.024040] print_trailer (mm/slub.c:655)
+[ 3400.024040] object_err (mm/slub.c:662)
+[ 3400.024040] kasan_report_error (mm/kasan/report.c:138 mm/kasan/report.c:236)
+[ 3400.024040] __asan_report_load8_noabort (mm/kasan/report.c:280)
+[ 3400.024040] unfreeze_page (mm/huge_memory.c:3062 mm/huge_memory.c:3099)
+[ 3400.024040] split_huge_page_to_list (include/linux/compiler.h:218 mm/huge_memory.c:3208 mm/huge_memory.c:3291)
+[ 3400.024040] deferred_split_scan (mm/huge_memory.c:3378)
+[ 3400.024040] shrink_slab (mm/vmscan.c:352 mm/vmscan.c:444)
+[ 3400.024040] shrink_zone (mm/vmscan.c:2444)
+[ 3400.024040] do_try_to_free_pages (mm/vmscan.c:2595 mm/vmscan.c:2645)
+[ 3400.024040] try_to_free_pages (mm/vmscan.c:2853)
+[ 3400.024040] __alloc_pages_nodemask (mm/page_alloc.c:2864 mm/page_alloc.c:2882 mm/page_alloc.c:3150 mm/page_alloc.c:3261)
+[ 3400.024040] alloc_fresh_huge_page (include/linux/gfp.h:415 include/linux/gfp.h:428 mm/hugetlb.c:1330 mm/hugetlb.c:1348)
+[ 3400.024040] __nr_hugepages_store_common (include/linux/spinlock.h:302 mm/hugetlb.c:2164 mm/hugetlb.c:2279)
+[ 3400.024040] hugetlb_sysctl_handler_common (mm/hugetlb.c:2784)
+[ 3400.024040] hugetlb_sysctl_handler (mm/hugetlb.c:2796)
+[ 3400.024040] proc_sys_call_handler (fs/proc/proc_sysctl.c:543)
+[ 3400.024040] proc_sys_write (fs/proc/proc_sysctl.c:562)
+[ 3400.024040] __vfs_write (fs/read_write.c:489)
+[ 3400.024040] vfs_write (fs/read_write.c:538)
+[ 3400.024040] SyS_write (fs/read_write.c:585 fs/read_write.c:577)
+[ 3400.024040] tracesys_phase2 (arch/x86/entry/entry_64.S:273)
+[ 3400.024040] Memory state around the buggy address:
+[ 3400.024040]  ffff880670dbbf80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+[ 3400.024040]  ffff880670dbc000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+[ 3400.024040] &gt;ffff880670dbc080: 00 00 00 00 00 00 00 00 fc fc fc fc fc fc fc fc
+[ 3400.024040]                                            ^
+[ 3400.024040]  ffff880670dbc100: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
+[ 3400.024040]  ffff880670dbc180: fc fc fc fc fc fc fc fc fc fc fc fc fc fc 00 00
+[ 3400.024040] ==================================================================
+
+
+Thanks,
+Sasha
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=874">Kirill A. Shutemov</a> - Nov. 18, 2015, 7:05 p.m.</div>
+<pre class="content">
+On Wed, Nov 18, 2015 at 11:24:28AM -0500, Sasha Levin wrote:
+<span class="quote">&gt; On 10/06/2015 11:23 AM, Kirill A. Shutemov wrote:</span>
+<span class="quote">&gt; &gt; This patch adds implementation of split_huge_page() for new</span>
+<span class="quote">&gt; &gt; refcountings.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Unlike previous implementation, new split_huge_page() can fail if</span>
+<span class="quote">&gt; &gt; somebody holds GUP pin on the page. It also means that pin on page</span>
+<span class="quote">&gt; &gt; would prevent it from bening split under you. It makes situation in</span>
+<span class="quote">&gt; &gt; many places much cleaner.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; The basic scheme of split_huge_page():</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;   - Check that sum of mapcounts of all subpage is equal to page_count()</span>
+<span class="quote">&gt; &gt;     plus one (caller pin). Foll off with -EBUSY. This way we can avoid</span>
+<span class="quote">&gt; &gt;     useless PMD-splits.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;   - Freeze the page counters by splitting all PMD and setup migration</span>
+<span class="quote">&gt; &gt;     PTEs.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;   - Re-check sum of mapcounts against page_count(). Page&#39;s counts are</span>
+<span class="quote">&gt; &gt;     stable now. -EBUSY if page is pinned.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;   - Split compound page.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;   - Unfreeze the page by removing migration entries.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Signed-off-by: Kirill A. Shutemov &lt;kirill.shutemov@linux.intel.com&gt;</span>
+<span class="quote">&gt; &gt; Tested-by: Sasha Levin &lt;sasha.levin@oracle.com&gt;</span>
+<span class="quote">&gt; &gt; Tested-by: Aneesh Kumar K.V &lt;aneesh.kumar@linux.vnet.ibm.com&gt;</span>
+<span class="quote">&gt; &gt; Acked-by: Jerome Marchand &lt;jmarchan@redhat.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Hey Kirill,</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I saw the following while fuzzing:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; [ 3400.024040] ==================================================================</span>
+<span class="quote">&gt; [ 3400.024040] BUG: KASAN: slab-out-of-bounds in unfreeze_page+0x706/0xbf0 at addr ffff880670dbc0c0</span>
+<span class="quote">&gt; [ 3400.024040] Read of size 8 by task run_vmtests/10752</span>
+<span class="quote">&gt; [ 3400.024040] =============================================================================</span>
+<span class="quote">&gt; [ 3400.024040] BUG vm_area_struct (Not tainted): kasan: bad access detected</span>
+<span class="quote">&gt; [ 3400.024040] -----------------------------------------------------------------------------</span>
+<span class="quote">&gt; [ 3400.024040]</span>
+<span class="quote">&gt; [ 3400.024040] Disabling lock debugging due to kernel taint</span>
+<span class="quote">&gt; [ 3400.024040] INFO: Allocated in copy_process+0x2d6d/0x5b00 age=18600 cpu=28 pid=9566</span>
+<span class="quote">&gt; [ 3400.024040]  ___slab_alloc+0x434/0x5b0</span>
+<span class="quote">&gt; [ 3400.024040]  __slab_alloc.isra.37+0x79/0xd0</span>
+<span class="quote">&gt; [ 3400.024040]  kmem_cache_alloc+0x103/0x330</span>
+<span class="quote">&gt; [ 3400.024040]  copy_process+0x2d6d/0x5b00</span>
+<span class="quote">&gt; [ 3400.024040]  _do_fork+0x180/0xbb0</span>
+<span class="quote">&gt; [ 3400.024040]  SyS_clone+0x3c/0x50</span>
+<span class="quote">&gt; [ 3400.024040]  tracesys_phase2+0x88/0x8d</span>
+<span class="quote">&gt; [ 3400.024040] INFO: Freed in remove_vma+0x170/0x180 age=18613 cpu=10 pid=21787</span>
+<span class="quote">&gt; [ 3400.024040]  __slab_free+0x64/0x260</span>
+<span class="quote">&gt; [ 3400.024040]  kmem_cache_free+0x1e1/0x3b0</span>
+<span class="quote">&gt; [ 3400.024040]  remove_vma+0x170/0x180</span>
+<span class="quote">&gt; [ 3400.024040]  exit_mmap+0x30a/0x3c0</span>
+<span class="quote">&gt; [ 3400.024040]  mmput+0x98/0x240</span>
+<span class="quote">&gt; [ 3400.024040]  do_exit+0xbe5/0x2830</span>
+<span class="quote">&gt; [ 3400.024040]  do_group_exit+0x1b5/0x300</span>
+<span class="quote">&gt; [ 3400.024040]  SyS_exit_group+0x22/0x30</span>
+<span class="quote">&gt; [ 3400.024040]  tracesys_phase2+0x88/0x8d</span>
+<span class="quote">&gt; [ 3400.024040] INFO: Slab 0xffffea0019c36f00 objects=33 used=33 fp=0x          (null) flags=0x12fffff80004080</span>
+<span class="quote">&gt; [ 3400.024040] INFO: Object 0xffff880670dbc000 @offset=0 fp=0x00007f6bff4e7000</span>
+<span class="quote">&gt; [ 3400.024040]</span>
+<span class="quote">&gt; [ 3400.024040] Object ffff880670dbc000: 00 70 4e ff 6b 7f 00 00 00 90 80 ff 6b 7f 00 00  .pN.k.......k...</span>
+<span class="quote">&gt; [ 3400.024040] Object ffff880670dbc010: f0 e0 db 70 06 88 ff ff e0 03 80 02 18 88 ff ff  ...p............</span>
+<span class="quote">&gt; [ 3400.024040] Object ffff880670dbc020: 01 04 80 02 18 88 ff ff 00 00 00 00 00 00 00 00  ................</span>
+<span class="quote">&gt; [ 3400.024040] Object ffff880670dbc030: 00 00 00 00 00 00 00 00 00 70 ce 7e 3f 7f 00 00  .........p.~?...</span>
+<span class="quote">&gt; [ 3400.024040] Object ffff880670dbc040: 00 f0 83 a6 06 88 ff ff 25 00 00 00 00 00 00 80  ........%.......</span>
+<span class="quote">&gt; [ 3400.024040] Object ffff880670dbc050: 73 00 10 08 00 00 00 00 00 00 00 00 00 00 00 00  s...............</span>
+<span class="quote">&gt; [ 3400.024040] Object ffff880670dbc060: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................</span>
+<span class="quote">&gt; [ 3400.024040] Object ffff880670dbc070: 00 00 00 00 00 00 00 00 90 dc cf a4 06 88 ff ff  ................</span>
+<span class="quote">&gt; [ 3400.024040] Object ffff880670dbc080: 10 d8 cf a4 06 88 ff ff b8 d1 ee 24 08 88 ff ff  ...........$....</span>
+<span class="quote">&gt; [ 3400.024040] Object ffff880670dbc090: 00 00 00 00 00 00 00 00 e7 f4 bf f6 07 00 00 00  ................</span>
+<span class="quote">&gt; [ 3400.024040] Object ffff880670dbc0a0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................</span>
+<span class="quote">&gt; [ 3400.024040] Object ffff880670dbc0b0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  ................</span>
+<span class="quote">&gt; [ 3400.024040] CPU: 20 PID: 10752 Comm: run_vmtests Tainted: G    B           4.3.0-next-20151115-sasha-00042-g0f5ce29 #2641</span>
+<span class="quote">&gt; [ 3400.024040]  0000000000000014 0000000076bf224e ffff880ef1b7ee70 ffffffffabe427db</span>
+<span class="quote">&gt; [ 3400.024040]  ffff880182342000 ffff880670dbc000 ffff880670dbc000 ffff880ef1b7eea0</span>
+<span class="quote">&gt; [ 3400.024040]  ffffffffaa792a7a ffff880182342000 ffffea0019c36f00 ffff880670dbc000</span>
+<span class="quote">&gt; [ 3400.024040] Call Trace:</span>
+<span class="quote">&gt; [ 3400.024040] dump_stack (lib/dump_stack.c:52)</span>
+<span class="quote">&gt; [ 3400.024040] print_trailer (mm/slub.c:655)</span>
+<span class="quote">&gt; [ 3400.024040] object_err (mm/slub.c:662)</span>
+<span class="quote">&gt; [ 3400.024040] kasan_report_error (mm/kasan/report.c:138 mm/kasan/report.c:236)</span>
+<span class="quote">&gt; [ 3400.024040] __asan_report_load8_noabort (mm/kasan/report.c:280)</span>
+<span class="quote">&gt; [ 3400.024040] unfreeze_page (mm/huge_memory.c:3062 mm/huge_memory.c:3099)</span>
+<span class="quote">&gt; [ 3400.024040] split_huge_page_to_list (include/linux/compiler.h:218 mm/huge_memory.c:3208 mm/huge_memory.c:3291)</span>
+<span class="quote">&gt; [ 3400.024040] deferred_split_scan (mm/huge_memory.c:3378)</span>
+<span class="quote">&gt; [ 3400.024040] shrink_slab (mm/vmscan.c:352 mm/vmscan.c:444)</span>
+<span class="quote">&gt; [ 3400.024040] shrink_zone (mm/vmscan.c:2444)</span>
+<span class="quote">&gt; [ 3400.024040] do_try_to_free_pages (mm/vmscan.c:2595 mm/vmscan.c:2645)</span>
+<span class="quote">&gt; [ 3400.024040] try_to_free_pages (mm/vmscan.c:2853)</span>
+<span class="quote">&gt; [ 3400.024040] __alloc_pages_nodemask (mm/page_alloc.c:2864 mm/page_alloc.c:2882 mm/page_alloc.c:3150 mm/page_alloc.c:3261)</span>
+<span class="quote">&gt; [ 3400.024040] alloc_fresh_huge_page (include/linux/gfp.h:415 include/linux/gfp.h:428 mm/hugetlb.c:1330 mm/hugetlb.c:1348)</span>
+<span class="quote">&gt; [ 3400.024040] __nr_hugepages_store_common (include/linux/spinlock.h:302 mm/hugetlb.c:2164 mm/hugetlb.c:2279)</span>
+<span class="quote">&gt; [ 3400.024040] hugetlb_sysctl_handler_common (mm/hugetlb.c:2784)</span>
+<span class="quote">&gt; [ 3400.024040] hugetlb_sysctl_handler (mm/hugetlb.c:2796)</span>
+<span class="quote">&gt; [ 3400.024040] proc_sys_call_handler (fs/proc/proc_sysctl.c:543)</span>
+<span class="quote">&gt; [ 3400.024040] proc_sys_write (fs/proc/proc_sysctl.c:562)</span>
+<span class="quote">&gt; [ 3400.024040] __vfs_write (fs/read_write.c:489)</span>
+<span class="quote">&gt; [ 3400.024040] vfs_write (fs/read_write.c:538)</span>
+<span class="quote">&gt; [ 3400.024040] SyS_write (fs/read_write.c:585 fs/read_write.c:577)</span>
+<span class="quote">&gt; [ 3400.024040] tracesys_phase2 (arch/x86/entry/entry_64.S:273)</span>
+<span class="quote">&gt; [ 3400.024040] Memory state around the buggy address:</span>
+<span class="quote">&gt; [ 3400.024040]  ffff880670dbbf80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</span>
+<span class="quote">&gt; [ 3400.024040]  ffff880670dbc000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</span>
+<span class="quote">&gt; [ 3400.024040] &gt;ffff880670dbc080: 00 00 00 00 00 00 00 00 fc fc fc fc fc fc fc fc</span>
+<span class="quote">&gt; [ 3400.024040]                                            ^</span>
+<span class="quote">&gt; [ 3400.024040]  ffff880670dbc100: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc</span>
+<span class="quote">&gt; [ 3400.024040]  ffff880670dbc180: fc fc fc fc fc fc fc fc fc fc fc fc fc fc 00 00</span>
+<span class="quote">&gt; [ 3400.024040] ==================================================================</span>
+
+Hm. This looks like THP leak. I fixed one with this patch:
+
+http://lkml.kernel.org/g/1447236567-68751-1-git-send-email-kirill.shutemov@linux.intel.com
+
+It&#39;s in -mm tree, but there wasn&#39;t any releases since it&#39;s applied. It&#39;s
+not in -next for this reason.
+
+There&#39;s one more patch with the same status:
+
+http://lkml.kernel.org/g/1447236557-68682-1-git-send-email-kirill.shutemov@linux.intel.com
+
+There&#39;s also one patch I&#39;ve asked Minchan Kim to test. I&#39;m not yet sure
+it&#39;s correct:
+
+http://lkml.kernel.org/g/20151117093213.GA16243@node.shutemov.name
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=49271">Sasha Levin</a> - Nov. 27, 2015, 4:26 a.m.</div>
+<pre class="content">
+On 11/18/2015 02:05 PM, Kirill A. Shutemov wrote:
+<span class="quote">&gt; Hm. This looks like THP leak. I fixed one with this patch:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; http://lkml.kernel.org/g/1447236567-68751-1-git-send-email-kirill.shutemov@linux.intel.com</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It&#39;s in -mm tree, but there wasn&#39;t any releases since it&#39;s applied. It&#39;s</span>
+<span class="quote">&gt; not in -next for this reason.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; There&#39;s one more patch with the same status:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; http://lkml.kernel.org/g/1447236557-68682-1-git-send-email-kirill.shutemov@linux.intel.com</span>
+
+I still see it in -next, with these two patches in.
+
+
+Thanks,
+Sasha
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h</span>
+<span class="p_header">index 60b5448bf37d..156290523a05 100644</span>
+<span class="p_header">--- a/include/linux/huge_mm.h</span>
+<span class="p_header">+++ b/include/linux/huge_mm.h</span>
+<span class="p_chunk">@@ -94,8 +94,11 @@</span> <span class="p_context"> extern bool is_vma_temporary_stack(struct vm_area_struct *vma);</span>
+ 
+ extern unsigned long transparent_hugepage_flags;
+ 
+<span class="p_del">-#define split_huge_page_to_list(page, list) BUILD_BUG()</span>
+<span class="p_del">-#define split_huge_page(page) BUILD_BUG()</span>
+<span class="p_add">+int split_huge_page_to_list(struct page *page, struct list_head *list);</span>
+<span class="p_add">+static inline int split_huge_page(struct page *page)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return split_huge_page_to_list(page, NULL);</span>
+<span class="p_add">+}</span>
+ 
+ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 		unsigned long address);
+<span class="p_header">diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h</span>
+<span class="p_header">index 3e95fb6a77af..0f4f10dd7080 100644</span>
+<span class="p_header">--- a/include/linux/pagemap.h</span>
+<span class="p_header">+++ b/include/linux/pagemap.h</span>
+<span class="p_chunk">@@ -387,10 +387,21 @@</span> <span class="p_context"> static inline struct page *read_mapping_page(struct address_space *mapping,</span>
+  */
+ static inline pgoff_t page_to_pgoff(struct page *page)
+ {
+<span class="p_add">+	pgoff_t pgoff;</span>
+<span class="p_add">+</span>
+ 	if (unlikely(PageHeadHuge(page)))
+ 		return page-&gt;index &lt;&lt; compound_order(page);
+<span class="p_del">-	else</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (likely(!PageTransTail(page)))</span>
+ 		return page-&gt;index &lt;&lt; (PAGE_CACHE_SHIFT - PAGE_SHIFT);
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 *  We don&#39;t initialize -&gt;index for tail pages: calculate based on</span>
+<span class="p_add">+	 *  head page</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	pgoff = compound_head(page)-&gt;index &lt;&lt; (PAGE_CACHE_SHIFT - PAGE_SHIFT);</span>
+<span class="p_add">+	pgoff += page - compound_head(page);</span>
+<span class="p_add">+	return pgoff;</span>
+ }
+ 
+ /*
+<span class="p_header">diff --git a/mm/huge_memory.c b/mm/huge_memory.c</span>
+<span class="p_header">index 4a2a263790b2..9f960694278a 100644</span>
+<span class="p_header">--- a/mm/huge_memory.c</span>
+<span class="p_header">+++ b/mm/huge_memory.c</span>
+<span class="p_chunk">@@ -2974,3 +2974,320 @@</span> <span class="p_context"> void vma_adjust_trans_huge(struct vm_area_struct *vma,</span>
+ 			split_huge_pmd_address(next, nstart);
+ 	}
+ }
+<span class="p_add">+</span>
+<span class="p_add">+static void freeze_page_vma(struct vm_area_struct *vma, struct page *page,</span>
+<span class="p_add">+		unsigned long address)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	spinlock_t *ptl;</span>
+<span class="p_add">+	pgd_t *pgd;</span>
+<span class="p_add">+	pud_t *pud;</span>
+<span class="p_add">+	pmd_t *pmd;</span>
+<span class="p_add">+	pte_t *pte;</span>
+<span class="p_add">+	int i;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pgd = pgd_offset(vma-&gt;vm_mm, address);</span>
+<span class="p_add">+	if (!pgd_present(*pgd))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	pud = pud_offset(pgd, address);</span>
+<span class="p_add">+	if (!pud_present(*pud))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	pmd = pmd_offset(pud, address);</span>
+<span class="p_add">+	ptl = pmd_lock(vma-&gt;vm_mm, pmd);</span>
+<span class="p_add">+	if (!pmd_present(*pmd)) {</span>
+<span class="p_add">+		spin_unlock(ptl);</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	if (pmd_trans_huge(*pmd)) {</span>
+<span class="p_add">+		if (page == pmd_page(*pmd))</span>
+<span class="p_add">+			__split_huge_pmd_locked(vma, pmd, address, true);</span>
+<span class="p_add">+		spin_unlock(ptl);</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	spin_unlock(ptl);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pte = pte_offset_map_lock(vma-&gt;vm_mm, pmd, address, &amp;ptl);</span>
+<span class="p_add">+	for (i = 0; i &lt; HPAGE_PMD_NR; i++, address += PAGE_SIZE, page++) {</span>
+<span class="p_add">+		pte_t entry, swp_pte;</span>
+<span class="p_add">+		swp_entry_t swp_entry;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (!pte_present(pte[i]))</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+		if (page_to_pfn(page) != pte_pfn(pte[i]))</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+		flush_cache_page(vma, address, page_to_pfn(page));</span>
+<span class="p_add">+		entry = ptep_clear_flush(vma, address, pte + i);</span>
+<span class="p_add">+		swp_entry = make_migration_entry(page, pte_write(entry));</span>
+<span class="p_add">+		swp_pte = swp_entry_to_pte(swp_entry);</span>
+<span class="p_add">+		if (pte_soft_dirty(entry))</span>
+<span class="p_add">+			swp_pte = pte_swp_mksoft_dirty(swp_pte);</span>
+<span class="p_add">+		set_pte_at(vma-&gt;vm_mm, address, pte + i, swp_pte);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	pte_unmap_unlock(pte, ptl);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void freeze_page(struct anon_vma *anon_vma, struct page *page)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct anon_vma_chain *avc;</span>
+<span class="p_add">+	pgoff_t pgoff = page_to_pgoff(page);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	VM_BUG_ON_PAGE(!PageHead(page), page);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	anon_vma_interval_tree_foreach(avc, &amp;anon_vma-&gt;rb_root, pgoff,</span>
+<span class="p_add">+			pgoff + HPAGE_PMD_NR - 1) {</span>
+<span class="p_add">+		unsigned long haddr;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		haddr = __vma_address(page, avc-&gt;vma) &amp; HPAGE_PMD_MASK;</span>
+<span class="p_add">+		mmu_notifier_invalidate_range_start(avc-&gt;vma-&gt;vm_mm,</span>
+<span class="p_add">+				haddr, haddr + HPAGE_PMD_SIZE);</span>
+<span class="p_add">+		freeze_page_vma(avc-&gt;vma, page, haddr);</span>
+<span class="p_add">+		mmu_notifier_invalidate_range_end(avc-&gt;vma-&gt;vm_mm,</span>
+<span class="p_add">+				haddr, haddr + HPAGE_PMD_SIZE);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void unfreeze_page_vma(struct vm_area_struct *vma, struct page *page,</span>
+<span class="p_add">+		unsigned long address)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	spinlock_t *ptl;</span>
+<span class="p_add">+	pmd_t *pmd;</span>
+<span class="p_add">+	pte_t *pte, entry;</span>
+<span class="p_add">+	swp_entry_t swp_entry;</span>
+<span class="p_add">+	int i;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pmd = mm_find_pmd(vma-&gt;vm_mm, address);</span>
+<span class="p_add">+	if (!pmd)</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	pte = pte_offset_map_lock(vma-&gt;vm_mm, pmd, address, &amp;ptl);</span>
+<span class="p_add">+	for (i = 0; i &lt; HPAGE_PMD_NR; i++, address += PAGE_SIZE, page++) {</span>
+<span class="p_add">+		if (!page_mapped(page))</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+		if (!is_swap_pte(pte[i]))</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		swp_entry = pte_to_swp_entry(pte[i]);</span>
+<span class="p_add">+		if (!is_migration_entry(swp_entry))</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+		if (migration_entry_to_page(swp_entry) != page)</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		entry = pte_mkold(mk_pte(page, vma-&gt;vm_page_prot));</span>
+<span class="p_add">+		if (is_write_migration_entry(swp_entry))</span>
+<span class="p_add">+			entry = maybe_mkwrite(entry, vma);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		flush_dcache_page(page);</span>
+<span class="p_add">+		set_pte_at(vma-&gt;vm_mm, address, pte + i, entry);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/* No need to invalidate - it was non-present before */</span>
+<span class="p_add">+		update_mmu_cache(vma, address, pte + i);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	pte_unmap_unlock(pte, ptl);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void unfreeze_page(struct anon_vma *anon_vma, struct page *page)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct anon_vma_chain *avc;</span>
+<span class="p_add">+	pgoff_t pgoff = page_to_pgoff(page);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	anon_vma_interval_tree_foreach(avc, &amp;anon_vma-&gt;rb_root,</span>
+<span class="p_add">+			pgoff, pgoff + HPAGE_PMD_NR - 1) {</span>
+<span class="p_add">+		unsigned long address = __vma_address(page, avc-&gt;vma);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		mmu_notifier_invalidate_range_start(avc-&gt;vma-&gt;vm_mm,</span>
+<span class="p_add">+				address, address + HPAGE_PMD_SIZE);</span>
+<span class="p_add">+		unfreeze_page_vma(avc-&gt;vma, page, address);</span>
+<span class="p_add">+		mmu_notifier_invalidate_range_end(avc-&gt;vma-&gt;vm_mm,</span>
+<span class="p_add">+				address, address + HPAGE_PMD_SIZE);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int total_mapcount(struct page *page)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	int i, ret;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ret = compound_mapcount(page);</span>
+<span class="p_add">+	for (i = 0; i &lt; HPAGE_PMD_NR; i++)</span>
+<span class="p_add">+		ret += atomic_read(&amp;page[i]._mapcount) + 1;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (PageDoubleMap(page))</span>
+<span class="p_add">+		ret -= HPAGE_PMD_NR;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return ret;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int __split_huge_page_tail(struct page *head, int tail,</span>
+<span class="p_add">+		struct lruvec *lruvec, struct list_head *list)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	int mapcount;</span>
+<span class="p_add">+	struct page *page_tail = head + tail;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	mapcount = atomic_read(&amp;page_tail-&gt;_mapcount) + 1;</span>
+<span class="p_add">+	VM_BUG_ON_PAGE(atomic_read(&amp;page_tail-&gt;_count) != 0, page_tail);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * tail_page-&gt;_count is zero and not changing from under us. But</span>
+<span class="p_add">+	 * get_page_unless_zero() may be running from under us on the</span>
+<span class="p_add">+	 * tail_page. If we used atomic_set() below instead of atomic_add(), we</span>
+<span class="p_add">+	 * would then run atomic_set() concurrently with</span>
+<span class="p_add">+	 * get_page_unless_zero(), and atomic_set() is implemented in C not</span>
+<span class="p_add">+	 * using locked ops. spin_unlock on x86 sometime uses locked ops</span>
+<span class="p_add">+	 * because of PPro errata 66, 92, so unless somebody can guarantee</span>
+<span class="p_add">+	 * atomic_set() here would be safe on all archs (and not only on x86),</span>
+<span class="p_add">+	 * it&#39;s safer to use atomic_add().</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	atomic_add(mapcount + 1, &amp;page_tail-&gt;_count);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* after clearing PageTail the gup refcount can be released */</span>
+<span class="p_add">+	smp_mb__after_atomic();</span>
+<span class="p_add">+</span>
+<span class="p_add">+	page_tail-&gt;flags &amp;= ~PAGE_FLAGS_CHECK_AT_PREP;</span>
+<span class="p_add">+	page_tail-&gt;flags |= (head-&gt;flags &amp;</span>
+<span class="p_add">+			((1L &lt;&lt; PG_referenced) |</span>
+<span class="p_add">+			 (1L &lt;&lt; PG_swapbacked) |</span>
+<span class="p_add">+			 (1L &lt;&lt; PG_mlocked) |</span>
+<span class="p_add">+			 (1L &lt;&lt; PG_uptodate) |</span>
+<span class="p_add">+			 (1L &lt;&lt; PG_active) |</span>
+<span class="p_add">+			 (1L &lt;&lt; PG_locked) |</span>
+<span class="p_add">+			 (1L &lt;&lt; PG_unevictable)));</span>
+<span class="p_add">+	page_tail-&gt;flags |= (1L &lt;&lt; PG_dirty);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	clear_compound_head(page_tail);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (page_is_young(head))</span>
+<span class="p_add">+		set_page_young(page_tail);</span>
+<span class="p_add">+	if (page_is_idle(head))</span>
+<span class="p_add">+		set_page_idle(page_tail);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* -&gt;mapping in first tail page is compound_mapcount */</span>
+<span class="p_add">+	VM_BUG_ON_PAGE(tail != 1 &amp;&amp; page_tail-&gt;mapping != TAIL_MAPPING,</span>
+<span class="p_add">+			page_tail);</span>
+<span class="p_add">+	page_tail-&gt;mapping = head-&gt;mapping;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	page_tail-&gt;index = head-&gt;index + tail;</span>
+<span class="p_add">+	page_cpupid_xchg_last(page_tail, page_cpupid_last(head));</span>
+<span class="p_add">+	lru_add_page_tail(head, page_tail, lruvec, list);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return mapcount;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void __split_huge_page(struct page *page, struct list_head *list)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct page *head = compound_head(page);</span>
+<span class="p_add">+	struct zone *zone = page_zone(head);</span>
+<span class="p_add">+	struct lruvec *lruvec;</span>
+<span class="p_add">+	int i, tail_mapcount;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* prevent PageLRU to go away from under us, and freeze lru stats */</span>
+<span class="p_add">+	spin_lock_irq(&amp;zone-&gt;lru_lock);</span>
+<span class="p_add">+	lruvec = mem_cgroup_page_lruvec(head, zone);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* complete memcg works before add pages to LRU */</span>
+<span class="p_add">+	mem_cgroup_split_huge_fixup(head);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	tail_mapcount = 0;</span>
+<span class="p_add">+	for (i = HPAGE_PMD_NR - 1; i &gt;= 1; i--)</span>
+<span class="p_add">+		tail_mapcount += __split_huge_page_tail(head, i, lruvec, list);</span>
+<span class="p_add">+	atomic_sub(tail_mapcount, &amp;head-&gt;_count);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ClearPageCompound(head);</span>
+<span class="p_add">+	spin_unlock_irq(&amp;zone-&gt;lru_lock);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	unfreeze_page(page_anon_vma(head), head);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for (i = 0; i &lt; HPAGE_PMD_NR; i++) {</span>
+<span class="p_add">+		struct page *subpage = head + i;</span>
+<span class="p_add">+		if (subpage == page)</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+		unlock_page(subpage);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Subpages may be freed if there wasn&#39;t any mapping</span>
+<span class="p_add">+		 * like if add_to_swap() is running on a lru page that</span>
+<span class="p_add">+		 * had its mapping zapped. And freeing these pages</span>
+<span class="p_add">+		 * requires taking the lru_lock so we do the put_page</span>
+<span class="p_add">+		 * of the tail pages after the split is complete.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		put_page(subpage);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * This function splits huge page into normal pages. @page can point to any</span>
+<span class="p_add">+ * subpage of huge page to split. Split doesn&#39;t change the position of @page.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Only caller must hold pin on the @page, otherwise split fails with -EBUSY.</span>
+<span class="p_add">+ * The huge page must be locked.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * If @list is null, tail pages will be added to LRU list, otherwise, to @list.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Both head page and tail pages will inherit mapping, flags, and so on from</span>
+<span class="p_add">+ * the hugepage.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * GUP pin and PG_locked transferred to @page. Rest subpages can be freed if</span>
+<span class="p_add">+ * they are not mapped.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Returns 0 if the hugepage is split successfully.</span>
+<span class="p_add">+ * Returns -EBUSY if the page is pinned or if anon_vma disappeared from under</span>
+<span class="p_add">+ * us.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+int split_huge_page_to_list(struct page *page, struct list_head *list)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct page *head = compound_head(page);</span>
+<span class="p_add">+	struct anon_vma *anon_vma;</span>
+<span class="p_add">+	int count, mapcount, ret;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	VM_BUG_ON_PAGE(is_huge_zero_page(page), page);</span>
+<span class="p_add">+	VM_BUG_ON_PAGE(!PageAnon(page), page);</span>
+<span class="p_add">+	VM_BUG_ON_PAGE(!PageLocked(page), page);</span>
+<span class="p_add">+	VM_BUG_ON_PAGE(!PageSwapBacked(page), page);</span>
+<span class="p_add">+	VM_BUG_ON_PAGE(!PageCompound(page), page);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * The caller does not necessarily hold an mmap_sem that would prevent</span>
+<span class="p_add">+	 * the anon_vma disappearing so we first we take a reference to it</span>
+<span class="p_add">+	 * and then lock the anon_vma for write. This is similar to</span>
+<span class="p_add">+	 * page_lock_anon_vma_read except the write lock is taken to serialise</span>
+<span class="p_add">+	 * against parallel split or collapse operations.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	anon_vma = page_get_anon_vma(head);</span>
+<span class="p_add">+	if (!anon_vma) {</span>
+<span class="p_add">+		ret = -EBUSY;</span>
+<span class="p_add">+		goto out;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	anon_vma_lock_write(anon_vma);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Racy check if we can split the page, before freeze_page() will</span>
+<span class="p_add">+	 * split PMDs</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (total_mapcount(head) != page_count(head) - 1) {</span>
+<span class="p_add">+		ret = -EBUSY;</span>
+<span class="p_add">+		goto out_unlock;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	freeze_page(anon_vma, head);</span>
+<span class="p_add">+	VM_BUG_ON_PAGE(compound_mapcount(head), head);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	count = page_count(head);</span>
+<span class="p_add">+	mapcount = total_mapcount(head);</span>
+<span class="p_add">+	if (mapcount == count - 1) {</span>
+<span class="p_add">+		__split_huge_page(page, list);</span>
+<span class="p_add">+		ret = 0;</span>
+<span class="p_add">+	} else if (IS_ENABLED(CONFIG_DEBUG_VM) &amp;&amp; mapcount &gt; count - 1) {</span>
+<span class="p_add">+		pr_alert(&quot;total_mapcount: %u, page_count(): %u\n&quot;,</span>
+<span class="p_add">+				mapcount, count);</span>
+<span class="p_add">+		if (PageTail(page))</span>
+<span class="p_add">+			dump_page(head, NULL);</span>
+<span class="p_add">+		dump_page(page, &quot;total_mapcount(head) &gt; page_count(head) - 1&quot;);</span>
+<span class="p_add">+		BUG();</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		unfreeze_page(anon_vma, head);</span>
+<span class="p_add">+		ret = -EBUSY;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+out_unlock:</span>
+<span class="p_add">+	anon_vma_unlock_write(anon_vma);</span>
+<span class="p_add">+	put_anon_vma(anon_vma);</span>
+<span class="p_add">+out:</span>
+<span class="p_add">+	count_vm_event(!ret ? THP_SPLIT_PAGE : THP_SPLIT_PAGE_FAILED);</span>
+<span class="p_add">+	return ret;</span>
+<span class="p_add">+}</span>
+<span class="p_header">diff --git a/mm/internal.h b/mm/internal.h</span>
+<span class="p_header">index 3fe44ff6b21e..f785abbff20d 100644</span>
+<span class="p_header">--- a/mm/internal.h</span>
+<span class="p_header">+++ b/mm/internal.h</span>
+<span class="p_chunk">@@ -13,6 +13,7 @@</span> <span class="p_context"></span>
+ 
+ #include &lt;linux/fs.h&gt;
+ #include &lt;linux/mm.h&gt;
+<span class="p_add">+#include &lt;linux/pagemap.h&gt;</span>
+ 
+ extern int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			unsigned long address, pte_t *page_table, pmd_t *pmd,
+<span class="p_chunk">@@ -270,10 +271,27 @@</span> <span class="p_context"> static inline void mlock_migrate_page(struct page *newpage, struct page *page)</span>
+ 
+ extern pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma);
+ 
+<span class="p_del">-#ifdef CONFIG_TRANSPARENT_HUGEPAGE</span>
+<span class="p_del">-extern unsigned long vma_address(struct page *page,</span>
+<span class="p_del">-				 struct vm_area_struct *vma);</span>
+<span class="p_del">-#endif</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * At what user virtual address is page expected in @vma?</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static inline unsigned long</span>
+<span class="p_add">+__vma_address(struct page *page, struct vm_area_struct *vma)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	pgoff_t pgoff = page_to_pgoff(page);</span>
+<span class="p_add">+	return vma-&gt;vm_start + ((pgoff - vma-&gt;vm_pgoff) &lt;&lt; PAGE_SHIFT);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline unsigned long</span>
+<span class="p_add">+vma_address(struct page *page, struct vm_area_struct *vma)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long address = __vma_address(page, vma);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* page should be within @vma mapping range */</span>
+<span class="p_add">+	VM_BUG_ON_VMA(address &lt; vma-&gt;vm_start || address &gt;= vma-&gt;vm_end, vma);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return address;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ #else /* !CONFIG_MMU */
+ static inline void clear_page_mlock(struct page *page) { }
+ static inline void mlock_vma_page(struct page *page) { }
+<span class="p_header">diff --git a/mm/rmap.c b/mm/rmap.c</span>
+<span class="p_header">index 8cbcf9527629..41c87c937e2a 100644</span>
+<span class="p_header">--- a/mm/rmap.c</span>
+<span class="p_header">+++ b/mm/rmap.c</span>
+<span class="p_chunk">@@ -565,27 +565,6 @@</span> <span class="p_context"> void page_unlock_anon_vma_read(struct anon_vma *anon_vma)</span>
+ 	anon_vma_unlock_read(anon_vma);
+ }
+ 
+<span class="p_del">-/*</span>
+<span class="p_del">- * At what user virtual address is page expected in @vma?</span>
+<span class="p_del">- */</span>
+<span class="p_del">-static inline unsigned long</span>
+<span class="p_del">-__vma_address(struct page *page, struct vm_area_struct *vma)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	pgoff_t pgoff = page_to_pgoff(page);</span>
+<span class="p_del">-	return vma-&gt;vm_start + ((pgoff - vma-&gt;vm_pgoff) &lt;&lt; PAGE_SHIFT);</span>
+<span class="p_del">-}</span>
+<span class="p_del">-</span>
+<span class="p_del">-inline unsigned long</span>
+<span class="p_del">-vma_address(struct page *page, struct vm_area_struct *vma)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	unsigned long address = __vma_address(page, vma);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	/* page should be within @vma mapping range */</span>
+<span class="p_del">-	VM_BUG_ON_VMA(address &lt; vma-&gt;vm_start || address &gt;= vma-&gt;vm_end, vma);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	return address;</span>
+<span class="p_del">-}</span>
+<span class="p_del">-</span>
+ #ifdef CONFIG_ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH
+ static void percpu_flush_tlb_batch_pages(void *data)
+ {
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

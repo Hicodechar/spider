@@ -1,0 +1,1268 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[3/3] percpu: improve allocation success rate for non-GFP_KERNEL callers - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [3/3] percpu: improve allocation success rate for non-GFP_KERNEL callers</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=130991">Tahsin Erdogan</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Feb. 25, 2017, 9 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170225210042.23678-1-tahsin@google.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9591933/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9591933/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9591933/">/patch/9591933/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	EF4DB60416 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 25 Feb 2017 21:02:52 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id E0CCD2022B
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 25 Feb 2017 21:02:52 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id D5695237A5; Sat, 25 Feb 2017 21:02:52 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-7.0 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID, DKIM_VALID_AU,
+	RCVD_IN_DNSWL_HI autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 3A64A26E4E
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 25 Feb 2017 21:02:51 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752101AbdBYVBT (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Sat, 25 Feb 2017 16:01:19 -0500
+Received: from mail-pf0-f173.google.com ([209.85.192.173]:33804 &quot;EHLO
+	mail-pf0-f173.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751995AbdBYVAz (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Sat, 25 Feb 2017 16:00:55 -0500
+Received: by mail-pf0-f173.google.com with SMTP id p185so4459783pfb.1
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Sat, 25 Feb 2017 13:00:49 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=google.com; s=20161025;
+	h=from:to:cc:subject:date:message-id;
+	bh=c4hliqv71hDkUkgN3f00UXsCoRzT9FSTfnxi/QvY9GY=;
+	b=YB3XHPDOY01d+8DZFCLzjFgUpk58v04AqMWmznthAHZO32337xBZajECwB38qVOyGo
+	unqKE5+99IMYexS/1sW8Di4lX5IIj4EyZvZmhSU8YW8uWmFqj26E9KwZJFcZEfjGPwxC
+	7hhk1NdVdvONSEa953b6Mm7Ag9nskcXw28Hu4Sj7xgWV29DOji5FAv/n9i1EVx0nb0B2
+	CO765MJsp8iZJdhvD9TQ41YDbwRUnUqmQoQMEZAGQnRTvYYnaE0Ssqflm9NqSXjKBAdR
+	8LnzNXGdJrK2mFn6LJt3YLU2c0MYq2MjkwmwJhrY8BhbwKv78WScUS4Dc58XaYnUFfSE
+	ZwOQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:from:to:cc:subject:date:message-id;
+	bh=c4hliqv71hDkUkgN3f00UXsCoRzT9FSTfnxi/QvY9GY=;
+	b=fYJAp1myGGTK6KNtT8IvcCpub/wFR2sD026xfXGpI+fAK4tQqqCuUllHmsdDQ3ooxI
+	Z3M1wp3g6LG6JtE2nOnlk9hJ4pEo5wKF+ZbmyuPJ5tlatxHChyMmWkVU/9nTr/ahKLT3
+	FBd9H5AIJsdtRBUOmrq7dYFcmPc0gs4b7Aca+xIul2+DDEnID5CKteQQLNL+CSa8+DXd
+	4ItlgEObR4Um2ImqGgtF7jqYAfAFccDW4zC44TNQvZdq5CqS7dDsv1H9inenMO7Ph5vi
+	txs38GA6ULR6pU/TyJz1ndJbWcpWtFgbCU3KwC8gvpbdpBzHWcoSa4VSa5mtiy6QSJzV
+	7B+Q==
+X-Gm-Message-State: AMke39nJPf9qNIwPM8EdMODRWMsS8zDHB41J9C8yDvqSr33/QR+sdTGi5523Uppkg999P2Y6
+X-Received: by 10.84.172.1 with SMTP id m1mr13357844plb.5.1488056448030;
+	Sat, 25 Feb 2017 13:00:48 -0800 (PST)
+Received: from tahsin1.mtv.corp.google.com ([100.99.140.90])
+	by smtp.gmail.com with ESMTPSA id
+	a62sm22082773pgc.60.2017.02.25.13.00.46
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+	Sat, 25 Feb 2017 13:00:47 -0800 (PST)
+From: Tahsin Erdogan &lt;tahsin@google.com&gt;
+To: Tejun Heo &lt;tj@kernel.org&gt;, Christoph Lameter &lt;cl@linux.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Chris Wilson &lt;chris@chris-wilson.co.uk&gt;,
+	Andrey Ryabinin &lt;aryabinin@virtuozzo.com&gt;,
+	Roman Pen &lt;r.peniaev@gmail.com&gt;,
+	Joonas Lahtinen &lt;joonas.lahtinen@linux.intel.com&gt;,
+	Michal Hocko &lt;mhocko@suse.com&gt;, zijun_hu &lt;zijun_hu@htc.com&gt;,
+	Joonsoo Kim &lt;iamjoonsoo.kim@lge.com&gt;
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	Tahsin Erdogan &lt;tahsin@google.com&gt;
+Subject: [PATCH 3/3] percpu: improve allocation success rate for
+	non-GFP_KERNEL callers
+Date: Sat, 25 Feb 2017 13:00:42 -0800
+Message-Id: &lt;20170225210042.23678-1-tahsin@google.com&gt;
+X-Mailer: git-send-email 2.11.0.483.g087da7b7c-goog
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=130991">Tahsin Erdogan</a> - Feb. 25, 2017, 9 p.m.</div>
+<pre class="content">
+When pcpu_alloc() is called with gfp != GFP_KERNEL, the likelihood of
+a failure is higher than GFP_KERNEL case. This is mainly because
+pcpu_alloc() relies on previously allocated reserves and does not make
+an effort to add memory to its pools for non-GFP_KERNEL case.
+
+This issue is somewhat mitigated by kicking off a background work when
+a memory allocation failure occurs. But this doesn&#39;t really help the
+original victim of allocation failure.
+
+This problem affects blkg_lookup_create() callers on machines with a
+lot of cpus.
+
+This patch reduces failure cases by trying to expand the memory pools.
+It passes along gfp flag so it is safe to allocate memory this way.
+
+To make this work, a gfp flag aware vmalloc_gfp() function is added.
+Also, locking around vmap_area_lock has been updated to save/restore
+irq flags. This was needed to avoid a lockdep problem between
+request_queue-&gt;queue_lock and vmap_area_lock.
+<span class="signed-off-by">
+Signed-off-by: Tahsin Erdogan &lt;tahsin@google.com&gt;</span>
+---
+ include/linux/vmalloc.h |   5 +-
+ mm/percpu-km.c          |   8 +--
+ mm/percpu-vm.c          | 119 +++++++++++-------------------------
+ mm/percpu.c             | 156 ++++++++++++++++++++++++++++--------------------
+ mm/vmalloc.c            |  74 ++++++++++++++---------
+ 5 files changed, 179 insertions(+), 183 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=143191">kbuild test robot</a> - Feb. 25, 2017, 11:54 p.m.</div>
+<pre class="content">
+Hi Tahsin,
+
+[auto build test ERROR on mmotm/master]
+[also build test ERROR on v4.10 next-20170224]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+
+url:    https://github.com/0day-ci/linux/commits/Tahsin-Erdogan/percpu-remove-unused-chunk_alloc-parameter-from-pcpu_get_pages/20170226-052515
+base:   git://git.cmpxchg.org/linux-mmotm.git master
+config: sh-rsk7269_defconfig (attached as .config)
+compiler: sh4-linux-gnu-gcc (Debian 6.1.1-9) 6.1.1 20160705
+reproduce:
+        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+        chmod +x ~/bin/make.cross
+        # save the attached .config to linux build tree
+        make.cross ARCH=sh 
+
+All errors (new ones prefixed by &gt;&gt;):
+
+   mm/built-in.o: In function `pcpu_mem_zalloc&#39;:
+<span class="quote">&gt;&gt; percpu.c:(.text+0x12670): undefined reference to `vmalloc_gfp&#39;</span>
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=143191">kbuild test robot</a> - Feb. 26, 2017, 12:48 a.m.</div>
+<pre class="content">
+Hi Tahsin,
+
+[auto build test ERROR on mmotm/master]
+[also build test ERROR on v4.10 next-20170224]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+
+url:    https://github.com/0day-ci/linux/commits/Tahsin-Erdogan/percpu-remove-unused-chunk_alloc-parameter-from-pcpu_get_pages/20170226-052515
+base:   git://git.cmpxchg.org/linux-mmotm.git master
+config: blackfin-BF561-EZKIT-SMP_defconfig (attached as .config)
+compiler: bfin-uclinux-gcc (GCC) 6.2.0
+reproduce:
+        wget https://git.kernel.org/cgit/linux/kernel/git/wfg/lkp-tests.git/plain/sbin/make.cross -O ~/bin/make.cross
+        chmod +x ~/bin/make.cross
+        # save the attached .config to linux build tree
+        make.cross ARCH=blackfin 
+
+All errors (new ones prefixed by &gt;&gt;):
+
+   mm/built-in.o: In function `pcpu_mem_zalloc&#39;:
+<span class="quote">&gt;&gt; mm/percpu.c:314: undefined reference to `vmalloc_gfp&#39;</span>
+
+vim +314 mm/percpu.c
+
+   308		if (WARN_ON_ONCE(!slab_is_available()))
+   309			return NULL;
+   310	
+   311		if (size &lt;= PAGE_SIZE)
+   312			return kzalloc(size, gfp);
+   313		else
+<span class="quote"> &gt; 314			return vmalloc_gfp(size, gfp | __GFP_HIGHMEM | __GFP_ZERO);</span>
+   315	}
+   316	
+   317	/**
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h</span>
+<span class="p_header">index d68edffbf142..8110a0040b9d 100644</span>
+<span class="p_header">--- a/include/linux/vmalloc.h</span>
+<span class="p_header">+++ b/include/linux/vmalloc.h</span>
+<span class="p_chunk">@@ -72,6 +72,7 @@</span> <span class="p_context"> extern void *vzalloc(unsigned long size);</span>
+ extern void *vmalloc_user(unsigned long size);
+ extern void *vmalloc_node(unsigned long size, int node);
+ extern void *vzalloc_node(unsigned long size, int node);
+<span class="p_add">+extern void *vmalloc_gfp(unsigned long size, gfp_t gfp_mask);</span>
+ extern void *vmalloc_exec(unsigned long size);
+ extern void *vmalloc_32(unsigned long size);
+ extern void *vmalloc_32_user(unsigned long size);
+<span class="p_chunk">@@ -165,14 +166,14 @@</span> <span class="p_context"> extern __init void vm_area_register_early(struct vm_struct *vm, size_t align);</span>
+ # ifdef CONFIG_MMU
+ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
+ 				     const size_t *sizes, int nr_vms,
+<span class="p_del">-				     size_t align);</span>
+<span class="p_add">+				     size_t align, gfp_t gfp_mask);</span>
+ 
+ void pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms);
+ # else
+ static inline struct vm_struct **
+ pcpu_get_vm_areas(const unsigned long *offsets,
+ 		const size_t *sizes, int nr_vms,
+<span class="p_del">-		size_t align)</span>
+<span class="p_add">+		size_t align, gfp_t gfp_mask)</span>
+ {
+ 	return NULL;
+ }
+<span class="p_header">diff --git a/mm/percpu-km.c b/mm/percpu-km.c</span>
+<span class="p_header">index d66911ff42d9..599a9ce84544 100644</span>
+<span class="p_header">--- a/mm/percpu-km.c</span>
+<span class="p_header">+++ b/mm/percpu-km.c</span>
+<span class="p_chunk">@@ -34,7 +34,7 @@</span> <span class="p_context"></span>
+ #include &lt;linux/log2.h&gt;
+ 
+ static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
+<span class="p_del">-			       int page_start, int page_end)</span>
+<span class="p_add">+			       int page_start, int page_end, gfp_t gfp)</span>
+ {
+ 	return 0;
+ }
+<span class="p_chunk">@@ -45,18 +45,18 @@</span> <span class="p_context"> static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,</span>
+ 	/* nada */
+ }
+ 
+<span class="p_del">-static struct pcpu_chunk *pcpu_create_chunk(void)</span>
+<span class="p_add">+static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)</span>
+ {
+ 	const int nr_pages = pcpu_group_sizes[0] &gt;&gt; PAGE_SHIFT;
+ 	struct pcpu_chunk *chunk;
+ 	struct page *pages;
+ 	int i;
+ 
+<span class="p_del">-	chunk = pcpu_alloc_chunk();</span>
+<span class="p_add">+	chunk = pcpu_alloc_chunk(gfp);</span>
+ 	if (!chunk)
+ 		return NULL;
+ 
+<span class="p_del">-	pages = alloc_pages(GFP_KERNEL, order_base_2(nr_pages));</span>
+<span class="p_add">+	pages = alloc_pages(gfp, order_base_2(nr_pages));</span>
+ 	if (!pages) {
+ 		pcpu_free_chunk(chunk);
+ 		return NULL;
+<span class="p_header">diff --git a/mm/percpu-vm.c b/mm/percpu-vm.c</span>
+<span class="p_header">index 9ac639499bd1..42348a421ccf 100644</span>
+<span class="p_header">--- a/mm/percpu-vm.c</span>
+<span class="p_header">+++ b/mm/percpu-vm.c</span>
+<span class="p_chunk">@@ -20,28 +20,6 @@</span> <span class="p_context"> static struct page *pcpu_chunk_page(struct pcpu_chunk *chunk,</span>
+ }
+ 
+ /**
+<span class="p_del">- * pcpu_get_pages - get temp pages array</span>
+<span class="p_del">- *</span>
+<span class="p_del">- * Returns pointer to array of pointers to struct page which can be indexed</span>
+<span class="p_del">- * with pcpu_page_idx().  Note that there is only one array and accesses</span>
+<span class="p_del">- * should be serialized by pcpu_alloc_mutex.</span>
+<span class="p_del">- *</span>
+<span class="p_del">- * RETURNS:</span>
+<span class="p_del">- * Pointer to temp pages array on success.</span>
+<span class="p_del">- */</span>
+<span class="p_del">-static struct page **pcpu_get_pages(void)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	static struct page **pages;</span>
+<span class="p_del">-	size_t pages_size = pcpu_nr_units * pcpu_unit_pages * sizeof(pages[0]);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	lockdep_assert_held(&amp;pcpu_alloc_mutex);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	if (!pages)</span>
+<span class="p_del">-		pages = pcpu_mem_zalloc(pages_size);</span>
+<span class="p_del">-	return pages;</span>
+<span class="p_del">-}</span>
+<span class="p_del">-</span>
+<span class="p_del">-/**</span>
+  * pcpu_free_pages - free pages which were allocated for @chunk
+  * @chunk: chunk pages were allocated for
+  * @pages: array of pages to be freed, indexed by pcpu_page_idx()
+<span class="p_chunk">@@ -73,15 +51,16 @@</span> <span class="p_context"> static void pcpu_free_pages(struct pcpu_chunk *chunk,</span>
+  * @pages: array to put the allocated pages into, indexed by pcpu_page_idx()
+  * @page_start: page index of the first page to be allocated
+  * @page_end: page index of the last page to be allocated + 1
+<span class="p_add">+ * @gfp: gfp flags</span>
+  *
+  * Allocate pages [@page_start,@page_end) into @pages for all units.
+  * The allocation is for @chunk.  Percpu core doesn&#39;t care about the
+  * content of @pages and will pass it verbatim to pcpu_map_pages().
+  */
+ static int pcpu_alloc_pages(struct pcpu_chunk *chunk,
+<span class="p_del">-			    struct page **pages, int page_start, int page_end)</span>
+<span class="p_add">+			    struct page **pages, int page_start, int page_end,</span>
+<span class="p_add">+			    gfp_t gfp)</span>
+ {
+<span class="p_del">-	const gfp_t gfp = GFP_KERNEL | __GFP_HIGHMEM | __GFP_COLD;</span>
+ 	unsigned int cpu, tcpu;
+ 	int i;
+ 
+<span class="p_chunk">@@ -135,38 +114,6 @@</span> <span class="p_context"> static void __pcpu_unmap_pages(unsigned long addr, int nr_pages)</span>
+ }
+ 
+ /**
+<span class="p_del">- * pcpu_unmap_pages - unmap pages out of a pcpu_chunk</span>
+<span class="p_del">- * @chunk: chunk of interest</span>
+<span class="p_del">- * @pages: pages array which can be used to pass information to free</span>
+<span class="p_del">- * @page_start: page index of the first page to unmap</span>
+<span class="p_del">- * @page_end: page index of the last page to unmap + 1</span>
+<span class="p_del">- *</span>
+<span class="p_del">- * For each cpu, unmap pages [@page_start,@page_end) out of @chunk.</span>
+<span class="p_del">- * Corresponding elements in @pages were cleared by the caller and can</span>
+<span class="p_del">- * be used to carry information to pcpu_free_pages() which will be</span>
+<span class="p_del">- * called after all unmaps are finished.  The caller should call</span>
+<span class="p_del">- * proper pre/post flush functions.</span>
+<span class="p_del">- */</span>
+<span class="p_del">-static void pcpu_unmap_pages(struct pcpu_chunk *chunk,</span>
+<span class="p_del">-			     struct page **pages, int page_start, int page_end)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	unsigned int cpu;</span>
+<span class="p_del">-	int i;</span>
+<span class="p_del">-</span>
+<span class="p_del">-	for_each_possible_cpu(cpu) {</span>
+<span class="p_del">-		for (i = page_start; i &lt; page_end; i++) {</span>
+<span class="p_del">-			struct page *page;</span>
+<span class="p_del">-</span>
+<span class="p_del">-			page = pcpu_chunk_page(chunk, cpu, i);</span>
+<span class="p_del">-			WARN_ON(!page);</span>
+<span class="p_del">-			pages[pcpu_page_idx(cpu, i)] = page;</span>
+<span class="p_del">-		}</span>
+<span class="p_del">-		__pcpu_unmap_pages(pcpu_chunk_addr(chunk, cpu, page_start),</span>
+<span class="p_del">-				   page_end - page_start);</span>
+<span class="p_del">-	}</span>
+<span class="p_del">-}</span>
+<span class="p_del">-</span>
+<span class="p_del">-/**</span>
+  * pcpu_post_unmap_tlb_flush - flush TLB after unmapping
+  * @chunk: pcpu_chunk the regions to be flushed belong to
+  * @page_start: page index of the first page to be flushed
+<span class="p_chunk">@@ -262,32 +209,38 @@</span> <span class="p_context"> static void pcpu_post_map_flush(struct pcpu_chunk *chunk,</span>
+  * @chunk: chunk of interest
+  * @page_start: the start page
+  * @page_end: the end page
+<span class="p_add">+ * @gfp: gfp flags</span>
+  *
+  * For each cpu, populate and map pages [@page_start,@page_end) into
+  * @chunk.
+<span class="p_del">- *</span>
+<span class="p_del">- * CONTEXT:</span>
+<span class="p_del">- * pcpu_alloc_mutex, does GFP_KERNEL allocation.</span>
+  */
+ static int pcpu_populate_chunk(struct pcpu_chunk *chunk,
+<span class="p_del">-			       int page_start, int page_end)</span>
+<span class="p_add">+			       int page_start, int page_end, gfp_t gfp)</span>
+ {
+ 	struct page **pages;
+<span class="p_add">+	size_t pages_size = pcpu_nr_units * pcpu_unit_pages * sizeof(pages[0]);</span>
+<span class="p_add">+	int ret;</span>
+ 
+<span class="p_del">-	pages = pcpu_get_pages();</span>
+<span class="p_add">+	pages = pcpu_mem_zalloc(pages_size, gfp);</span>
+ 	if (!pages)
+ 		return -ENOMEM;
+ 
+<span class="p_del">-	if (pcpu_alloc_pages(chunk, pages, page_start, page_end))</span>
+<span class="p_del">-		return -ENOMEM;</span>
+<span class="p_add">+	if (pcpu_alloc_pages(chunk, pages, page_start, page_end,</span>
+<span class="p_add">+			     gfp | __GFP_HIGHMEM | __GFP_COLD)) {</span>
+<span class="p_add">+		ret = -ENOMEM;</span>
+<span class="p_add">+		goto out;</span>
+<span class="p_add">+	}</span>
+ 
+ 	if (pcpu_map_pages(chunk, pages, page_start, page_end)) {
+ 		pcpu_free_pages(chunk, pages, page_start, page_end);
+<span class="p_del">-		return -ENOMEM;</span>
+<span class="p_add">+		ret = -ENOMEM;</span>
+<span class="p_add">+		goto out;</span>
+ 	}
+ 	pcpu_post_map_flush(chunk, page_start, page_end);
+<span class="p_del">-</span>
+<span class="p_del">-	return 0;</span>
+<span class="p_add">+	ret = 0;</span>
+<span class="p_add">+out:</span>
+<span class="p_add">+	pcpu_mem_free(pages);</span>
+<span class="p_add">+	return ret;</span>
+ }
+ 
+ /**
+<span class="p_chunk">@@ -298,44 +251,40 @@</span> <span class="p_context"> static int pcpu_populate_chunk(struct pcpu_chunk *chunk,</span>
+  *
+  * For each cpu, depopulate and unmap pages [@page_start,@page_end)
+  * from @chunk.
+<span class="p_del">- *</span>
+<span class="p_del">- * CONTEXT:</span>
+<span class="p_del">- * pcpu_alloc_mutex.</span>
+  */
+ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk,
+ 				  int page_start, int page_end)
+ {
+<span class="p_del">-	struct page **pages;</span>
+<span class="p_del">-</span>
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * If control reaches here, there must have been at least one</span>
+<span class="p_del">-	 * successful population attempt so the temp pages array must</span>
+<span class="p_del">-	 * be available now.</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	pages = pcpu_get_pages();</span>
+<span class="p_del">-	BUG_ON(!pages);</span>
+<span class="p_add">+	unsigned int cpu;</span>
+<span class="p_add">+	int i;</span>
+ 
+<span class="p_del">-	/* unmap and free */</span>
+ 	pcpu_pre_unmap_flush(chunk, page_start, page_end);
+ 
+<span class="p_del">-	pcpu_unmap_pages(chunk, pages, page_start, page_end);</span>
+<span class="p_add">+	for_each_possible_cpu(cpu)</span>
+<span class="p_add">+		for (i = page_start; i &lt; page_end; i++) {</span>
+<span class="p_add">+			struct page *page;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			page = pcpu_chunk_page(chunk, cpu, i);</span>
+<span class="p_add">+			WARN_ON(!page);</span>
+ 
+<span class="p_del">-	/* no need to flush tlb, vmalloc will handle it lazily */</span>
+<span class="p_add">+			__pcpu_unmap_pages(pcpu_chunk_addr(chunk, cpu, i), 1);</span>
+ 
+<span class="p_del">-	pcpu_free_pages(chunk, pages, page_start, page_end);</span>
+<span class="p_add">+			if (likely(page))</span>
+<span class="p_add">+				__free_page(page);</span>
+<span class="p_add">+		}</span>
+ }
+ 
+<span class="p_del">-static struct pcpu_chunk *pcpu_create_chunk(void)</span>
+<span class="p_add">+static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp)</span>
+ {
+ 	struct pcpu_chunk *chunk;
+ 	struct vm_struct **vms;
+ 
+<span class="p_del">-	chunk = pcpu_alloc_chunk();</span>
+<span class="p_add">+	chunk = pcpu_alloc_chunk(gfp);</span>
+ 	if (!chunk)
+ 		return NULL;
+ 
+ 	vms = pcpu_get_vm_areas(pcpu_group_offsets, pcpu_group_sizes,
+<span class="p_del">-				pcpu_nr_groups, pcpu_atom_size);</span>
+<span class="p_add">+				pcpu_nr_groups, pcpu_atom_size, gfp);</span>
+ 	if (!vms) {
+ 		pcpu_free_chunk(chunk);
+ 		return NULL;
+<span class="p_header">diff --git a/mm/percpu.c b/mm/percpu.c</span>
+<span class="p_header">index 232356a2d914..f2cee0ae8688 100644</span>
+<span class="p_header">--- a/mm/percpu.c</span>
+<span class="p_header">+++ b/mm/percpu.c</span>
+<span class="p_chunk">@@ -103,6 +103,11 @@</span> <span class="p_context"></span>
+ #define __pcpu_ptr_to_addr(ptr)		(void __force *)(ptr)
+ #endif	/* CONFIG_SMP */
+ 
+<span class="p_add">+#define PCPU_BUSY_EXPAND_MAP		1	/* pcpu_alloc() is expanding the</span>
+<span class="p_add">+						 * the map</span>
+<span class="p_add">+						 */</span>
+<span class="p_add">+#define PCPU_BUSY_POPULATE_CHUNK	2	/* chunk is being populated */</span>
+<span class="p_add">+</span>
+ struct pcpu_chunk {
+ 	struct list_head	list;		/* linked to pcpu_slot lists */
+ 	int			free_size;	/* free bytes in the chunk */
+<span class="p_chunk">@@ -118,6 +123,7 @@</span> <span class="p_context"> struct pcpu_chunk {</span>
+ 	int			first_free;	/* no free below this */
+ 	bool			immutable;	/* no [de]population allowed */
+ 	int			nr_populated;	/* # of populated pages */
+<span class="p_add">+	int			busy_flags;	/* type of work in progress */</span>
+ 	unsigned long		populated[];	/* populated bitmap */
+ };
+ 
+<span class="p_chunk">@@ -162,7 +168,6 @@</span> <span class="p_context"> static struct pcpu_chunk *pcpu_reserved_chunk;</span>
+ static int pcpu_reserved_chunk_limit;
+ 
+ static DEFINE_SPINLOCK(pcpu_lock);	/* all internal data structures */
+<span class="p_del">-static DEFINE_MUTEX(pcpu_alloc_mutex);	/* chunk create/destroy, [de]pop, map ext */</span>
+ 
+ static struct list_head *pcpu_slot __read_mostly; /* chunk list slots */
+ 
+<span class="p_chunk">@@ -282,29 +287,31 @@</span> <span class="p_context"> static void __maybe_unused pcpu_next_pop(struct pcpu_chunk *chunk,</span>
+ 	     (rs) &lt; (re);						    \
+ 	     (rs) = (re) + 1, pcpu_next_pop((chunk), &amp;(rs), &amp;(re), (end)))
+ 
+<span class="p_add">+static bool pcpu_has_unpop_pages(struct pcpu_chunk *chunk, int start, int end)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return find_next_zero_bit(chunk-&gt;populated, end, start) &lt; end;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ /**
+  * pcpu_mem_zalloc - allocate memory
+  * @size: bytes to allocate
+  *
+  * Allocate @size bytes.  If @size is smaller than PAGE_SIZE,
+<span class="p_del">- * kzalloc() is used; otherwise, vzalloc() is used.  The returned</span>
+<span class="p_add">+ * kzalloc() is used; otherwise, vmalloc_gfp() is used.  The returned</span>
+  * memory is always zeroed.
+  *
+<span class="p_del">- * CONTEXT:</span>
+<span class="p_del">- * Does GFP_KERNEL allocation.</span>
+<span class="p_del">- *</span>
+  * RETURNS:
+  * Pointer to the allocated area on success, NULL on failure.
+  */
+<span class="p_del">-static void *pcpu_mem_zalloc(size_t size)</span>
+<span class="p_add">+static void *pcpu_mem_zalloc(size_t size, gfp_t gfp)</span>
+ {
+ 	if (WARN_ON_ONCE(!slab_is_available()))
+ 		return NULL;
+ 
+ 	if (size &lt;= PAGE_SIZE)
+<span class="p_del">-		return kzalloc(size, GFP_KERNEL);</span>
+<span class="p_add">+		return kzalloc(size, gfp);</span>
+ 	else
+<span class="p_del">-		return vzalloc(size);</span>
+<span class="p_add">+		return vmalloc_gfp(size, gfp | __GFP_HIGHMEM | __GFP_ZERO);</span>
+ }
+ 
+ /**
+<span class="p_chunk">@@ -438,15 +445,14 @@</span> <span class="p_context"> static int pcpu_need_to_extend(struct pcpu_chunk *chunk, bool is_atomic)</span>
+  * RETURNS:
+  * 0 on success, -errno on failure.
+  */
+<span class="p_del">-static int pcpu_extend_area_map(struct pcpu_chunk *chunk, int new_alloc)</span>
+<span class="p_add">+static int pcpu_extend_area_map(struct pcpu_chunk *chunk, int new_alloc,</span>
+<span class="p_add">+				gfp_t gfp)</span>
+ {
+ 	int *old = NULL, *new = NULL;
+ 	size_t old_size = 0, new_size = new_alloc * sizeof(new[0]);
+ 	unsigned long flags;
+ 
+<span class="p_del">-	lockdep_assert_held(&amp;pcpu_alloc_mutex);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	new = pcpu_mem_zalloc(new_size);</span>
+<span class="p_add">+	new = pcpu_mem_zalloc(new_size, gfp);</span>
+ 	if (!new)
+ 		return -ENOMEM;
+ 
+<span class="p_chunk">@@ -716,16 +722,16 @@</span> <span class="p_context"> static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme,</span>
+ 	pcpu_chunk_relocate(chunk, oslot);
+ }
+ 
+<span class="p_del">-static struct pcpu_chunk *pcpu_alloc_chunk(void)</span>
+<span class="p_add">+static struct pcpu_chunk *pcpu_alloc_chunk(gfp_t gfp)</span>
+ {
+ 	struct pcpu_chunk *chunk;
+ 
+<span class="p_del">-	chunk = pcpu_mem_zalloc(pcpu_chunk_struct_size);</span>
+<span class="p_add">+	chunk = pcpu_mem_zalloc(pcpu_chunk_struct_size, gfp);</span>
+ 	if (!chunk)
+ 		return NULL;
+ 
+ 	chunk-&gt;map = pcpu_mem_zalloc(PCPU_DFL_MAP_ALLOC *
+<span class="p_del">-						sizeof(chunk-&gt;map[0]));</span>
+<span class="p_add">+						sizeof(chunk-&gt;map[0]), gfp);</span>
+ 	if (!chunk-&gt;map) {
+ 		pcpu_mem_free(chunk);
+ 		return NULL;
+<span class="p_chunk">@@ -811,9 +817,10 @@</span> <span class="p_context"> static void pcpu_chunk_depopulated(struct pcpu_chunk *chunk,</span>
+  * pcpu_addr_to_page		- translate address to physical address
+  * pcpu_verify_alloc_info	- check alloc_info is acceptable during init
+  */
+<span class="p_del">-static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size);</span>
+<span class="p_add">+static int pcpu_populate_chunk(struct pcpu_chunk *chunk, int off, int size,</span>
+<span class="p_add">+			       gfp_t gfp);</span>
+ static void pcpu_depopulate_chunk(struct pcpu_chunk *chunk, int off, int size);
+<span class="p_del">-static struct pcpu_chunk *pcpu_create_chunk(void);</span>
+<span class="p_add">+static struct pcpu_chunk *pcpu_create_chunk(gfp_t gfp);</span>
+ static void pcpu_destroy_chunk(struct pcpu_chunk *chunk);
+ static struct page *pcpu_addr_to_page(void *addr);
+ static int __init pcpu_verify_alloc_info(const struct pcpu_alloc_info *ai);
+<span class="p_chunk">@@ -874,6 +881,7 @@</span> <span class="p_context"> static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,</span>
+ 	bool is_atomic = (gfp &amp; GFP_KERNEL) != GFP_KERNEL;
+ 	int occ_pages = 0;
+ 	int slot, off, new_alloc, cpu, ret;
+<span class="p_add">+	int page_start, page_end;</span>
+ 	unsigned long flags;
+ 	void __percpu *ptr;
+ 
+<span class="p_chunk">@@ -893,9 +901,6 @@</span> <span class="p_context"> static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,</span>
+ 		return NULL;
+ 	}
+ 
+<span class="p_del">-	if (!is_atomic)</span>
+<span class="p_del">-		mutex_lock(&amp;pcpu_alloc_mutex);</span>
+<span class="p_del">-</span>
+ 	spin_lock_irqsave(&amp;pcpu_lock, flags);
+ 
+ 	/* serve reserved allocations from the reserved chunk if available */
+<span class="p_chunk">@@ -909,8 +914,7 @@</span> <span class="p_context"> static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,</span>
+ 
+ 		while ((new_alloc = pcpu_need_to_extend(chunk, is_atomic))) {
+ 			spin_unlock_irqrestore(&amp;pcpu_lock, flags);
+<span class="p_del">-			if (is_atomic ||</span>
+<span class="p_del">-			    pcpu_extend_area_map(chunk, new_alloc) &lt; 0) {</span>
+<span class="p_add">+			if (pcpu_extend_area_map(chunk, new_alloc, gfp) &lt; 0) {</span>
+ 				err = &quot;failed to extend area map of reserved chunk&quot;;
+ 				goto fail;
+ 			}
+<span class="p_chunk">@@ -933,17 +937,24 @@</span> <span class="p_context"> static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,</span>
+ 			if (size &gt; chunk-&gt;contig_hint)
+ 				continue;
+ 
+<span class="p_add">+			if (chunk-&gt;busy_flags &amp; PCPU_BUSY_POPULATE_CHUNK)</span>
+<span class="p_add">+				continue;</span>
+<span class="p_add">+</span>
+ 			new_alloc = pcpu_need_to_extend(chunk, is_atomic);
+ 			if (new_alloc) {
+<span class="p_del">-				if (is_atomic)</span>
+<span class="p_del">-					continue;</span>
+<span class="p_add">+				chunk-&gt;busy_flags |= PCPU_BUSY_EXPAND_MAP;</span>
+ 				spin_unlock_irqrestore(&amp;pcpu_lock, flags);
+<span class="p_del">-				if (pcpu_extend_area_map(chunk,</span>
+<span class="p_del">-							 new_alloc) &lt; 0) {</span>
+<span class="p_add">+</span>
+<span class="p_add">+				ret = pcpu_extend_area_map(chunk, new_alloc,</span>
+<span class="p_add">+							   gfp);</span>
+<span class="p_add">+				spin_lock_irqsave(&amp;pcpu_lock, flags);</span>
+<span class="p_add">+				chunk-&gt;busy_flags &amp;= ~PCPU_BUSY_EXPAND_MAP;</span>
+<span class="p_add">+				if (ret &lt; 0) {</span>
+<span class="p_add">+					spin_unlock_irqrestore(&amp;pcpu_lock,</span>
+<span class="p_add">+							       flags);</span>
+ 					err = &quot;failed to extend area map&quot;;
+ 					goto fail;
+ 				}
+<span class="p_del">-				spin_lock_irqsave(&amp;pcpu_lock, flags);</span>
+ 				/*
+ 				 * pcpu_lock has been dropped, need to
+ 				 * restart cpu_slot list walking.
+<span class="p_chunk">@@ -953,53 +964,59 @@</span> <span class="p_context"> static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,</span>
+ 
+ 			off = pcpu_alloc_area(chunk, size, align, is_atomic,
+ 					      &amp;occ_pages);
+<span class="p_add">+			if (off &lt; 0 &amp;&amp; is_atomic) {</span>
+<span class="p_add">+				/* Try non-populated areas. */</span>
+<span class="p_add">+				off = pcpu_alloc_area(chunk, size, align, false,</span>
+<span class="p_add">+						      &amp;occ_pages);</span>
+<span class="p_add">+			}</span>
+<span class="p_add">+</span>
+ 			if (off &gt;= 0)
+ 				goto area_found;
+ 		}
+ 	}
+ 
+<span class="p_add">+	WARN_ON(!list_empty(&amp;pcpu_slot[pcpu_nr_slots - 1]));</span>
+<span class="p_add">+</span>
+ 	spin_unlock_irqrestore(&amp;pcpu_lock, flags);
+ 
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * No space left.  Create a new chunk.  We don&#39;t want multiple</span>
+<span class="p_del">-	 * tasks to create chunks simultaneously.  Serialize and create iff</span>
+<span class="p_del">-	 * there&#39;s still no empty chunk after grabbing the mutex.</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	if (is_atomic)</span>
+<span class="p_add">+	chunk = pcpu_create_chunk(gfp);</span>
+<span class="p_add">+	if (!chunk) {</span>
+<span class="p_add">+		err = &quot;failed to allocate new chunk&quot;;</span>
+ 		goto fail;
+<span class="p_add">+	}</span>
+ 
+<span class="p_del">-	if (list_empty(&amp;pcpu_slot[pcpu_nr_slots - 1])) {</span>
+<span class="p_del">-		chunk = pcpu_create_chunk();</span>
+<span class="p_del">-		if (!chunk) {</span>
+<span class="p_del">-			err = &quot;failed to allocate new chunk&quot;;</span>
+<span class="p_del">-			goto fail;</span>
+<span class="p_del">-		}</span>
+<span class="p_add">+	spin_lock_irqsave(&amp;pcpu_lock, flags);</span>
+ 
+<span class="p_del">-		spin_lock_irqsave(&amp;pcpu_lock, flags);</span>
+<span class="p_add">+	/* Check whether someone else added a chunk while lock was</span>
+<span class="p_add">+	 * dropped.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (list_empty(&amp;pcpu_slot[pcpu_nr_slots - 1]))</span>
+ 		pcpu_chunk_relocate(chunk, -1);
+<span class="p_del">-	} else {</span>
+<span class="p_del">-		spin_lock_irqsave(&amp;pcpu_lock, flags);</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+	else</span>
+<span class="p_add">+		pcpu_destroy_chunk(chunk);</span>
+ 
+ 	goto restart;
+ 
+ area_found:
+<span class="p_del">-	spin_unlock_irqrestore(&amp;pcpu_lock, flags);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	page_start = PFN_DOWN(off);</span>
+<span class="p_add">+	page_end = PFN_UP(off + size);</span>
+ 
+ 	/* populate if not all pages are already there */
+<span class="p_del">-	if (!is_atomic) {</span>
+<span class="p_del">-		int page_start, page_end, rs, re;</span>
+<span class="p_add">+	if (pcpu_has_unpop_pages(chunk, page_start, page_end)) {</span>
+<span class="p_add">+		int rs, re;</span>
+ 
+<span class="p_del">-		page_start = PFN_DOWN(off);</span>
+<span class="p_del">-		page_end = PFN_UP(off + size);</span>
+<span class="p_add">+		chunk-&gt;busy_flags |= PCPU_BUSY_POPULATE_CHUNK;</span>
+<span class="p_add">+		spin_unlock_irqrestore(&amp;pcpu_lock, flags);</span>
+ 
+ 		pcpu_for_each_unpop_region(chunk, rs, re, page_start, page_end) {
+ 			WARN_ON(chunk-&gt;immutable);
+ 
+<span class="p_del">-			ret = pcpu_populate_chunk(chunk, rs, re);</span>
+<span class="p_add">+			ret = pcpu_populate_chunk(chunk, rs, re, gfp);</span>
+ 
+ 			spin_lock_irqsave(&amp;pcpu_lock, flags);
+ 			if (ret) {
+<span class="p_add">+				chunk-&gt;busy_flags &amp;= ~PCPU_BUSY_POPULATE_CHUNK;</span>
+ 				pcpu_free_area(chunk, off, &amp;occ_pages);
+ 				err = &quot;failed to populate&quot;;
+ 				goto fail_unlock;
+<span class="p_chunk">@@ -1008,18 +1025,18 @@</span> <span class="p_context"> static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,</span>
+ 			spin_unlock_irqrestore(&amp;pcpu_lock, flags);
+ 		}
+ 
+<span class="p_del">-		mutex_unlock(&amp;pcpu_alloc_mutex);</span>
+<span class="p_add">+		spin_lock_irqsave(&amp;pcpu_lock, flags);</span>
+<span class="p_add">+		chunk-&gt;busy_flags &amp;= ~PCPU_BUSY_POPULATE_CHUNK;</span>
+ 	}
+ 
+<span class="p_del">-	if (chunk != pcpu_reserved_chunk) {</span>
+<span class="p_del">-		spin_lock_irqsave(&amp;pcpu_lock, flags);</span>
+<span class="p_add">+	if (chunk != pcpu_reserved_chunk)</span>
+ 		pcpu_nr_empty_pop_pages -= occ_pages;
+<span class="p_del">-		spin_unlock_irqrestore(&amp;pcpu_lock, flags);</span>
+<span class="p_del">-	}</span>
+ 
+ 	if (pcpu_nr_empty_pop_pages &lt; PCPU_EMPTY_POP_PAGES_LOW)
+ 		pcpu_schedule_balance_work();
+ 
+<span class="p_add">+	spin_unlock_irqrestore(&amp;pcpu_lock, flags);</span>
+<span class="p_add">+</span>
+ 	/* clear the areas and return address relative to base address */
+ 	for_each_possible_cpu(cpu)
+ 		memset((void *)pcpu_chunk_addr(chunk, cpu, 0) + off, 0, size);
+<span class="p_chunk">@@ -1042,8 +1059,6 @@</span> <span class="p_context"> static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,</span>
+ 		/* see the flag handling in pcpu_blance_workfn() */
+ 		pcpu_atomic_alloc_failed = true;
+ 		pcpu_schedule_balance_work();
+<span class="p_del">-	} else {</span>
+<span class="p_del">-		mutex_unlock(&amp;pcpu_alloc_mutex);</span>
+ 	}
+ 	return NULL;
+ }
+<span class="p_chunk">@@ -1118,7 +1133,6 @@</span> <span class="p_context"> static void pcpu_balance_workfn(struct work_struct *work)</span>
+ 	 * There&#39;s no reason to keep around multiple unused chunks and VM
+ 	 * areas can be scarce.  Destroy all free chunks except for one.
+ 	 */
+<span class="p_del">-	mutex_lock(&amp;pcpu_alloc_mutex);</span>
+ 	spin_lock_irq(&amp;pcpu_lock);
+ 
+ 	list_for_each_entry_safe(chunk, next, free_head, list) {
+<span class="p_chunk">@@ -1128,6 +1142,10 @@</span> <span class="p_context"> static void pcpu_balance_workfn(struct work_struct *work)</span>
+ 		if (chunk == list_first_entry(free_head, struct pcpu_chunk, list))
+ 			continue;
+ 
+<span class="p_add">+		if (chunk-&gt;busy_flags &amp; (PCPU_BUSY_POPULATE_CHUNK |</span>
+<span class="p_add">+					 PCPU_BUSY_EXPAND_MAP))</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+</span>
+ 		list_del_init(&amp;chunk-&gt;map_extend_list);
+ 		list_move(&amp;chunk-&gt;list, &amp;to_free);
+ 	}
+<span class="p_chunk">@@ -1162,7 +1180,7 @@</span> <span class="p_context"> static void pcpu_balance_workfn(struct work_struct *work)</span>
+ 		spin_unlock_irq(&amp;pcpu_lock);
+ 
+ 		if (new_alloc)
+<span class="p_del">-			pcpu_extend_area_map(chunk, new_alloc);</span>
+<span class="p_add">+			pcpu_extend_area_map(chunk, new_alloc, GFP_KERNEL);</span>
+ 	} while (chunk);
+ 
+ 	/*
+<span class="p_chunk">@@ -1194,20 +1212,29 @@</span> <span class="p_context"> static void pcpu_balance_workfn(struct work_struct *work)</span>
+ 
+ 		spin_lock_irq(&amp;pcpu_lock);
+ 		list_for_each_entry(chunk, &amp;pcpu_slot[slot], list) {
+<span class="p_add">+			if (chunk-&gt;busy_flags &amp; PCPU_BUSY_POPULATE_CHUNK)</span>
+<span class="p_add">+				continue;</span>
+ 			nr_unpop = pcpu_unit_pages - chunk-&gt;nr_populated;
+ 			if (nr_unpop)
+ 				break;
+ 		}
+<span class="p_add">+</span>
+<span class="p_add">+		if (nr_unpop)</span>
+<span class="p_add">+			chunk-&gt;busy_flags |= PCPU_BUSY_POPULATE_CHUNK;</span>
+<span class="p_add">+</span>
+ 		spin_unlock_irq(&amp;pcpu_lock);
+ 
+ 		if (!nr_unpop)
+ 			continue;
+ 
+<span class="p_del">-		/* @chunk can&#39;t go away while pcpu_alloc_mutex is held */</span>
+<span class="p_add">+		/* @chunk can&#39;t go away because only pcpu_balance_workfn</span>
+<span class="p_add">+		 * destroys it.</span>
+<span class="p_add">+		 */</span>
+ 		pcpu_for_each_unpop_region(chunk, rs, re, 0, pcpu_unit_pages) {
+ 			int nr = min(re - rs, nr_to_pop);
+ 
+<span class="p_del">-			ret = pcpu_populate_chunk(chunk, rs, rs + nr);</span>
+<span class="p_add">+			ret = pcpu_populate_chunk(chunk, rs, rs + nr,</span>
+<span class="p_add">+						  GFP_KERNEL);</span>
+ 			if (!ret) {
+ 				nr_to_pop -= nr;
+ 				spin_lock_irq(&amp;pcpu_lock);
+<span class="p_chunk">@@ -1220,11 +1247,14 @@</span> <span class="p_context"> static void pcpu_balance_workfn(struct work_struct *work)</span>
+ 			if (!nr_to_pop)
+ 				break;
+ 		}
+<span class="p_add">+		spin_lock_irq(&amp;pcpu_lock);</span>
+<span class="p_add">+		chunk-&gt;busy_flags &amp;= ~PCPU_BUSY_POPULATE_CHUNK;</span>
+<span class="p_add">+		spin_unlock_irq(&amp;pcpu_lock);</span>
+ 	}
+ 
+ 	if (nr_to_pop) {
+ 		/* ran out of chunks to populate, create a new one and retry */
+<span class="p_del">-		chunk = pcpu_create_chunk();</span>
+<span class="p_add">+		chunk = pcpu_create_chunk(GFP_KERNEL);</span>
+ 		if (chunk) {
+ 			spin_lock_irq(&amp;pcpu_lock);
+ 			pcpu_chunk_relocate(chunk, -1);
+<span class="p_chunk">@@ -1232,8 +1262,6 @@</span> <span class="p_context"> static void pcpu_balance_workfn(struct work_struct *work)</span>
+ 			goto retry_pop;
+ 		}
+ 	}
+<span class="p_del">-</span>
+<span class="p_del">-	mutex_unlock(&amp;pcpu_alloc_mutex);</span>
+ }
+ 
+ /**
+<span class="p_chunk">@@ -2297,7 +2325,7 @@</span> <span class="p_context"> void __init percpu_init_late(void)</span>
+ 
+ 		BUILD_BUG_ON(size &gt; PAGE_SIZE);
+ 
+<span class="p_del">-		map = pcpu_mem_zalloc(size);</span>
+<span class="p_add">+		map = pcpu_mem_zalloc(size, GFP_KERNEL);</span>
+ 		BUG_ON(!map);
+ 
+ 		spin_lock_irqsave(&amp;pcpu_lock, flags);
+<span class="p_header">diff --git a/mm/vmalloc.c b/mm/vmalloc.c</span>
+<span class="p_header">index d89034a393f2..01abc9ed5224 100644</span>
+<span class="p_header">--- a/mm/vmalloc.c</span>
+<span class="p_header">+++ b/mm/vmalloc.c</span>
+<span class="p_chunk">@@ -360,6 +360,7 @@</span> <span class="p_context"> static struct vmap_area *alloc_vmap_area(unsigned long size,</span>
+ 	unsigned long addr;
+ 	int purged = 0;
+ 	struct vmap_area *first;
+<span class="p_add">+	unsigned long flags;</span>
+ 
+ 	BUG_ON(!size);
+ 	BUG_ON(offset_in_page(size));
+<span class="p_chunk">@@ -379,7 +380,7 @@</span> <span class="p_context"> static struct vmap_area *alloc_vmap_area(unsigned long size,</span>
+ 	kmemleak_scan_area(&amp;va-&gt;rb_node, SIZE_MAX, gfp_mask &amp; GFP_RECLAIM_MASK);
+ 
+ retry:
+<span class="p_del">-	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	spin_lock_irqsave(&amp;vmap_area_lock, flags);</span>
+ 	/*
+ 	 * Invalidate cache if we have more permissive parameters.
+ 	 * cached_hole_size notes the largest hole noticed _below_
+<span class="p_chunk">@@ -457,7 +458,7 @@</span> <span class="p_context"> static struct vmap_area *alloc_vmap_area(unsigned long size,</span>
+ 	va-&gt;flags = 0;
+ 	__insert_vmap_area(va);
+ 	free_vmap_cache = &amp;va-&gt;rb_node;
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	spin_unlock_irqrestore(&amp;vmap_area_lock, flags);</span>
+ 
+ 	BUG_ON(!IS_ALIGNED(va-&gt;va_start, align));
+ 	BUG_ON(va-&gt;va_start &lt; vstart);
+<span class="p_chunk">@@ -466,7 +467,7 @@</span> <span class="p_context"> static struct vmap_area *alloc_vmap_area(unsigned long size,</span>
+ 	return va;
+ 
+ overflow:
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	spin_unlock_irqrestore(&amp;vmap_area_lock, flags);</span>
+ 	if (!purged) {
+ 		purge_vmap_area_lazy();
+ 		purged = 1;
+<span class="p_chunk">@@ -541,9 +542,11 @@</span> <span class="p_context"> static void __free_vmap_area(struct vmap_area *va)</span>
+  */
+ static void free_vmap_area(struct vmap_area *va)
+ {
+<span class="p_del">-	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	unsigned long flags;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	spin_lock_irqsave(&amp;vmap_area_lock, flags);</span>
+ 	__free_vmap_area(va);
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	spin_unlock_irqrestore(&amp;vmap_area_lock, flags);</span>
+ }
+ 
+ /*
+<span class="p_chunk">@@ -629,6 +632,7 @@</span> <span class="p_context"> static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)</span>
+ 	struct vmap_area *va;
+ 	struct vmap_area *n_va;
+ 	bool do_free = false;
+<span class="p_add">+	unsigned long flags;</span>
+ 
+ 	lockdep_assert_held(&amp;vmap_purge_lock);
+ 
+<span class="p_chunk">@@ -646,15 +650,17 @@</span> <span class="p_context"> static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)</span>
+ 
+ 	flush_tlb_kernel_range(start, end);
+ 
+<span class="p_del">-	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	spin_lock_irqsave(&amp;vmap_area_lock, flags);</span>
+ 	llist_for_each_entry_safe(va, n_va, valist, purge_list) {
+ 		int nr = (va-&gt;va_end - va-&gt;va_start) &gt;&gt; PAGE_SHIFT;
+ 
+ 		__free_vmap_area(va);
+ 		atomic_sub(nr, &amp;vmap_lazy_nr);
+<span class="p_del">-		cond_resched_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+		spin_unlock_irqrestore(&amp;vmap_area_lock, flags);</span>
+<span class="p_add">+		cond_resched();</span>
+<span class="p_add">+		spin_lock_irqsave(&amp;vmap_area_lock, flags);</span>
+ 	}
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	spin_unlock_irqrestore(&amp;vmap_area_lock, flags);</span>
+ 	return true;
+ }
+ 
+<span class="p_chunk">@@ -713,10 +719,11 @@</span> <span class="p_context"> static void free_unmap_vmap_area(struct vmap_area *va)</span>
+ static struct vmap_area *find_vmap_area(unsigned long addr)
+ {
+ 	struct vmap_area *va;
+<span class="p_add">+	unsigned long flags;</span>
+ 
+<span class="p_del">-	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	spin_lock_irqsave(&amp;vmap_area_lock, flags);</span>
+ 	va = __find_vmap_area(addr);
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	spin_unlock_irqrestore(&amp;vmap_area_lock, flags);</span>
+ 
+ 	return va;
+ }
+<span class="p_chunk">@@ -1313,14 +1320,16 @@</span> <span class="p_context"> EXPORT_SYMBOL_GPL(map_vm_area);</span>
+ static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
+ 			      unsigned long flags, const void *caller)
+ {
+<span class="p_del">-	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	unsigned long irq_flags;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	spin_lock_irqsave(&amp;vmap_area_lock, irq_flags);</span>
+ 	vm-&gt;flags = flags;
+ 	vm-&gt;addr = (void *)va-&gt;va_start;
+ 	vm-&gt;size = va-&gt;va_end - va-&gt;va_start;
+ 	vm-&gt;caller = caller;
+ 	va-&gt;vm = vm;
+ 	va-&gt;flags |= VM_VM_AREA;
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	spin_unlock_irqrestore(&amp;vmap_area_lock, irq_flags);</span>
+ }
+ 
+ static void clear_vm_uninitialized_flag(struct vm_struct *vm)
+<span class="p_chunk">@@ -1443,11 +1452,12 @@</span> <span class="p_context"> struct vm_struct *remove_vm_area(const void *addr)</span>
+ 	va = find_vmap_area((unsigned long)addr);
+ 	if (va &amp;&amp; va-&gt;flags &amp; VM_VM_AREA) {
+ 		struct vm_struct *vm = va-&gt;vm;
+<span class="p_add">+		unsigned long flags;</span>
+ 
+<span class="p_del">-		spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+		spin_lock_irqsave(&amp;vmap_area_lock, flags);</span>
+ 		va-&gt;vm = NULL;
+ 		va-&gt;flags &amp;= ~VM_VM_AREA;
+<span class="p_del">-		spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+		spin_unlock_irqrestore(&amp;vmap_area_lock, flags);</span>
+ 
+ 		vmap_debug_free_range(va-&gt;va_start, va-&gt;va_end);
+ 		kasan_free_shadow(vm);
+<span class="p_chunk">@@ -1858,6 +1868,11 @@</span> <span class="p_context"> void *vzalloc_node(unsigned long size, int node)</span>
+ }
+ EXPORT_SYMBOL(vzalloc_node);
+ 
+<span class="p_add">+void *vmalloc_gfp(unsigned long size, gfp_t gfp_mask)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return __vmalloc_node_flags(size, NUMA_NO_NODE, gfp_mask);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ #ifndef PAGE_KERNEL_EXEC
+ # define PAGE_KERNEL_EXEC PAGE_KERNEL
+ #endif
+<span class="p_chunk">@@ -2038,12 +2053,13 @@</span> <span class="p_context"> long vread(char *buf, char *addr, unsigned long count)</span>
+ 	char *vaddr, *buf_start = buf;
+ 	unsigned long buflen = count;
+ 	unsigned long n;
+<span class="p_add">+	unsigned long flags;</span>
+ 
+ 	/* Don&#39;t allow overflow */
+ 	if ((unsigned long) addr + count &lt; count)
+ 		count = -(unsigned long) addr;
+ 
+<span class="p_del">-	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	spin_lock_irqsave(&amp;vmap_area_lock, flags);</span>
+ 	list_for_each_entry(va, &amp;vmap_area_list, list) {
+ 		if (!count)
+ 			break;
+<span class="p_chunk">@@ -2075,7 +2091,7 @@</span> <span class="p_context"> long vread(char *buf, char *addr, unsigned long count)</span>
+ 		count -= n;
+ 	}
+ finished:
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	spin_unlock_irqrestore(&amp;vmap_area_lock, flags);</span>
+ 
+ 	if (buf == buf_start)
+ 		return 0;
+<span class="p_chunk">@@ -2119,13 +2135,14 @@</span> <span class="p_context"> long vwrite(char *buf, char *addr, unsigned long count)</span>
+ 	char *vaddr;
+ 	unsigned long n, buflen;
+ 	int copied = 0;
+<span class="p_add">+	unsigned long flags;</span>
+ 
+ 	/* Don&#39;t allow overflow */
+ 	if ((unsigned long) addr + count &lt; count)
+ 		count = -(unsigned long) addr;
+ 	buflen = count;
+ 
+<span class="p_del">-	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	spin_lock_irqsave(&amp;vmap_area_lock, flags);</span>
+ 	list_for_each_entry(va, &amp;vmap_area_list, list) {
+ 		if (!count)
+ 			break;
+<span class="p_chunk">@@ -2156,7 +2173,7 @@</span> <span class="p_context"> long vwrite(char *buf, char *addr, unsigned long count)</span>
+ 		count -= n;
+ 	}
+ finished:
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	spin_unlock_irqrestore(&amp;vmap_area_lock, flags);</span>
+ 	if (!copied)
+ 		return 0;
+ 	return buflen;
+<span class="p_chunk">@@ -2416,7 +2433,7 @@</span> <span class="p_context"> static unsigned long pvm_determine_end(struct vmap_area **pnext,</span>
+  */
+ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
+ 				     const size_t *sizes, int nr_vms,
+<span class="p_del">-				     size_t align)</span>
+<span class="p_add">+				     size_t align, gfp_t gfp_mask)</span>
+ {
+ 	const unsigned long vmalloc_start = ALIGN(VMALLOC_START, align);
+ 	const unsigned long vmalloc_end = VMALLOC_END &amp; ~(align - 1);
+<span class="p_chunk">@@ -2425,6 +2442,7 @@</span> <span class="p_context"> struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,</span>
+ 	int area, area2, last_area, term_area;
+ 	unsigned long base, start, end, last_end;
+ 	bool purged = false;
+<span class="p_add">+	unsigned long flags;</span>
+ 
+ 	/* verify parameters and allocate data structures */
+ 	BUG_ON(offset_in_page(align) || !is_power_of_2(align));
+<span class="p_chunk">@@ -2458,19 +2476,19 @@</span> <span class="p_context"> struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,</span>
+ 		return NULL;
+ 	}
+ 
+<span class="p_del">-	vms = kcalloc(nr_vms, sizeof(vms[0]), GFP_KERNEL);</span>
+<span class="p_del">-	vas = kcalloc(nr_vms, sizeof(vas[0]), GFP_KERNEL);</span>
+<span class="p_add">+	vms = kcalloc(nr_vms, sizeof(vms[0]), gfp_mask);</span>
+<span class="p_add">+	vas = kcalloc(nr_vms, sizeof(vas[0]), gfp_mask);</span>
+ 	if (!vas || !vms)
+ 		goto err_free2;
+ 
+ 	for (area = 0; area &lt; nr_vms; area++) {
+<span class="p_del">-		vas[area] = kzalloc(sizeof(struct vmap_area), GFP_KERNEL);</span>
+<span class="p_del">-		vms[area] = kzalloc(sizeof(struct vm_struct), GFP_KERNEL);</span>
+<span class="p_add">+		vas[area] = kzalloc(sizeof(struct vmap_area), gfp_mask);</span>
+<span class="p_add">+		vms[area] = kzalloc(sizeof(struct vm_struct), gfp_mask);</span>
+ 		if (!vas[area] || !vms[area])
+ 			goto err_free;
+ 	}
+ retry:
+<span class="p_del">-	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	spin_lock_irqsave(&amp;vmap_area_lock, flags);</span>
+ 
+ 	/* start scanning - we scan from the top, begin with the last area */
+ 	area = term_area = last_area;
+<span class="p_chunk">@@ -2492,7 +2510,7 @@</span> <span class="p_context"> struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,</span>
+ 		 * comparing.
+ 		 */
+ 		if (base + last_end &lt; vmalloc_start + last_end) {
+<span class="p_del">-			spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+			spin_unlock_irqrestore(&amp;vmap_area_lock, flags);</span>
+ 			if (!purged) {
+ 				purge_vmap_area_lazy();
+ 				purged = true;
+<span class="p_chunk">@@ -2547,7 +2565,7 @@</span> <span class="p_context"> struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,</span>
+ 
+ 	vmap_area_pcpu_hole = base + offsets[last_area];
+ 
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	spin_unlock_irqrestore(&amp;vmap_area_lock, flags);</span>
+ 
+ 	/* insert all vm&#39;s */
+ 	for (area = 0; area &lt; nr_vms; area++)
+<span class="p_chunk">@@ -2589,7 +2607,7 @@</span> <span class="p_context"> void pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)</span>
+ static void *s_start(struct seq_file *m, loff_t *pos)
+ 	__acquires(&amp;vmap_area_lock)
+ {
+<span class="p_del">-	spin_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	spin_lock_irq(&amp;vmap_area_lock);</span>
+ 	return seq_list_start(&amp;vmap_area_list, *pos);
+ }
+ 
+<span class="p_chunk">@@ -2601,7 +2619,7 @@</span> <span class="p_context"> static void *s_next(struct seq_file *m, void *p, loff_t *pos)</span>
+ static void s_stop(struct seq_file *m, void *p)
+ 	__releases(&amp;vmap_area_lock)
+ {
+<span class="p_del">-	spin_unlock(&amp;vmap_area_lock);</span>
+<span class="p_add">+	spin_unlock_irq(&amp;vmap_area_lock);</span>
+ }
+ 
+ static void show_numa_info(struct seq_file *m, struct vm_struct *v)
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,271 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[08/18] mm, fork: make dup_mmap wait for mmap_sem for write killable - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [08/18] mm, fork: make dup_mmap wait for mmap_sem for write killable</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>April 26, 2016, 12:56 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1461675385-5934-9-git-send-email-mhocko@kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/8938311/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/8938311/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/8938311/">/patch/8938311/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id AC23DBF29F
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 26 Apr 2016 12:59:08 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 13D1420148
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 26 Apr 2016 12:59:08 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 30BC62013D
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 26 Apr 2016 12:59:07 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752743AbcDZM7C (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 26 Apr 2016 08:59:02 -0400
+Received: from mail-wm0-f68.google.com ([74.125.82.68]:35897 &quot;EHLO
+	mail-wm0-f68.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751507AbcDZM4i (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 26 Apr 2016 08:56:38 -0400
+Received: by mail-wm0-f68.google.com with SMTP id w143so4194426wmw.3
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Tue, 26 Apr 2016 05:56:38 -0700 (PDT)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20130820;
+	h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+	:references;
+	bh=gsts9B3ttAW+HdZCXf+xgyjYNpHL3bH83DrUUOvOkhs=;
+	b=OO3+n0Slg+ujT5TQUu3VNj7eS4p8DA3PuNGFC18+H5T7Iood+SbGH0AMiZ7/4kgY3l
+	ps7MmmHJwGTea3kkYfzSucTDeyRAekGwtr0Y4DnC6X0b8f6NwzMVGZtMTxEFJM1M/wTx
+	K5HnMVIjRRYyn8+k3dtXz5mOS5SHLwZH2aHVpHpOym43iOj7+ukAzWHVfZGYgOcdg7YG
+	CJxCuLtsc5DfapxPzXV2zbLHvubU3wVsj3lA6GgqRN4lWxLnSAAJW91tzMyFnNLGOaJf
+	Mstt94Qk+/xXJQD7eGLJWM3etq27EVzMO9FkON0bHLkJEfIVHg+IKNAJaXXN+juKLfjj
+	JGlg==
+X-Gm-Message-State: AOPr4FXuKe4ZUY+1T8JgC3Au2/YFLoUlF8JTUK3+EtHcrDP0qf2Mwz/BHNpllPR31Y+6vw==
+X-Received: by 10.28.137.14 with SMTP id l14mr3500378wmd.64.1461675397638;
+	Tue, 26 Apr 2016 05:56:37 -0700 (PDT)
+Received: from tiehlicka.suse.cz (nat1.scz.suse.com. [213.151.88.250])
+	by smtp.gmail.com with ESMTPSA id
+	gg7sm28836200wjd.10.2016.04.26.05.56.36
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+	Tue, 26 Apr 2016 05:56:37 -0700 (PDT)
+From: Michal Hocko &lt;mhocko@kernel.org&gt;
+To: &lt;linux-mm@kvack.org&gt;, Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: LKML &lt;linux-kernel@vger.kernel.org&gt;,
+	Michal Hocko &lt;mhocko@suse.com&gt;, Ingo Molnar &lt;mingo@kernel.org&gt;,
+	Peter Zijlstra &lt;peterz@infradead.org&gt;, Oleg Nesterov &lt;oleg@redhat.com&gt;,
+	Konstantin Khlebnikov &lt;koct9i@gmail.com&gt;,
+	Vlastimil Babka &lt;vbabka@suse.cz&gt;
+Subject: [PATCH 08/18] mm,
+	fork: make dup_mmap wait for mmap_sem for write killable
+Date: Tue, 26 Apr 2016 14:56:15 +0200
+Message-Id: &lt;1461675385-5934-9-git-send-email-mhocko@kernel.org&gt;
+X-Mailer: git-send-email 2.8.0.rc3
+In-Reply-To: &lt;1461675385-5934-1-git-send-email-mhocko@kernel.org&gt;
+References: &lt;1461675385-5934-1-git-send-email-mhocko@kernel.org&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-7.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - April 26, 2016, 12:56 p.m.</div>
+<pre class="content">
+<span class="from">From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+
+dup_mmap needs to lock current&#39;s mm mmap_sem for write. If the waiting
+task gets killed by the oom killer it would block oom_reaper from
+asynchronous address space reclaim and reduce the chances of timely OOM
+resolving. Wait for the lock in the killable mode and return with EINTR
+if the task got killed while waiting.
+
+Cc: Ingo Molnar &lt;mingo@kernel.org&gt;
+Cc: Peter Zijlstra &lt;peterz@infradead.org&gt;
+Cc: Oleg Nesterov &lt;oleg@redhat.com&gt;
+Cc: Konstantin Khlebnikov &lt;koct9i@gmail.com&gt;
+<span class="acked-by">Acked-by: Vlastimil Babka &lt;vbabka@suse.cz&gt;</span>
+<span class="signed-off-by">Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+---
+ kernel/fork.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/kernel/fork.c b/kernel/fork.c</span>
+<span class="p_header">index 4bb0a7a0fbe0..bb29839a7e1b 100644</span>
+<span class="p_header">--- a/kernel/fork.c</span>
+<span class="p_header">+++ b/kernel/fork.c</span>
+<span class="p_chunk">@@ -413,7 +413,10 @@</span> <span class="p_context"> static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)</span>
+ 	unsigned long charge;
+ 
+ 	uprobe_start_dup_mmap();
+<span class="p_del">-	down_write(&amp;oldmm-&gt;mmap_sem);</span>
+<span class="p_add">+	if (down_write_killable(&amp;oldmm-&gt;mmap_sem)) {</span>
+<span class="p_add">+		retval = -EINTR;</span>
+<span class="p_add">+		goto fail_uprobe_end;</span>
+<span class="p_add">+	}</span>
+ 	flush_cache_dup_mm(oldmm);
+ 	uprobe_dup_mmap(oldmm, mm);
+ 	/*
+<span class="p_chunk">@@ -525,6 +528,7 @@</span> <span class="p_context"> static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)</span>
+ 	up_write(&amp;mm-&gt;mmap_sem);
+ 	flush_tlb_mm(oldmm);
+ 	up_write(&amp;oldmm-&gt;mmap_sem);
+<span class="p_add">+fail_uprobe_end:</span>
+ 	uprobe_end_dup_mmap();
+ 	return retval;
+ fail_nomem_anon_vma_fork:
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

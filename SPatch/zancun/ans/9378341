@@ -1,0 +1,530 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v3] mm: vmalloc: Replace purge_lock spinlock with atomic refcount - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v3] mm: vmalloc: Replace purge_lock spinlock with atomic refcount</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=170577">Joel Fernandes</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Oct. 16, 2016, 10:06 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1476655575-6588-1-git-send-email-joelaf@google.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9378341/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9378341/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9378341/">/patch/9378341/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	45564600CA for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sun, 16 Oct 2016 22:07:26 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 28DA328DA9
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sun, 16 Oct 2016 22:07:26 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 092C828DAC; Sun, 16 Oct 2016 22:07:26 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.5 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID, DKIM_VALID_AU, RCVD_IN_DNSWL_HI,
+	RCVD_IN_SORBS_SPAM autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id B65AC28DA9
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sun, 16 Oct 2016 22:07:24 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1755853AbcJPWHT (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Sun, 16 Oct 2016 18:07:19 -0400
+Received: from mail-lf0-f48.google.com ([209.85.215.48]:36058 &quot;EHLO
+	mail-lf0-f48.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752934AbcJPWHO (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Sun, 16 Oct 2016 18:07:14 -0400
+Received: by mail-lf0-f48.google.com with SMTP id b75so253567467lfg.3
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Sun, 16 Oct 2016 15:07:13 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=google.com; s=20120113;
+	h=from:to:cc:subject:date:message-id:in-reply-to:references;
+	bh=cHV/bhE94igQBgfBTLC4rZvFKTJ3jebyzy84SVFa7eo=;
+	b=FtopjBZV0sRqvXpJIFYuxULBe2R1ay/TSymqL1ySdxA7sUn91Em+GFmMgoDPPxbP+h
+	FSo2jgzukVmHg5PxPfSPA1j4p6fFUApqsiOqy/yQ47dwrClT4tZQqOua++2jNapQjqNo
+	CWzUbwGPZALBJp6fDiaxTPemCT9NJLT2JVJZHVrnKHDDsivklDvhqCobdtvHEn+4AIm5
+	CLzLny5UPWZht2rbU/OicUvyyEsFG3fJqbkawrrtFH5ECLOt0tS61BuDHOYqmCnxdrBw
+	cPE83rorzUl4MY6Jytv2VY4DaJbMYNwRpd9x3iomLZfAIG7PMnTc7qDE5aulY5cbH922
+	iC9A==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20130820;
+	h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+	:references;
+	bh=cHV/bhE94igQBgfBTLC4rZvFKTJ3jebyzy84SVFa7eo=;
+	b=FgzAyTEfvOs2k2UNqQ5RWmItSnnZ9pbVMjAirsy8T34uRRuenGTS6wfgnpJW3BVlOx
+	/ExXB1Jo2xY8TBOzJ94IxoVWA2f8+6v14vhv+o7OCoSjKnvkyUA87xZQEIaomTuTXFPe
+	+ep1H0IO+tSYQj6VJRRUyJJo9R9MM1zCJ/TZD1+N0pRtNbVRBOOjpNNh8sO8+aV6ixG5
+	DkYjAT3PiAK05iH+epErwq+gGiZFVPhzFDAA8Jtbz0wh0O/du22SrzGRNFounjs5QW45
+	lqY2oZWCbC6tMwTDtW9u14C2m2XK5A7v2575qSA7Vqm57tCnCjoTz3Pr1BkalFvYnsxk
+	42fA==
+X-Gm-Message-State: AA6/9RlbDFsMUO0JijBTv48E18aJk7zHKDrr/sYCVEGPtDWhS/V3STJ4asmCCtRZVRXsUrgr
+X-Received: by 10.28.224.215 with SMTP id x206mr6559872wmg.77.1476655632461; 
+	Sun, 16 Oct 2016 15:07:12 -0700 (PDT)
+Received: from joelaf-glaptop0.rieo.lan ([94.186.205.19])
+	by smtp.gmail.com with ESMTPSA id
+	b8sm46622864wjq.40.2016.10.16.15.07.10
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+	Sun, 16 Oct 2016 15:07:11 -0700 (PDT)
+From: Joel Fernandes &lt;joelaf@google.com&gt;
+To: Christoph Hellwig &lt;hch@infradead.org&gt;
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-rt-users@vger.kernel.org, Joel Fernandes &lt;joelaf@google.com&gt;,
+	Chris Wilson &lt;chris@chris-wilson.co.uk&gt;,
+	Jisheng Zhang &lt;jszhang@marvell.com&gt;, John Dias &lt;joaodias@google.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Subject: Re: [PATCH v3] mm: vmalloc: Replace purge_lock spinlock with atomic
+	refcount
+Date: Sun, 16 Oct 2016 15:06:15 -0700
+Message-Id: &lt;1476655575-6588-1-git-send-email-joelaf@google.com&gt;
+X-Mailer: git-send-email 2.8.0.rc3.226.g39d4020
+In-Reply-To: &lt;20161016061057.GA26990@infradead.org&gt;
+References: &lt;20161016061057.GA26990@infradead.org&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=170577">Joel Fernandes</a> - Oct. 16, 2016, 10:06 p.m.</div>
+<pre class="content">
+On Sat, Oct 15, 2016 at 11:10 PM, Christoph Hellwig &lt;hch@infradead.org&gt; wrote:
+<span class="quote">&gt; On Sat, Oct 15, 2016 at 03:59:34PM -0700, Joel Fernandes wrote:</span>
+<span class="quote">&gt;&gt; Your patch changes the behavior of the original code I think.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; It does.  And it does so as I don&#39;t think the existing behavior makes</span>
+<span class="quote">&gt; sense, as mentioned in the changelog.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; With the</span>
+<span class="quote">&gt;&gt; patch, for the case where you have 2 concurrent tasks executing</span>
+<span class="quote">&gt;&gt; alloc_vmap_area function, say both hit the overflow label and enter</span>
+<span class="quote">&gt;&gt; the __purge_vmap_area_lazy at the same time. The first task empties</span>
+<span class="quote">&gt;&gt; the purge list and sets nr to the total number of pages of all the</span>
+<span class="quote">&gt;&gt; vmap areas in the list. Say the first task has just emptied the list</span>
+<span class="quote">&gt;&gt; but hasn&#39;t started freeing the vmap areas and is preempted at this</span>
+<span class="quote">&gt;&gt; point. Now the second task runs and since the purge list is empty, the</span>
+<span class="quote">&gt;&gt; second task doesn&#39;t have anything to do and immediately returns to</span>
+<span class="quote">&gt;&gt; alloc_vmap_area. Once it returns, it sets purged to 1 in</span>
+<span class="quote">&gt;&gt; alloc_vmap_area and retries. Say it hits overflow label again in the</span>
+<span class="quote">&gt;&gt; retry path. Now because purged was set to 1, it goes to err_free.</span>
+<span class="quote">&gt;&gt; Without your patch, it would have waited on the spin_lock (sync = 1)</span>
+<span class="quote">&gt;&gt; instead of just erroring out, so your patch does change the behavior</span>
+<span class="quote">&gt;&gt; of the original code by not using the purge_lock. I realize my patch</span>
+<span class="quote">&gt;&gt; also changes the behavior, but in mine I think we can make it behave</span>
+<span class="quote">&gt;&gt; like the original code by spinning until purging=0 (if sync = 1)</span>
+<span class="quote">&gt;&gt; because I still have the purging variable..</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; But for sync = 1 you don&#39;t spin on it in any way.  This is the logic</span>
+<span class="quote">&gt; in your patch:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;         if (!sync &amp;&amp; !force_flush) {</span>
+<span class="quote">&gt;                 if (atomic_cmpxchg(&amp;purging, 0, 1))</span>
+<span class="quote">&gt;                         return;</span>
+<span class="quote">&gt;         } else</span>
+<span class="quote">&gt;                 atomic_inc(&amp;purging);</span>
+
+I agree my patch doesn&#39;t spin too, I mentioned this above: &quot;I realize my patch
+also changes the behavior&quot;. However if you dont have too much of a problem with
+my use of atomics, then my below new patch handles the case for sync=1 and is
+identical in behavior to the original code while still fixing the preempt off
+latency issues.
+
+Your patch just got rid of sync completely, I&#39;m not sure if that&#39;s Ok to do?
+the alloc_vmap_area overflow case was assuming sync=1. The original
+alloc_vmap_area code calls purge with sync=1 and waits for pending purges to
+complete, instead of erroring out. I wanted to preserve this behavior.
+<span class="quote">
+&gt;&gt; Also, could you share your concerns about use of atomic_t in my patch?</span>
+<span class="quote">&gt;&gt; I believe that since this is not a contented variable, the question of</span>
+<span class="quote">&gt;&gt; lock fairness is not a concern. It is also not a lock really the way</span>
+<span class="quote">&gt;&gt; I&#39;m using it, it just keeps track of how many purges are in progress..</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; atomic_t doesn&#39;t have any acquire/release semantics, and will require</span>
+<span class="quote">&gt; off memory barrier dances to actually get the behavior you intended.</span>
+<span class="quote">&gt; And from looking at the code I can&#39;t really see why we even would</span>
+<span class="quote">&gt; want synchronization behavior - for the sort of problems where we</span>
+<span class="quote">&gt; don&#39;t want multiple threads to run the same code at the same time</span>
+<span class="quote">&gt; for effiency but not correctness reasons it&#39;s usually better to have</span>
+<span class="quote">&gt; batch thresholds and/or splicing into local data structures before</span>
+<span class="quote">&gt; operations.  Both are techniques used in this code, and I&#39;d rather</span>
+<span class="quote">&gt; rely on them and if required improve on them then using very odd</span>
+<span class="quote">&gt; hoc synchronization methods.</span>
+
+Thanks for the explanation. If you know of a better way to handle the sync=1
+case, let me know. In defense of atomics, even vmap_lazy_nr in the same code is
+atomic_t :) I am also not using it as a lock really, but just to count how many
+times something is in progress that&#39;s all - I added some more comments to my
+last patch to make this clearer in the code and now I&#39;m also handling the case
+for sync=1.
+
+-----------------8&lt;------------
+<span class="from">From: Joel Fernandes &lt;joelaf@google.com&gt;</span>
+Date: Sat, 15 Oct 2016 01:04:14 -0700
+Subject: [PATCH v4] mm: vmalloc: Replace purge_lock spinlock with atomic refcount
+
+The purge_lock spinlock causes high latencies with non RT kernel. This has been
+reported multiple times on lkml [1] [2] and affects applications like audio.
+
+In this patch, I replace the spinlock with an atomic refcount so that
+preemption is kept turned on during purge. This Ok to do since [3] builds the
+lazy free list in advance and atomically retrieves the list so any instance of
+purge will have its own list it is purging. Since the individual vmap area
+frees are themselves protected by a lock, this is Ok.
+
+The only thing left is the fact that previously it had trylock behavior, so
+preserve that by using the refcount to keep track of in-progress purges and
+abort like previously if there is an ongoing purge. Lastly, decrement
+vmap_lazy_nr as the vmap areas are freed, and not in advance, so that the
+vmap_lazy_nr is not reduced too soon as suggested in [2].
+
+Tests:
+x86_64 quad core machine on kernel 4.8, run: cyclictest -p 99 -n
+Concurrently in a kernel module, run vmalloc and vfree 8K buffer in a loop.
+Preemption configuration: CONFIG_PREEMPT__LL=y (low-latency desktop)
+
+Without patch, cyclictest output:
+policy: fifo: loadavg: 0.05 0.01 0.00 1/85 1272          Avg:  128 Max:    1177
+policy: fifo: loadavg: 0.11 0.03 0.01 2/87 1447          Avg:  122 Max:    1897
+policy: fifo: loadavg: 0.10 0.03 0.01 1/89 1656          Avg:   93 Max:    2886
+
+With patch, cyclictest output:
+policy: fifo: loadavg: 1.15 0.68 0.30 1/162 8399         Avg:   92 Max:     284
+policy: fifo: loadavg: 1.21 0.71 0.32 2/164 9840         Avg:   94 Max:     296
+policy: fifo: loadavg: 1.18 0.72 0.32 2/166 11253        Avg:  107 Max:     321
+
+[1] http://lists.openwall.net/linux-kernel/2016/03/23/29
+[2] https://lkml.org/lkml/2016/10/9/59
+[3] https://lkml.org/lkml/2016/4/15/287
+
+[thanks Chris for the cond_resched_lock ideas]
+Cc: Chris Wilson &lt;chris@chris-wilson.co.uk&gt;
+Cc: Jisheng Zhang &lt;jszhang@marvell.com&gt;
+Cc: John Dias &lt;joaodias@google.com&gt;
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+<span class="signed-off-by">Signed-off-by: Joel Fernandes &lt;joelaf@google.com&gt;</span>
+---
+v4 changes:
+Handle case for when sync=1
+
+Earlier changes:
+Fixed ordering of va pointer access and __free_vmap_area
+Updated test description in commit message, and typos.
+
+ mm/vmalloc.c | 35 +++++++++++++++++++++++------------
+ 1 file changed, 23 insertions(+), 12 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=170577">Joel Fernandes</a> - Oct. 16, 2016, 10:48 p.m.</div>
+<pre class="content">
+Hi Christoph,
+
+On Sun, Oct 16, 2016 at 3:06 PM, Joel Fernandes &lt;joelaf@google.com&gt; wrote:
+<span class="quote">&gt; On Sat, Oct 15, 2016 at 11:10 PM, Christoph Hellwig &lt;hch@infradead.org&gt; wrote:</span>
+<span class="quote">&gt;&gt; On Sat, Oct 15, 2016 at 03:59:34PM -0700, Joel Fernandes wrote:</span>
+<span class="quote">&gt;&gt;&gt; Also, could you share your concerns about use of atomic_t in my patch?</span>
+<span class="quote">&gt;&gt;&gt; I believe that since this is not a contented variable, the question of</span>
+<span class="quote">&gt;&gt;&gt; lock fairness is not a concern. It is also not a lock really the way</span>
+<span class="quote">&gt;&gt;&gt; I&#39;m using it, it just keeps track of how many purges are in progress..</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; atomic_t doesn&#39;t have any acquire/release semantics, and will require</span>
+<span class="quote">&gt;&gt; off memory barrier dances to actually get the behavior you intended.</span>
+<span class="quote">&gt;&gt; And from looking at the code I can&#39;t really see why we even would</span>
+<span class="quote">&gt;&gt; want synchronization behavior - for the sort of problems where we</span>
+<span class="quote">&gt;&gt; don&#39;t want multiple threads to run the same code at the same time</span>
+<span class="quote">&gt;&gt; for effiency but not correctness reasons it&#39;s usually better to have</span>
+<span class="quote">&gt;&gt; batch thresholds and/or splicing into local data structures before</span>
+<span class="quote">&gt;&gt; operations.  Both are techniques used in this code, and I&#39;d rather</span>
+<span class="quote">&gt;&gt; rely on them and if required improve on them then using very odd</span>
+<span class="quote">&gt;&gt; hoc synchronization methods.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Thanks for the explanation. If you know of a better way to handle the sync=1</span>
+<span class="quote">&gt; case, let me know. In defense of atomics, even vmap_lazy_nr in the same code is</span>
+<span class="quote">&gt; atomic_t :) I am also not using it as a lock really, but just to count how many</span>
+<span class="quote">&gt; times something is in progress that&#39;s all - I added some more comments to my</span>
+<span class="quote">&gt; last patch to make this clearer in the code and now I&#39;m also handling the case</span>
+<span class="quote">&gt; for sync=1.</span>
+
+Also, one more thing about the barrier dances you mentioned, this will
+also be done by the spinlock which was there before my patch. So in
+favor of my patch, it doesn&#39;t make things any worse than they were and
+actually fixes the reported issue while preserving the original code
+behavior. So I think it is a good thing to fix the issue considering
+so many people are reporting it and any clean ups of the vmalloc code
+itself can follow.
+
+If you want I can looking into replacing the atomic_cmpxchg with an
+atomic_inc and not do anything different for sync vs !sync except for
+spinning when purges are pending. Would that make you feel a bit
+better?
+
+So instead of:
+        if (!sync &amp;&amp; !force_flush) {
+                /*
+                 * Incase a purge is already in progress, just return.
+                 */
+                if (atomic_cmpxchg(&amp;purging, 0, 1))
+                        return;
+        } else
+                atomic_inc(&amp;purging);
+,
+Just do a:
+                atomic_inc(&amp;purging);
+
+
+This should be Ok to do since in the !sync case, we&#39;ll just return
+anyway if another purge was in progress.
+
+Thanks,
+
+Joel
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=101">Christoph Hellwig</a> - Oct. 17, 2016, 9:32 a.m.</div>
+<pre class="content">
+On Sun, Oct 16, 2016 at 03:48:42PM -0700, Joel Fernandes wrote:
+<span class="quote">&gt; Also, one more thing about the barrier dances you mentioned, this will</span>
+<span class="quote">&gt; also be done by the spinlock which was there before my patch. So in</span>
+<span class="quote">&gt; favor of my patch, it doesn&#39;t make things any worse than they were and</span>
+<span class="quote">&gt; actually fixes the reported issue while preserving the original code</span>
+<span class="quote">&gt; behavior. So I think it is a good thing to fix the issue considering</span>
+<span class="quote">&gt; so many people are reporting it and any clean ups of the vmalloc code</span>
+<span class="quote">&gt; itself can follow.</span>
+
+I&#39;m not worried about having barriers, we use them all over our
+synchronization primitives.  I&#39;m worried about opencoding them
+instead of having them in these well defined helpers.
+
+So based on this discussion and the feedback from Nick I&#39;ll
+propose a new patch (or rather a series to make it more understandable)
+that adds a mutex, adds the lockbreak and gives sensible calling
+conventions to __purge_vmap_area_lazy.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/vmalloc.c b/mm/vmalloc.c</span>
+<span class="p_header">index 613d1d9..db2791a 100644</span>
+<span class="p_header">--- a/mm/vmalloc.c</span>
+<span class="p_header">+++ b/mm/vmalloc.c</span>
+<span class="p_chunk">@@ -626,11 +626,11 @@</span> <span class="p_context"> void set_iounmap_nonlazy(void)</span>
+ static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,
+ 					int sync, int force_flush)
+ {
+<span class="p_del">-	static DEFINE_SPINLOCK(purge_lock);</span>
+<span class="p_add">+	static atomic_t purging;</span>
+ 	struct llist_node *valist;
+ 	struct vmap_area *va;
+ 	struct vmap_area *n_va;
+<span class="p_del">-	int nr = 0;</span>
+<span class="p_add">+	int dofree = 0;</span>
+ 
+ 	/*
+ 	 * If sync is 0 but force_flush is 1, we&#39;ll go sync anyway but callers
+<span class="p_chunk">@@ -638,10 +638,13 @@</span> <span class="p_context"> static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,</span>
+ 	 * the case that isn&#39;t actually used at the moment anyway.
+ 	 */
+ 	if (!sync &amp;&amp; !force_flush) {
+<span class="p_del">-		if (!spin_trylock(&amp;purge_lock))</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Incase a purge is already in progress, just return.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (atomic_cmpxchg(&amp;purging, 0, 1))</span>
+ 			return;
+ 	} else
+<span class="p_del">-		spin_lock(&amp;purge_lock);</span>
+<span class="p_add">+		atomic_inc(&amp;purging);</span>
+ 
+ 	if (sync)
+ 		purge_fragmented_blocks_allcpus();
+<span class="p_chunk">@@ -652,22 +655,30 @@</span> <span class="p_context"> static void __purge_vmap_area_lazy(unsigned long *start, unsigned long *end,</span>
+ 			*start = va-&gt;va_start;
+ 		if (va-&gt;va_end &gt; *end)
+ 			*end = va-&gt;va_end;
+<span class="p_del">-		nr += (va-&gt;va_end - va-&gt;va_start) &gt;&gt; PAGE_SHIFT;</span>
+<span class="p_add">+		dofree = 1;</span>
+ 	}
+ 
+<span class="p_del">-	if (nr)</span>
+<span class="p_del">-		atomic_sub(nr, &amp;vmap_lazy_nr);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	if (nr || force_flush)</span>
+<span class="p_add">+	if (dofree || force_flush)</span>
+ 		flush_tlb_kernel_range(*start, *end);
+ 
+<span class="p_del">-	if (nr) {</span>
+<span class="p_add">+	if (dofree) {</span>
+ 		spin_lock(&amp;vmap_area_lock);
+<span class="p_del">-		llist_for_each_entry_safe(va, n_va, valist, purge_list)</span>
+<span class="p_add">+		llist_for_each_entry_safe(va, n_va, valist, purge_list) {</span>
+<span class="p_add">+			int nrfree = ((va-&gt;va_end - va-&gt;va_start) &gt;&gt; PAGE_SHIFT);</span>
+ 			__free_vmap_area(va);
+<span class="p_add">+			atomic_sub(nrfree, &amp;vmap_lazy_nr);</span>
+<span class="p_add">+			cond_resched_lock(&amp;vmap_area_lock);</span>
+<span class="p_add">+		}</span>
+ 		spin_unlock(&amp;vmap_area_lock);
+ 	}
+<span class="p_del">-	spin_unlock(&amp;purge_lock);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	atomic_dec(&amp;purging);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * If sync is 1, wait for pending purges to be completed.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	while(sync &amp;&amp; atomic_read(&amp;purging))</span>
+<span class="p_add">+		cpu_relax();</span>
+ }
+ 
+ /*
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

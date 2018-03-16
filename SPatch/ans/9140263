@@ -1,0 +1,382 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,4/4] powerpc/mm/radix: Implement tlb mmu gather flush efficiently - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,4/4] powerpc/mm/radix: Implement tlb mmu gather flush efficiently</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=1141">Aneesh Kumar K.V</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>May 30, 2016, 5:44 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1464587062-17745-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9140263/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9140263/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9140263/">/patch/9140263/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	4A59160801 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 30 May 2016 05:45:13 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 3FE60280B2
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 30 May 2016 05:45:13 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 3498528213; Mon, 30 May 2016 05:45:13 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 0D08F28212
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 30 May 2016 05:45:12 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S932716AbcE3Foy (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 30 May 2016 01:44:54 -0400
+Received: from e18.ny.us.ibm.com ([129.33.205.208]:59797 &quot;EHLO
+	e18.ny.us.ibm.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S932618AbcE3Fov (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 30 May 2016 01:44:51 -0400
+Received: from localhost
+	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use
+	Only! Violators will be prosecuted
+	for &lt;linux-kernel@vger.kernel.org&gt; from
+	&lt;aneesh.kumar@linux.vnet.ibm.com&gt;; Mon, 30 May 2016 01:44:50 -0400
+Received: from d01dlp01.pok.ibm.com (9.56.250.166)
+	by e18.ny.us.ibm.com (146.89.104.205) with IBM ESMTP SMTP Gateway:
+	Authorized Use Only! Violators will be prosecuted; 
+	Mon, 30 May 2016 01:44:47 -0400
+X-IBM-Helo: d01dlp01.pok.ibm.com
+X-IBM-MailFrom: aneesh.kumar@linux.vnet.ibm.com
+X-IBM-RcptTo: linux-mm@kvack.org; akpm@linux-foundation.org;
+	linux-arch@vger.kernel.org; linux-kernel@vger.kernel.org
+Received: from b01cxnp23033.gho.pok.ibm.com (b01cxnp23033.gho.pok.ibm.com
+	[9.57.198.28])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 6075A38C804A;
+	Mon, 30 May 2016 01:44:47 -0400 (EDT)
+Received: from b01ledav006.gho.pok.ibm.com (b01ledav006.gho.pok.ibm.com
+	[9.57.199.111])
+	by b01cxnp23033.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP
+	id u4U5ilra35127358; Mon, 30 May 2016 05:44:47 GMT
+Received: from b01ledav006.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id E2821AC048;
+	Mon, 30 May 2016 01:44:46 -0400 (EDT)
+Received: from skywalker.in.ibm.com (unknown [9.124.219.185])
+	by b01ledav006.gho.pok.ibm.com (Postfix) with ESMTP id CC705AC03C;
+	Mon, 30 May 2016 01:44:44 -0400 (EDT)
+From: &quot;Aneesh Kumar K.V&quot; &lt;aneesh.kumar@linux.vnet.ibm.com&gt;
+To: akpm@linux-foundation.org, linux-arch@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	&quot;Aneesh Kumar K.V&quot; &lt;aneesh.kumar@linux.vnet.ibm.com&gt;
+Subject: [RFC PATCH 4/4] powerpc/mm/radix: Implement tlb mmu gather flush
+	efficiently
+Date: Mon, 30 May 2016 11:14:22 +0530
+Message-Id: &lt;1464587062-17745-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com&gt;
+X-Mailer: git-send-email 2.7.4
+In-Reply-To: &lt;1464587062-17745-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com&gt;
+References: &lt;1464587062-17745-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com&gt;
+X-TM-AS-GCONF: 00
+X-Content-Scanned: Fidelis XPS MAILER
+x-cbid: 16053005-0045-0000-0000-00000452D3AF
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=1141">Aneesh Kumar K.V</a> - May 30, 2016, 5:44 a.m.</div>
+<pre class="content">
+if mmu gather flush resulted in a page table free force a RIC=2 flush
+with IS=1. Otherwise do a range flush with IS=0 and RIC=0
+<span class="signed-off-by">
+Signed-off-by: Aneesh Kumar K.V &lt;aneesh.kumar@linux.vnet.ibm.com&gt;</span>
+---
+ arch/powerpc/include/asm/book3s/32/pgalloc.h  |  1 -
+ arch/powerpc/include/asm/book3s/64/pgalloc.h  | 16 ++++++++++++-
+ arch/powerpc/include/asm/book3s/64/tlbflush.h |  1 +
+ arch/powerpc/include/asm/book3s/pgalloc.h     |  5 ----
+ arch/powerpc/mm/tlb-radix.c                   | 34 +++++++++++++++++++++++++--
+ 5 files changed, 48 insertions(+), 9 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/powerpc/include/asm/book3s/32/pgalloc.h b/arch/powerpc/include/asm/book3s/32/pgalloc.h</span>
+<span class="p_header">index a2350194fc76..8e21bb492dca 100644</span>
+<span class="p_header">--- a/arch/powerpc/include/asm/book3s/32/pgalloc.h</span>
+<span class="p_header">+++ b/arch/powerpc/include/asm/book3s/32/pgalloc.h</span>
+<span class="p_chunk">@@ -102,7 +102,6 @@</span> <span class="p_context"> static inline void pgtable_free_tlb(struct mmu_gather *tlb,</span>
+ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t table,
+ 				  unsigned long address)
+ {
+<span class="p_del">-	tlb_flush_pgtable(tlb, address);</span>
+ 	pgtable_page_dtor(table);
+ 	pgtable_free_tlb(tlb, page_address(table), 0);
+ }
+<span class="p_header">diff --git a/arch/powerpc/include/asm/book3s/64/pgalloc.h b/arch/powerpc/include/asm/book3s/64/pgalloc.h</span>
+<span class="p_header">index 488279edb1f0..26eb2cb80c4e 100644</span>
+<span class="p_header">--- a/arch/powerpc/include/asm/book3s/64/pgalloc.h</span>
+<span class="p_header">+++ b/arch/powerpc/include/asm/book3s/64/pgalloc.h</span>
+<span class="p_chunk">@@ -110,6 +110,11 @@</span> <span class="p_context"> static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)</span>
+ static inline void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud,
+                                   unsigned long address)
+ {
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * By now all the pud entries should be none entries. So go</span>
+<span class="p_add">+	 * ahead and flush the page walk cache</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	flush_tlb_pgtable(tlb, address);</span>
+         pgtable_free_tlb(tlb, pud, PUD_INDEX_SIZE);
+ }
+ 
+<span class="p_chunk">@@ -127,6 +132,11 @@</span> <span class="p_context"> static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)</span>
+ static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd,
+                                   unsigned long address)
+ {
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * By now all the pud entries should be none entries. So go</span>
+<span class="p_add">+	 * ahead and flush the page walk cache</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	flush_tlb_pgtable(tlb, address);</span>
+         return pgtable_free_tlb(tlb, pmd, PMD_CACHE_INDEX);
+ }
+ 
+<span class="p_chunk">@@ -198,7 +208,11 @@</span> <span class="p_context"> static inline void pte_free(struct mm_struct *mm, pgtable_t ptepage)</span>
+ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t table,
+ 				  unsigned long address)
+ {
+<span class="p_del">-	tlb_flush_pgtable(tlb, address);</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * By now all the pud entries should be none entries. So go</span>
+<span class="p_add">+	 * ahead and flush the page walk cache</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	flush_tlb_pgtable(tlb, address);</span>
+ 	pgtable_free_tlb(tlb, table, 0);
+ }
+ 
+<span class="p_header">diff --git a/arch/powerpc/include/asm/book3s/64/tlbflush.h b/arch/powerpc/include/asm/book3s/64/tlbflush.h</span>
+<span class="p_header">index ea29cc3318d2..497271af3bd6 100644</span>
+<span class="p_header">--- a/arch/powerpc/include/asm/book3s/64/tlbflush.h</span>
+<span class="p_header">+++ b/arch/powerpc/include/asm/book3s/64/tlbflush.h</span>
+<span class="p_chunk">@@ -84,4 +84,5 @@</span> <span class="p_context"> static inline void flush_tlb_page(struct vm_area_struct *vma,</span>
+ #define flush_tlb_page(vma, addr)	local_flush_tlb_page(vma, addr)
+ #endif /* CONFIG_SMP */
+ 
+<span class="p_add">+extern void flush_tlb_pgtable(struct mmu_gather *tlb, unsigned long address);</span>
+ #endif /*  _ASM_POWERPC_BOOK3S_64_TLBFLUSH_H */
+<span class="p_header">diff --git a/arch/powerpc/include/asm/book3s/pgalloc.h b/arch/powerpc/include/asm/book3s/pgalloc.h</span>
+<span class="p_header">index 54f591e9572e..c0a69ae92256 100644</span>
+<span class="p_header">--- a/arch/powerpc/include/asm/book3s/pgalloc.h</span>
+<span class="p_header">+++ b/arch/powerpc/include/asm/book3s/pgalloc.h</span>
+<span class="p_chunk">@@ -4,11 +4,6 @@</span> <span class="p_context"></span>
+ #include &lt;linux/mm.h&gt;
+ 
+ extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
+<span class="p_del">-static inline void tlb_flush_pgtable(struct mmu_gather *tlb,</span>
+<span class="p_del">-				     unsigned long address)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-</span>
+<span class="p_del">-}</span>
+ 
+ #ifdef CONFIG_PPC64
+ #include &lt;asm/book3s/64/pgalloc.h&gt;
+<span class="p_header">diff --git a/arch/powerpc/mm/tlb-radix.c b/arch/powerpc/mm/tlb-radix.c</span>
+<span class="p_header">index d996ce279ccb..169c56b6dc98 100644</span>
+<span class="p_header">--- a/arch/powerpc/mm/tlb-radix.c</span>
+<span class="p_header">+++ b/arch/powerpc/mm/tlb-radix.c</span>
+<span class="p_chunk">@@ -239,13 +239,32 @@</span> <span class="p_context"> void radix__flush_tlb_range(struct vm_area_struct *vma, unsigned long start,</span>
+ }
+ EXPORT_SYMBOL(radix__flush_tlb_range);
+ 
+<span class="p_del">-</span>
+ void radix__tlb_flush(struct mmu_gather *tlb)
+ {
+<span class="p_add">+	int psize = 0;</span>
+ 	struct mm_struct *mm = tlb-&gt;mm;
+<span class="p_del">-	radix__flush_tlb_mm(mm);</span>
+<span class="p_add">+	int page_size = tlb-&gt;page_size;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (page_size == (1UL &lt;&lt; mmu_psize_defs[mmu_virtual_psize].shift))</span>
+<span class="p_add">+		psize = mmu_virtual_psize;</span>
+<span class="p_add">+	else if (page_size == (1UL &lt;&lt; mmu_psize_defs[MMU_PAGE_2M].shift))</span>
+<span class="p_add">+		psize = MMU_PAGE_2M;</span>
+<span class="p_add">+	else if (page_size == (1UL &lt;&lt; mmu_psize_defs[MMU_PAGE_1G].shift))</span>
+<span class="p_add">+		psize = MMU_PAGE_1G;</span>
+<span class="p_add">+	else</span>
+<span class="p_add">+		goto flush_mm;</span>
+<span class="p_add">+</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!tlb-&gt;fullmm &amp;&amp; !tlb-&gt;need_flush_all) {</span>
+<span class="p_add">+		radix__flush_tlb_range_psize(mm, tlb-&gt;start, tlb-&gt;end, psize);</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+flush_mm:</span>
+<span class="p_add">+		radix__flush_tlb_mm(mm);</span>
+<span class="p_add">+	}</span>
+ }
+ 
+<span class="p_add">+</span>
+<span class="p_add">+</span>
+ #define TLB_FLUSH_ALL -1UL
+ /*
+  * Number of pages above which we will do a bcast tlbie. Just a
+<span class="p_chunk">@@ -299,3 +318,14 @@</span> <span class="p_context"> void radix__flush_pmd_tlb_range(struct vm_area_struct *vma,</span>
+ 	radix__flush_tlb_range_psize(vma-&gt;vm_mm, start, end, MMU_PAGE_2M);
+ }
+ EXPORT_SYMBOL(radix__flush_pmd_tlb_range);
+<span class="p_add">+/*</span>
+<span class="p_add">+ * flush the page walk cache for the address</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+void flush_tlb_pgtable(struct mmu_gather *tlb, unsigned long address)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * If we are doing a range flush with mmu gather, since we have</span>
+<span class="p_add">+	 * done a page table free, force a page walk cache flush.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	tlb-&gt;need_flush_all = 1;</span>
+<span class="p_add">+}</span>
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

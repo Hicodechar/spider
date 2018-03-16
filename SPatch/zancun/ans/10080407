@@ -1,0 +1,575 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,1/2] mm, hugetlb: unify core page allocation accounting and initialization - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,1/2] mm, hugetlb: unify core page allocation accounting and initialization</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Nov. 28, 2017, 2:12 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20171128141211.11117-2-mhocko@kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10080407/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10080407/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10080407/">/patch/10080407/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	A73366056A for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 28 Nov 2017 14:13:00 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 930392929E
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 28 Nov 2017 14:13:00 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 868BF292A5; Tue, 28 Nov 2017 14:13:00 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id EA756292A6
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 28 Nov 2017 14:12:59 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752862AbdK1OM5 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 28 Nov 2017 09:12:57 -0500
+Received: from mail-wm0-f66.google.com ([74.125.82.66]:38434 &quot;EHLO
+	mail-wm0-f66.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752394AbdK1OMT (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 28 Nov 2017 09:12:19 -0500
+Received: by mail-wm0-f66.google.com with SMTP id n74so2217571wmi.3
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Tue, 28 Nov 2017 06:12:18 -0800 (PST)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+	:references;
+	bh=TxnUt6GfosoLkUYCD1e4MwLHrk19ecQ62gm4kc2+o2M=;
+	b=tOYkOmGAkUVAp87dg+mBKK1fb2GHzw9nR8N16RRuL0fiZtCSjtklDuHBcqq+BIEzfq
+	8hJxh45fMoG7BCuDW89qGz6wnDT00VsSzPnae6PHibU0O7f4XOwrBz2lGj+tcq9llmZN
+	kT4rhShdyJsFfVPk8M9giIaT9W3z5+Jkf2SUvfuvOoyJDi7wqqcWdrzpJybjisOCwvX8
+	ngHyEzKhAudALdSdJ8CQWVj1T8bCBhcm7CNkqyHtPYkShfP4kLOkm+gyULWSG+2mWWcd
+	LaCY29gowPLVuvwKSDpfDDITpxbfCxrkC2qREXcMEk56KbZVxWvqAAoLxsQ8rKwK6eT1
+	gwRQ==
+X-Gm-Message-State: AJaThX7yQtiyjcKUzNmKdREE4WMqQ8+pl51wTosWyTSgdcr9jOdavv8c
+	COpK17yKcWyoB6PhTLhf4XQ=
+X-Google-Smtp-Source: AGs4zMaTg7GWpoEzNsYRfaZaROwWc1pHil/xJYp+xgh75Q3sckikzi0n7Hdl6HXiGlJcZfbvQpTDcQ==
+X-Received: by 10.80.190.135 with SMTP id b7mr2907794edk.282.1511878337657; 
+	Tue, 28 Nov 2017 06:12:17 -0800 (PST)
+Received: from tiehlicka.suse.cz (prg-ext-pat.suse.com. [213.151.95.130])
+	by smtp.gmail.com with ESMTPSA id
+	d58sm12291378ede.62.2017.11.28.06.12.16
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Tue, 28 Nov 2017 06:12:17 -0800 (PST)
+From: Michal Hocko &lt;mhocko@kernel.org&gt;
+To: &lt;linux-mm@kvack.org&gt;
+Cc: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;,
+	Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;,
+	LKML &lt;linux-kernel@vger.kernel.org&gt;, Michal Hocko &lt;mhocko@suse.com&gt;
+Subject: [PATCH RFC 1/2] mm,
+	hugetlb: unify core page allocation accounting and initialization
+Date: Tue, 28 Nov 2017 15:12:10 +0100
+Message-Id: &lt;20171128141211.11117-2-mhocko@kernel.org&gt;
+X-Mailer: git-send-email 2.15.0
+In-Reply-To: &lt;20171128141211.11117-1-mhocko@kernel.org&gt;
+References: &lt;20171128101907.jtjthykeuefxu7gl@dhcp22.suse.cz&gt;
+	&lt;20171128141211.11117-1-mhocko@kernel.org&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Nov. 28, 2017, 2:12 p.m.</div>
+<pre class="content">
+<span class="from">From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+
+hugetlb allocator has two entry points to the page allocator
+- alloc_fresh_huge_page_node
+- __hugetlb_alloc_buddy_huge_page
+
+The two differ very subtly in two aspects. The first one doesn&#39;t care
+about HTLB_BUDDY_* stats and it doesn&#39;t initialize the huge page.
+prep_new_huge_page is not used because it not only initializes hugetlb
+specific stuff but because it also put_page and releases the page to
+the hugetlb pool which is not what is required in some contexts. This
+makes things more complicated than necessary.
+
+Simplify things by a) removing the page allocator entry point duplicity
+and only keep __hugetlb_alloc_buddy_huge_page and b) make
+prep_new_huge_page more reusable by removing the put_page which moves
+the page to the allocator pool. All current callers are updated to call
+put_page explicitly. Later patches will add new callers which won&#39;t
+need it.
+
+This patch shouldn&#39;t introduce any functional change.
+<span class="signed-off-by">
+Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+---
+ mm/hugetlb.c | 61 +++++++++++++++++++++++++++++-------------------------------
+ 1 file changed, 29 insertions(+), 32 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Nov. 28, 2017, 9:34 p.m.</div>
+<pre class="content">
+On 11/28/2017 06:12 AM, Michal Hocko wrote:
+<span class="quote">&gt; From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; hugetlb allocator has two entry points to the page allocator</span>
+<span class="quote">&gt; - alloc_fresh_huge_page_node</span>
+<span class="quote">&gt; - __hugetlb_alloc_buddy_huge_page</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The two differ very subtly in two aspects. The first one doesn&#39;t care</span>
+<span class="quote">&gt; about HTLB_BUDDY_* stats and it doesn&#39;t initialize the huge page.</span>
+<span class="quote">&gt; prep_new_huge_page is not used because it not only initializes hugetlb</span>
+<span class="quote">&gt; specific stuff but because it also put_page and releases the page to</span>
+<span class="quote">&gt; the hugetlb pool which is not what is required in some contexts. This</span>
+<span class="quote">&gt; makes things more complicated than necessary.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Simplify things by a) removing the page allocator entry point duplicity</span>
+<span class="quote">&gt; and only keep __hugetlb_alloc_buddy_huge_page and b) make</span>
+<span class="quote">&gt; prep_new_huge_page more reusable by removing the put_page which moves</span>
+<span class="quote">&gt; the page to the allocator pool. All current callers are updated to call</span>
+<span class="quote">&gt; put_page explicitly. Later patches will add new callers which won&#39;t</span>
+<span class="quote">&gt; need it.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This patch shouldn&#39;t introduce any functional change.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  mm/hugetlb.c | 61 +++++++++++++++++++++++++++++-------------------------------</span>
+<span class="quote">&gt;  1 file changed, 29 insertions(+), 32 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="quote">&gt; index 2c9033d39bfe..8189c92fac82 100644</span>
+<span class="quote">&gt; --- a/mm/hugetlb.c</span>
+<span class="quote">&gt; +++ b/mm/hugetlb.c</span>
+<span class="quote">&gt; @@ -1157,6 +1157,7 @@ static struct page *alloc_fresh_gigantic_page_node(struct hstate *h, int nid)</span>
+<span class="quote">&gt;  	if (page) {</span>
+<span class="quote">&gt;  		prep_compound_gigantic_page(page, huge_page_order(h));</span>
+<span class="quote">&gt;  		prep_new_huge_page(h, page, nid);</span>
+<span class="quote">&gt; +		put_page(page); /* free it into the hugepage allocator */</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	return page;</span>
+<span class="quote">&gt; @@ -1304,7 +1305,6 @@ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)</span>
+<span class="quote">&gt;  	h-&gt;nr_huge_pages++;</span>
+<span class="quote">&gt;  	h-&gt;nr_huge_pages_node[nid]++;</span>
+<span class="quote">&gt;  	spin_unlock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt; -	put_page(page); /* free it into the hugepage allocator */</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static void prep_compound_gigantic_page(struct page *page, unsigned int order)</span>
+<span class="quote">&gt; @@ -1381,41 +1381,49 @@ pgoff_t __basepage_index(struct page *page)</span>
+<span class="quote">&gt;  	return (index &lt;&lt; compound_order(page_head)) + compound_idx;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)</span>
+<span class="quote">&gt; +static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,</span>
+<span class="quote">&gt; +		gfp_t gfp_mask, int nid, nodemask_t *nmask)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; +	int order = huge_page_order(h);</span>
+<span class="quote">&gt;  	struct page *page;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	page = __alloc_pages_node(nid,</span>
+<span class="quote">&gt; -		htlb_alloc_mask(h)|__GFP_COMP|__GFP_THISNODE|</span>
+<span class="quote">&gt; -						__GFP_RETRY_MAYFAIL|__GFP_NOWARN,</span>
+<span class="quote">&gt; -		huge_page_order(h));</span>
+<span class="quote">&gt; -	if (page) {</span>
+<span class="quote">&gt; -		prep_new_huge_page(h, page, nid);</span>
+<span class="quote">&gt; -	}</span>
+<span class="quote">&gt; +	gfp_mask |= __GFP_COMP|__GFP_RETRY_MAYFAIL|__GFP_NOWARN;</span>
+<span class="quote">&gt; +	if (nid == NUMA_NO_NODE)</span>
+<span class="quote">&gt; +		nid = numa_mem_id();</span>
+<span class="quote">&gt; +	page = __alloc_pages_nodemask(gfp_mask, order, nid, nmask);</span>
+<span class="quote">&gt; +	if (page)</span>
+<span class="quote">&gt; +		__count_vm_event(HTLB_BUDDY_PGALLOC);</span>
+<span class="quote">&gt; +	else</span>
+<span class="quote">&gt; +		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	return page;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +/*</span>
+<span class="quote">&gt; + * Allocates a fresh page to the hugetlb allocator pool in the node interleaved</span>
+<span class="quote">&gt; + * manner.</span>
+<span class="quote">&gt; + */</span>
+<span class="quote">&gt;  static int alloc_fresh_huge_page(struct hstate *h, nodemask_t *nodes_allowed)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	struct page *page;</span>
+<span class="quote">&gt;  	int nr_nodes, node;</span>
+<span class="quote">&gt; -	int ret = 0;</span>
+<span class="quote">&gt; +	gfp_t gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {</span>
+<span class="quote">&gt; -		page = alloc_fresh_huge_page_node(h, node);</span>
+<span class="quote">&gt; -		if (page) {</span>
+<span class="quote">&gt; -			ret = 1;</span>
+<span class="quote">&gt; +		page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask,</span>
+<span class="quote">&gt; +				node, nodes_allowed);</span>
+
+I don&#39;t have the greatest understanding of node/nodemasks, but ...
+Since __hugetlb_alloc_buddy_huge_page calls __alloc_pages_nodemask(), do
+we still need to explicitly iterate over nodes with
+for_each_node_mask_to_alloc() here?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Nov. 29, 2017, 6:57 a.m.</div>
+<pre class="content">
+On Tue 28-11-17 13:34:53, Mike Kravetz wrote:
+<span class="quote">&gt; On 11/28/2017 06:12 AM, Michal Hocko wrote:</span>
+[...]
+<span class="quote">&gt; &gt; +/*</span>
+<span class="quote">&gt; &gt; + * Allocates a fresh page to the hugetlb allocator pool in the node interleaved</span>
+<span class="quote">&gt; &gt; + * manner.</span>
+<span class="quote">&gt; &gt; + */</span>
+<span class="quote">&gt; &gt;  static int alloc_fresh_huge_page(struct hstate *h, nodemask_t *nodes_allowed)</span>
+<span class="quote">&gt; &gt;  {</span>
+<span class="quote">&gt; &gt;  	struct page *page;</span>
+<span class="quote">&gt; &gt;  	int nr_nodes, node;</span>
+<span class="quote">&gt; &gt; -	int ret = 0;</span>
+<span class="quote">&gt; &gt; +	gfp_t gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt;  	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {</span>
+<span class="quote">&gt; &gt; -		page = alloc_fresh_huge_page_node(h, node);</span>
+<span class="quote">&gt; &gt; -		if (page) {</span>
+<span class="quote">&gt; &gt; -			ret = 1;</span>
+<span class="quote">&gt; &gt; +		page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask,</span>
+<span class="quote">&gt; &gt; +				node, nodes_allowed);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I don&#39;t have the greatest understanding of node/nodemasks, but ...</span>
+<span class="quote">&gt; Since __hugetlb_alloc_buddy_huge_page calls __alloc_pages_nodemask(), do</span>
+<span class="quote">&gt; we still need to explicitly iterate over nodes with</span>
+<span class="quote">&gt; for_each_node_mask_to_alloc() here?</span>
+
+Yes we do, because callers depend on the round robin allocation policy
+which is implemented by the ugly for_each_node_mask_to_alloc. I am not
+saying I like the way this is done but this is user visible thing.
+
+Or maybe I&#39;ve missunderstood the whole thing...
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Nov. 29, 2017, 7:09 p.m.</div>
+<pre class="content">
+On 11/28/2017 10:57 PM, Michal Hocko wrote:
+<span class="quote">&gt; On Tue 28-11-17 13:34:53, Mike Kravetz wrote:</span>
+<span class="quote">&gt;&gt; On 11/28/2017 06:12 AM, Michal Hocko wrote:</span>
+<span class="quote">&gt; [...]</span>
+<span class="quote">&gt;&gt;&gt; +/*</span>
+<span class="quote">&gt;&gt;&gt; + * Allocates a fresh page to the hugetlb allocator pool in the node interleaved</span>
+<span class="quote">&gt;&gt;&gt; + * manner.</span>
+<span class="quote">&gt;&gt;&gt; + */</span>
+<span class="quote">&gt;&gt;&gt;  static int alloc_fresh_huge_page(struct hstate *h, nodemask_t *nodes_allowed)</span>
+<span class="quote">&gt;&gt;&gt;  {</span>
+<span class="quote">&gt;&gt;&gt;  	struct page *page;</span>
+<span class="quote">&gt;&gt;&gt;  	int nr_nodes, node;</span>
+<span class="quote">&gt;&gt;&gt; -	int ret = 0;</span>
+<span class="quote">&gt;&gt;&gt; +	gfp_t gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;</span>
+<span class="quote">&gt;&gt;&gt;  </span>
+<span class="quote">&gt;&gt;&gt;  	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {</span>
+<span class="quote">&gt;&gt;&gt; -		page = alloc_fresh_huge_page_node(h, node);</span>
+<span class="quote">&gt;&gt;&gt; -		if (page) {</span>
+<span class="quote">&gt;&gt;&gt; -			ret = 1;</span>
+<span class="quote">&gt;&gt;&gt; +		page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask,</span>
+<span class="quote">&gt;&gt;&gt; +				node, nodes_allowed);</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; I don&#39;t have the greatest understanding of node/nodemasks, but ...</span>
+<span class="quote">&gt;&gt; Since __hugetlb_alloc_buddy_huge_page calls __alloc_pages_nodemask(), do</span>
+<span class="quote">&gt;&gt; we still need to explicitly iterate over nodes with</span>
+<span class="quote">&gt;&gt; for_each_node_mask_to_alloc() here?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yes we do, because callers depend on the round robin allocation policy</span>
+<span class="quote">&gt; which is implemented by the ugly for_each_node_mask_to_alloc. I am not</span>
+<span class="quote">&gt; saying I like the way this is done but this is user visible thing.</span>
+
+Ah, thanks.
+
+I missed the __GFP_THISNODE.  Because of that, the nodes_allowed mask is
+not used in the allocation attempts.  So, cycling through the nodes with
+the for_each_node_mask_to_alloc makes sense.
+<span class="quote">
+&gt; Or maybe I&#39;ve missunderstood the whole thing...</span>
+
+No, this should preserve the original behavior.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="p_header">index 2c9033d39bfe..8189c92fac82 100644</span>
+<span class="p_header">--- a/mm/hugetlb.c</span>
+<span class="p_header">+++ b/mm/hugetlb.c</span>
+<span class="p_chunk">@@ -1157,6 +1157,7 @@</span> <span class="p_context"> static struct page *alloc_fresh_gigantic_page_node(struct hstate *h, int nid)</span>
+ 	if (page) {
+ 		prep_compound_gigantic_page(page, huge_page_order(h));
+ 		prep_new_huge_page(h, page, nid);
+<span class="p_add">+		put_page(page); /* free it into the hugepage allocator */</span>
+ 	}
+ 
+ 	return page;
+<span class="p_chunk">@@ -1304,7 +1305,6 @@</span> <span class="p_context"> static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)</span>
+ 	h-&gt;nr_huge_pages++;
+ 	h-&gt;nr_huge_pages_node[nid]++;
+ 	spin_unlock(&amp;hugetlb_lock);
+<span class="p_del">-	put_page(page); /* free it into the hugepage allocator */</span>
+ }
+ 
+ static void prep_compound_gigantic_page(struct page *page, unsigned int order)
+<span class="p_chunk">@@ -1381,41 +1381,49 @@</span> <span class="p_context"> pgoff_t __basepage_index(struct page *page)</span>
+ 	return (index &lt;&lt; compound_order(page_head)) + compound_idx;
+ }
+ 
+<span class="p_del">-static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)</span>
+<span class="p_add">+static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,</span>
+<span class="p_add">+		gfp_t gfp_mask, int nid, nodemask_t *nmask)</span>
+ {
+<span class="p_add">+	int order = huge_page_order(h);</span>
+ 	struct page *page;
+ 
+<span class="p_del">-	page = __alloc_pages_node(nid,</span>
+<span class="p_del">-		htlb_alloc_mask(h)|__GFP_COMP|__GFP_THISNODE|</span>
+<span class="p_del">-						__GFP_RETRY_MAYFAIL|__GFP_NOWARN,</span>
+<span class="p_del">-		huge_page_order(h));</span>
+<span class="p_del">-	if (page) {</span>
+<span class="p_del">-		prep_new_huge_page(h, page, nid);</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+	gfp_mask |= __GFP_COMP|__GFP_RETRY_MAYFAIL|__GFP_NOWARN;</span>
+<span class="p_add">+	if (nid == NUMA_NO_NODE)</span>
+<span class="p_add">+		nid = numa_mem_id();</span>
+<span class="p_add">+	page = __alloc_pages_nodemask(gfp_mask, order, nid, nmask);</span>
+<span class="p_add">+	if (page)</span>
+<span class="p_add">+		__count_vm_event(HTLB_BUDDY_PGALLOC);</span>
+<span class="p_add">+	else</span>
+<span class="p_add">+		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);</span>
+ 
+ 	return page;
+ }
+ 
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Allocates a fresh page to the hugetlb allocator pool in the node interleaved</span>
+<span class="p_add">+ * manner.</span>
+<span class="p_add">+ */</span>
+ static int alloc_fresh_huge_page(struct hstate *h, nodemask_t *nodes_allowed)
+ {
+ 	struct page *page;
+ 	int nr_nodes, node;
+<span class="p_del">-	int ret = 0;</span>
+<span class="p_add">+	gfp_t gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;</span>
+ 
+ 	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {
+<span class="p_del">-		page = alloc_fresh_huge_page_node(h, node);</span>
+<span class="p_del">-		if (page) {</span>
+<span class="p_del">-			ret = 1;</span>
+<span class="p_add">+		page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask,</span>
+<span class="p_add">+				node, nodes_allowed);</span>
+<span class="p_add">+		if (page)</span>
+ 			break;
+<span class="p_del">-		}</span>
+<span class="p_add">+</span>
+ 	}
+ 
+<span class="p_del">-	if (ret)</span>
+<span class="p_del">-		count_vm_event(HTLB_BUDDY_PGALLOC);</span>
+<span class="p_del">-	else</span>
+<span class="p_del">-		count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);</span>
+<span class="p_add">+	if (!page)</span>
+<span class="p_add">+		return 0;</span>
+ 
+<span class="p_del">-	return ret;</span>
+<span class="p_add">+	prep_new_huge_page(h, page, page_to_nid(page));</span>
+<span class="p_add">+	put_page(page); /* free it into the hugepage allocator */</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return 1;</span>
+ }
+ 
+ /*
+<span class="p_chunk">@@ -1523,17 +1531,6 @@</span> <span class="p_context"> int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)</span>
+ 	return rc;
+ }
+ 
+<span class="p_del">-static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,</span>
+<span class="p_del">-		gfp_t gfp_mask, int nid, nodemask_t *nmask)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	int order = huge_page_order(h);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	gfp_mask |= __GFP_COMP|__GFP_RETRY_MAYFAIL|__GFP_NOWARN;</span>
+<span class="p_del">-	if (nid == NUMA_NO_NODE)</span>
+<span class="p_del">-		nid = numa_mem_id();</span>
+<span class="p_del">-	return __alloc_pages_nodemask(gfp_mask, order, nid, nmask);</span>
+<span class="p_del">-}</span>
+<span class="p_del">-</span>
+ static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
+ 		int nid, nodemask_t *nmask)
+ {
+<span class="p_chunk">@@ -1589,11 +1586,9 @@</span> <span class="p_context"> static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,</span>
+ 		 */
+ 		h-&gt;nr_huge_pages_node[r_nid]++;
+ 		h-&gt;surplus_huge_pages_node[r_nid]++;
+<span class="p_del">-		__count_vm_event(HTLB_BUDDY_PGALLOC);</span>
+ 	} else {
+ 		h-&gt;nr_huge_pages--;
+ 		h-&gt;surplus_huge_pages--;
+<span class="p_del">-		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);</span>
+ 	}
+ 	spin_unlock(&amp;hugetlb_lock);
+ 
+<span class="p_chunk">@@ -2148,6 +2143,8 @@</span> <span class="p_context"> static void __init gather_bootmem_prealloc(void)</span>
+ 		prep_compound_huge_page(page, h-&gt;order);
+ 		WARN_ON(PageReserved(page));
+ 		prep_new_huge_page(h, page, page_to_nid(page));
+<span class="p_add">+		put_page(page); /* free it into the hugepage allocator */</span>
+<span class="p_add">+</span>
+ 		/*
+ 		 * If we had gigantic hugepages allocated at boot time, we need
+ 		 * to restore the &#39;stolen&#39; pages to totalram_pages in order to
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

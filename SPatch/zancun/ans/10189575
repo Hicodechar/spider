@@ -1,0 +1,567 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>x86/speculation: Use Indirect Branch Prediction Barrier in context switch - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    x86/speculation: Use Indirect Branch Prediction Barrier in context switch</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=178213">Woodhouse, David</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Jan. 29, 2018, 11:33 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1517225608-9153-1-git-send-email-dwmw@amazon.co.uk&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10189575/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10189575/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10189575/">/patch/10189575/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	9E0FA60388 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 29 Jan 2018 11:55:29 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 84DF2205D6
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 29 Jan 2018 11:55:29 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 7989A28684; Mon, 29 Jan 2018 11:55:29 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-7.0 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID, DKIM_VALID_AU,
+	RCVD_IN_DNSWL_HI autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id D1129205D6
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 29 Jan 2018 11:55:28 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751978AbeA2LzZ (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 29 Jan 2018 06:55:25 -0500
+Received: from smtp-fw-9102.amazon.com ([207.171.184.29]:51710 &quot;EHLO
+	smtp-fw-9102.amazon.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751330AbeA2LzW (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 29 Jan 2018 06:55:22 -0500
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=amazon.co.uk; i=@amazon.co.uk; q=dns/txt;
+	s=amazon201209; t=1517226922; x=1548762922;
+	h=from:to:subject:date:message-id:mime-version:
+	content-transfer-encoding;
+	bh=vSgcYKqyTkhZZ3am0y/k02HWTnVhOWKcsxbhy8O+ND0=;
+	b=Qqf0xNxfZ5+/0jESMh60USZwHPFEx42lYvdCkSfxYOBnwwlxFDoDH9Vj
+	XpMxAAjbVPvUQC6JbNbzxo+YJWWGyAFrZ/oDZcnL5YChZH534OafU3Bby
+	Syk5zUVxOPdX72ExYrUHP+VuMJQTBBbvil6m//Ratc/9Q1KorWfwq0j9V 8=;
+X-IronPort-AV: E=Sophos;i=&quot;5.46,429,1511827200&quot;; d=&quot;scan&#39;208&quot;;a=&quot;590837759&quot;
+Received: from sea3-co-svc-lb6-vlan3.sea.amazon.com (HELO
+	email-inbound-relay-2c-c6afef2e.us-west-2.amazon.com)
+	([10.47.22.38]) by smtp-border-fw-out-9102.sea19.amazon.com with
+	ESMTP/TLS/DHE-RSA-AES256-SHA; 29 Jan 2018 11:33:57 +0000
+Received: from uc8d3ff76b9bc5848a9cc.ant.amazon.com
+	(pdx2-ws-svc-lb17-vlan3.amazon.com [10.247.140.70])
+	by email-inbound-relay-2c-c6afef2e.us-west-2.amazon.com
+	(8.14.7/8.14.7) with ESMTP id w0TBXpfl044336
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO);
+	Mon, 29 Jan 2018 11:33:53 GMT
+Received: from uc8d3ff76b9bc5848a9cc.ant.amazon.com (localhost [127.0.0.1])
+	by uc8d3ff76b9bc5848a9cc.ant.amazon.com (8.15.2/8.15.2/Debian-3)
+	with ESMTP id w0TBXo7q009293; Mon, 29 Jan 2018 11:33:50 GMT
+Received: (from dwmw@localhost)
+	by uc8d3ff76b9bc5848a9cc.ant.amazon.com (8.15.2/8.15.2/Submit) id
+	w0TBXnB9009288; Mon, 29 Jan 2018 11:33:49 GMT
+From: David Woodhouse &lt;dwmw@amazon.co.uk&gt;
+To: arjan@linux.intel.com, tglx@linutronix.de, karahmed@amazon.de,
+	x86@kernel.org, linux-kernel@vger.kernel.org,
+	tim.c.chen@linux.intel.com, bp@alien8.de, peterz@infradead.org,
+	pbonzini@redhat.com, ak@linux.intel.com,
+	torvalds@linux-foundation.org, gregkh@linux-foundation.org,
+	mingo@kernel.org, luto@kernel.org
+Subject: [PATCH] x86/speculation: Use Indirect Branch Prediction Barrier in
+	context switch
+Date: Mon, 29 Jan 2018 11:33:28 +0000
+Message-Id: &lt;1517225608-9153-1-git-send-email-dwmw@amazon.co.uk&gt;
+X-Mailer: git-send-email 2.7.4
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=178213">Woodhouse, David</a> - Jan. 29, 2018, 11:33 a.m.</div>
+<pre class="content">
+<span class="from">From: Tim Chen &lt;tim.c.chen@linux.intel.com&gt;</span>
+
+Flush indirect branches when switching into a process that marked itself
+non dumpable. This protects high value processes like gpg better,
+without having too high performance overhead.
+
+If done naïvely, we could switch to a kernel idle thread and then back
+to the original process, such as:
+
+    process A -&gt; idle -&gt; process A
+
+In such scenario, we do not have to do IBPB here even though the process
+is non-dumpable, as we are switching back to the same process after a
+hiatus.
+
+To avoid the redundant IBPB, which is expensive, we track the last mm
+user context ID. The cost is to have an extra u64 mm context id to track
+the last mm we were using before switching to the init_mm used by idle.
+Avoiding the extra IBPB is probably worth the extra memory for this
+common scenario.
+
+For those cases where tlb_defer_switch_to_init_mm() returns true (non
+PCID), lazy tlb will defer switch to init_mm, so we will not be changing
+the mm for the process A -&gt; idle -&gt; process A switch. So IBPB will be
+skipped for this case.
+
+Thanks to the reviewers and Andy Lutomirski for the suggestion of
+using ctx_id which got rid of the problem of mm pointer recycling.
+<span class="signed-off-by">
+Signed-off-by: Tim Chen &lt;tim.c.chen@linux.intel.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: David Woodhouse &lt;dwmw@amazon.co.uk&gt;</span>
+---
+How close are we to done with bikeshedding this one?... 
+
+ arch/x86/include/asm/tlbflush.h |  2 ++
+ arch/x86/mm/tlb.c               | 31 ++++++++++++++++++++++++++++++-
+ 2 files changed, 32 insertions(+), 1 deletion(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=3289">Dominik Brodowski</a> - Jan. 29, 2018, 12:28 p.m.</div>
+<pre class="content">
+On Mon, Jan 29, 2018 at 11:33:28AM +0000, David Woodhouse wrote:
+<span class="quote">&gt; From: Tim Chen &lt;tim.c.chen@linux.intel.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Flush indirect branches when switching into a process that marked itself</span>
+<span class="quote">&gt; non dumpable. This protects high value processes like gpg better,</span>
+<span class="quote">&gt; without having too high performance overhead.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If done naïvely, we could switch to a kernel idle thread and then back</span>
+<span class="quote">&gt; to the original process, such as:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;     process A -&gt; idle -&gt; process A</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; In such scenario, we do not have to do IBPB here even though the process</span>
+<span class="quote">&gt; is non-dumpable, as we are switching back to the same process after a</span>
+<span class="quote">&gt; hiatus.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; To avoid the redundant IBPB, which is expensive, we track the last mm</span>
+<span class="quote">&gt; user context ID. The cost is to have an extra u64 mm context id to track</span>
+<span class="quote">&gt; the last mm we were using before switching to the init_mm used by idle.</span>
+<span class="quote">&gt; Avoiding the extra IBPB is probably worth the extra memory for this</span>
+<span class="quote">&gt; common scenario.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; For those cases where tlb_defer_switch_to_init_mm() returns true (non</span>
+<span class="quote">&gt; PCID), lazy tlb will defer switch to init_mm, so we will not be changing</span>
+<span class="quote">&gt; the mm for the process A -&gt; idle -&gt; process A switch. So IBPB will be</span>
+<span class="quote">&gt; skipped for this case.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Thanks to the reviewers and Andy Lutomirski for the suggestion of</span>
+<span class="quote">&gt; using ctx_id which got rid of the problem of mm pointer recycling.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Tim Chen &lt;tim.c.chen@linux.intel.com&gt;</span>
+<span class="quote">&gt; Signed-off-by: David Woodhouse &lt;dwmw@amazon.co.uk&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt; How close are we to done with bikeshedding this one?... </span>
+
+The commit message is much more about the A-&gt;idle-&gt; improvement than
+on the basic design decisions to limit this to non-dumpable processes. And
+that still seems to be under discussion (see, for example, Jon Masters
+message of today, https://lkml.org/lkml/2018/1/29/34 ). So this design
+choice should, at least, be more explicit (if not tunable...).
+<span class="quote">
+&gt; @@ -219,6 +220,25 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+<span class="quote">&gt;  	} else {</span>
+<span class="quote">&gt;  		u16 new_asid;</span>
+<span class="quote">&gt;  		bool need_flush;</span>
+<span class="quote">&gt; +		u64 last_ctx_id = this_cpu_read(cpu_tlbstate.last_ctx_id);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +		/*</span>
+<span class="quote">&gt; +		 * Avoid user/user BTB poisoning by flushing the branch</span>
+<span class="quote">&gt; +		 * predictor when switching between processes. This stops</span>
+<span class="quote">&gt; +		 * one process from doing Spectre-v2 attacks on another.</span>
+<span class="quote">&gt; +		 *</span>
+<span class="quote">&gt; +                 * As an optimization, flush indirect branches only when</span>
+<span class="quote">&gt; +                 * switching into processes that disable dumping.</span>
+<span class="quote">&gt; +                 *</span>
+<span class="quote">&gt; +                 * This will not flush branches when switching into kernel</span>
+<span class="quote">&gt; +		 * threads. It will also not flush if we switch to idle</span>
+
+Whitespace damage. And maybe add &quot;, as the kernel depends on retpoline
+protection instead&quot; after &quot;threads&quot; here -- I think that was the reason why
+you think kernel threads are safe; or did I misunderstand you?
+<span class="quote">
+&gt; +		 * thread and back to the same process. It will flush if we</span>
+<span class="quote">&gt; +		 * switch to a different non-dumpable process.</span>
+
+&quot;process, as that gives additional protection to high value processes like
+gpg. Other processes are left unprotected here to reduce the overhead of the
+barrier [... maybe add some rationale here ...]&quot;
+
+Thanks,
+	Dominik
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=308">David Woodhouse</a> - Jan. 29, 2018, 12:44 p.m.</div>
+<pre class="content">
+On Mon, 2018-01-29 at 13:28 +0100, Dominik Brodowski wrote:
+<span class="quote">
+&gt; The commit message is much more about the A-&gt;idle-&gt; improvement than</span>
+<span class="quote">&gt; on the basic design decisions to limit this to non-dumpable processes.</span>
+
+Yeah, I collapsed the commit messages from the three commits into one.
+But the resulting commit message does start with the basic non-dumpable 
+concept, and explain the trade-off (sensitivity vs. overhead) using the
+comment from what was the second path in the series.
+<span class="quote">
+&gt;  And</span>
+<span class="quote">&gt; that still seems to be under discussion (see, for example, Jon Masters</span>
+<span class="quote">&gt; message of today, https://lkml.org/lkml/2018/1/29/34 ). So this design</span>
+<span class="quote">&gt; choice should, at least, be more explicit (if not tunable...).</span>
+
+That isn&#39;t stunningly relevant here. Yes, we might build userspace with
+retpoline support and there&#39;ll be an additional case here so it becomes
+!dumpable &amp;&amp; !retpoline-userspace. But that&#39;s all way off in the
+future.
+<span class="quote">
+&gt; &gt; @@ -219,6 +220,25 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+<span class="quote">&gt; &gt;  	} else {</span>
+<span class="quote">&gt; &gt;  		u16 new_asid;</span>
+<span class="quote">&gt; &gt;  		bool need_flush;</span>
+<span class="quote">&gt; &gt; +		u64 last_ctx_id = this_cpu_read(cpu_tlbstate.last_ctx_id);</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +		/*</span>
+<span class="quote">&gt; &gt; +		 * Avoid user/user BTB poisoning by flushing the branch</span>
+<span class="quote">&gt; &gt; +		 * predictor when switching between processes. This stops</span>
+<span class="quote">&gt; &gt; +		 * one process from doing Spectre-v2 attacks on another.</span>
+<span class="quote">&gt; &gt; +		 *</span>
+<span class="quote">&gt; &gt; +                 * As an optimization, flush indirect branches only when</span>
+<span class="quote">&gt; &gt; +                 * switching into processes that disable dumping.</span>
+<span class="quote">&gt; &gt; +                 *</span>
+<span class="quote">&gt; &gt; +                 * This will not flush branches when switching into kernel</span>
+<span class="quote">&gt; &gt; +		 * threads. It will also not flush if we switch to idle</span>
+<span class="quote">&gt; Whitespace damage. And maybe add &quot;, as the kernel depends on retpoline</span>
+<span class="quote">&gt; protection instead&quot; after &quot;threads&quot; here -- I think that was the reason why</span>
+<span class="quote">&gt; you think kernel threads are safe; or did I misunderstand you?</span>
+
+I&#39;ll fix up the whitespace; thanks. For the other comment... no, if
+kernel threads needed *any* kind of protection from this IBPB then we&#39;d
+be hosed by the time we got here anyway. Let&#39;s not imply that an IBPB
+here would be at all useful for the kernel under any circumstances.
+<span class="quote">
+
+&gt; &gt; </span>
+<span class="quote">&gt; &gt; +		 * thread and back to the same process. It will flush if we</span>
+<span class="quote">&gt; &gt; +		 * switch to a different non-dumpable process.</span>
+<span class="quote">&gt; &quot;process, as that gives additional protection to high value processes like</span>
+<span class="quote">&gt; gpg. Other processes are left unprotected here to reduce the overhead of the</span>
+<span class="quote">&gt; barrier [... maybe add some rationale here ...]&quot;</span>
+
+The rationale is to reduce the overhead of the barrier. I&#39;ve added that
+to the comment, based on what&#39;s in the commit message already. Thanks.
+
+http://git.infradead.org/users/dwmw2/linux-retpoline.git/commitdiff/8431c5a87520cd14f8769745589443e603682b23
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=3289">Dominik Brodowski</a> - Jan. 29, 2018, 1:56 p.m.</div>
+<pre class="content">
+On Mon, Jan 29, 2018 at 12:44:59PM +0000, David Woodhouse wrote:
+<span class="quote">&gt; On Mon, 2018-01-29 at 13:28 +0100, Dominik Brodowski wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; The commit message is much more about the A-&gt;idle-&gt; improvement than</span>
+<span class="quote">&gt; &gt; on the basic design decisions to limit this to non-dumpable processes.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yeah, I collapsed the commit messages from the three commits into one.</span>
+<span class="quote">&gt; But the resulting commit message does start with the basic non-dumpable </span>
+<span class="quote">&gt; concept, and explain the trade-off (sensitivity vs. overhead) using the</span>
+<span class="quote">&gt; comment from what was the second path in the series.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt;  And</span>
+<span class="quote">&gt; &gt; that still seems to be under discussion (see, for example, Jon Masters</span>
+<span class="quote">&gt; &gt; message of today, https://lkml.org/lkml/2018/1/29/34 ). So this design</span>
+<span class="quote">&gt; &gt; choice should, at least, be more explicit (if not tunable...).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; That isn&#39;t stunningly relevant here. Yes, we might build userspace with</span>
+<span class="quote">&gt; retpoline support and there&#39;ll be an additional case here so it becomes</span>
+<span class="quote">&gt; !dumpable &amp;&amp; !retpoline-userspace. But that&#39;s all way off in the</span>
+<span class="quote">&gt; future.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; &gt; @@ -219,6 +220,25 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+<span class="quote">&gt; &gt; &gt;  	} else {</span>
+<span class="quote">&gt; &gt; &gt;  		u16 new_asid;</span>
+<span class="quote">&gt; &gt; &gt;  		bool need_flush;</span>
+<span class="quote">&gt; &gt; &gt; +		u64 last_ctx_id = this_cpu_read(cpu_tlbstate.last_ctx_id);</span>
+<span class="quote">&gt; &gt; &gt; +</span>
+<span class="quote">&gt; &gt; &gt; +		/*</span>
+<span class="quote">&gt; &gt; &gt; +		 * Avoid user/user BTB poisoning by flushing the branch</span>
+<span class="quote">&gt; &gt; &gt; +		 * predictor when switching between processes. This stops</span>
+<span class="quote">&gt; &gt; &gt; +		 * one process from doing Spectre-v2 attacks on another.</span>
+<span class="quote">&gt; &gt; &gt; +		 *</span>
+<span class="quote">&gt; &gt; &gt; +                 * As an optimization, flush indirect branches only when</span>
+<span class="quote">&gt; &gt; &gt; +                 * switching into processes that disable dumping.</span>
+<span class="quote">&gt; &gt; &gt; +                 *</span>
+<span class="quote">&gt; &gt; &gt; +                 * This will not flush branches when switching into kernel</span>
+<span class="quote">&gt; &gt; &gt; +		 * threads. It will also not flush if we switch to idle</span>
+<span class="quote">&gt; &gt; Whitespace damage. And maybe add &quot;, as the kernel depends on retpoline</span>
+<span class="quote">&gt; &gt; protection instead&quot; after &quot;threads&quot; here -- I think that was the reason why</span>
+<span class="quote">&gt; &gt; you think kernel threads are safe; or did I misunderstand you?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I&#39;ll fix up the whitespace; thanks. For the other comment... no, if</span>
+<span class="quote">&gt; kernel threads needed *any* kind of protection from this IBPB then we&#39;d</span>
+<span class="quote">&gt; be hosed by the time we got here anyway. Let&#39;s not imply that an IBPB</span>
+<span class="quote">&gt; here would be at all useful for the kernel under any circumstances.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; +		 * thread and back to the same process. It will flush if we</span>
+<span class="quote">&gt; &gt; &gt; +		 * switch to a different non-dumpable process.</span>
+<span class="quote">&gt; &gt; &quot;process, as that gives additional protection to high value processes like</span>
+<span class="quote">&gt; &gt; gpg. Other processes are left unprotected here to reduce the overhead of the</span>
+<span class="quote">&gt; &gt; barrier [... maybe add some rationale here ...]&quot;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The rationale is to reduce the overhead of the barrier. I&#39;ve added that</span>
+<span class="quote">&gt; to the comment, based on what&#39;s in the commit message already. Thanks.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; http://git.infradead.org/users/dwmw2/linux-retpoline.git/commitdiff/8431c5a87520cd14f8769745589443e603682b23</span>
+
+That reads much better now, thanks. All other issues (e.g. adding an
+IPBP also for dumpable tasks) can easily be discussed on top of that commit.
+
+Thanks,
+	Dominik
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">index 3effd3c..4405c4b 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -174,6 +174,8 @@</span> <span class="p_context"> struct tlb_state {</span>
+ 	struct mm_struct *loaded_mm;
+ 	u16 loaded_mm_asid;
+ 	u16 next_asid;
+<span class="p_add">+	/* last user mm&#39;s ctx id */</span>
+<span class="p_add">+	u64 last_ctx_id;</span>
+ 
+ 	/*
+ 	 * We can be in one of several states:
+<span class="p_header">diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c</span>
+<span class="p_header">index a156195..870fb99 100644</span>
+<span class="p_header">--- a/arch/x86/mm/tlb.c</span>
+<span class="p_header">+++ b/arch/x86/mm/tlb.c</span>
+<span class="p_chunk">@@ -6,13 +6,14 @@</span> <span class="p_context"></span>
+ #include &lt;linux/interrupt.h&gt;
+ #include &lt;linux/export.h&gt;
+ #include &lt;linux/cpu.h&gt;
+<span class="p_add">+#include &lt;linux/debugfs.h&gt;</span>
+ 
+ #include &lt;asm/tlbflush.h&gt;
+ #include &lt;asm/mmu_context.h&gt;
+<span class="p_add">+#include &lt;asm/nospec-branch.h&gt;</span>
+ #include &lt;asm/cache.h&gt;
+ #include &lt;asm/apic.h&gt;
+ #include &lt;asm/uv/uv.h&gt;
+<span class="p_del">-#include &lt;linux/debugfs.h&gt;</span>
+ 
+ /*
+  *	TLB flushing, formerly SMP-only
+<span class="p_chunk">@@ -219,6 +220,25 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ 	} else {
+ 		u16 new_asid;
+ 		bool need_flush;
+<span class="p_add">+		u64 last_ctx_id = this_cpu_read(cpu_tlbstate.last_ctx_id);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Avoid user/user BTB poisoning by flushing the branch</span>
+<span class="p_add">+		 * predictor when switching between processes. This stops</span>
+<span class="p_add">+		 * one process from doing Spectre-v2 attacks on another.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+                 * As an optimization, flush indirect branches only when</span>
+<span class="p_add">+                 * switching into processes that disable dumping.</span>
+<span class="p_add">+                 *</span>
+<span class="p_add">+                 * This will not flush branches when switching into kernel</span>
+<span class="p_add">+		 * threads. It will also not flush if we switch to idle</span>
+<span class="p_add">+		 * thread and back to the same process. It will flush if we</span>
+<span class="p_add">+		 * switch to a different non-dumpable process.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (tsk &amp;&amp; tsk-&gt;mm &amp;&amp;</span>
+<span class="p_add">+		    tsk-&gt;mm-&gt;context.ctx_id != last_ctx_id &amp;&amp;</span>
+<span class="p_add">+		    get_dumpable(tsk-&gt;mm) != SUID_DUMP_USER)</span>
+<span class="p_add">+			indirect_branch_prediction_barrier();</span>
+ 
+ 		if (IS_ENABLED(CONFIG_VMAP_STACK)) {
+ 			/*
+<span class="p_chunk">@@ -268,6 +288,14 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ 			trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, 0);
+ 		}
+ 
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Record last user mm&#39;s context id, so we can avoid</span>
+<span class="p_add">+		 * flushing branch buffer with IBPB if we switch back</span>
+<span class="p_add">+		 * to the same user.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (next != &amp;init_mm)</span>
+<span class="p_add">+			this_cpu_write(cpu_tlbstate.last_ctx_id, next-&gt;context.ctx_id);</span>
+<span class="p_add">+</span>
+ 		this_cpu_write(cpu_tlbstate.loaded_mm, next);
+ 		this_cpu_write(cpu_tlbstate.loaded_mm_asid, new_asid);
+ 	}
+<span class="p_chunk">@@ -345,6 +373,7 @@</span> <span class="p_context"> void initialize_tlbstate_and_flush(void)</span>
+ 	write_cr3(build_cr3(mm-&gt;pgd, 0));
+ 
+ 	/* Reinitialize tlbstate. */
+<span class="p_add">+	this_cpu_write(cpu_tlbstate.last_ctx_id, mm-&gt;context.ctx_id);</span>
+ 	this_cpu_write(cpu_tlbstate.loaded_mm_asid, 0);
+ 	this_cpu_write(cpu_tlbstate.next_asid, 1);
+ 	this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, mm-&gt;context.ctx_id);
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

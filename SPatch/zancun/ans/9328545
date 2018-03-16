@@ -1,0 +1,893 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>memory-hotplug: Fix bad area access on dissolve_free_huge_pages() - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    memory-hotplug: Fix bad area access on dissolve_free_huge_pages()</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=158981">Rui Teng</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Sept. 13, 2016, 8:39 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1473755948-13215-1-git-send-email-rui.teng@linux.vnet.ibm.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9328545/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9328545/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9328545/">/patch/9328545/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	D82FA60839 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 13 Sep 2016 08:40:00 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id CAD622912B
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 13 Sep 2016 08:40:00 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id BF19129223; Tue, 13 Sep 2016 08:40:00 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 9B7392912B
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 13 Sep 2016 08:39:59 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S932215AbcIMIjw (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 13 Sep 2016 04:39:52 -0400
+Received: from mx0b-001b2d01.pphosted.com ([148.163.158.5]:52981 &quot;EHLO
+	mx0a-001b2d01.pphosted.com&quot; rhost-flags-OK-OK-OK-FAIL)
+	by vger.kernel.org with ESMTP id S1752456AbcIMIju (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 13 Sep 2016 04:39:50 -0400
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.17/8.16.0.17) with SMTP id
+	u8D8cGqa053028
+	for &lt;linux-kernel@vger.kernel.org&gt;; Tue, 13 Sep 2016 04:39:49 -0400
+Received: from e37.co.us.ibm.com (e37.co.us.ibm.com [32.97.110.158])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 25e2peeynt-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for &lt;linux-kernel@vger.kernel.org&gt;; Tue, 13 Sep 2016 04:39:49 -0400
+Received: from localhost
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use
+	Only! Violators will be prosecuted
+	for &lt;linux-kernel@vger.kernel.org&gt; from &lt;rui.teng@linux.vnet.ibm.com&gt;;
+	Tue, 13 Sep 2016 02:39:48 -0600
+Received: from d03dlp02.boulder.ibm.com (9.17.202.178)
+	by e37.co.us.ibm.com (192.168.1.137) with IBM ESMTP SMTP Gateway:
+	Authorized Use Only! Violators will be prosecuted; 
+	Tue, 13 Sep 2016 02:39:45 -0600
+X-IBM-Helo: d03dlp02.boulder.ibm.com
+X-IBM-MailFrom: rui.teng@linux.vnet.ibm.com
+Received: from b01cxnp22034.gho.pok.ibm.com (b01cxnp22034.gho.pok.ibm.com
+	[9.57.198.24])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id D20E23E40030;
+	Tue, 13 Sep 2016 02:39:44 -0600 (MDT)
+Received: from b01ledav004.gho.pok.ibm.com (b01ledav004.gho.pok.ibm.com
+	[9.57.199.109])
+	by b01cxnp22034.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP
+	id u8D8di4w15401224; Tue, 13 Sep 2016 08:39:44 GMT
+Received: from b01ledav004.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 2F60B112047;
+	Tue, 13 Sep 2016 04:39:44 -0400 (EDT)
+Received: from localhost (unknown [9.123.228.241])
+	by b01ledav004.gho.pok.ibm.com (Postfix) with ESMTP id D695A112051;
+	Tue, 13 Sep 2016 04:39:43 -0400 (EDT)
+From: Rui Teng &lt;rui.teng@linux.vnet.ibm.com&gt;
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;,
+	Michal Hocko &lt;mhocko@suse.com&gt;,
+	&quot;Kirill A . Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;,
+	Vlastimil Babka &lt;vbabka@suse.cz&gt;, Mike Kravetz &lt;mike.kravetz@oracle.com&gt;,
+	&quot;Aneesh Kumar K . V&quot; &lt;aneesh.kumar@linux.vnet.ibm.com&gt;,
+	Dave Hansen &lt;dave.hansen@linux.intel.com&gt;,
+	Paul Gortmaker &lt;paul.gortmaker@windriver.com&gt;,
+	Santhosh G &lt;santhog4@in.ibm.com&gt;, Rui Teng &lt;rui.teng@linux.vnet.ibm.com&gt;
+Subject: [PATCH] memory-hotplug: Fix bad area access on
+	dissolve_free_huge_pages()
+Date: Tue, 13 Sep 2016 16:39:08 +0800
+X-Mailer: git-send-email 2.7.4
+X-TM-AS-GCONF: 00
+X-Content-Scanned: Fidelis XPS MAILER
+x-cbid: 16091308-0024-0000-0000-00001488788C
+X-IBM-SpamModules-Scores: 
+X-IBM-SpamModules-Versions: BY=3.00005753; HX=3.00000240; KW=3.00000007;
+	PH=3.00000004; SC=3.00000185; SDB=6.00757158; UDB=6.00358990;
+	IPR=6.00530516; 
+	BA=6.00004712; NDR=6.00000001; ZLA=6.00000005; ZF=6.00000009;
+	ZB=6.00000000; 
+	ZP=6.00000000; ZH=6.00000000; ZU=6.00000002; MB=3.00012657;
+	XFM=3.00000011; UTC=2016-09-13 08:39:48
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 16091308-0025-0000-0000-00004467E106
+Message-Id: &lt;1473755948-13215-1-git-send-email-rui.teng@linux.vnet.ibm.com&gt;
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10432:, ,
+	definitions=2016-09-13_05:, , signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0
+	spamscore=0 suspectscore=2
+	malwarescore=0 phishscore=0 adultscore=0 bulkscore=0 classifier=spam
+	adjust=0 reason=mlx scancount=1 engine=8.0.1-1609020000
+	definitions=main-1609130127
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=158981">Rui Teng</a> - Sept. 13, 2016, 8:39 a.m.</div>
+<pre class="content">
+Santhosh G reported that call traces occurs when memory-hotplug script is run
+with 16Gb hugepages configured.
+
+It was found that the page_hstate(page) will get 0 if the PageHead(page) return
+false, Which will cause the bad area access.
+
+Issue:
+Call traces occurs when memory-hotplug script is run with 16Gb hugepages configured.
+
+Environment:
+ppc64le PowerVM Lpar
+
+root@ltctuleta-lp1:~# uname -r
+4.4.0-34-generic
+
+root@ltctuleta-lp1:~# cat /proc/meminfo | grep -i huge
+AnonHugePages:         0 kB
+HugePages_Total:       2
+HugePages_Free:        2
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:   16777216 kB
+
+root@ltctuleta-lp1:~# free -h
+              total        used        free      shared  buff/cache   available
+Mem:            85G         32G         52G         16M        193M         52G
+Swap:           43G          0B         43G
+
+Steps to reproduce:
+1 - Download kernel source and enter to the directory- tools/testing/selftests/memory-hotplug/
+2 - Run  mem-on-off-test.sh script in it.
+
+System gives call traces like:
+
+offline_memory_expect_success 639: unexpected fail
+online-offline 668
+[   57.552964] Unable to handle kernel paging request for data at address 0x00000028
+[   57.552977] Faulting instruction address: 0xc00000000029bc04
+[   57.552987] Oops: Kernel access of bad area, sig: 11 [#1]
+[   57.552992] SMP NR_CPUS=2048 NUMA pSeries
+[   57.553002] Modules linked in: btrfs xor raid6_pq pseries_rng sunrpc autofs4 ses enclosure nouveau bnx2x i2c_algo_bit ttm drm_kms_helper syscopyarea sysfillrect sysimgblt fb_sys_fops drm vxlan ip6_udp_tunnel ipr udp_tunnel rtc_generic mdio libcrc32c
+[   57.553050] CPU: 44 PID: 6518 Comm: mem-on-off-test Not tainted 4.4.0-34-generic #53-Ubuntu
+[   57.553059] task: c00000072773c8e0 ti: c000000727780000 task.ti: c000000727780000
+[   57.553067] NIP: c00000000029bc04 LR: c00000000029bbdc CTR: c0000000001107f0
+[   57.553076] REGS: c000000727783770 TRAP: 0300   Not tainted  (4.4.0-34-generic)
+[   57.553083] MSR: 8000000100009033 &lt;SF,EE,ME,IR,DR,RI,LE&gt;  CR: 24242882  XER: 00000002
+[   57.553104] CFAR: c000000000008468 DAR: 0000000000000028 DSISR: 40000000 SOFTE: 1
+GPR00: c00000000029bbdc c0000007277839f0 c0000000015b5d00 0000000000000000
+GPR04: 000000000029d000 0000000000000800 0000000000000000 f00000000a000001
+GPR08: f00000000a700020 0000000000000008 c00000000185e270 c000000e7e000050
+GPR12: 0000000000002200 c00000000e6ea200 000000000029d000 0000000022000000
+GPR16: 1000000000000000 c0000000015e2200 000000000a700000 0000000000000000
+GPR20: 0000000000010000 0000000000000100 0000000000000200 c0000000015f16d0
+GPR24: c000000001876510 0000000000000000 0000000000000001 c000000001872a00
+GPR28: 000000000029d000 f000000000000000 f00000000a700000 000000000029c000
+[   57.553211] NIP [c00000000029bc04] dissolve_free_huge_pages+0x154/0x220
+[   57.553219] LR [c00000000029bbdc] dissolve_free_huge_pages+0x12c/0x220
+[   57.553226] Call Trace:
+[   57.553231] [c0000007277839f0] [c00000000029bbdc] dissolve_free_huge_pages+0x12c/0x220 (unreliable)
+[   57.553244] [c000000727783a80] [c0000000002dcbc8] __offline_pages.constprop.6+0x3f8/0x900
+[   57.553254] [c000000727783bd0] [c0000000006fbb38] memory_subsys_offline+0xa8/0x110
+[   57.553265] [c000000727783c00] [c0000000006d6424] device_offline+0x104/0x140
+[   57.553274] [c000000727783c40] [c0000000006fba80] store_mem_state+0x180/0x190
+[   57.553283] [c000000727783c80] [c0000000006d1e58] dev_attr_store+0x68/0xa0
+[   57.553293] [c000000727783cc0] [c000000000398110] sysfs_kf_write+0x80/0xb0
+[   57.553302] [c000000727783d00] [c000000000397028] kernfs_fop_write+0x188/0x200
+[   57.553312] [c000000727783d50] [c0000000002e190c] __vfs_write+0x6c/0xe0
+[   57.553321] [c000000727783d90] [c0000000002e2640] vfs_write+0xc0/0x230
+[   57.553329] [c000000727783de0] [c0000000002e367c] SyS_write+0x6c/0x110
+[   57.553339] [c000000727783e30] [c000000000009204] system_call+0x38/0xb4
+[   57.553346] Instruction dump:
+[   57.553351] 7e831836 4bfff991 e91e0028 e8fe0020 7d32e82a f9070008 f8e80000 fabe0020
+[   57.553366] fade0028 79294620 79291764 7d234a14 &lt;e9030028&gt; 3908ffff f9030028 81091458
+[   57.553383] ---[ end trace 617f7bdd75bcfc10 ]---
+[   57.557133]
+Segmentation fault
+
+Reported-by: Santhosh G &lt;santhog4@in.ibm.com&gt;
+<span class="signed-off-by">Signed-off-by: Rui Teng &lt;rui.teng@linux.vnet.ibm.com&gt;</span>
+---
+ mm/hugetlb.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=64071">Dave Hansen</a> - Sept. 13, 2016, 5:32 p.m.</div>
+<pre class="content">
+On 09/13/2016 01:39 AM, Rui Teng wrote:
+<span class="quote">&gt; diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="quote">&gt; index 87e11d8..64b5f81 100644</span>
+<span class="quote">&gt; --- a/mm/hugetlb.c</span>
+<span class="quote">&gt; +++ b/mm/hugetlb.c</span>
+<span class="quote">&gt; @@ -1442,7 +1442,7 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,</span>
+<span class="quote">&gt;  static void dissolve_free_huge_page(struct page *page)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	spin_lock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt; -	if (PageHuge(page) &amp;&amp; !page_count(page)) {</span>
+<span class="quote">&gt; +	if (PageHuge(page) &amp;&amp; !page_count(page) &amp;&amp; PageHead(page)) {</span>
+<span class="quote">&gt;  		struct hstate *h = page_hstate(page);</span>
+<span class="quote">&gt;  		int nid = page_to_nid(page);</span>
+<span class="quote">&gt;  		list_del(&amp;page-&gt;lru);</span>
+
+This is goofy.  What is calling dissolve_free_huge_page() on a tail page?
+
+Hmm:
+<span class="quote">
+&gt;         for (pfn = start_pfn; pfn &lt; end_pfn; pfn += 1 &lt;&lt; minimum_order)</span>
+<span class="quote">&gt;                 dissolve_free_huge_page(pfn_to_page(pfn));</span>
+
+So, skip through the area being offlined at the smallest huge page size,
+and try to dissolve a huge page in each place one might appear.  But,
+after we dissolve a 16GB huge page, we continue looking through the
+remaining 15.98GB tail area for huge pages in the area we just
+dissolved.  The tail pages are still PageHuge() (how??), and we call
+page_hstate() on the tail page whose head was just dissolved.
+
+Note, even with the fix, this taking a (global) spinlock 1023 more times
+that it doesn&#39;t have to.
+
+This seems inefficient, and fails to fully explain what is going on, and
+how tail pages still _look_ like PageHuge(), which seems pretty wrong.
+
+I guess the patch _works_.  But, sheesh, it leaves a lot of room for
+improvement.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=158981">Rui Teng</a> - Sept. 14, 2016, 4:33 p.m.</div>
+<pre class="content">
+On 9/14/16 1:32 AM, Dave Hansen wrote:
+<span class="quote">&gt; On 09/13/2016 01:39 AM, Rui Teng wrote:</span>
+<span class="quote">&gt;&gt; diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="quote">&gt;&gt; index 87e11d8..64b5f81 100644</span>
+<span class="quote">&gt;&gt; --- a/mm/hugetlb.c</span>
+<span class="quote">&gt;&gt; +++ b/mm/hugetlb.c</span>
+<span class="quote">&gt;&gt; @@ -1442,7 +1442,7 @@ static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,</span>
+<span class="quote">&gt;&gt;  static void dissolve_free_huge_page(struct page *page)</span>
+<span class="quote">&gt;&gt;  {</span>
+<span class="quote">&gt;&gt;  	spin_lock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt;&gt; -	if (PageHuge(page) &amp;&amp; !page_count(page)) {</span>
+<span class="quote">&gt;&gt; +	if (PageHuge(page) &amp;&amp; !page_count(page) &amp;&amp; PageHead(page)) {</span>
+<span class="quote">&gt;&gt;  		struct hstate *h = page_hstate(page);</span>
+<span class="quote">&gt;&gt;  		int nid = page_to_nid(page);</span>
+<span class="quote">&gt;&gt;  		list_del(&amp;page-&gt;lru);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; This is goofy.  What is calling dissolve_free_huge_page() on a tail page?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Hmm:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt;         for (pfn = start_pfn; pfn &lt; end_pfn; pfn += 1 &lt;&lt; minimum_order)</span>
+<span class="quote">&gt;&gt;                 dissolve_free_huge_page(pfn_to_page(pfn));</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; So, skip through the area being offlined at the smallest huge page size,</span>
+<span class="quote">&gt; and try to dissolve a huge page in each place one might appear.  But,</span>
+<span class="quote">&gt; after we dissolve a 16GB huge page, we continue looking through the</span>
+<span class="quote">&gt; remaining 15.98GB tail area for huge pages in the area we just</span>
+<span class="quote">&gt; dissolved.  The tail pages are still PageHuge() (how??), and we call</span>
+<span class="quote">&gt; page_hstate() on the tail page whose head was just dissolved.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Note, even with the fix, this taking a (global) spinlock 1023 more times</span>
+<span class="quote">&gt; that it doesn&#39;t have to.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; This seems inefficient, and fails to fully explain what is going on, and</span>
+<span class="quote">&gt; how tail pages still _look_ like PageHuge(), which seems pretty wrong.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I guess the patch _works_.  But, sheesh, it leaves a lot of room for</span>
+<span class="quote">&gt; improvement.</span>
+<span class="quote">&gt;</span>
+Thanks for your suggestion!
+How about return the size of page freed from dissolve_free_huge_page(), 
+and jump such step on pfn?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=64071">Dave Hansen</a> - Sept. 14, 2016, 4:37 p.m.</div>
+<pre class="content">
+On 09/14/2016 09:33 AM, Rui Teng wrote:
+<span class="quote">&gt; </span>
+<span class="quote">&gt; How about return the size of page freed from dissolve_free_huge_page(),</span>
+<span class="quote">&gt; and jump such step on pfn?</span>
+
+That would be a nice improvement.
+
+But, as far as describing the initial problem, can you explain how the
+tail pages still ended up being PageHuge()?  Seems like dissolving the
+huge page should have cleared that.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=158981">Rui Teng</a> - Sept. 16, 2016, 1:58 p.m.</div>
+<pre class="content">
+On 9/15/16 12:37 AM, Dave Hansen wrote:
+<span class="quote">&gt; On 09/14/2016 09:33 AM, Rui Teng wrote:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; How about return the size of page freed from dissolve_free_huge_page(),</span>
+<span class="quote">&gt;&gt; and jump such step on pfn?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; That would be a nice improvement.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; But, as far as describing the initial problem, can you explain how the</span>
+<span class="quote">&gt; tail pages still ended up being PageHuge()?  Seems like dissolving the</span>
+<span class="quote">&gt; huge page should have cleared that.</span>
+<span class="quote">&gt;</span>
+I use the scripts of tools/testing/selftests/memory-hotplug/mem-on-
+off-test.sh to test and reproduce this bug. And I printed the pfn range
+on dissolve_free_huge_pages(). The sizes of the pfn range are always
+4096, and the ranges are separated.
+[   72.362427] start_pfn: 204800, end_pfn: 208896
+[   72.371677] start_pfn: 2162688, end_pfn: 2166784
+[   72.373945] start_pfn: 217088, end_pfn: 221184
+[   72.383218] start_pfn: 2170880, end_pfn: 2174976
+[   72.385918] start_pfn: 2306048, end_pfn: 2310144
+[   72.388254] start_pfn: 2326528, end_pfn: 2330624
+
+Sometimes, it will report a failure:
+[   72.371690] memory offlining [mem 0x2100000000-0x210fffffff] failed
+
+And sometimes, it will report following:
+[   72.373956] Offlined Pages 4096
+
+Whether the start_pfn and end_pfn of dissolve_free_huge_pages could be
+*random*? If so, the range may not include any page head and start from
+tail page, right?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=64071">Dave Hansen</a> - Sept. 16, 2016, 4:25 p.m.</div>
+<pre class="content">
+On 09/16/2016 06:58 AM, Rui Teng wrote:
+<span class="quote">&gt; On 9/15/16 12:37 AM, Dave Hansen wrote:</span>
+<span class="quote">&gt;&gt; On 09/14/2016 09:33 AM, Rui Teng wrote:</span>
+<span class="quote">&gt;&gt; But, as far as describing the initial problem, can you explain how the</span>
+<span class="quote">&gt;&gt; tail pages still ended up being PageHuge()?  Seems like dissolving the</span>
+<span class="quote">&gt;&gt; huge page should have cleared that.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt; I use the scripts of tools/testing/selftests/memory-hotplug/mem-on-</span>
+<span class="quote">&gt; off-test.sh to test and reproduce this bug. And I printed the pfn range</span>
+<span class="quote">&gt; on dissolve_free_huge_pages(). The sizes of the pfn range are always</span>
+<span class="quote">&gt; 4096, and the ranges are separated.</span>
+<span class="quote">&gt; [   72.362427] start_pfn: 204800, end_pfn: 208896</span>
+<span class="quote">&gt; [   72.371677] start_pfn: 2162688, end_pfn: 2166784</span>
+<span class="quote">&gt; [   72.373945] start_pfn: 217088, end_pfn: 221184</span>
+<span class="quote">&gt; [   72.383218] start_pfn: 2170880, end_pfn: 2174976</span>
+<span class="quote">&gt; [   72.385918] start_pfn: 2306048, end_pfn: 2310144</span>
+<span class="quote">&gt; [   72.388254] start_pfn: 2326528, end_pfn: 2330624</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Sometimes, it will report a failure:</span>
+<span class="quote">&gt; [   72.371690] memory offlining [mem 0x2100000000-0x210fffffff] failed</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; And sometimes, it will report following:</span>
+<span class="quote">&gt; [   72.373956] Offlined Pages 4096</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Whether the start_pfn and end_pfn of dissolve_free_huge_pages could be</span>
+<span class="quote">&gt; *random*? If so, the range may not include any page head and start from</span>
+<span class="quote">&gt; tail page, right?</span>
+
+That&#39;s an interesting data point, but it still doesn&#39;t quite explain
+what is going on.
+
+It seems like there might be parts of gigantic pages that have
+PageHuge() set on tail pages, while other parts don&#39;t.  If that&#39;s true,
+we have another bug and your patch just papers over the issue.
+
+I think you really need to find the root cause before we apply this patch.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=158981">Rui Teng</a> - Sept. 20, 2016, 2:45 p.m.</div>
+<pre class="content">
+On 9/17/16 12:25 AM, Dave Hansen wrote:
+<span class="quote">&gt;</span>
+<span class="quote">&gt; That&#39;s an interesting data point, but it still doesn&#39;t quite explain</span>
+<span class="quote">&gt; what is going on.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; It seems like there might be parts of gigantic pages that have</span>
+<span class="quote">&gt; PageHuge() set on tail pages, while other parts don&#39;t.  If that&#39;s true,</span>
+<span class="quote">&gt; we have another bug and your patch just papers over the issue.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I think you really need to find the root cause before we apply this patch.</span>
+<span class="quote">&gt;</span>
+The root cause is the test scripts(tools/testing/selftests/memory-
+hotplug/mem-on-off-test.sh) changes online/offline status on memory
+blocks other than page header. It will *randomly* select 10% memory
+blocks from /sys/devices/system/memory/memory*, and change their
+online/offline status.
+
+On my system, the memory block size is 0x10000000:
+	[root@elvis-n01-kvm memory]# cat block_size_bytes
+	10000000
+
+But the huge page size(16G) is more than this memory block size. So one
+huge page is composed by several memory blocks. For example, memory704,
+memory705, memory706 and so on. Then memory704 will contain a head
+page, but memory705 will *only* contain tail pages. So the problem will
+happened on it, if we call:
+	#echo offline &gt; memory705/state
+
+That&#39;s why we need a PageHead() check now, and why this problem does
+not happened on systems with smaller huge page such as 16M.
+
+As far as the PageHuge() set, I think PageHuge() will return true for
+all tail pages. Because it will get the compound_head for tail page,
+and then get its huge page flag.
+	page = compound_head(page);
+
+And as far as the failure message, if one memory block is in use, it
+will return failure when offline it.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=64071">Dave Hansen</a> - Sept. 20, 2016, 2:53 p.m.</div>
+<pre class="content">
+On 09/20/2016 07:45 AM, Rui Teng wrote:
+<span class="quote">&gt; On 9/17/16 12:25 AM, Dave Hansen wrote:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; That&#39;s an interesting data point, but it still doesn&#39;t quite explain</span>
+<span class="quote">&gt;&gt; what is going on.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; It seems like there might be parts of gigantic pages that have</span>
+<span class="quote">&gt;&gt; PageHuge() set on tail pages, while other parts don&#39;t.  If that&#39;s true,</span>
+<span class="quote">&gt;&gt; we have another bug and your patch just papers over the issue.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; I think you really need to find the root cause before we apply this</span>
+<span class="quote">&gt;&gt; patch.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt; The root cause is the test scripts(tools/testing/selftests/memory-</span>
+<span class="quote">&gt; hotplug/mem-on-off-test.sh) changes online/offline status on memory</span>
+<span class="quote">&gt; blocks other than page header. It will *randomly* select 10% memory</span>
+<span class="quote">&gt; blocks from /sys/devices/system/memory/memory*, and change their</span>
+<span class="quote">&gt; online/offline status.</span>
+
+Ahh, that does explain it!  Thanks for digging into that!
+<span class="quote">
+&gt; That&#39;s why we need a PageHead() check now, and why this problem does</span>
+<span class="quote">&gt; not happened on systems with smaller huge page such as 16M.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; As far as the PageHuge() set, I think PageHuge() will return true for</span>
+<span class="quote">&gt; all tail pages. Because it will get the compound_head for tail page,</span>
+<span class="quote">&gt; and then get its huge page flag.</span>
+<span class="quote">&gt;     page = compound_head(page);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; And as far as the failure message, if one memory block is in use, it</span>
+<span class="quote">&gt; will return failure when offline it.</span>
+
+That&#39;s good, but aren&#39;t we still left with a situation where we&#39;ve
+offlined and dissolved the _middle_ of a gigantic huge page while the
+head page is still in place and online?
+
+That seems bad.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=158981">Rui Teng</a> - Sept. 20, 2016, 3:52 p.m.</div>
+<pre class="content">
+On 9/20/16 10:53 PM, Dave Hansen wrote:
+<span class="quote">&gt; On 09/20/2016 07:45 AM, Rui Teng wrote:</span>
+<span class="quote">&gt;&gt; On 9/17/16 12:25 AM, Dave Hansen wrote:</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; That&#39;s an interesting data point, but it still doesn&#39;t quite explain</span>
+<span class="quote">&gt;&gt;&gt; what is going on.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; It seems like there might be parts of gigantic pages that have</span>
+<span class="quote">&gt;&gt;&gt; PageHuge() set on tail pages, while other parts don&#39;t.  If that&#39;s true,</span>
+<span class="quote">&gt;&gt;&gt; we have another bug and your patch just papers over the issue.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; I think you really need to find the root cause before we apply this</span>
+<span class="quote">&gt;&gt;&gt; patch.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt; The root cause is the test scripts(tools/testing/selftests/memory-</span>
+<span class="quote">&gt;&gt; hotplug/mem-on-off-test.sh) changes online/offline status on memory</span>
+<span class="quote">&gt;&gt; blocks other than page header. It will *randomly* select 10% memory</span>
+<span class="quote">&gt;&gt; blocks from /sys/devices/system/memory/memory*, and change their</span>
+<span class="quote">&gt;&gt; online/offline status.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Ahh, that does explain it!  Thanks for digging into that!</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; That&#39;s why we need a PageHead() check now, and why this problem does</span>
+<span class="quote">&gt;&gt; not happened on systems with smaller huge page such as 16M.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; As far as the PageHuge() set, I think PageHuge() will return true for</span>
+<span class="quote">&gt;&gt; all tail pages. Because it will get the compound_head for tail page,</span>
+<span class="quote">&gt;&gt; and then get its huge page flag.</span>
+<span class="quote">&gt;&gt;     page = compound_head(page);</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; And as far as the failure message, if one memory block is in use, it</span>
+<span class="quote">&gt;&gt; will return failure when offline it.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; That&#39;s good, but aren&#39;t we still left with a situation where we&#39;ve</span>
+<span class="quote">&gt; offlined and dissolved the _middle_ of a gigantic huge page while the</span>
+<span class="quote">&gt; head page is still in place and online?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; That seems bad.</span>
+<span class="quote">&gt;</span>
+What about refusing to change the status for such memory block, if it
+contains a huge page which larger than itself? (function
+memory_block_action())
+
+I think it will not affect the hot-plug function too much. We can
+change the nr_hugepages to zero first, if we really want to hot-plug a
+memory.
+
+And I also found that the __test_page_isolated_in_pageblock() function
+can not handle a gigantic page well. It will cause a device busy error
+later. I am still investigating on that.
+
+Any suggestion?
+
+Thanks!
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=64071">Dave Hansen</a> - Sept. 20, 2016, 5:43 p.m.</div>
+<pre class="content">
+On 09/20/2016 08:52 AM, Rui Teng wrote:
+<span class="quote">&gt; On 9/20/16 10:53 PM, Dave Hansen wrote:</span>
+...
+<span class="quote">&gt;&gt; That&#39;s good, but aren&#39;t we still left with a situation where we&#39;ve</span>
+<span class="quote">&gt;&gt; offlined and dissolved the _middle_ of a gigantic huge page while the</span>
+<span class="quote">&gt;&gt; head page is still in place and online?</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; That seems bad.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt; What about refusing to change the status for such memory block, if it</span>
+<span class="quote">&gt; contains a huge page which larger than itself? (function</span>
+<span class="quote">&gt; memory_block_action())</span>
+
+How will this be visible to users, though?  That sounds like you simply
+won&#39;t be able to offline memory with gigantic huge pages.
+<span class="quote">
+&gt; I think it will not affect the hot-plug function too much. We can</span>
+<span class="quote">&gt; change the nr_hugepages to zero first, if we really want to hot-plug a</span>
+<span class="quote">&gt; memory.</span>
+
+Is that really feasible?  Suggest that folks stop using hugetlbfs before
+offlining any memory?  Isn&#39;t the entire point of hotplug to keep the
+system running while you change the memory present?  Doing this would
+require that you stop your applications that are using huge pages.
+
+With gigantic pages, you may also never get them back if you do this.
+<span class="quote">
+&gt; And I also found that the __test_page_isolated_in_pageblock() function</span>
+<span class="quote">&gt; can not handle a gigantic page well. It will cause a device busy error</span>
+<span class="quote">&gt; later. I am still investigating on that.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Any suggestion?</span>
+
+It sounds like the _first_ offline operation needs to dissolve an
+_entire_ page if that page has any portion in the section being
+offlined.  I&#39;m not quite sure where the page should live after that, but
+I&#39;m not sure of any other way to do this sanely.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Sept. 21, 2016, 12:05 p.m.</div>
+<pre class="content">
+On Tue 20-09-16 10:43:13, Dave Hansen wrote:
+<span class="quote">&gt; On 09/20/2016 08:52 AM, Rui Teng wrote:</span>
+<span class="quote">&gt; &gt; On 9/20/16 10:53 PM, Dave Hansen wrote:</span>
+<span class="quote">&gt; ...</span>
+<span class="quote">&gt; &gt;&gt; That&#39;s good, but aren&#39;t we still left with a situation where we&#39;ve</span>
+<span class="quote">&gt; &gt;&gt; offlined and dissolved the _middle_ of a gigantic huge page while the</span>
+<span class="quote">&gt; &gt;&gt; head page is still in place and online?</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; That seems bad.</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt; What about refusing to change the status for such memory block, if it</span>
+<span class="quote">&gt; &gt; contains a huge page which larger than itself? (function</span>
+<span class="quote">&gt; &gt; memory_block_action())</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; How will this be visible to users, though?  That sounds like you simply</span>
+<span class="quote">&gt; won&#39;t be able to offline memory with gigantic huge pages.</span>
+
+I might be missing something but Is this any different from a regular
+failure when the memory cannot be freed? I mean
+/sys/devices/system/memory/memory API doesn&#39;t give you any hint whether
+the memory in the particular block is used and
+unmigrateable.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=64071">Dave Hansen</a> - Sept. 21, 2016, 4:04 p.m.</div>
+<pre class="content">
+On 09/21/2016 05:05 AM, Michal Hocko wrote:
+<span class="quote">&gt; On Tue 20-09-16 10:43:13, Dave Hansen wrote:</span>
+<span class="quote">&gt;&gt; On 09/20/2016 08:52 AM, Rui Teng wrote:</span>
+<span class="quote">&gt;&gt;&gt; On 9/20/16 10:53 PM, Dave Hansen wrote:</span>
+<span class="quote">&gt;&gt; ...</span>
+<span class="quote">&gt;&gt;&gt;&gt; That&#39;s good, but aren&#39;t we still left with a situation where we&#39;ve</span>
+<span class="quote">&gt;&gt;&gt;&gt; offlined and dissolved the _middle_ of a gigantic huge page while the</span>
+<span class="quote">&gt;&gt;&gt;&gt; head page is still in place and online?</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; That seems bad.</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; What about refusing to change the status for such memory block, if it</span>
+<span class="quote">&gt;&gt;&gt; contains a huge page which larger than itself? (function</span>
+<span class="quote">&gt;&gt;&gt; memory_block_action())</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; How will this be visible to users, though?  That sounds like you simply</span>
+<span class="quote">&gt;&gt; won&#39;t be able to offline memory with gigantic huge pages.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I might be missing something but Is this any different from a regular</span>
+<span class="quote">&gt; failure when the memory cannot be freed? I mean</span>
+<span class="quote">&gt; /sys/devices/system/memory/memory API doesn&#39;t give you any hint whether</span>
+<span class="quote">&gt; the memory in the particular block is used and</span>
+<span class="quote">&gt; unmigrateable.</span>
+
+It&#39;s OK to have free hugetlbfs pages in an area that&#39;s being offline&#39;d.
+ If we did that, it would not be OK to have a free gigantic hugetlbfs
+page that&#39;s larger than the area being offlined.
+
+It would be a wee bit goofy to have the requirement that userspace go
+find all the gigantic pages and make them non-gigantic before trying to
+offline something.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Sept. 21, 2016, 4:27 p.m.</div>
+<pre class="content">
+On Wed 21-09-16 09:04:31, Dave Hansen wrote:
+<span class="quote">&gt; On 09/21/2016 05:05 AM, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; On Tue 20-09-16 10:43:13, Dave Hansen wrote:</span>
+<span class="quote">&gt; &gt;&gt; On 09/20/2016 08:52 AM, Rui Teng wrote:</span>
+<span class="quote">&gt; &gt;&gt;&gt; On 9/20/16 10:53 PM, Dave Hansen wrote:</span>
+<span class="quote">&gt; &gt;&gt; ...</span>
+<span class="quote">&gt; &gt;&gt;&gt;&gt; That&#39;s good, but aren&#39;t we still left with a situation where we&#39;ve</span>
+<span class="quote">&gt; &gt;&gt;&gt;&gt; offlined and dissolved the _middle_ of a gigantic huge page while the</span>
+<span class="quote">&gt; &gt;&gt;&gt;&gt; head page is still in place and online?</span>
+<span class="quote">&gt; &gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt;&gt;&gt; That seems bad.</span>
+<span class="quote">&gt; &gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt;&gt; What about refusing to change the status for such memory block, if it</span>
+<span class="quote">&gt; &gt;&gt;&gt; contains a huge page which larger than itself? (function</span>
+<span class="quote">&gt; &gt;&gt;&gt; memory_block_action())</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; How will this be visible to users, though?  That sounds like you simply</span>
+<span class="quote">&gt; &gt;&gt; won&#39;t be able to offline memory with gigantic huge pages.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I might be missing something but Is this any different from a regular</span>
+<span class="quote">&gt; &gt; failure when the memory cannot be freed? I mean</span>
+<span class="quote">&gt; &gt; /sys/devices/system/memory/memory API doesn&#39;t give you any hint whether</span>
+<span class="quote">&gt; &gt; the memory in the particular block is used and</span>
+<span class="quote">&gt; &gt; unmigrateable.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It&#39;s OK to have free hugetlbfs pages in an area that&#39;s being offline&#39;d.</span>
+<span class="quote">&gt;  If we did that, it would not be OK to have a free gigantic hugetlbfs</span>
+<span class="quote">&gt; page that&#39;s larger than the area being offlined.</span>
+
+That was not my point. I wasn&#39;t very clear probably. Offlining can fail
+which shouldn&#39;t be really surprising. There might be a kernel allocation
+in the particular block which cannot be migrated so failures are to be
+expected. I just do not see how offlining in the middle of a gigantic
+page is any different from having any other unmovable allocation in a
+block. That being said, why don&#39;t we simply refuse to offline a block
+which is in the middle of a gigantic page.
+<span class="quote"> 
+&gt; It would be a wee bit goofy to have the requirement that userspace go</span>
+<span class="quote">&gt; find all the gigantic pages and make them non-gigantic before trying to</span>
+<span class="quote">&gt; offline something.</span>
+
+yes
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=64071">Dave Hansen</a> - Sept. 21, 2016, 4:32 p.m.</div>
+<pre class="content">
+On 09/21/2016 09:27 AM, Michal Hocko wrote:
+<span class="quote">&gt; That was not my point. I wasn&#39;t very clear probably. Offlining can fail</span>
+<span class="quote">&gt; which shouldn&#39;t be really surprising. There might be a kernel allocation</span>
+<span class="quote">&gt; in the particular block which cannot be migrated so failures are to be</span>
+<span class="quote">&gt; expected. I just do not see how offlining in the middle of a gigantic</span>
+<span class="quote">&gt; page is any different from having any other unmovable allocation in a</span>
+<span class="quote">&gt; block. That being said, why don&#39;t we simply refuse to offline a block</span>
+<span class="quote">&gt; which is in the middle of a gigantic page.</span>
+
+Don&#39;t we want to minimize the things that can cause an offline to fail?
+ The code to fix it here doesn&#39;t seem too bad.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Sept. 21, 2016, 4:52 p.m.</div>
+<pre class="content">
+On Wed 21-09-16 09:32:10, Dave Hansen wrote:
+<span class="quote">&gt; On 09/21/2016 09:27 AM, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; That was not my point. I wasn&#39;t very clear probably. Offlining can fail</span>
+<span class="quote">&gt; &gt; which shouldn&#39;t be really surprising. There might be a kernel allocation</span>
+<span class="quote">&gt; &gt; in the particular block which cannot be migrated so failures are to be</span>
+<span class="quote">&gt; &gt; expected. I just do not see how offlining in the middle of a gigantic</span>
+<span class="quote">&gt; &gt; page is any different from having any other unmovable allocation in a</span>
+<span class="quote">&gt; &gt; block. That being said, why don&#39;t we simply refuse to offline a block</span>
+<span class="quote">&gt; &gt; which is in the middle of a gigantic page.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Don&#39;t we want to minimize the things that can cause an offline to fail?</span>
+<span class="quote">&gt; The code to fix it here doesn&#39;t seem too bad.</span>
+
+I am not really sure. So say somebody wants to offline few blocks (does
+offlining anything but whole nodes make any sense btw.?) and that
+happens to be in the middle of a gigantic huge page which is not really
+that easy to allocate, do we want to free it in order to do the offline?
+To me it sounds like keeping the gigantic page should be preffered but
+I have to admit I do not really understand the per-block offlining
+though.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="p_header">index 87e11d8..64b5f81 100644</span>
+<span class="p_header">--- a/mm/hugetlb.c</span>
+<span class="p_header">+++ b/mm/hugetlb.c</span>
+<span class="p_chunk">@@ -1442,7 +1442,7 @@</span> <span class="p_context"> static int free_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,</span>
+ static void dissolve_free_huge_page(struct page *page)
+ {
+ 	spin_lock(&amp;hugetlb_lock);
+<span class="p_del">-	if (PageHuge(page) &amp;&amp; !page_count(page)) {</span>
+<span class="p_add">+	if (PageHuge(page) &amp;&amp; !page_count(page) &amp;&amp; PageHead(page)) {</span>
+ 		struct hstate *h = page_hstate(page);
+ 		int nid = page_to_nid(page);
+ 		list_del(&amp;page-&gt;lru);
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

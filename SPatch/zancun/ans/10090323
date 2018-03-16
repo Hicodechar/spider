@@ -1,0 +1,476 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,4/5] mm, hugetlb: get rid of surplus page accounting tricks - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,4/5] mm, hugetlb: get rid of surplus page accounting tricks</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Dec. 4, 2017, 2:01 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20171204140117.7191-5-mhocko@kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10090323/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10090323/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10090323/">/patch/10090323/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	E7FD860329 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  4 Dec 2017 14:02:51 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id CF22B287DE
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  4 Dec 2017 14:02:46 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id C2DCE2899A; Mon,  4 Dec 2017 14:02:46 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 2605D287DE
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  4 Dec 2017 14:02:46 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1754378AbdLDOCp (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 4 Dec 2017 09:02:45 -0500
+Received: from mail-wm0-f66.google.com ([74.125.82.66]:34937 &quot;EHLO
+	mail-wm0-f66.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752209AbdLDOBe (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 4 Dec 2017 09:01:34 -0500
+Received: by mail-wm0-f66.google.com with SMTP id f9so14531698wmh.0
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Mon, 04 Dec 2017 06:01:33 -0800 (PST)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+	:references;
+	bh=iSMPmmGE4V8DbXg2IBMRFytGuls8isEz+VliJD7std4=;
+	b=XsYQ3TeiXeq4oMauVp9amEIsKBGV0xGfJvgnbJh1PDu1sjd0N9UBNMalHBjcFH+siS
+	dCvcYH59PIx1p4nRtIJ0PIkRtkfLEjBDLEXEt3Xt0d2EGLeCo7wSsxFBo1GSRE2VLtbn
+	C5k79RILAwzLPMZi8+I039Tti60zpAWZUqHg8MtSZS2uyGPLHsWNoq9YeJxV/N1Mv/UX
+	xpv+/bhGAeq8yBEDZn3R2qJVNpPc7KZ/hskD+7XYlFuH2laAeCPALbIzRn/CUYG0+Wb5
+	64TQjS8BKW7ieIgMOUJdQhxAPYFSuDT8b50IrD8qwqzpQLFktIrlqjojq75sTCC2kQtL
+	Yq3A==
+X-Gm-Message-State: AKGB3mL+ODXLTVlTNManrYs4OdJnkapFWZRAr5lqf7pXLmgsSH9ZttIW
+	GDJ21L6GJGsJGl/91aooKxQ=
+X-Google-Smtp-Source: AGs4zMZ2YGv7pqwmMGEHRrcPxGFXevNL4eSzhlzypaLeauuahJ2c6wKy299pKvE23y8p7hq1GQpUCA==
+X-Received: by 10.28.62.5 with SMTP id l5mr3154747wma.47.1512396092184;
+	Mon, 04 Dec 2017 06:01:32 -0800 (PST)
+Received: from tiehlicka.suse.cz (ip-89-177-66-30.net.upcbroadband.cz.
+	[89.177.66.30]) by smtp.gmail.com with ESMTPSA id
+	73sm9549983wrb.64.2017.12.04.06.01.30
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Mon, 04 Dec 2017 06:01:31 -0800 (PST)
+From: Michal Hocko &lt;mhocko@kernel.org&gt;
+To: &lt;linux-mm@kvack.org&gt;
+Cc: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;,
+	Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	LKML &lt;linux-kernel@vger.kernel.org&gt;, Michal Hocko &lt;mhocko@suse.com&gt;
+Subject: [RFC PATCH 4/5] mm,
+	hugetlb: get rid of surplus page accounting tricks
+Date: Mon,  4 Dec 2017 15:01:16 +0100
+Message-Id: &lt;20171204140117.7191-5-mhocko@kernel.org&gt;
+X-Mailer: git-send-email 2.15.0
+In-Reply-To: &lt;20171204140117.7191-1-mhocko@kernel.org&gt;
+References: &lt;20171204140117.7191-1-mhocko@kernel.org&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Dec. 4, 2017, 2:01 p.m.</div>
+<pre class="content">
+<span class="from">From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+
+alloc_surplus_huge_page increases the pool size and the number of
+surplus pages opportunistically to prevent from races with the pool size
+change. See d1c3fb1f8f29 (&quot;hugetlb: introduce nr_overcommit_hugepages
+sysctl&quot;) for more details.
+
+The resulting code is unnecessarily hairy, cause code duplication and
+doesn&#39;t allow to share the allocation paths. Moreover pool size changes
+tend to be very seldom so optimizing for them is not really reasonable.
+Simplify the code and allow to allocate a fresh surplus page as long as
+we are under the overcommit limit and then recheck the condition after
+the allocation and drop the new page if the situation has changed. This
+should provide a reasonable guarantee that an abrupt allocation requests
+will not go way off the limit.
+
+If we consider races with the pool shrinking and enlarging then we
+should be reasonably safe as well. In the first case we are off by one
+in the worst case and the second case should work OK because the page is
+not yet visible. We can waste CPU cycles for the allocation but that
+should be acceptable for a relatively rare condition.
+<span class="signed-off-by">
+Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+---
+ mm/hugetlb.c | 60 +++++++++++++++++++++---------------------------------------
+ 1 file changed, 21 insertions(+), 39 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Dec. 14, 2017, 12:45 a.m.</div>
+<pre class="content">
+On 12/04/2017 06:01 AM, Michal Hocko wrote:
+<span class="quote">&gt; From: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; alloc_surplus_huge_page increases the pool size and the number of</span>
+<span class="quote">&gt; surplus pages opportunistically to prevent from races with the pool size</span>
+<span class="quote">&gt; change. See d1c3fb1f8f29 (&quot;hugetlb: introduce nr_overcommit_hugepages</span>
+<span class="quote">&gt; sysctl&quot;) for more details.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The resulting code is unnecessarily hairy, cause code duplication and</span>
+<span class="quote">&gt; doesn&#39;t allow to share the allocation paths. Moreover pool size changes</span>
+<span class="quote">&gt; tend to be very seldom so optimizing for them is not really reasonable.</span>
+<span class="quote">&gt; Simplify the code and allow to allocate a fresh surplus page as long as</span>
+<span class="quote">&gt; we are under the overcommit limit and then recheck the condition after</span>
+<span class="quote">&gt; the allocation and drop the new page if the situation has changed. This</span>
+<span class="quote">&gt; should provide a reasonable guarantee that an abrupt allocation requests</span>
+<span class="quote">&gt; will not go way off the limit.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If we consider races with the pool shrinking and enlarging then we</span>
+<span class="quote">&gt; should be reasonably safe as well. In the first case we are off by one</span>
+<span class="quote">&gt; in the worst case and the second case should work OK because the page is</span>
+<span class="quote">&gt; not yet visible. We can waste CPU cycles for the allocation but that</span>
+<span class="quote">&gt; should be acceptable for a relatively rare condition.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  mm/hugetlb.c | 60 +++++++++++++++++++++---------------------------------------</span>
+<span class="quote">&gt;  1 file changed, 21 insertions(+), 39 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="quote">&gt; index a1b8b2888ec9..0c7dc269b6c0 100644</span>
+<span class="quote">&gt; --- a/mm/hugetlb.c</span>
+<span class="quote">&gt; +++ b/mm/hugetlb.c</span>
+<span class="quote">&gt; @@ -1538,62 +1538,44 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)</span>
+<span class="quote">&gt;  static struct page *__alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,</span>
+<span class="quote">&gt;  		int nid, nodemask_t *nmask)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; -	struct page *page;</span>
+<span class="quote">&gt; -	unsigned int r_nid;</span>
+<span class="quote">&gt; +	struct page *page = NULL;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	if (hstate_is_gigantic(h))</span>
+<span class="quote">&gt;  		return NULL;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	/*</span>
+<span class="quote">&gt; -	 * Assume we will successfully allocate the surplus page to</span>
+<span class="quote">&gt; -	 * prevent racing processes from causing the surplus to exceed</span>
+<span class="quote">&gt; -	 * overcommit</span>
+<span class="quote">&gt; -	 *</span>
+<span class="quote">&gt; -	 * This however introduces a different race, where a process B</span>
+<span class="quote">&gt; -	 * tries to grow the static hugepage pool while alloc_pages() is</span>
+<span class="quote">&gt; -	 * called by process A. B will only examine the per-node</span>
+<span class="quote">&gt; -	 * counters in determining if surplus huge pages can be</span>
+<span class="quote">&gt; -	 * converted to normal huge pages in adjust_pool_surplus(). A</span>
+<span class="quote">&gt; -	 * won&#39;t be able to increment the per-node counter, until the</span>
+<span class="quote">&gt; -	 * lock is dropped by B, but B doesn&#39;t drop hugetlb_lock until</span>
+<span class="quote">&gt; -	 * no more huge pages can be converted from surplus to normal</span>
+<span class="quote">&gt; -	 * state (and doesn&#39;t try to convert again). Thus, we have a</span>
+<span class="quote">&gt; -	 * case where a surplus huge page exists, the pool is grown, and</span>
+<span class="quote">&gt; -	 * the surplus huge page still exists after, even though it</span>
+<span class="quote">&gt; -	 * should just have been converted to a normal huge page. This</span>
+<span class="quote">&gt; -	 * does not leak memory, though, as the hugepage will be freed</span>
+<span class="quote">&gt; -	 * once it is out of use. It also does not allow the counters to</span>
+<span class="quote">&gt; -	 * go out of whack in adjust_pool_surplus() as we don&#39;t modify</span>
+<span class="quote">&gt; -	 * the node values until we&#39;ve gotten the hugepage and only the</span>
+<span class="quote">&gt; -	 * per-node value is checked there.</span>
+<span class="quote">&gt; -	 */</span>
+<span class="quote">&gt;  	spin_lock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt; -	if (h-&gt;surplus_huge_pages &gt;= h-&gt;nr_overcommit_huge_pages) {</span>
+<span class="quote">&gt; -		spin_unlock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt; -		return NULL;</span>
+<span class="quote">&gt; -	} else {</span>
+<span class="quote">&gt; -		h-&gt;nr_huge_pages++;</span>
+<span class="quote">&gt; -		h-&gt;surplus_huge_pages++;</span>
+<span class="quote">&gt; -	}</span>
+<span class="quote">&gt; +	if (h-&gt;surplus_huge_pages &gt;= h-&gt;nr_overcommit_huge_pages)</span>
+<span class="quote">&gt; +		goto out_unlock;</span>
+<span class="quote">&gt;  	spin_unlock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask, nid, nmask);</span>
+<span class="quote">&gt; +	if (!page)</span>
+<span class="quote">&gt; +		goto out_unlock;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	spin_lock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt; -	if (page) {</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * We could have raced with the pool size change.</span>
+<span class="quote">&gt; +	 * Double check that and simply deallocate the new page</span>
+<span class="quote">&gt; +	 * if we would end up overcommiting the surpluses. Abuse</span>
+<span class="quote">&gt; +	 * temporary page to workaround the nasty free_huge_page</span>
+<span class="quote">&gt; +	 * codeflow</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	if (h-&gt;surplus_huge_pages &gt;= h-&gt;nr_overcommit_huge_pages) {</span>
+<span class="quote">&gt; +		SetPageHugeTemporary(page);</span>
+<span class="quote">&gt; +		put_page(page);</span>
+<span class="quote">&gt; +		page = NULL;</span>
+<span class="quote">&gt; +	} else {</span>
+<span class="quote">&gt; +		h-&gt;surplus_huge_pages_node[page_to_nid(page)]++;</span>
+<span class="quote">&gt; +		h-&gt;surplus_huge_pages++;</span>
+<span class="quote">&gt;  		INIT_LIST_HEAD(&amp;page-&gt;lru);</span>
+<span class="quote">&gt;  		r_nid = page_to_nid(page);</span>
+<span class="quote">&gt;  		set_compound_page_dtor(page, HUGETLB_PAGE_DTOR);</span>
+<span class="quote">&gt;  		set_hugetlb_cgroup(page, NULL);</span>
+<span class="quote">&gt; -		/*</span>
+<span class="quote">&gt; -		 * We incremented the global counters already</span>
+<span class="quote">&gt; -		 */</span>
+<span class="quote">&gt;  		h-&gt;nr_huge_pages_node[r_nid]++;</span>
+<span class="quote">&gt;  		h-&gt;surplus_huge_pages_node[r_nid]++;</span>
+<span class="quote">&gt; -	} else {</span>
+<span class="quote">&gt; -		h-&gt;nr_huge_pages--;</span>
+<span class="quote">&gt; -		h-&gt;surplus_huge_pages--;</span>
+
+In the case of a successful surplus allocation, the following counters
+are incremented:
+
+h-&gt;surplus_huge_pages_node[page_to_nid(page)]++;
+h-&gt;surplus_huge_pages++;
+h-&gt;nr_huge_pages_node[r_nid]++;
+h-&gt;surplus_huge_pages_node[r_nid]++;
+
+Looks like per-node surplus_huge_pages_node is incremented twice, and
+global nr_huge_pages is not incremented at all.
+
+Also, you removed r_nid so I&#39;m guessing this will not compile?
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="p_header">index a1b8b2888ec9..0c7dc269b6c0 100644</span>
+<span class="p_header">--- a/mm/hugetlb.c</span>
+<span class="p_header">+++ b/mm/hugetlb.c</span>
+<span class="p_chunk">@@ -1538,62 +1538,44 @@</span> <span class="p_context"> int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)</span>
+ static struct page *__alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
+ 		int nid, nodemask_t *nmask)
+ {
+<span class="p_del">-	struct page *page;</span>
+<span class="p_del">-	unsigned int r_nid;</span>
+<span class="p_add">+	struct page *page = NULL;</span>
+ 
+ 	if (hstate_is_gigantic(h))
+ 		return NULL;
+ 
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * Assume we will successfully allocate the surplus page to</span>
+<span class="p_del">-	 * prevent racing processes from causing the surplus to exceed</span>
+<span class="p_del">-	 * overcommit</span>
+<span class="p_del">-	 *</span>
+<span class="p_del">-	 * This however introduces a different race, where a process B</span>
+<span class="p_del">-	 * tries to grow the static hugepage pool while alloc_pages() is</span>
+<span class="p_del">-	 * called by process A. B will only examine the per-node</span>
+<span class="p_del">-	 * counters in determining if surplus huge pages can be</span>
+<span class="p_del">-	 * converted to normal huge pages in adjust_pool_surplus(). A</span>
+<span class="p_del">-	 * won&#39;t be able to increment the per-node counter, until the</span>
+<span class="p_del">-	 * lock is dropped by B, but B doesn&#39;t drop hugetlb_lock until</span>
+<span class="p_del">-	 * no more huge pages can be converted from surplus to normal</span>
+<span class="p_del">-	 * state (and doesn&#39;t try to convert again). Thus, we have a</span>
+<span class="p_del">-	 * case where a surplus huge page exists, the pool is grown, and</span>
+<span class="p_del">-	 * the surplus huge page still exists after, even though it</span>
+<span class="p_del">-	 * should just have been converted to a normal huge page. This</span>
+<span class="p_del">-	 * does not leak memory, though, as the hugepage will be freed</span>
+<span class="p_del">-	 * once it is out of use. It also does not allow the counters to</span>
+<span class="p_del">-	 * go out of whack in adjust_pool_surplus() as we don&#39;t modify</span>
+<span class="p_del">-	 * the node values until we&#39;ve gotten the hugepage and only the</span>
+<span class="p_del">-	 * per-node value is checked there.</span>
+<span class="p_del">-	 */</span>
+ 	spin_lock(&amp;hugetlb_lock);
+<span class="p_del">-	if (h-&gt;surplus_huge_pages &gt;= h-&gt;nr_overcommit_huge_pages) {</span>
+<span class="p_del">-		spin_unlock(&amp;hugetlb_lock);</span>
+<span class="p_del">-		return NULL;</span>
+<span class="p_del">-	} else {</span>
+<span class="p_del">-		h-&gt;nr_huge_pages++;</span>
+<span class="p_del">-		h-&gt;surplus_huge_pages++;</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+	if (h-&gt;surplus_huge_pages &gt;= h-&gt;nr_overcommit_huge_pages)</span>
+<span class="p_add">+		goto out_unlock;</span>
+ 	spin_unlock(&amp;hugetlb_lock);
+ 
+ 	page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask, nid, nmask);
+<span class="p_add">+	if (!page)</span>
+<span class="p_add">+		goto out_unlock;</span>
+ 
+ 	spin_lock(&amp;hugetlb_lock);
+<span class="p_del">-	if (page) {</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * We could have raced with the pool size change.</span>
+<span class="p_add">+	 * Double check that and simply deallocate the new page</span>
+<span class="p_add">+	 * if we would end up overcommiting the surpluses. Abuse</span>
+<span class="p_add">+	 * temporary page to workaround the nasty free_huge_page</span>
+<span class="p_add">+	 * codeflow</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (h-&gt;surplus_huge_pages &gt;= h-&gt;nr_overcommit_huge_pages) {</span>
+<span class="p_add">+		SetPageHugeTemporary(page);</span>
+<span class="p_add">+		put_page(page);</span>
+<span class="p_add">+		page = NULL;</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		h-&gt;surplus_huge_pages_node[page_to_nid(page)]++;</span>
+<span class="p_add">+		h-&gt;surplus_huge_pages++;</span>
+ 		INIT_LIST_HEAD(&amp;page-&gt;lru);
+ 		r_nid = page_to_nid(page);
+ 		set_compound_page_dtor(page, HUGETLB_PAGE_DTOR);
+ 		set_hugetlb_cgroup(page, NULL);
+<span class="p_del">-		/*</span>
+<span class="p_del">-		 * We incremented the global counters already</span>
+<span class="p_del">-		 */</span>
+ 		h-&gt;nr_huge_pages_node[r_nid]++;
+ 		h-&gt;surplus_huge_pages_node[r_nid]++;
+<span class="p_del">-	} else {</span>
+<span class="p_del">-		h-&gt;nr_huge_pages--;</span>
+<span class="p_del">-		h-&gt;surplus_huge_pages--;</span>
+ 	}
+<span class="p_add">+</span>
+<span class="p_add">+out_unlock:</span>
+ 	spin_unlock(&amp;hugetlb_lock);
+ 
+ 	return page;
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,526 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[04/23] x86, tlb: make CR4-based TLB flushes more robust - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [04/23] x86, tlb: make CR4-based TLB flushes more robust</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=64071">Dave Hansen</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Oct. 31, 2017, 10:31 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20171031223154.67F15B2A@viggo.jf.intel.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10035509/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10035509/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10035509/">/patch/10035509/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	8D85060327 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 31 Oct 2017 22:37:27 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 813D128AFF
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 31 Oct 2017 22:37:27 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 75E2328B24; Tue, 31 Oct 2017 22:37:27 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id E556328AFF
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 31 Oct 2017 22:37:26 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S932801AbdJaWb5 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 31 Oct 2017 18:31:57 -0400
+Received: from mga09.intel.com ([134.134.136.24]:59218 &quot;EHLO mga09.intel.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1752241AbdJaWbz (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 31 Oct 2017 18:31:55 -0400
+Received: from fmsmga006.fm.intel.com ([10.253.24.20])
+	by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384;
+	31 Oct 2017 15:31:55 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i=&quot;5.44,326,1505804400&quot;; d=&quot;scan&#39;208&quot;;a=&quot;170235943&quot;
+Received: from viggo.jf.intel.com (HELO localhost.localdomain)
+	([10.54.39.20])
+	by fmsmga006.fm.intel.com with ESMTP; 31 Oct 2017 15:31:54 -0700
+Subject: [PATCH 04/23] x86, tlb: make CR4-based TLB flushes more robust
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com,
+	moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at,
+	michael.schwarz@iaik.tugraz.at, luto@kernel.org,
+	torvalds@linux-foundation.org, keescook@google.com,
+	hughd@google.com, x86@kernel.org
+From: Dave Hansen &lt;dave.hansen@linux.intel.com&gt;
+Date: Tue, 31 Oct 2017 15:31:54 -0700
+References: &lt;20171031223146.6B47C861@viggo.jf.intel.com&gt;
+In-Reply-To: &lt;20171031223146.6B47C861@viggo.jf.intel.com&gt;
+Message-Id: &lt;20171031223154.67F15B2A@viggo.jf.intel.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=64071">Dave Hansen</a> - Oct. 31, 2017, 10:31 p.m.</div>
+<pre class="content">
+Our CR4-based TLB flush currently requries global pages to be
+supported *and* enabled.  But, we really only need for them to be
+supported.  Make the code more robust by alllowing X86_CR4_PGE to
+clear as well as set.
+
+This change was suggested by Kirill Shutemov.
+<span class="signed-off-by">
+Signed-off-by: Dave Hansen &lt;dave.hansen@linux.intel.com&gt;</span>
+Cc: Moritz Lipp &lt;moritz.lipp@iaik.tugraz.at&gt;
+Cc: Daniel Gruss &lt;daniel.gruss@iaik.tugraz.at&gt;
+Cc: Michael Schwarz &lt;michael.schwarz@iaik.tugraz.at&gt;
+Cc: Andy Lutomirski &lt;luto@kernel.org&gt;
+Cc: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+Cc: Kees Cook &lt;keescook@google.com&gt;
+Cc: Hugh Dickins &lt;hughd@google.com&gt;
+Cc: x86@kernel.org
+---
+
+ b/arch/x86/include/asm/tlbflush.h |   17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - Nov. 1, 2017, 8:01 a.m.</div>
+<pre class="content">
+On Tue, Oct 31, 2017 at 3:31 PM, Dave Hansen
+&lt;dave.hansen@linux.intel.com&gt; wrote:
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Our CR4-based TLB flush currently requries global pages to be</span>
+<span class="quote">&gt; supported *and* enabled.  But, we really only need for them to be</span>
+<span class="quote">&gt; supported.  Make the code more robust by alllowing X86_CR4_PGE to</span>
+<span class="quote">&gt; clear as well as set.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; This change was suggested by Kirill Shutemov.</span>
+
+I may have missed something, but why would be ever have CR4.PGE off?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=874">Kirill A. Shutemov</a> - Nov. 1, 2017, 10:11 a.m.</div>
+<pre class="content">
+On Wed, Nov 01, 2017 at 01:01:45AM -0700, Andy Lutomirski wrote:
+<span class="quote">&gt; On Tue, Oct 31, 2017 at 3:31 PM, Dave Hansen</span>
+<span class="quote">&gt; &lt;dave.hansen@linux.intel.com&gt; wrote:</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Our CR4-based TLB flush currently requries global pages to be</span>
+<span class="quote">&gt; &gt; supported *and* enabled.  But, we really only need for them to be</span>
+<span class="quote">&gt; &gt; supported.  Make the code more robust by alllowing X86_CR4_PGE to</span>
+<span class="quote">&gt; &gt; clear as well as set.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; This change was suggested by Kirill Shutemov.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I may have missed something, but why would be ever have CR4.PGE off?</span>
+
+This came out from me thinking on if we can disable global pages by not
+turning on CR4.PGE instead of making _PAGE_GLOBAL zero.
+
+Dave decided to not take this path, but this change would make
+__native_flush_tlb_global_irq_disabled() a bit less fragile in case
+if the situation would change in the future.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - Nov. 1, 2017, 10:38 a.m.</div>
+<pre class="content">
+On Wed, Nov 1, 2017 at 3:11 AM, Kirill A. Shutemov &lt;kirill@shutemov.name&gt; wrote:
+<span class="quote">&gt; On Wed, Nov 01, 2017 at 01:01:45AM -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; On Tue, Oct 31, 2017 at 3:31 PM, Dave Hansen</span>
+<span class="quote">&gt;&gt; &lt;dave.hansen@linux.intel.com&gt; wrote:</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; Our CR4-based TLB flush currently requries global pages to be</span>
+<span class="quote">&gt;&gt; &gt; supported *and* enabled.  But, we really only need for them to be</span>
+<span class="quote">&gt;&gt; &gt; supported.  Make the code more robust by alllowing X86_CR4_PGE to</span>
+<span class="quote">&gt;&gt; &gt; clear as well as set.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; This change was suggested by Kirill Shutemov.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; I may have missed something, but why would be ever have CR4.PGE off?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; This came out from me thinking on if we can disable global pages by not</span>
+<span class="quote">&gt; turning on CR4.PGE instead of making _PAGE_GLOBAL zero.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Dave decided to not take this path, but this change would make</span>
+<span class="quote">&gt; __native_flush_tlb_global_irq_disabled() a bit less fragile in case</span>
+<span class="quote">&gt; if the situation would change in the future.</span>
+
+How about just adding a VM_WARN_ON_ONCE, then?
+
+--Andy
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=874">Kirill A. Shutemov</a> - Nov. 1, 2017, 10:56 a.m.</div>
+<pre class="content">
+On Wed, Nov 01, 2017 at 03:38:23AM -0700, Andy Lutomirski wrote:
+<span class="quote">&gt; On Wed, Nov 1, 2017 at 3:11 AM, Kirill A. Shutemov &lt;kirill@shutemov.name&gt; wrote:</span>
+<span class="quote">&gt; &gt; On Wed, Nov 01, 2017 at 01:01:45AM -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt; &gt;&gt; On Tue, Oct 31, 2017 at 3:31 PM, Dave Hansen</span>
+<span class="quote">&gt; &gt;&gt; &lt;dave.hansen@linux.intel.com&gt; wrote:</span>
+<span class="quote">&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt; Our CR4-based TLB flush currently requries global pages to be</span>
+<span class="quote">&gt; &gt;&gt; &gt; supported *and* enabled.  But, we really only need for them to be</span>
+<span class="quote">&gt; &gt;&gt; &gt; supported.  Make the code more robust by alllowing X86_CR4_PGE to</span>
+<span class="quote">&gt; &gt;&gt; &gt; clear as well as set.</span>
+<span class="quote">&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt; This change was suggested by Kirill Shutemov.</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; I may have missed something, but why would be ever have CR4.PGE off?</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; This came out from me thinking on if we can disable global pages by not</span>
+<span class="quote">&gt; &gt; turning on CR4.PGE instead of making _PAGE_GLOBAL zero.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Dave decided to not take this path, but this change would make</span>
+<span class="quote">&gt; &gt; __native_flush_tlb_global_irq_disabled() a bit less fragile in case</span>
+<span class="quote">&gt; &gt; if the situation would change in the future.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; How about just adding a VM_WARN_ON_ONCE, then?</span>
+
+What&#39;s wrong with xor? The function will continue to work this way even if
+CR4.PGE is disabled.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - Nov. 1, 2017, 11:18 a.m.</div>
+<pre class="content">
+On Wed, Nov 1, 2017 at 3:56 AM, Kirill A. Shutemov &lt;kirill@shutemov.name&gt; wrote:
+<span class="quote">&gt; On Wed, Nov 01, 2017 at 03:38:23AM -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; On Wed, Nov 1, 2017 at 3:11 AM, Kirill A. Shutemov &lt;kirill@shutemov.name&gt; wrote:</span>
+<span class="quote">&gt;&gt; &gt; On Wed, Nov 01, 2017 at 01:01:45AM -0700, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; &gt;&gt; On Tue, Oct 31, 2017 at 3:31 PM, Dave Hansen</span>
+<span class="quote">&gt;&gt; &gt;&gt; &lt;dave.hansen@linux.intel.com&gt; wrote:</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt; Our CR4-based TLB flush currently requries global pages to be</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt; supported *and* enabled.  But, we really only need for them to be</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt; supported.  Make the code more robust by alllowing X86_CR4_PGE to</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt; clear as well as set.</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt; This change was suggested by Kirill Shutemov.</span>
+<span class="quote">&gt;&gt; &gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; I may have missed something, but why would be ever have CR4.PGE off?</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; This came out from me thinking on if we can disable global pages by not</span>
+<span class="quote">&gt;&gt; &gt; turning on CR4.PGE instead of making _PAGE_GLOBAL zero.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; Dave decided to not take this path, but this change would make</span>
+<span class="quote">&gt;&gt; &gt; __native_flush_tlb_global_irq_disabled() a bit less fragile in case</span>
+<span class="quote">&gt;&gt; &gt; if the situation would change in the future.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; How about just adding a VM_WARN_ON_ONCE, then?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; What&#39;s wrong with xor? The function will continue to work this way even if</span>
+<span class="quote">&gt; CR4.PGE is disabled.</span>
+
+That&#39;s true.  OTOH, since no one is actually proposing doing that,
+there&#39;s an argument that people should get warned and therefore be
+forced to think about it.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=107">Thomas Gleixner</a> - Nov. 1, 2017, 9:25 p.m.</div>
+<pre class="content">
+On Tue, 31 Oct 2017, Dave Hansen wrote:
+<span class="quote">&gt; Our CR4-based TLB flush currently requries global pages to be</span>
+<span class="quote">&gt; supported *and* enabled.  But, we really only need for them to be</span>
+<span class="quote">&gt; supported.  Make the code more robust by alllowing X86_CR4_PGE to</span>
+<span class="quote">&gt; clear as well as set.</span>
+
+That&#39;s not what the patch is actually doing.
+<span class="quote">
+&gt;  	cr4 = this_cpu_read(cpu_tlbstate.cr4);</span>
+<span class="quote">&gt; -	/* clear PGE */</span>
+<span class="quote">&gt; -	native_write_cr4(cr4 &amp; ~X86_CR4_PGE);</span>
+<span class="quote">&gt; -	/* write old PGE again and flush TLBs */</span>
+<span class="quote">&gt; +	/*</span>
+<span class="quote">&gt; +	 * This function is only called on systems that support X86_CR4_PGE</span>
+<span class="quote">&gt; +	 * and where always set X86_CR4_PGE.  Warn if we are called without</span>
+<span class="quote">&gt; +	 * PGE set.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	WARN_ON_ONCE(!(cr4 &amp; X86_CR4_PGE));</span>
+
+Because if CR4_PGE is not set, this warning triggers. So this defeats the
+toggle mode you are implementing.
+<span class="quote">
+&gt; +	/*</span>
+<span class="quote">&gt; +	 * Architecturally, any _change_ to X86_CR4_PGE will fully flush the</span>
+<span class="quote">&gt; +	 * TLB of all entries including all entries in all PCIDs and all</span>
+<span class="quote">&gt; +	 * global pages.  Make sure that we _change_ the bit, regardless of</span>
+<span class="quote">&gt; +	 * whether we had X86_CR4_PGE set in the first place.</span>
+<span class="quote">&gt; +	 */</span>
+<span class="quote">&gt; +	native_write_cr4(cr4 ^ X86_CR4_PGE);</span>
+<span class="quote">&gt; +	/* Put original CR3 value back: */</span>
+
+That want&#39;s to be CR4. Restoring CR3 to CR4 might be suboptimal.
+<span class="quote">
+&gt;  	native_write_cr4(cr4);</span>
+
+Thanks,
+
+	tglx
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=64071">Dave Hansen</a> - Nov. 1, 2017, 10:21 p.m.</div>
+<pre class="content">
+On 11/01/2017 04:18 AM, Andy Lutomirski wrote:
+<span class="quote">&gt;&gt;&gt; How about just adding a VM_WARN_ON_ONCE, then?</span>
+<span class="quote">&gt;&gt; What&#39;s wrong with xor? The function will continue to work this way even if</span>
+<span class="quote">&gt;&gt; CR4.PGE is disabled.</span>
+<span class="quote">&gt; That&#39;s true.  OTOH, since no one is actually proposing doing that,</span>
+<span class="quote">&gt; there&#39;s an argument that people should get warned and therefore be</span>
+<span class="quote">&gt; forced to think about it.</span>
+
+What this patch does in the end is make sure that
+__native_flush_tlb_global_irq_disabled() works, no matter the intiial
+state of CR4.PGE, *and* it makes it WARN if it gets called in an
+unexpected initial state (CR4.PGE).
+
+That&#39;s the best of both worlds IMNHO.  Makes people think, and does the
+right thing no matter what.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=64071">Dave Hansen</a> - Nov. 1, 2017, 10:24 p.m.</div>
+<pre class="content">
+On 11/01/2017 02:25 PM, Thomas Gleixner wrote:
+<span class="quote">&gt;&gt;  	cr4 = this_cpu_read(cpu_tlbstate.cr4);</span>
+<span class="quote">&gt;&gt; -	/* clear PGE */</span>
+<span class="quote">&gt;&gt; -	native_write_cr4(cr4 &amp; ~X86_CR4_PGE);</span>
+<span class="quote">&gt;&gt; -	/* write old PGE again and flush TLBs */</span>
+<span class="quote">&gt;&gt; +	/*</span>
+<span class="quote">&gt;&gt; +	 * This function is only called on systems that support X86_CR4_PGE</span>
+<span class="quote">&gt;&gt; +	 * and where always set X86_CR4_PGE.  Warn if we are called without</span>
+<span class="quote">&gt;&gt; +	 * PGE set.</span>
+<span class="quote">&gt;&gt; +	 */</span>
+<span class="quote">&gt;&gt; +	WARN_ON_ONCE(!(cr4 &amp; X86_CR4_PGE));</span>
+<span class="quote">&gt; Because if CR4_PGE is not set, this warning triggers. So this defeats the</span>
+<span class="quote">&gt; toggle mode you are implementing.</span>
+
+The warning is there because there is probably plenty of *other* stuff
+that breaks if we have X86_FEATURE_PGE=1, but CR4.PGE=0.
+
+The point of this was to make this function do the right thing no matter
+what, but warn if it gets called in an unexpected way.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=107">Thomas Gleixner</a> - Nov. 1, 2017, 10:30 p.m.</div>
+<pre class="content">
+On Wed, 1 Nov 2017, Dave Hansen wrote:
+<span class="quote">
+&gt; On 11/01/2017 02:25 PM, Thomas Gleixner wrote:</span>
+<span class="quote">&gt; &gt;&gt;  	cr4 = this_cpu_read(cpu_tlbstate.cr4);</span>
+<span class="quote">&gt; &gt;&gt; -	/* clear PGE */</span>
+<span class="quote">&gt; &gt;&gt; -	native_write_cr4(cr4 &amp; ~X86_CR4_PGE);</span>
+<span class="quote">&gt; &gt;&gt; -	/* write old PGE again and flush TLBs */</span>
+<span class="quote">&gt; &gt;&gt; +	/*</span>
+<span class="quote">&gt; &gt;&gt; +	 * This function is only called on systems that support X86_CR4_PGE</span>
+<span class="quote">&gt; &gt;&gt; +	 * and where always set X86_CR4_PGE.  Warn if we are called without</span>
+<span class="quote">&gt; &gt;&gt; +	 * PGE set.</span>
+<span class="quote">&gt; &gt;&gt; +	 */</span>
+<span class="quote">&gt; &gt;&gt; +	WARN_ON_ONCE(!(cr4 &amp; X86_CR4_PGE));</span>
+<span class="quote">&gt; &gt; Because if CR4_PGE is not set, this warning triggers. So this defeats the</span>
+<span class="quote">&gt; &gt; toggle mode you are implementing.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The warning is there because there is probably plenty of *other* stuff</span>
+<span class="quote">&gt; that breaks if we have X86_FEATURE_PGE=1, but CR4.PGE=0.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The point of this was to make this function do the right thing no matter</span>
+<span class="quote">&gt; what, but warn if it gets called in an unexpected way.</span>
+
+Fair enough. Can you please reflect that in the changelog ?
+
+Thanks,
+
+	tglx
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff -puN arch/x86/include/asm/tlbflush.h~kaiser-prep-make-cr4-writes-tolerate-clear-pge arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">--- a/arch/x86/include/asm/tlbflush.h~kaiser-prep-make-cr4-writes-tolerate-clear-pge	2017-10-31 15:03:49.913092716 -0700</span>
+<span class="p_header">+++ b/arch/x86/include/asm/tlbflush.h	2017-10-31 15:03:49.917092905 -0700</span>
+<span class="p_chunk">@@ -250,9 +250,20 @@</span> <span class="p_context"> static inline void __native_flush_tlb_gl</span>
+ 	unsigned long cr4;
+ 
+ 	cr4 = this_cpu_read(cpu_tlbstate.cr4);
+<span class="p_del">-	/* clear PGE */</span>
+<span class="p_del">-	native_write_cr4(cr4 &amp; ~X86_CR4_PGE);</span>
+<span class="p_del">-	/* write old PGE again and flush TLBs */</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * This function is only called on systems that support X86_CR4_PGE</span>
+<span class="p_add">+	 * and where always set X86_CR4_PGE.  Warn if we are called without</span>
+<span class="p_add">+	 * PGE set.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	WARN_ON_ONCE(!(cr4 &amp; X86_CR4_PGE));</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Architecturally, any _change_ to X86_CR4_PGE will fully flush the</span>
+<span class="p_add">+	 * TLB of all entries including all entries in all PCIDs and all</span>
+<span class="p_add">+	 * global pages.  Make sure that we _change_ the bit, regardless of</span>
+<span class="p_add">+	 * whether we had X86_CR4_PGE set in the first place.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	native_write_cr4(cr4 ^ X86_CR4_PGE);</span>
+<span class="p_add">+	/* Put original CR3 value back: */</span>
+ 	native_write_cr4(cr4);
+ }
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

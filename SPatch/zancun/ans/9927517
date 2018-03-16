@@ -1,0 +1,615 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[tip:locking/core] smp: Avoid using two cache lines for struct call_single_data - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [tip:locking/core] smp: Avoid using two cache lines for struct call_single_data</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=60001">tip-bot for Jacob Shin</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Aug. 29, 2017, 2:23 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;tip-966a967116e699762dbf4af7f9e0d1955c25aa37@git.kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9927517/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9927517/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9927517/">/patch/9927517/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	B82AD60383 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 29 Aug 2017 14:29:38 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 906D428956
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 29 Aug 2017 14:29:38 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 84FD728958; Tue, 29 Aug 2017 14:29:38 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 654FA28956
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 29 Aug 2017 14:29:37 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1754321AbdH2O3f (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 29 Aug 2017 10:29:35 -0400
+Received: from terminus.zytor.com ([65.50.211.136]:43207 &quot;EHLO
+	terminus.zytor.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1753692AbdH2O3b (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 29 Aug 2017 10:29:31 -0400
+Received: from terminus.zytor.com (localhost [127.0.0.1])
+	by terminus.zytor.com (8.15.2/8.15.2) with ESMTP id v7TENZPr003857;
+	Tue, 29 Aug 2017 07:23:35 -0700
+Received: (from tipbot@localhost)
+	by terminus.zytor.com (8.15.2/8.15.2/Submit) id v7TENZN7003853;
+	Tue, 29 Aug 2017 07:23:35 -0700
+Date: Tue, 29 Aug 2017 07:23:35 -0700
+X-Authentication-Warning: terminus.zytor.com: tipbot set sender to
+	tipbot@zytor.com using -f
+From: tip-bot for Ying Huang &lt;tipbot@zytor.com&gt;
+Message-ID: &lt;tip-966a967116e699762dbf4af7f9e0d1955c25aa37@git.kernel.org&gt;
+Cc: ying.huang@intel.com, linux-kernel@vger.kernel.org,
+	peterz@infradead.org, mingo@kernel.org, aaron.lu@intel.com,
+	bp@suse.de, jgross@suse.com, tglx@linutronix.de,
+	mpe@ellerman.id.au, torvalds@linux-foundation.org,
+	eric.dumazet@gmail.com, hpa@zytor.com
+Reply-To: ying.huang@intel.com, peterz@infradead.org,
+	linux-kernel@vger.kernel.org, aaron.lu@intel.com,
+	mingo@kernel.org, mpe@ellerman.id.au, bp@suse.de,
+	jgross@suse.com, tglx@linutronix.de,
+	torvalds@linux-foundation.org, hpa@zytor.com,
+	eric.dumazet@gmail.com
+In-Reply-To: &lt;87bmnqd6lz.fsf@yhuang-mobile.sh.intel.com&gt;
+References: &lt;87bmnqd6lz.fsf@yhuang-mobile.sh.intel.com&gt;
+To: linux-tip-commits@vger.kernel.org
+Subject: [tip:locking/core] smp: Avoid using two cache lines for struct
+	call_single_data
+Git-Commit-ID: 966a967116e699762dbf4af7f9e0d1955c25aa37
+X-Mailer: tip-git-log-daemon
+Robot-ID: &lt;tip-bot.git.kernel.org&gt;
+Robot-Unsubscribe: Contact &lt;mailto:hpa@kernel.org&gt; to get blacklisted from
+	these emails
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=UTF-8
+Content-Disposition: inline
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=60001">tip-bot for Jacob Shin</a> - Aug. 29, 2017, 2:23 p.m.</div>
+<pre class="content">
+Commit-ID:  966a967116e699762dbf4af7f9e0d1955c25aa37
+Gitweb:     http://git.kernel.org/tip/966a967116e699762dbf4af7f9e0d1955c25aa37
+Author:     Ying Huang &lt;ying.huang@intel.com&gt;
+AuthorDate: Tue, 8 Aug 2017 12:30:00 +0800
+Committer:  Ingo Molnar &lt;mingo@kernel.org&gt;
+CommitDate: Tue, 29 Aug 2017 15:14:38 +0200
+
+smp: Avoid using two cache lines for struct call_single_data
+
+struct call_single_data is used in IPIs to transfer information between
+CPUs.  Its size is bigger than sizeof(unsigned long) and less than
+cache line size.  Currently it is not allocated with any explicit alignment
+requirements.  This makes it possible for allocated call_single_data to
+cross two cache lines, which results in double the number of the cache lines
+that need to be transferred among CPUs.
+
+This can be fixed by requiring call_single_data to be aligned with the
+size of call_single_data. Currently the size of call_single_data is the
+power of 2.  If we add new fields to call_single_data, we may need to
+add padding to make sure the size of new definition is the power of 2
+as well.
+
+Fortunately, this is enforced by GCC, which will report bad sizes.
+
+To set alignment requirements of call_single_data to the size of
+call_single_data, a struct definition and a typedef is used.
+
+To test the effect of the patch, I used the vm-scalability multiple
+thread swap test case (swap-w-seq-mt).  The test will create multiple
+threads and each thread will eat memory until all RAM and part of swap
+is used, so that huge number of IPIs are triggered when unmapping
+memory.  In the test, the throughput of memory writing improves ~5%
+compared with misaligned call_single_data, because of faster IPIs.
+
+Suggested-by: Peter Zijlstra &lt;peterz@infradead.org&gt;
+<span class="signed-off-by">Signed-off-by: Huang, Ying &lt;ying.huang@intel.com&gt;</span>
+[ Add call_single_data_t and align with size of call_single_data. ]
+<span class="signed-off-by">Signed-off-by: Peter Zijlstra (Intel) &lt;peterz@infradead.org&gt;</span>
+Cc: Aaron Lu &lt;aaron.lu@intel.com&gt;
+Cc: Borislav Petkov &lt;bp@suse.de&gt;
+Cc: Eric Dumazet &lt;eric.dumazet@gmail.com&gt;
+Cc: Juergen Gross &lt;jgross@suse.com&gt;
+Cc: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+Cc: Michael Ellerman &lt;mpe@ellerman.id.au&gt;
+Cc: Thomas Gleixner &lt;tglx@linutronix.de&gt;
+Link: http://lkml.kernel.org/r/87bmnqd6lz.fsf@yhuang-mobile.sh.intel.com
+<span class="signed-off-by">Signed-off-by: Ingo Molnar &lt;mingo@kernel.org&gt;</span>
+---
+ arch/mips/kernel/smp.c                             |  6 ++--
+ block/blk-softirq.c                                |  2 +-
+ drivers/block/null_blk.c                           |  2 +-
+ drivers/cpuidle/coupled.c                          | 10 +++----
+ drivers/net/ethernet/cavium/liquidio/lio_main.c    |  2 +-
+ drivers/net/ethernet/cavium/liquidio/octeon_droq.h |  2 +-
+ include/linux/blkdev.h                             |  2 +-
+ include/linux/netdevice.h                          |  2 +-
+ include/linux/smp.h                                |  8 ++++--
+ kernel/sched/sched.h                               |  2 +-
+ kernel/smp.c                                       | 32 ++++++++++++----------
+ kernel/up.c                                        |  2 +-
+ 12 files changed, 39 insertions(+), 33 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/mips/kernel/smp.c b/arch/mips/kernel/smp.c</span>
+<span class="p_header">index 6bace76..c7cbddf 100644</span>
+<span class="p_header">--- a/arch/mips/kernel/smp.c</span>
+<span class="p_header">+++ b/arch/mips/kernel/smp.c</span>
+<span class="p_chunk">@@ -648,12 +648,12 @@</span> <span class="p_context"> EXPORT_SYMBOL(flush_tlb_one);</span>
+ #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+ 
+ static DEFINE_PER_CPU(atomic_t, tick_broadcast_count);
+<span class="p_del">-static DEFINE_PER_CPU(struct call_single_data, tick_broadcast_csd);</span>
+<span class="p_add">+static DEFINE_PER_CPU(call_single_data_t, tick_broadcast_csd);</span>
+ 
+ void tick_broadcast(const struct cpumask *mask)
+ {
+ 	atomic_t *count;
+<span class="p_del">-	struct call_single_data *csd;</span>
+<span class="p_add">+	call_single_data_t *csd;</span>
+ 	int cpu;
+ 
+ 	for_each_cpu(cpu, mask) {
+<span class="p_chunk">@@ -674,7 +674,7 @@</span> <span class="p_context"> static void tick_broadcast_callee(void *info)</span>
+ 
+ static int __init tick_broadcast_init(void)
+ {
+<span class="p_del">-	struct call_single_data *csd;</span>
+<span class="p_add">+	call_single_data_t *csd;</span>
+ 	int cpu;
+ 
+ 	for (cpu = 0; cpu &lt; NR_CPUS; cpu++) {
+<span class="p_header">diff --git a/block/blk-softirq.c b/block/blk-softirq.c</span>
+<span class="p_header">index 87b7df4..07125e7 100644</span>
+<span class="p_header">--- a/block/blk-softirq.c</span>
+<span class="p_header">+++ b/block/blk-softirq.c</span>
+<span class="p_chunk">@@ -60,7 +60,7 @@</span> <span class="p_context"> static void trigger_softirq(void *data)</span>
+ static int raise_blk_irq(int cpu, struct request *rq)
+ {
+ 	if (cpu_online(cpu)) {
+<span class="p_del">-		struct call_single_data *data = &amp;rq-&gt;csd;</span>
+<span class="p_add">+		call_single_data_t *data = &amp;rq-&gt;csd;</span>
+ 
+ 		data-&gt;func = trigger_softirq;
+ 		data-&gt;info = rq;
+<span class="p_header">diff --git a/drivers/block/null_blk.c b/drivers/block/null_blk.c</span>
+<span class="p_header">index 85c24ca..81142ce 100644</span>
+<span class="p_header">--- a/drivers/block/null_blk.c</span>
+<span class="p_header">+++ b/drivers/block/null_blk.c</span>
+<span class="p_chunk">@@ -13,7 +13,7 @@</span> <span class="p_context"></span>
+ struct nullb_cmd {
+ 	struct list_head list;
+ 	struct llist_node ll_list;
+<span class="p_del">-	struct call_single_data csd;</span>
+<span class="p_add">+	call_single_data_t csd;</span>
+ 	struct request *rq;
+ 	struct bio *bio;
+ 	unsigned int tag;
+<span class="p_header">diff --git a/drivers/cpuidle/coupled.c b/drivers/cpuidle/coupled.c</span>
+<span class="p_header">index 71e586d..147f38e 100644</span>
+<span class="p_header">--- a/drivers/cpuidle/coupled.c</span>
+<span class="p_header">+++ b/drivers/cpuidle/coupled.c</span>
+<span class="p_chunk">@@ -119,13 +119,13 @@</span> <span class="p_context"> struct cpuidle_coupled {</span>
+ 
+ #define CPUIDLE_COUPLED_NOT_IDLE	(-1)
+ 
+<span class="p_del">-static DEFINE_PER_CPU(struct call_single_data, cpuidle_coupled_poke_cb);</span>
+<span class="p_add">+static DEFINE_PER_CPU(call_single_data_t, cpuidle_coupled_poke_cb);</span>
+ 
+ /*
+  * The cpuidle_coupled_poke_pending mask is used to avoid calling
+<span class="p_del">- * __smp_call_function_single with the per cpu call_single_data struct already</span>
+<span class="p_add">+ * __smp_call_function_single with the per cpu call_single_data_t struct already</span>
+  * in use.  This prevents a deadlock where two cpus are waiting for each others
+<span class="p_del">- * call_single_data struct to be available</span>
+<span class="p_add">+ * call_single_data_t struct to be available</span>
+  */
+ static cpumask_t cpuidle_coupled_poke_pending;
+ 
+<span class="p_chunk">@@ -339,7 +339,7 @@</span> <span class="p_context"> static void cpuidle_coupled_handle_poke(void *info)</span>
+  */
+ static void cpuidle_coupled_poke(int cpu)
+ {
+<span class="p_del">-	struct call_single_data *csd = &amp;per_cpu(cpuidle_coupled_poke_cb, cpu);</span>
+<span class="p_add">+	call_single_data_t *csd = &amp;per_cpu(cpuidle_coupled_poke_cb, cpu);</span>
+ 
+ 	if (!cpumask_test_and_set_cpu(cpu, &amp;cpuidle_coupled_poke_pending))
+ 		smp_call_function_single_async(cpu, csd);
+<span class="p_chunk">@@ -651,7 +651,7 @@</span> <span class="p_context"> int cpuidle_coupled_register_device(struct cpuidle_device *dev)</span>
+ {
+ 	int cpu;
+ 	struct cpuidle_device *other_dev;
+<span class="p_del">-	struct call_single_data *csd;</span>
+<span class="p_add">+	call_single_data_t *csd;</span>
+ 	struct cpuidle_coupled *coupled;
+ 
+ 	if (cpumask_empty(&amp;dev-&gt;coupled_cpus))
+<span class="p_header">diff --git a/drivers/net/ethernet/cavium/liquidio/lio_main.c b/drivers/net/ethernet/cavium/liquidio/lio_main.c</span>
+<span class="p_header">index 51583ae..120b6e5 100644</span>
+<span class="p_header">--- a/drivers/net/ethernet/cavium/liquidio/lio_main.c</span>
+<span class="p_header">+++ b/drivers/net/ethernet/cavium/liquidio/lio_main.c</span>
+<span class="p_chunk">@@ -2468,7 +2468,7 @@</span> <span class="p_context"> static void liquidio_napi_drv_callback(void *arg)</span>
+ 	if (OCTEON_CN23XX_PF(oct) || droq-&gt;cpu_id == this_cpu) {
+ 		napi_schedule_irqoff(&amp;droq-&gt;napi);
+ 	} else {
+<span class="p_del">-		struct call_single_data *csd = &amp;droq-&gt;csd;</span>
+<span class="p_add">+		call_single_data_t *csd = &amp;droq-&gt;csd;</span>
+ 
+ 		csd-&gt;func = napi_schedule_wrapper;
+ 		csd-&gt;info = &amp;droq-&gt;napi;
+<span class="p_header">diff --git a/drivers/net/ethernet/cavium/liquidio/octeon_droq.h b/drivers/net/ethernet/cavium/liquidio/octeon_droq.h</span>
+<span class="p_header">index 6efd139..f91bc84 100644</span>
+<span class="p_header">--- a/drivers/net/ethernet/cavium/liquidio/octeon_droq.h</span>
+<span class="p_header">+++ b/drivers/net/ethernet/cavium/liquidio/octeon_droq.h</span>
+<span class="p_chunk">@@ -328,7 +328,7 @@</span> <span class="p_context"> struct octeon_droq {</span>
+ 
+ 	u32 cpu_id;
+ 
+<span class="p_del">-	struct call_single_data csd;</span>
+<span class="p_add">+	call_single_data_t csd;</span>
+ };
+ 
+ #define OCT_DROQ_SIZE   (sizeof(struct octeon_droq))
+<span class="p_header">diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h</span>
+<span class="p_header">index 25f6a0c..006fa09 100644</span>
+<span class="p_header">--- a/include/linux/blkdev.h</span>
+<span class="p_header">+++ b/include/linux/blkdev.h</span>
+<span class="p_chunk">@@ -134,7 +134,7 @@</span> <span class="p_context"> typedef __u32 __bitwise req_flags_t;</span>
+ struct request {
+ 	struct list_head queuelist;
+ 	union {
+<span class="p_del">-		struct call_single_data csd;</span>
+<span class="p_add">+		call_single_data_t csd;</span>
+ 		u64 fifo_time;
+ 	};
+ 
+<span class="p_header">diff --git a/include/linux/netdevice.h b/include/linux/netdevice.h</span>
+<span class="p_header">index 779b235..6557f32 100644</span>
+<span class="p_header">--- a/include/linux/netdevice.h</span>
+<span class="p_header">+++ b/include/linux/netdevice.h</span>
+<span class="p_chunk">@@ -2774,7 +2774,7 @@</span> <span class="p_context"> struct softnet_data {</span>
+ 	unsigned int		input_queue_head ____cacheline_aligned_in_smp;
+ 
+ 	/* Elements below can be accessed between CPUs for RPS/RFS */
+<span class="p_del">-	struct call_single_data	csd ____cacheline_aligned_in_smp;</span>
+<span class="p_add">+	call_single_data_t	csd ____cacheline_aligned_in_smp;</span>
+ 	struct softnet_data	*rps_ipi_next;
+ 	unsigned int		cpu;
+ 	unsigned int		input_queue_tail;
+<span class="p_header">diff --git a/include/linux/smp.h b/include/linux/smp.h</span>
+<span class="p_header">index 68123c1..98b1fe0 100644</span>
+<span class="p_header">--- a/include/linux/smp.h</span>
+<span class="p_header">+++ b/include/linux/smp.h</span>
+<span class="p_chunk">@@ -14,13 +14,17 @@</span> <span class="p_context"></span>
+ #include &lt;linux/llist.h&gt;
+ 
+ typedef void (*smp_call_func_t)(void *info);
+<span class="p_del">-struct call_single_data {</span>
+<span class="p_add">+struct __call_single_data {</span>
+ 	struct llist_node llist;
+ 	smp_call_func_t func;
+ 	void *info;
+ 	unsigned int flags;
+ };
+ 
+<span class="p_add">+/* Use __aligned() to avoid to use 2 cache lines for 1 csd */</span>
+<span class="p_add">+typedef struct __call_single_data call_single_data_t</span>
+<span class="p_add">+	__aligned(sizeof(struct __call_single_data));</span>
+<span class="p_add">+</span>
+ /* total number of cpus in this system (may exceed NR_CPUS) */
+ extern unsigned int total_cpus;
+ 
+<span class="p_chunk">@@ -48,7 +52,7 @@</span> <span class="p_context"> void on_each_cpu_cond(bool (*cond_func)(int cpu, void *info),</span>
+ 		smp_call_func_t func, void *info, bool wait,
+ 		gfp_t gfp_flags);
+ 
+<span class="p_del">-int smp_call_function_single_async(int cpu, struct call_single_data *csd);</span>
+<span class="p_add">+int smp_call_function_single_async(int cpu, call_single_data_t *csd);</span>
+ 
+ #ifdef CONFIG_SMP
+ 
+<span class="p_header">diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h</span>
+<span class="p_header">index eeef1a3..f29a7d2 100644</span>
+<span class="p_header">--- a/kernel/sched/sched.h</span>
+<span class="p_header">+++ b/kernel/sched/sched.h</span>
+<span class="p_chunk">@@ -769,7 +769,7 @@</span> <span class="p_context"> struct rq {</span>
+ #ifdef CONFIG_SCHED_HRTICK
+ #ifdef CONFIG_SMP
+ 	int hrtick_csd_pending;
+<span class="p_del">-	struct call_single_data hrtick_csd;</span>
+<span class="p_add">+	call_single_data_t hrtick_csd;</span>
+ #endif
+ 	struct hrtimer hrtick_timer;
+ #endif
+<span class="p_header">diff --git a/kernel/smp.c b/kernel/smp.c</span>
+<span class="p_header">index 3061483..81cfca9 100644</span>
+<span class="p_header">--- a/kernel/smp.c</span>
+<span class="p_header">+++ b/kernel/smp.c</span>
+<span class="p_chunk">@@ -28,7 +28,7 @@</span> <span class="p_context"> enum {</span>
+ };
+ 
+ struct call_function_data {
+<span class="p_del">-	struct call_single_data	__percpu *csd;</span>
+<span class="p_add">+	call_single_data_t	__percpu *csd;</span>
+ 	cpumask_var_t		cpumask;
+ 	cpumask_var_t		cpumask_ipi;
+ };
+<span class="p_chunk">@@ -51,7 +51,7 @@</span> <span class="p_context"> int smpcfd_prepare_cpu(unsigned int cpu)</span>
+ 		free_cpumask_var(cfd-&gt;cpumask);
+ 		return -ENOMEM;
+ 	}
+<span class="p_del">-	cfd-&gt;csd = alloc_percpu(struct call_single_data);</span>
+<span class="p_add">+	cfd-&gt;csd = alloc_percpu(call_single_data_t);</span>
+ 	if (!cfd-&gt;csd) {
+ 		free_cpumask_var(cfd-&gt;cpumask);
+ 		free_cpumask_var(cfd-&gt;cpumask_ipi);
+<span class="p_chunk">@@ -103,12 +103,12 @@</span> <span class="p_context"> void __init call_function_init(void)</span>
+  * previous function call. For multi-cpu calls its even more interesting
+  * as we&#39;ll have to ensure no other cpu is observing our csd.
+  */
+<span class="p_del">-static __always_inline void csd_lock_wait(struct call_single_data *csd)</span>
+<span class="p_add">+static __always_inline void csd_lock_wait(call_single_data_t *csd)</span>
+ {
+ 	smp_cond_load_acquire(&amp;csd-&gt;flags, !(VAL &amp; CSD_FLAG_LOCK));
+ }
+ 
+<span class="p_del">-static __always_inline void csd_lock(struct call_single_data *csd)</span>
+<span class="p_add">+static __always_inline void csd_lock(call_single_data_t *csd)</span>
+ {
+ 	csd_lock_wait(csd);
+ 	csd-&gt;flags |= CSD_FLAG_LOCK;
+<span class="p_chunk">@@ -116,12 +116,12 @@</span> <span class="p_context"> static __always_inline void csd_lock(struct call_single_data *csd)</span>
+ 	/*
+ 	 * prevent CPU from reordering the above assignment
+ 	 * to -&gt;flags with any subsequent assignments to other
+<span class="p_del">-	 * fields of the specified call_single_data structure:</span>
+<span class="p_add">+	 * fields of the specified call_single_data_t structure:</span>
+ 	 */
+ 	smp_wmb();
+ }
+ 
+<span class="p_del">-static __always_inline void csd_unlock(struct call_single_data *csd)</span>
+<span class="p_add">+static __always_inline void csd_unlock(call_single_data_t *csd)</span>
+ {
+ 	WARN_ON(!(csd-&gt;flags &amp; CSD_FLAG_LOCK));
+ 
+<span class="p_chunk">@@ -131,14 +131,14 @@</span> <span class="p_context"> static __always_inline void csd_unlock(struct call_single_data *csd)</span>
+ 	smp_store_release(&amp;csd-&gt;flags, 0);
+ }
+ 
+<span class="p_del">-static DEFINE_PER_CPU_SHARED_ALIGNED(struct call_single_data, csd_data);</span>
+<span class="p_add">+static DEFINE_PER_CPU_SHARED_ALIGNED(call_single_data_t, csd_data);</span>
+ 
+ /*
+<span class="p_del">- * Insert a previously allocated call_single_data element</span>
+<span class="p_add">+ * Insert a previously allocated call_single_data_t element</span>
+  * for execution on the given CPU. data must already have
+  * -&gt;func, -&gt;info, and -&gt;flags set.
+  */
+<span class="p_del">-static int generic_exec_single(int cpu, struct call_single_data *csd,</span>
+<span class="p_add">+static int generic_exec_single(int cpu, call_single_data_t *csd,</span>
+ 			       smp_call_func_t func, void *info)
+ {
+ 	if (cpu == smp_processor_id()) {
+<span class="p_chunk">@@ -210,7 +210,7 @@</span> <span class="p_context"> static void flush_smp_call_function_queue(bool warn_cpu_offline)</span>
+ {
+ 	struct llist_head *head;
+ 	struct llist_node *entry;
+<span class="p_del">-	struct call_single_data *csd, *csd_next;</span>
+<span class="p_add">+	call_single_data_t *csd, *csd_next;</span>
+ 	static bool warned;
+ 
+ 	WARN_ON(!irqs_disabled());
+<span class="p_chunk">@@ -268,8 +268,10 @@</span> <span class="p_context"> static void flush_smp_call_function_queue(bool warn_cpu_offline)</span>
+ int smp_call_function_single(int cpu, smp_call_func_t func, void *info,
+ 			     int wait)
+ {
+<span class="p_del">-	struct call_single_data *csd;</span>
+<span class="p_del">-	struct call_single_data csd_stack = { .flags = CSD_FLAG_LOCK | CSD_FLAG_SYNCHRONOUS };</span>
+<span class="p_add">+	call_single_data_t *csd;</span>
+<span class="p_add">+	call_single_data_t csd_stack = {</span>
+<span class="p_add">+		.flags = CSD_FLAG_LOCK | CSD_FLAG_SYNCHRONOUS,</span>
+<span class="p_add">+	};</span>
+ 	int this_cpu;
+ 	int err;
+ 
+<span class="p_chunk">@@ -321,7 +323,7 @@</span> <span class="p_context"> EXPORT_SYMBOL(smp_call_function_single);</span>
+  * NOTE: Be careful, there is unfortunately no current debugging facility to
+  * validate the correctness of this serialization.
+  */
+<span class="p_del">-int smp_call_function_single_async(int cpu, struct call_single_data *csd)</span>
+<span class="p_add">+int smp_call_function_single_async(int cpu, call_single_data_t *csd)</span>
+ {
+ 	int err = 0;
+ 
+<span class="p_chunk">@@ -444,7 +446,7 @@</span> <span class="p_context"> void smp_call_function_many(const struct cpumask *mask,</span>
+ 
+ 	cpumask_clear(cfd-&gt;cpumask_ipi);
+ 	for_each_cpu(cpu, cfd-&gt;cpumask) {
+<span class="p_del">-		struct call_single_data *csd = per_cpu_ptr(cfd-&gt;csd, cpu);</span>
+<span class="p_add">+		call_single_data_t *csd = per_cpu_ptr(cfd-&gt;csd, cpu);</span>
+ 
+ 		csd_lock(csd);
+ 		if (wait)
+<span class="p_chunk">@@ -460,7 +462,7 @@</span> <span class="p_context"> void smp_call_function_many(const struct cpumask *mask,</span>
+ 
+ 	if (wait) {
+ 		for_each_cpu(cpu, cfd-&gt;cpumask) {
+<span class="p_del">-			struct call_single_data *csd;</span>
+<span class="p_add">+			call_single_data_t *csd;</span>
+ 
+ 			csd = per_cpu_ptr(cfd-&gt;csd, cpu);
+ 			csd_lock_wait(csd);
+<span class="p_header">diff --git a/kernel/up.c b/kernel/up.c</span>
+<span class="p_header">index ee81ac9..42c46bf 100644</span>
+<span class="p_header">--- a/kernel/up.c</span>
+<span class="p_header">+++ b/kernel/up.c</span>
+<span class="p_chunk">@@ -23,7 +23,7 @@</span> <span class="p_context"> int smp_call_function_single(int cpu, void (*func) (void *info), void *info,</span>
+ }
+ EXPORT_SYMBOL(smp_call_function_single);
+ 
+<span class="p_del">-int smp_call_function_single_async(int cpu, struct call_single_data *csd)</span>
+<span class="p_add">+int smp_call_function_single_async(int cpu, call_single_data_t *csd)</span>
+ {
+ 	unsigned long flags;
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

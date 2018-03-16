@@ -1,0 +1,752 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>mm/hugetlbfs: Unmap pages if page fault raced with hole punch - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    mm/hugetlbfs: Unmap pages if page fault raced with hole punch</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Jan. 6, 2016, 10:37 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1452119824-32715-1-git-send-email-mike.kravetz@oracle.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7971691/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7971691/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7971691/">/patch/7971691/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork1.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork1.web.kernel.org (Postfix) with ESMTP id D3AF59F32E
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  6 Jan 2016 22:37:41 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 3F4E920142
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  6 Jan 2016 22:37:39 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 0E82320155
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  6 Jan 2016 22:37:38 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752315AbcAFWhf (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 6 Jan 2016 17:37:35 -0500
+Received: from aserp1040.oracle.com ([141.146.126.69]:29823 &quot;EHLO
+	aserp1040.oracle.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752149AbcAFWhc (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 6 Jan 2016 17:37:32 -0500
+Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
+	by aserp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with
+	ESMTP id u06MbMFD006716
+	(version=TLSv1 cipher=DHE-RSA-AES256-SHA bits=256 verify=FAIL);
+	Wed, 6 Jan 2016 22:37:23 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by userv0021.oracle.com (8.13.8/8.13.8) with ESMTP id
+	u06MbLxT001221
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=FAIL); 
+	Wed, 6 Jan 2016 22:37:22 GMT
+Received: from abhmp0008.oracle.com (abhmp0008.oracle.com [141.146.116.14])
+	by aserv0121.oracle.com (8.13.8/8.13.8) with ESMTP id
+	u06MbL8m022831; Wed, 6 Jan 2016 22:37:21 GMT
+Received: from monkey.oracle.com (/50.53.81.168)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 06 Jan 2016 14:37:21 -0800
+From: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Hugh Dickins &lt;hughd@google.com&gt;,
+	Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;,
+	Hillf Danton &lt;hillf.zj@alibaba-inc.com&gt;,
+	Davidlohr Bueso &lt;dave@stgolabs.net&gt;,
+	Dave Hansen &lt;dave.hansen@linux.intel.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+Subject: [PATCH] mm/hugetlbfs: Unmap pages if page fault raced with hole
+	punch
+Date: Wed,  6 Jan 2016 14:37:04 -0800
+Message-Id: &lt;1452119824-32715-1-git-send-email-mike.kravetz@oracle.com&gt;
+X-Mailer: git-send-email 2.4.3
+X-Source-IP: userv0021.oracle.com [156.151.31.71]
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Jan. 6, 2016, 10:37 p.m.</div>
+<pre class="content">
+Page faults can race with fallocate hole punch.  If a page fault happens
+between the unmap and remove operations, the page is not removed and
+remains within the hole.  This is not the desired behavior.  The race
+is difficult to detect in user level code as even in the non-race
+case, a page within the hole could be faulted back in before fallocate
+returns.  If userfaultfd is expanded to support hugetlbfs in the future,
+this race will be easier to observe.
+
+If this race is detected and a page is mapped, the remove operation
+(remove_inode_hugepages) will unmap the page before removing.  The unmap
+within remove_inode_hugepages occurs with the hugetlb_fault_mutex held
+so that no other faults will be processed until the page is removed.
+
+The (unmodified) routine hugetlb_vmdelete_list was moved ahead of
+remove_inode_hugepages to satisfy the new reference.
+<span class="signed-off-by">
+Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+---
+ fs/hugetlbfs/inode.c | 139 +++++++++++++++++++++++++++------------------------
+ 1 file changed, 73 insertions(+), 66 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41">Andrew Morton</a> - Jan. 11, 2016, 10:35 p.m.</div>
+<pre class="content">
+On Wed,  6 Jan 2016 14:37:04 -0800 Mike Kravetz &lt;mike.kravetz@oracle.com&gt; wrote:
+<span class="quote">
+&gt; Page faults can race with fallocate hole punch.  If a page fault happens</span>
+<span class="quote">&gt; between the unmap and remove operations, the page is not removed and</span>
+<span class="quote">&gt; remains within the hole.  This is not the desired behavior.  The race</span>
+<span class="quote">&gt; is difficult to detect in user level code as even in the non-race</span>
+<span class="quote">&gt; case, a page within the hole could be faulted back in before fallocate</span>
+<span class="quote">&gt; returns.  If userfaultfd is expanded to support hugetlbfs in the future,</span>
+<span class="quote">&gt; this race will be easier to observe.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If this race is detected and a page is mapped, the remove operation</span>
+<span class="quote">&gt; (remove_inode_hugepages) will unmap the page before removing.  The unmap</span>
+<span class="quote">&gt; within remove_inode_hugepages occurs with the hugetlb_fault_mutex held</span>
+<span class="quote">&gt; so that no other faults will be processed until the page is removed.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The (unmodified) routine hugetlb_vmdelete_list was moved ahead of</span>
+<span class="quote">&gt; remove_inode_hugepages to satisfy the new reference.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; ...</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; --- a/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; +++ b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; ...</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; @@ -395,37 +431,43 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,</span>
+<span class="quote">&gt;  							mapping, next, 0);</span>
+<span class="quote">&gt;  			mutex_lock(&amp;hugetlb_fault_mutex_table[hash]);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -			lock_page(page);</span>
+<span class="quote">&gt; -			if (likely(!page_mapped(page))) {</span>
+
+hm, what are the locking requirements for page_mapped()?
+<span class="quote">
+&gt; -				bool rsv_on_error = !PagePrivate(page);</span>
+<span class="quote">&gt; -				/*</span>
+<span class="quote">&gt; -				 * We must free the huge page and remove</span>
+<span class="quote">&gt; -				 * from page cache (remove_huge_page) BEFORE</span>
+<span class="quote">&gt; -				 * removing the region/reserve map</span>
+<span class="quote">&gt; -				 * (hugetlb_unreserve_pages).  In rare out</span>
+<span class="quote">&gt; -				 * of memory conditions, removal of the</span>
+<span class="quote">&gt; -				 * region/reserve map could fail.  Before</span>
+<span class="quote">&gt; -				 * free&#39;ing the page, note PagePrivate which</span>
+<span class="quote">&gt; -				 * is used in case of error.</span>
+<span class="quote">&gt; -				 */</span>
+<span class="quote">&gt; -				remove_huge_page(page);</span>
+
+And remove_huge_page().
+<span class="quote">
+&gt; -				freed++;</span>
+<span class="quote">&gt; -				if (!truncate_op) {</span>
+<span class="quote">&gt; -					if (unlikely(hugetlb_unreserve_pages(</span>
+<span class="quote">&gt; -							inode, next,</span>
+<span class="quote">&gt; -							next + 1, 1)))</span>
+<span class="quote">&gt; -						hugetlb_fix_reserve_counts(</span>
+<span class="quote">&gt; -							inode, rsv_on_error);</span>
+<span class="quote">&gt; -				}</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; ...</span>
+<span class="quote">&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Jan. 11, 2016, 11:38 p.m.</div>
+<pre class="content">
+On 01/11/2016 02:35 PM, Andrew Morton wrote:
+<span class="quote">&gt; On Wed,  6 Jan 2016 14:37:04 -0800 Mike Kravetz &lt;mike.kravetz@oracle.com&gt; wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; Page faults can race with fallocate hole punch.  If a page fault happens</span>
+<span class="quote">&gt;&gt; between the unmap and remove operations, the page is not removed and</span>
+<span class="quote">&gt;&gt; remains within the hole.  This is not the desired behavior.  The race</span>
+<span class="quote">&gt;&gt; is difficult to detect in user level code as even in the non-race</span>
+<span class="quote">&gt;&gt; case, a page within the hole could be faulted back in before fallocate</span>
+<span class="quote">&gt;&gt; returns.  If userfaultfd is expanded to support hugetlbfs in the future,</span>
+<span class="quote">&gt;&gt; this race will be easier to observe.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; If this race is detected and a page is mapped, the remove operation</span>
+<span class="quote">&gt;&gt; (remove_inode_hugepages) will unmap the page before removing.  The unmap</span>
+<span class="quote">&gt;&gt; within remove_inode_hugepages occurs with the hugetlb_fault_mutex held</span>
+<span class="quote">&gt;&gt; so that no other faults will be processed until the page is removed.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; The (unmodified) routine hugetlb_vmdelete_list was moved ahead of</span>
+<span class="quote">&gt;&gt; remove_inode_hugepages to satisfy the new reference.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; ...</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; --- a/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt; +++ b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; ...</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; @@ -395,37 +431,43 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,</span>
+<span class="quote">&gt;&gt;  							mapping, next, 0);</span>
+<span class="quote">&gt;&gt;  			mutex_lock(&amp;hugetlb_fault_mutex_table[hash]);</span>
+<span class="quote">&gt;&gt;  </span>
+<span class="quote">&gt;&gt; -			lock_page(page);</span>
+<span class="quote">&gt;&gt; -			if (likely(!page_mapped(page))) {</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; hm, what are the locking requirements for page_mapped()?</span>
+
+page_mapped is just reading/evaluating an atomic within the struct page
+which we have a referene on from the pagevec_lookup.  But, I think the
+question is what prevents page_mapped from changing after we check it?
+
+The patch takes the hugetlb_fault_mutex_table lock before checking
+page_mapped.  If the page is unmapped and the hugetlb_fault_mutex_table
+is held, it can not be faulted in and change from unmapped to mapped.
+
+The new comment in the patch about taking hugetlb_fault_mutex_table is
+right before the check for page_mapped.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; -				bool rsv_on_error = !PagePrivate(page);</span>
+<span class="quote">&gt;&gt; -				/*</span>
+<span class="quote">&gt;&gt; -				 * We must free the huge page and remove</span>
+<span class="quote">&gt;&gt; -				 * from page cache (remove_huge_page) BEFORE</span>
+<span class="quote">&gt;&gt; -				 * removing the region/reserve map</span>
+<span class="quote">&gt;&gt; -				 * (hugetlb_unreserve_pages).  In rare out</span>
+<span class="quote">&gt;&gt; -				 * of memory conditions, removal of the</span>
+<span class="quote">&gt;&gt; -				 * region/reserve map could fail.  Before</span>
+<span class="quote">&gt;&gt; -				 * free&#39;ing the page, note PagePrivate which</span>
+<span class="quote">&gt;&gt; -				 * is used in case of error.</span>
+<span class="quote">&gt;&gt; -				 */</span>
+<span class="quote">&gt;&gt; -				remove_huge_page(page);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; And remove_huge_page().</span>
+
+The page must be locked before calling remove_huge_page, since it will
+call delete_from_page_cache.  It currently is locked.  Would you prefer
+a comment stating this before the call?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41">Andrew Morton</a> - Jan. 12, 2016, 12:29 a.m.</div>
+<pre class="content">
+On Mon, 11 Jan 2016 15:38:40 -0800 Mike Kravetz &lt;mike.kravetz@oracle.com&gt; wrote:
+<span class="quote">
+&gt; On 01/11/2016 02:35 PM, Andrew Morton wrote:</span>
+<span class="quote">&gt; &gt; On Wed,  6 Jan 2016 14:37:04 -0800 Mike Kravetz &lt;mike.kravetz@oracle.com&gt; wrote:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;&gt; Page faults can race with fallocate hole punch.  If a page fault happens</span>
+<span class="quote">&gt; &gt;&gt; between the unmap and remove operations, the page is not removed and</span>
+<span class="quote">&gt; &gt;&gt; remains within the hole.  This is not the desired behavior.  The race</span>
+<span class="quote">&gt; &gt;&gt; is difficult to detect in user level code as even in the non-race</span>
+<span class="quote">&gt; &gt;&gt; case, a page within the hole could be faulted back in before fallocate</span>
+<span class="quote">&gt; &gt;&gt; returns.  If userfaultfd is expanded to support hugetlbfs in the future,</span>
+<span class="quote">&gt; &gt;&gt; this race will be easier to observe.</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; If this race is detected and a page is mapped, the remove operation</span>
+<span class="quote">&gt; &gt;&gt; (remove_inode_hugepages) will unmap the page before removing.  The unmap</span>
+<span class="quote">&gt; &gt;&gt; within remove_inode_hugepages occurs with the hugetlb_fault_mutex held</span>
+<span class="quote">&gt; &gt;&gt; so that no other faults will be processed until the page is removed.</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; The (unmodified) routine hugetlb_vmdelete_list was moved ahead of</span>
+<span class="quote">&gt; &gt;&gt; remove_inode_hugepages to satisfy the new reference.</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; ...</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; --- a/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; &gt;&gt; +++ b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; ...</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; @@ -395,37 +431,43 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,</span>
+<span class="quote">&gt; &gt;&gt;  							mapping, next, 0);</span>
+<span class="quote">&gt; &gt;&gt;  			mutex_lock(&amp;hugetlb_fault_mutex_table[hash]);</span>
+<span class="quote">&gt; &gt;&gt;  </span>
+<span class="quote">&gt; &gt;&gt; -			lock_page(page);</span>
+<span class="quote">&gt; &gt;&gt; -			if (likely(!page_mapped(page))) {</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; hm, what are the locking requirements for page_mapped()?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; page_mapped is just reading/evaluating an atomic within the struct page</span>
+<span class="quote">&gt; which we have a referene on from the pagevec_lookup.  But, I think the</span>
+<span class="quote">&gt; question is what prevents page_mapped from changing after we check it?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The patch takes the hugetlb_fault_mutex_table lock before checking</span>
+<span class="quote">&gt; page_mapped.  If the page is unmapped and the hugetlb_fault_mutex_table</span>
+<span class="quote">&gt; is held, it can not be faulted in and change from unmapped to mapped.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The new comment in the patch about taking hugetlb_fault_mutex_table is</span>
+<span class="quote">&gt; right before the check for page_mapped.</span>
+
+OK, thanks.
+<span class="quote">
+&gt; &gt; </span>
+<span class="quote">&gt; &gt;&gt; -				bool rsv_on_error = !PagePrivate(page);</span>
+<span class="quote">&gt; &gt;&gt; -				/*</span>
+<span class="quote">&gt; &gt;&gt; -				 * We must free the huge page and remove</span>
+<span class="quote">&gt; &gt;&gt; -				 * from page cache (remove_huge_page) BEFORE</span>
+<span class="quote">&gt; &gt;&gt; -				 * removing the region/reserve map</span>
+<span class="quote">&gt; &gt;&gt; -				 * (hugetlb_unreserve_pages).  In rare out</span>
+<span class="quote">&gt; &gt;&gt; -				 * of memory conditions, removal of the</span>
+<span class="quote">&gt; &gt;&gt; -				 * region/reserve map could fail.  Before</span>
+<span class="quote">&gt; &gt;&gt; -				 * free&#39;ing the page, note PagePrivate which</span>
+<span class="quote">&gt; &gt;&gt; -				 * is used in case of error.</span>
+<span class="quote">&gt; &gt;&gt; -				 */</span>
+<span class="quote">&gt; &gt;&gt; -				remove_huge_page(page);</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; And remove_huge_page().</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The page must be locked before calling remove_huge_page, since it will</span>
+<span class="quote">&gt; call delete_from_page_cache.  It currently is locked.  Would you prefer</span>
+<span class="quote">&gt; a comment stating this before the call?</span>
+
+No, that doesn&#39;t seem nevessary.
+
+I&#39;ll mark this patch as &quot;pending, awaiting Mike&#39;s go-ahead&quot;.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Jan. 12, 2016, 1:36 a.m.</div>
+<pre class="content">
+On 01/11/2016 04:29 PM, Andrew Morton wrote:
+<span class="quote">&gt; On Mon, 11 Jan 2016 15:38:40 -0800 Mike Kravetz &lt;mike.kravetz@oracle.com&gt; wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; On 01/11/2016 02:35 PM, Andrew Morton wrote:</span>
+<span class="quote">&gt;&gt;&gt; On Wed,  6 Jan 2016 14:37:04 -0800 Mike Kravetz &lt;mike.kravetz@oracle.com&gt; wrote:</span>
+
+&lt;snip&gt;
+<span class="quote">
+&gt;&gt;&gt;&gt; The (unmodified) routine hugetlb_vmdelete_list was moved ahead of</span>
+<span class="quote">&gt;&gt;&gt;&gt; remove_inode_hugepages to satisfy the new reference.</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+
+&lt;snip&gt;
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; I&#39;ll mark this patch as &quot;pending, awaiting Mike&#39;s go-ahead&quot;.</span>
+<span class="quote">&gt; </span>
+
+When this patch was originally submitted, bugs were discovered in the
+hugetlb_vmdelete_list routine.  So, the patch &quot;Fix bugs in
+hugetlb_vmtruncate_list&quot; was created.
+
+I have retested the changes in this patch specifically dealing with
+page fault/hole punch race on top of the new hugetlb_vmtruncate_list
+routine.  Everything looks good.
+
+How would you like to proceed with the patch?
+- Should I create a series with the hugetlb_vmtruncate_list split out?
+- Should I respin with hugetlb_vmtruncate_list patch applied?
+
+Just let me know what is easiest/best for you.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41">Andrew Morton</a> - Jan. 12, 2016, 2:20 a.m.</div>
+<pre class="content">
+On Mon, 11 Jan 2016 17:36:43 -0800 Mike Kravetz &lt;mike.kravetz@oracle.com&gt; wrote:
+<span class="quote">
+&gt; &gt; </span>
+<span class="quote">&gt; &gt; I&#39;ll mark this patch as &quot;pending, awaiting Mike&#39;s go-ahead&quot;.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; When this patch was originally submitted, bugs were discovered in the</span>
+<span class="quote">&gt; hugetlb_vmdelete_list routine.  So, the patch &quot;Fix bugs in</span>
+<span class="quote">&gt; hugetlb_vmtruncate_list&quot; was created.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I have retested the changes in this patch specifically dealing with</span>
+<span class="quote">&gt; page fault/hole punch race on top of the new hugetlb_vmtruncate_list</span>
+<span class="quote">&gt; routine.  Everything looks good.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; How would you like to proceed with the patch?</span>
+<span class="quote">&gt; - Should I create a series with the hugetlb_vmtruncate_list split out?</span>
+<span class="quote">&gt; - Should I respin with hugetlb_vmtruncate_list patch applied?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Just let me know what is easiest/best for you.</span>
+
+If you&#39;re saying that
+http://ozlabs.org/~akpm/mmots/broken-out/mm-mempolicy-skip-non-migratable-vmas-when-setting-mpol_mf_lazy.patch
+and
+http://ozlabs.org/~akpm/mmots/broken-out/mm-hugetlbfs-unmap-pages-if-page-fault-raced-with-hole-punch.patch
+are the final everything-works versions then we&#39;re all good to go now.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Jan. 12, 2016, 3:21 a.m.</div>
+<pre class="content">
+On 01/11/2016 06:20 PM, Andrew Morton wrote:
+<span class="quote">&gt; On Mon, 11 Jan 2016 17:36:43 -0800 Mike Kravetz &lt;mike.kravetz@oracle.com&gt; wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; I&#39;ll mark this patch as &quot;pending, awaiting Mike&#39;s go-ahead&quot;.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; When this patch was originally submitted, bugs were discovered in the</span>
+<span class="quote">&gt;&gt; hugetlb_vmdelete_list routine.  So, the patch &quot;Fix bugs in</span>
+<span class="quote">&gt;&gt; hugetlb_vmtruncate_list&quot; was created.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; I have retested the changes in this patch specifically dealing with</span>
+<span class="quote">&gt;&gt; page fault/hole punch race on top of the new hugetlb_vmtruncate_list</span>
+<span class="quote">&gt;&gt; routine.  Everything looks good.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; How would you like to proceed with the patch?</span>
+<span class="quote">&gt;&gt; - Should I create a series with the hugetlb_vmtruncate_list split out?</span>
+<span class="quote">&gt;&gt; - Should I respin with hugetlb_vmtruncate_list patch applied?</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Just let me know what is easiest/best for you.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If you&#39;re saying that</span>
+<span class="quote">&gt; http://ozlabs.org/~akpm/mmots/broken-out/mm-mempolicy-skip-non-migratable-vmas-when-setting-mpol_mf_lazy.patch</span>
+
+That should be,
+http://ozlabs.org/~akpm/mmots/broken-out/mm-hugetlbfs-fix-bugs-in-hugetlb_vmtruncate_list.patch
+<span class="quote">
+&gt; and</span>
+<span class="quote">&gt; http://ozlabs.org/~akpm/mmots/broken-out/mm-hugetlbfs-unmap-pages-if-page-fault-raced-with-hole-punch.patch</span>
+<span class="quote">&gt; are the final everything-works versions then we&#39;re all good to go now.</span>
+<span class="quote">&gt; </span>
+
+The only thing that &#39;might&#39; be an issue is the new reference to
+hugetlb_vmdelete_list() from remove_inode_hugepages().
+hugetlb_vmdelete_list() was after remove_inode_hugepages() in the source
+file.
+
+The original patch moved hugetlb_vmdelete_list() to satisfy the new
+reference.  I can not tell if that was taken into account in the way the
+patches were pulled into your tree.  Will certainly know when it comes
+time to build.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="p_header">index 0444760..0871d70 100644</span>
+<span class="p_header">--- a/fs/hugetlbfs/inode.c</span>
+<span class="p_header">+++ b/fs/hugetlbfs/inode.c</span>
+<span class="p_chunk">@@ -324,11 +324,46 @@</span> <span class="p_context"> static void remove_huge_page(struct page *page)</span>
+ 	delete_from_page_cache(page);
+ }
+ 
+<span class="p_add">+static inline void</span>
+<span class="p_add">+hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct vm_area_struct *vma;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * end == 0 indicates that the entire range after</span>
+<span class="p_add">+	 * start should be unmapped.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {</span>
+<span class="p_add">+		unsigned long v_offset;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Can the expression below overflow on 32-bit arches?</span>
+<span class="p_add">+		 * No, because the interval tree returns us only those vmas</span>
+<span class="p_add">+		 * which overlap the truncated area starting at pgoff,</span>
+<span class="p_add">+		 * and no vma on a 32-bit arch can span beyond the 4GB.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (vma-&gt;vm_pgoff &lt; start)</span>
+<span class="p_add">+			v_offset = (start - vma-&gt;vm_pgoff) &lt;&lt; PAGE_SHIFT;</span>
+<span class="p_add">+		else</span>
+<span class="p_add">+			v_offset = 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (end) {</span>
+<span class="p_add">+			end = ((end - start) &lt;&lt; PAGE_SHIFT) +</span>
+<span class="p_add">+			       vma-&gt;vm_start + v_offset;</span>
+<span class="p_add">+			if (end &gt; vma-&gt;vm_end)</span>
+<span class="p_add">+				end = vma-&gt;vm_end;</span>
+<span class="p_add">+		} else</span>
+<span class="p_add">+			end = vma-&gt;vm_end;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		unmap_hugepage_range(vma, vma-&gt;vm_start + v_offset, end, NULL);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ 
+ /*
+  * remove_inode_hugepages handles two distinct cases: truncation and hole
+  * punch.  There are subtle differences in operation for each case.
+<span class="p_del">-</span>
+<span class="p_add">+ *</span>
+  * truncation is indicated by end of range being LLONG_MAX
+  *	In this case, we first scan the range and release found pages.
+  *	After releasing pages, hugetlb_unreserve_pages cleans up region/reserv
+<span class="p_chunk">@@ -379,6 +414,7 @@</span> <span class="p_context"> static void remove_inode_hugepages(struct inode *inode, loff_t lstart,</span>
+ 
+ 		for (i = 0; i &lt; pagevec_count(&amp;pvec); ++i) {
+ 			struct page *page = pvec.pages[i];
+<span class="p_add">+			bool rsv_on_error;</span>
+ 			u32 hash;
+ 
+ 			/*
+<span class="p_chunk">@@ -395,37 +431,43 @@</span> <span class="p_context"> static void remove_inode_hugepages(struct inode *inode, loff_t lstart,</span>
+ 							mapping, next, 0);
+ 			mutex_lock(&amp;hugetlb_fault_mutex_table[hash]);
+ 
+<span class="p_del">-			lock_page(page);</span>
+<span class="p_del">-			if (likely(!page_mapped(page))) {</span>
+<span class="p_del">-				bool rsv_on_error = !PagePrivate(page);</span>
+<span class="p_del">-				/*</span>
+<span class="p_del">-				 * We must free the huge page and remove</span>
+<span class="p_del">-				 * from page cache (remove_huge_page) BEFORE</span>
+<span class="p_del">-				 * removing the region/reserve map</span>
+<span class="p_del">-				 * (hugetlb_unreserve_pages).  In rare out</span>
+<span class="p_del">-				 * of memory conditions, removal of the</span>
+<span class="p_del">-				 * region/reserve map could fail.  Before</span>
+<span class="p_del">-				 * free&#39;ing the page, note PagePrivate which</span>
+<span class="p_del">-				 * is used in case of error.</span>
+<span class="p_del">-				 */</span>
+<span class="p_del">-				remove_huge_page(page);</span>
+<span class="p_del">-				freed++;</span>
+<span class="p_del">-				if (!truncate_op) {</span>
+<span class="p_del">-					if (unlikely(hugetlb_unreserve_pages(</span>
+<span class="p_del">-							inode, next,</span>
+<span class="p_del">-							next + 1, 1)))</span>
+<span class="p_del">-						hugetlb_fix_reserve_counts(</span>
+<span class="p_del">-							inode, rsv_on_error);</span>
+<span class="p_del">-				}</span>
+<span class="p_del">-			} else {</span>
+<span class="p_del">-				/*</span>
+<span class="p_del">-				 * If page is mapped, it was faulted in after</span>
+<span class="p_del">-				 * being unmapped.  It indicates a race between</span>
+<span class="p_del">-				 * hole punch and page fault.  Do nothing in</span>
+<span class="p_del">-				 * this case.  Getting here in a truncate</span>
+<span class="p_del">-				 * operation is a bug.</span>
+<span class="p_del">-				 */</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * If page is mapped, it was faulted in after being</span>
+<span class="p_add">+			 * unmapped in caller.  Unmap (again) now after taking</span>
+<span class="p_add">+			 * the fault mutex.  The mutex will prevent faults</span>
+<span class="p_add">+			 * until we finish removing the page.</span>
+<span class="p_add">+			 *</span>
+<span class="p_add">+			 * This race can only happen in the hole punch case.</span>
+<span class="p_add">+			 * Getting here in a truncate operation is a bug.</span>
+<span class="p_add">+			 */</span>
+<span class="p_add">+			if (unlikely(page_mapped(page))) {</span>
+ 				BUG_ON(truncate_op);
+<span class="p_add">+</span>
+<span class="p_add">+				i_mmap_lock_write(mapping);</span>
+<span class="p_add">+				hugetlb_vmdelete_list(&amp;mapping-&gt;i_mmap,</span>
+<span class="p_add">+					next * pages_per_huge_page(h),</span>
+<span class="p_add">+					(next + 1) * pages_per_huge_page(h));</span>
+<span class="p_add">+				i_mmap_unlock_write(mapping);</span>
+<span class="p_add">+			}</span>
+<span class="p_add">+</span>
+<span class="p_add">+			lock_page(page);</span>
+<span class="p_add">+			/*</span>
+<span class="p_add">+			 * We must free the huge page and remove from page</span>
+<span class="p_add">+			 * cache (remove_huge_page) BEFORE removing the</span>
+<span class="p_add">+			 * region/reserve map (hugetlb_unreserve_pages).  In</span>
+<span class="p_add">+			 * rare out of memory conditions, removal of the</span>
+<span class="p_add">+			 * region/reserve map could fail.  Before free&#39;ing</span>
+<span class="p_add">+			 * the page, note PagePrivate which is used in case</span>
+<span class="p_add">+			 * of error.</span>
+<span class="p_add">+			 */</span>
+<span class="p_add">+			rsv_on_error = !PagePrivate(page);</span>
+<span class="p_add">+			remove_huge_page(page);</span>
+<span class="p_add">+			freed++;</span>
+<span class="p_add">+			if (!truncate_op) {</span>
+<span class="p_add">+				if (unlikely(hugetlb_unreserve_pages(inode,</span>
+<span class="p_add">+							next, next + 1, 1)))</span>
+<span class="p_add">+					hugetlb_fix_reserve_counts(inode,</span>
+<span class="p_add">+								rsv_on_error);</span>
+ 			}
+ 
+ 			unlock_page(page);
+<span class="p_chunk">@@ -452,41 +494,6 @@</span> <span class="p_context"> static void hugetlbfs_evict_inode(struct inode *inode)</span>
+ 	clear_inode(inode);
+ }
+ 
+<span class="p_del">-static inline void</span>
+<span class="p_del">-hugetlb_vmdelete_list(struct rb_root *root, pgoff_t start, pgoff_t end)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	struct vm_area_struct *vma;</span>
+<span class="p_del">-</span>
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * end == 0 indicates that the entire range after</span>
+<span class="p_del">-	 * start should be unmapped.</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	vma_interval_tree_foreach(vma, root, start, end ? end : ULONG_MAX) {</span>
+<span class="p_del">-		unsigned long v_offset;</span>
+<span class="p_del">-</span>
+<span class="p_del">-		/*</span>
+<span class="p_del">-		 * Can the expression below overflow on 32-bit arches?</span>
+<span class="p_del">-		 * No, because the interval tree returns us only those vmas</span>
+<span class="p_del">-		 * which overlap the truncated area starting at pgoff,</span>
+<span class="p_del">-		 * and no vma on a 32-bit arch can span beyond the 4GB.</span>
+<span class="p_del">-		 */</span>
+<span class="p_del">-		if (vma-&gt;vm_pgoff &lt; start)</span>
+<span class="p_del">-			v_offset = (start - vma-&gt;vm_pgoff) &lt;&lt; PAGE_SHIFT;</span>
+<span class="p_del">-		else</span>
+<span class="p_del">-			v_offset = 0;</span>
+<span class="p_del">-</span>
+<span class="p_del">-		if (end) {</span>
+<span class="p_del">-			end = ((end - start) &lt;&lt; PAGE_SHIFT) +</span>
+<span class="p_del">-			       vma-&gt;vm_start + v_offset;</span>
+<span class="p_del">-			if (end &gt; vma-&gt;vm_end)</span>
+<span class="p_del">-				end = vma-&gt;vm_end;</span>
+<span class="p_del">-		} else</span>
+<span class="p_del">-			end = vma-&gt;vm_end;</span>
+<span class="p_del">-</span>
+<span class="p_del">-		unmap_hugepage_range(vma, vma-&gt;vm_start + v_offset, end, NULL);</span>
+<span class="p_del">-	}</span>
+<span class="p_del">-}</span>
+<span class="p_del">-</span>
+ static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
+ {
+ 	pgoff_t pgoff;
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

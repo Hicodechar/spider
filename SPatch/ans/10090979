@@ -1,0 +1,441 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[4.4,04/27] x86/efi: Hoist page table switching code into efi_call_virt() - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [4.4,04/27] x86/efi: Hoist page table switching code into efi_call_virt()</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=37061">gregkh@linuxfoundation.org</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Dec. 4, 2017, 3:59 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20171204155942.445834937@linuxfoundation.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10090979/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10090979/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10090979/">/patch/10090979/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	2DB8460580 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  4 Dec 2017 16:41:55 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id CF5272921C
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  4 Dec 2017 16:41:54 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id C400A29229; Mon,  4 Dec 2017 16:41:54 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 0C9C82921C
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  4 Dec 2017 16:41:53 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752592AbdLDQAT (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 4 Dec 2017 11:00:19 -0500
+Received: from mail.linuxfoundation.org ([140.211.169.12]:60606 &quot;EHLO
+	mail.linuxfoundation.org&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752501AbdLDQAN (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 4 Dec 2017 11:00:13 -0500
+Received: from localhost (LFbn-1-12253-150.w90-92.abo.wanadoo.fr
+	[90.92.67.150])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id 61473BC8;
+	Mon,  4 Dec 2017 16:00:12 +0000 (UTC)
+From: Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;,
+	stable@vger.kernel.org, Matt Fleming &lt;matt@codeblueprint.co.uk&gt;,
+	Borislav Petkov &lt;bp@suse.de&gt;, Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Andy Lutomirski &lt;luto@amacapital.net&gt;, Andy Lutomirski &lt;luto@kernel.org&gt;,
+	Ard Biesheuvel &lt;ard.biesheuvel@linaro.org&gt;,
+	Borislav Petkov &lt;bp@alien8.de&gt;, Brian Gerst &lt;brgerst@gmail.com&gt;,
+	Dave Jones &lt;davej@codemonkey.org.uk&gt;,
+	Denys Vlasenko &lt;dvlasenk@redhat.com&gt;, &quot;H. Peter Anvin&quot; &lt;hpa@zytor.com&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Peter Zijlstra &lt;peterz@infradead.org&gt;,
+	Sai Praneeth Prakhya &lt;sai.praneeth.prakhya@intel.com&gt;,
+	Stephen Smalley &lt;sds@tycho.nsa.gov&gt;,
+	Thomas Gleixner &lt;tglx@linutronix.de&gt;,
+	Toshi Kani &lt;toshi.kani@hp.com&gt;, linux-efi@vger.kernel.org,
+	Ingo Molnar &lt;mingo@kernel.org&gt;, &quot;Ghannam, Yazen&quot; &lt;Yazen.Ghannam@amd.com&gt;
+Subject: [PATCH 4.4 04/27] x86/efi: Hoist page table switching code into
+	efi_call_virt()
+Date: Mon,  4 Dec 2017 16:59:29 +0100
+Message-Id: &lt;20171204155942.445834937@linuxfoundation.org&gt;
+X-Mailer: git-send-email 2.15.1
+In-Reply-To: &lt;20171204155942.271814507@linuxfoundation.org&gt;
+References: &lt;20171204155942.271814507@linuxfoundation.org&gt;
+User-Agent: quilt/0.65
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=37061">gregkh@linuxfoundation.org</a> - Dec. 4, 2017, 3:59 p.m.</div>
+<pre class="content">
+4.4-stable review patch.  If anyone has any objections, please let me know.
+
+------------------
+<span class="from">
+From: Matt Fleming &lt;matt@codeblueprint.co.uk&gt;</span>
+
+commit c9f2a9a65e4855b74d92cdad688f6ee4a1a323ff upstream.
+
+This change is a prerequisite for pending patches that switch to
+a dedicated EFI page table, instead of using &#39;trampoline_pgd&#39;
+which shares PGD entries with &#39;swapper_pg_dir&#39;. The pending
+patches make it impossible to dereference the runtime service
+function pointer without first switching %cr3.
+
+It&#39;s true that we now have duplicated switching code in
+efi_call_virt() and efi_call_phys_{prolog,epilog}() but we are
+sacrificing code duplication for a little more clarity and the
+ease of writing the page table switching code in C instead of
+asm.
+<span class="signed-off-by">
+Signed-off-by: Matt Fleming &lt;matt@codeblueprint.co.uk&gt;</span>
+<span class="reviewed-by">Reviewed-by: Borislav Petkov &lt;bp@suse.de&gt;</span>
+<span class="acked-by">Acked-by: Borislav Petkov &lt;bp@suse.de&gt;</span>
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: Andy Lutomirski &lt;luto@amacapital.net&gt;
+Cc: Andy Lutomirski &lt;luto@kernel.org&gt;
+Cc: Ard Biesheuvel &lt;ard.biesheuvel@linaro.org&gt;
+Cc: Borislav Petkov &lt;bp@alien8.de&gt;
+Cc: Brian Gerst &lt;brgerst@gmail.com&gt;
+Cc: Dave Jones &lt;davej@codemonkey.org.uk&gt;
+Cc: Denys Vlasenko &lt;dvlasenk@redhat.com&gt;
+Cc: H. Peter Anvin &lt;hpa@zytor.com&gt;
+Cc: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+Cc: Peter Zijlstra &lt;peterz@infradead.org&gt;
+Cc: Sai Praneeth Prakhya &lt;sai.praneeth.prakhya@intel.com&gt;
+Cc: Stephen Smalley &lt;sds@tycho.nsa.gov&gt;
+Cc: Thomas Gleixner &lt;tglx@linutronix.de&gt;
+Cc: Toshi Kani &lt;toshi.kani@hp.com&gt;
+Cc: linux-efi@vger.kernel.org
+Link: http://lkml.kernel.org/r/1448658575-17029-5-git-send-email-matt@codeblueprint.co.uk
+<span class="signed-off-by">Signed-off-by: Ingo Molnar &lt;mingo@kernel.org&gt;</span>
+Cc: &quot;Ghannam, Yazen&quot; &lt;Yazen.Ghannam@amd.com&gt;
+<span class="signed-off-by">Signed-off-by: Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;</span>
+
+---
+ arch/x86/include/asm/efi.h          |   25 ++++++++++++++++++++
+ arch/x86/platform/efi/efi_64.c      |   24 +++++++++-----------
+ arch/x86/platform/efi/efi_stub_64.S |   43 ------------------------------------
+ 3 files changed, 36 insertions(+), 56 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- a/arch/x86/include/asm/efi.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/efi.h</span>
+<span class="p_chunk">@@ -3,6 +3,7 @@</span> <span class="p_context"></span>
+ 
+ #include &lt;asm/fpu/api.h&gt;
+ #include &lt;asm/pgtable.h&gt;
+<span class="p_add">+#include &lt;asm/tlb.h&gt;</span>
+ 
+ /*
+  * We map the EFI regions needed for runtime services non-contiguously,
+<span class="p_chunk">@@ -64,6 +65,17 @@</span> <span class="p_context"> extern u64 asmlinkage efi_call(void *fp,</span>
+ 
+ #define efi_call_phys(f, args...)		efi_call((f), args)
+ 
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Scratch space used for switching the pagetable in the EFI stub</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+struct efi_scratch {</span>
+<span class="p_add">+	u64	r15;</span>
+<span class="p_add">+	u64	prev_cr3;</span>
+<span class="p_add">+	pgd_t	*efi_pgt;</span>
+<span class="p_add">+	bool	use_pgd;</span>
+<span class="p_add">+	u64	phys_stack;</span>
+<span class="p_add">+} __packed;</span>
+<span class="p_add">+</span>
+ #define efi_call_virt(f, ...)						\
+ ({									\
+ 	efi_status_t __s;						\
+<span class="p_chunk">@@ -71,7 +83,20 @@</span> <span class="p_context"> extern u64 asmlinkage efi_call(void *fp,</span>
+ 	efi_sync_low_kernel_mappings();					\
+ 	preempt_disable();						\
+ 	__kernel_fpu_begin();						\
+<span class="p_add">+									\</span>
+<span class="p_add">+	if (efi_scratch.use_pgd) {					\</span>
+<span class="p_add">+		efi_scratch.prev_cr3 = read_cr3();			\</span>
+<span class="p_add">+		write_cr3((unsigned long)efi_scratch.efi_pgt);		\</span>
+<span class="p_add">+		__flush_tlb_all();					\</span>
+<span class="p_add">+	}								\</span>
+<span class="p_add">+									\</span>
+ 	__s = efi_call((void *)efi.systab-&gt;runtime-&gt;f, __VA_ARGS__);	\
+<span class="p_add">+									\</span>
+<span class="p_add">+	if (efi_scratch.use_pgd) {					\</span>
+<span class="p_add">+		write_cr3(efi_scratch.prev_cr3);			\</span>
+<span class="p_add">+		__flush_tlb_all();					\</span>
+<span class="p_add">+	}								\</span>
+<span class="p_add">+									\</span>
+ 	__kernel_fpu_end();						\
+ 	preempt_enable();						\
+ 	__s;								\
+<span class="p_header">--- a/arch/x86/platform/efi/efi_64.c</span>
+<span class="p_header">+++ b/arch/x86/platform/efi/efi_64.c</span>
+<span class="p_chunk">@@ -47,16 +47,7 @@</span> <span class="p_context"></span>
+  */
+ static u64 efi_va = EFI_VA_START;
+ 
+<span class="p_del">-/*</span>
+<span class="p_del">- * Scratch space used for switching the pagetable in the EFI stub</span>
+<span class="p_del">- */</span>
+<span class="p_del">-struct efi_scratch {</span>
+<span class="p_del">-	u64 r15;</span>
+<span class="p_del">-	u64 prev_cr3;</span>
+<span class="p_del">-	pgd_t *efi_pgt;</span>
+<span class="p_del">-	bool use_pgd;</span>
+<span class="p_del">-	u64 phys_stack;</span>
+<span class="p_del">-} __packed;</span>
+<span class="p_add">+struct efi_scratch efi_scratch;</span>
+ 
+ static void __init early_code_mapping_set_exec(int executable)
+ {
+<span class="p_chunk">@@ -83,8 +74,11 @@</span> <span class="p_context"> pgd_t * __init efi_call_phys_prolog(void</span>
+ 	int pgd;
+ 	int n_pgds;
+ 
+<span class="p_del">-	if (!efi_enabled(EFI_OLD_MEMMAP))</span>
+<span class="p_del">-		return NULL;</span>
+<span class="p_add">+	if (!efi_enabled(EFI_OLD_MEMMAP)) {</span>
+<span class="p_add">+		save_pgd = (pgd_t *)read_cr3();</span>
+<span class="p_add">+		write_cr3((unsigned long)efi_scratch.efi_pgt);</span>
+<span class="p_add">+		goto out;</span>
+<span class="p_add">+	}</span>
+ 
+ 	early_code_mapping_set_exec(1);
+ 
+<span class="p_chunk">@@ -96,6 +90,7 @@</span> <span class="p_context"> pgd_t * __init efi_call_phys_prolog(void</span>
+ 		vaddress = (unsigned long)__va(pgd * PGDIR_SIZE);
+ 		set_pgd(pgd_offset_k(pgd * PGDIR_SIZE), *pgd_offset_k(vaddress));
+ 	}
+<span class="p_add">+out:</span>
+ 	__flush_tlb_all();
+ 
+ 	return save_pgd;
+<span class="p_chunk">@@ -109,8 +104,11 @@</span> <span class="p_context"> void __init efi_call_phys_epilog(pgd_t *</span>
+ 	int pgd_idx;
+ 	int nr_pgds;
+ 
+<span class="p_del">-	if (!save_pgd)</span>
+<span class="p_add">+	if (!efi_enabled(EFI_OLD_MEMMAP)) {</span>
+<span class="p_add">+		write_cr3((unsigned long)save_pgd);</span>
+<span class="p_add">+		__flush_tlb_all();</span>
+ 		return;
+<span class="p_add">+	}</span>
+ 
+ 	nr_pgds = DIV_ROUND_UP((max_pfn &lt;&lt; PAGE_SHIFT) , PGDIR_SIZE);
+ 
+<span class="p_header">--- a/arch/x86/platform/efi/efi_stub_64.S</span>
+<span class="p_header">+++ b/arch/x86/platform/efi/efi_stub_64.S</span>
+<span class="p_chunk">@@ -38,41 +38,6 @@</span> <span class="p_context"></span>
+ 	mov %rsi, %cr0;			\
+ 	mov (%rsp), %rsp
+ 
+<span class="p_del">-	/* stolen from gcc */</span>
+<span class="p_del">-	.macro FLUSH_TLB_ALL</span>
+<span class="p_del">-	movq %r15, efi_scratch(%rip)</span>
+<span class="p_del">-	movq %r14, efi_scratch+8(%rip)</span>
+<span class="p_del">-	movq %cr4, %r15</span>
+<span class="p_del">-	movq %r15, %r14</span>
+<span class="p_del">-	andb $0x7f, %r14b</span>
+<span class="p_del">-	movq %r14, %cr4</span>
+<span class="p_del">-	movq %r15, %cr4</span>
+<span class="p_del">-	movq efi_scratch+8(%rip), %r14</span>
+<span class="p_del">-	movq efi_scratch(%rip), %r15</span>
+<span class="p_del">-	.endm</span>
+<span class="p_del">-</span>
+<span class="p_del">-	.macro SWITCH_PGT</span>
+<span class="p_del">-	cmpb $0, efi_scratch+24(%rip)</span>
+<span class="p_del">-	je 1f</span>
+<span class="p_del">-	movq %r15, efi_scratch(%rip)		# r15</span>
+<span class="p_del">-	# save previous CR3</span>
+<span class="p_del">-	movq %cr3, %r15</span>
+<span class="p_del">-	movq %r15, efi_scratch+8(%rip)		# prev_cr3</span>
+<span class="p_del">-	movq efi_scratch+16(%rip), %r15		# EFI pgt</span>
+<span class="p_del">-	movq %r15, %cr3</span>
+<span class="p_del">-	1:</span>
+<span class="p_del">-	.endm</span>
+<span class="p_del">-</span>
+<span class="p_del">-	.macro RESTORE_PGT</span>
+<span class="p_del">-	cmpb $0, efi_scratch+24(%rip)</span>
+<span class="p_del">-	je 2f</span>
+<span class="p_del">-	movq efi_scratch+8(%rip), %r15</span>
+<span class="p_del">-	movq %r15, %cr3</span>
+<span class="p_del">-	movq efi_scratch(%rip), %r15</span>
+<span class="p_del">-	FLUSH_TLB_ALL</span>
+<span class="p_del">-	2:</span>
+<span class="p_del">-	.endm</span>
+<span class="p_del">-</span>
+ ENTRY(efi_call)
+ 	SAVE_XMM
+ 	mov (%rsp), %rax
+<span class="p_chunk">@@ -83,16 +48,8 @@</span> <span class="p_context"> ENTRY(efi_call)</span>
+ 	mov %r8, %r9
+ 	mov %rcx, %r8
+ 	mov %rsi, %rcx
+<span class="p_del">-	SWITCH_PGT</span>
+ 	call *%rdi
+<span class="p_del">-	RESTORE_PGT</span>
+ 	addq $48, %rsp
+ 	RESTORE_XMM
+ 	ret
+ ENDPROC(efi_call)
+<span class="p_del">-</span>
+<span class="p_del">-	.data</span>
+<span class="p_del">-ENTRY(efi_scratch)</span>
+<span class="p_del">-	.fill 3,8,0</span>
+<span class="p_del">-	.byte 0</span>
+<span class="p_del">-	.quad 0</span>
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

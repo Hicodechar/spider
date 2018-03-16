@@ -1,0 +1,585 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v2,3/5] mm: use a dedicated workqueue for the free workers - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v2,3/5] mm: use a dedicated workqueue for the free workers</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=45931">Aaron Lu</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>March 15, 2017, 9 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1489568404-7817-4-git-send-email-aaron.lu@intel.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9625077/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9625077/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9625077/">/patch/9625077/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	2723560244 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 15 Mar 2017 09:01:06 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 17A7F27FAD
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 15 Mar 2017 09:01:06 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 0A07E28604; Wed, 15 Mar 2017 09:01:06 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 8D85D27FAD
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 15 Mar 2017 09:01:05 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752550AbdCOJAE (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 15 Mar 2017 05:00:04 -0400
+Received: from mga05.intel.com ([192.55.52.43]:30134 &quot;EHLO mga05.intel.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1751477AbdCOJAB (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 15 Mar 2017 05:00:01 -0400
+Received: from orsmga004.jf.intel.com ([10.7.209.38])
+	by fmsmga105.fm.intel.com with ESMTP; 15 Mar 2017 02:00:00 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i=&quot;5.36,168,1486454400&quot;; d=&quot;scan&#39;208&quot;;a=&quot;67566369&quot;
+Received: from aaronlu.sh.intel.com ([10.239.13.136])
+	by orsmga004.jf.intel.com with ESMTP; 15 Mar 2017 01:59:59 -0700
+From: Aaron Lu &lt;aaron.lu@intel.com&gt;
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Dave Hansen &lt;dave.hansen@intel.com&gt;, Tim Chen &lt;tim.c.chen@intel.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Ying Huang &lt;ying.huang@intel.com&gt;, Aaron Lu &lt;aaron.lu@intel.com&gt;
+Subject: [PATCH v2 3/5] mm: use a dedicated workqueue for the free workers
+Date: Wed, 15 Mar 2017 17:00:02 +0800
+Message-Id: &lt;1489568404-7817-4-git-send-email-aaron.lu@intel.com&gt;
+X-Mailer: git-send-email 2.7.4
+In-Reply-To: &lt;1489568404-7817-1-git-send-email-aaron.lu@intel.com&gt;
+References: &lt;1489568404-7817-1-git-send-email-aaron.lu@intel.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=45931">Aaron Lu</a> - March 15, 2017, 9 a.m.</div>
+<pre class="content">
+Introduce a workqueue for all the free workers so that user can fine
+tune how many workers can be active through sysfs interface: max_active.
+More workers will normally lead to better performance, but too many can
+cause severe lock contention.
+
+Note that since the zone lock is global, the workqueue is also global
+for all processes, i.e. if we set 8 to max_active, we will have at most
+8 workers active for all processes that are doing munmap()/exit()/etc.
+<span class="signed-off-by">
+Signed-off-by: Aaron Lu &lt;aaron.lu@intel.com&gt;</span>
+---
+ mm/memory.c | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=36811">Minchan Kim</a> - March 22, 2017, 6:33 a.m.</div>
+<pre class="content">
+Hi,
+
+On Wed, Mar 15, 2017 at 05:00:02PM +0800, Aaron Lu wrote:
+<span class="quote">&gt; Introduce a workqueue for all the free workers so that user can fine</span>
+<span class="quote">&gt; tune how many workers can be active through sysfs interface: max_active.</span>
+<span class="quote">&gt; More workers will normally lead to better performance, but too many can</span>
+<span class="quote">&gt; cause severe lock contention.</span>
+
+Let me ask a question.
+
+How well can workqueue distribute the jobs in multiple CPU?
+I don&#39;t ask about currency but parallelism.
+I guess benefit you are seeing comes from the parallelism and
+for your goal, unbound wq should spawn a thread per cpu and
+doing the work in every each CPU. does it work?
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; Note that since the zone lock is global, the workqueue is also global</span>
+<span class="quote">&gt; for all processes, i.e. if we set 8 to max_active, we will have at most</span>
+<span class="quote">&gt; 8 workers active for all processes that are doing munmap()/exit()/etc.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Aaron Lu &lt;aaron.lu@intel.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  mm/memory.c | 15 ++++++++++++++-</span>
+<span class="quote">&gt;  1 file changed, 14 insertions(+), 1 deletion(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/mm/memory.c b/mm/memory.c</span>
+<span class="quote">&gt; index 001c7720d773..19b25bb5f45b 100644</span>
+<span class="quote">&gt; --- a/mm/memory.c</span>
+<span class="quote">&gt; +++ b/mm/memory.c</span>
+<span class="quote">&gt; @@ -253,6 +253,19 @@ static void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)</span>
+<span class="quote">&gt;  	__tlb_reset_range(tlb);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +static struct workqueue_struct *batch_free_wq;</span>
+<span class="quote">&gt; +static int __init batch_free_wq_init(void)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	batch_free_wq = alloc_workqueue(&quot;batch_free_wq&quot;,</span>
+<span class="quote">&gt; +					WQ_UNBOUND | WQ_SYSFS, 0);</span>
+<span class="quote">&gt; +	if (!batch_free_wq) {</span>
+<span class="quote">&gt; +		pr_warn(&quot;failed to create workqueue batch_free_wq\n&quot;);</span>
+<span class="quote">&gt; +		return -ENOMEM;</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt; +	return 0;</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +subsys_initcall(batch_free_wq_init);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  static void tlb_flush_mmu_free_batches(struct mmu_gather_batch *batch_start,</span>
+<span class="quote">&gt;  				       bool free_batch_page)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; @@ -306,7 +319,7 @@ static void tlb_flush_mmu_free(struct mmu_gather *tlb)</span>
+<span class="quote">&gt;  		batch_free-&gt;batch_start = tlb-&gt;local.next;</span>
+<span class="quote">&gt;  		INIT_WORK(&amp;batch_free-&gt;work, batch_free_work);</span>
+<span class="quote">&gt;  		list_add_tail(&amp;batch_free-&gt;list, &amp;tlb-&gt;worker_list);</span>
+<span class="quote">&gt; -		queue_work(system_unbound_wq, &amp;batch_free-&gt;work);</span>
+<span class="quote">&gt; +		queue_work(batch_free_wq, &amp;batch_free-&gt;work);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  		tlb-&gt;batch_count = 0;</span>
+<span class="quote">&gt;  		tlb-&gt;local.next = NULL;</span>
+<span class="quote">&gt; -- </span>
+<span class="quote">&gt; 2.7.4</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; --</span>
+<span class="quote">&gt; To unsubscribe, send a message with &#39;unsubscribe linux-mm&#39; in</span>
+<span class="quote">&gt; the body to majordomo@kvack.org.  For more info on Linux MM,</span>
+<span class="quote">&gt; see: http://www.linux-mm.org/ .</span>
+<span class="quote">&gt; Don&#39;t email: &lt;a href=mailto:&quot;dont@kvack.org&quot;&gt; email@kvack.org &lt;/a&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=45931">Aaron Lu</a> - March 22, 2017, 8:41 a.m.</div>
+<pre class="content">
+On Wed, Mar 22, 2017 at 03:33:35PM +0900, Minchan Kim wrote:
+<span class="quote">&gt; Hi,</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; On Wed, Mar 15, 2017 at 05:00:02PM +0800, Aaron Lu wrote:</span>
+<span class="quote">&gt; &gt; Introduce a workqueue for all the free workers so that user can fine</span>
+<span class="quote">&gt; &gt; tune how many workers can be active through sysfs interface: max_active.</span>
+<span class="quote">&gt; &gt; More workers will normally lead to better performance, but too many can</span>
+<span class="quote">&gt; &gt; cause severe lock contention.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Let me ask a question.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; How well can workqueue distribute the jobs in multiple CPU?</span>
+
+I would say it&#39;s good enough for my needs.
+After all, it doesn&#39;t need many kworkers to achieve the 50% time
+decrease: 2-4 kworkers for EP and 4-8 kworkers for EX are enough from
+previous attched data.
+<span class="quote">
+&gt; I don&#39;t ask about currency but parallelism.</span>
+<span class="quote">&gt; I guess benefit you are seeing comes from the parallelism and</span>
+<span class="quote">&gt; for your goal, unbound wq should spawn a thread per cpu and</span>
+<span class="quote">&gt; doing the work in every each CPU. does it work?</span>
+
+I don&#39;t think a unbound workqueue will spawn a thread per CPU, that
+seems too much a cost to have a unbound workqueue.
+
+My understanding of the unbound workqueue is that it will create a
+thread pool for each node, versus each CPU as in the bound workqueue
+case, and use threads from the thread pool(create threads if not enough)
+to do the work.
+
+I guess you want to ask if the unbound workqueue can spawn enough
+threads to do the job? From the output of &#39;vmstat 1&#39; during the free()
+test, I can see some 70+ processes in runnable state when I didn&#39;t
+set an upper limit for max_active of the workqueue.
+
+Thanks,
+Aaron
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=36811">Minchan Kim</a> - March 22, 2017, 8:55 a.m.</div>
+<pre class="content">
+On Wed, Mar 22, 2017 at 04:41:04PM +0800, Aaron Lu wrote:
+<span class="quote">&gt; On Wed, Mar 22, 2017 at 03:33:35PM +0900, Minchan Kim wrote:</span>
+<span class="quote">&gt; &gt; Hi,</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; On Wed, Mar 15, 2017 at 05:00:02PM +0800, Aaron Lu wrote:</span>
+<span class="quote">&gt; &gt; &gt; Introduce a workqueue for all the free workers so that user can fine</span>
+<span class="quote">&gt; &gt; &gt; tune how many workers can be active through sysfs interface: max_active.</span>
+<span class="quote">&gt; &gt; &gt; More workers will normally lead to better performance, but too many can</span>
+<span class="quote">&gt; &gt; &gt; cause severe lock contention.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Let me ask a question.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; How well can workqueue distribute the jobs in multiple CPU?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I would say it&#39;s good enough for my needs.</span>
+<span class="quote">&gt; After all, it doesn&#39;t need many kworkers to achieve the 50% time</span>
+<span class="quote">&gt; decrease: 2-4 kworkers for EP and 4-8 kworkers for EX are enough from</span>
+<span class="quote">&gt; previous attched data.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; I don&#39;t ask about currency but parallelism.</span>
+<span class="quote">&gt; &gt; I guess benefit you are seeing comes from the parallelism and</span>
+<span class="quote">&gt; &gt; for your goal, unbound wq should spawn a thread per cpu and</span>
+<span class="quote">&gt; &gt; doing the work in every each CPU. does it work?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I don&#39;t think a unbound workqueue will spawn a thread per CPU, that</span>
+<span class="quote">&gt; seems too much a cost to have a unbound workqueue.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; My understanding of the unbound workqueue is that it will create a</span>
+<span class="quote">&gt; thread pool for each node, versus each CPU as in the bound workqueue</span>
+<span class="quote">&gt; case, and use threads from the thread pool(create threads if not enough)</span>
+<span class="quote">&gt; to do the work.</span>
+
+Yes, that was my understand so I read code and found that
+
+insert_work:
+        ..
+        if (__need_more_worker(pool))
+                wake_up_worker(pool); 
+
+so I thought if there is a running thread in that node, workqueue
+will not wake any other threads so parallelism should be max 2.
+AFAIK, if the work goes sleep, scheduler will spawn new worker
+thread so the active worker could be a lot but I cannot see any
+significant sleepable point in that work(ie, batch_free_work).
+<span class="quote">        
+&gt; </span>
+<span class="quote">&gt; I guess you want to ask if the unbound workqueue can spawn enough</span>
+<span class="quote">&gt; threads to do the job? From the output of &#39;vmstat 1&#39; during the free()</span>
+<span class="quote">&gt; test, I can see some 70+ processes in runnable state when I didn&#39;t</span>
+<span class="quote">&gt; set an upper limit for max_active of the workqueue.</span>
+
+Hmm, it seems I was wrong. I am really curious how we can have
+70+ active workers in that. Could you explain what I am missing?
+
+Thanks.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; Thanks,</span>
+<span class="quote">&gt; Aaron</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; --</span>
+<span class="quote">&gt; To unsubscribe, send a message with &#39;unsubscribe linux-mm&#39; in</span>
+<span class="quote">&gt; the body to majordomo@kvack.org.  For more info on Linux MM,</span>
+<span class="quote">&gt; see: http://www.linux-mm.org/ .</span>
+<span class="quote">&gt; Don&#39;t email: &lt;a href=mailto:&quot;dont@kvack.org&quot;&gt; email@kvack.org &lt;/a&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=45931">Aaron Lu</a> - March 22, 2017, 1:43 p.m.</div>
+<pre class="content">
+On Wed, Mar 22, 2017 at 05:55:12PM +0900, Minchan Kim wrote:
+<span class="quote">&gt; On Wed, Mar 22, 2017 at 04:41:04PM +0800, Aaron Lu wrote:</span>
+<span class="quote">&gt; &gt; My understanding of the unbound workqueue is that it will create a</span>
+<span class="quote">&gt; &gt; thread pool for each node, versus each CPU as in the bound workqueue</span>
+<span class="quote">&gt; &gt; case, and use threads from the thread pool(create threads if not enough)</span>
+<span class="quote">&gt; &gt; to do the work.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yes, that was my understand so I read code and found that</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; insert_work:</span>
+<span class="quote">&gt;         ..</span>
+<span class="quote">&gt;         if (__need_more_worker(pool))</span>
+<span class="quote">&gt;                 wake_up_worker(pool); </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; so I thought if there is a running thread in that node, workqueue</span>
+<span class="quote">&gt; will not wake any other threads so parallelism should be max 2.</span>
+<span class="quote">&gt; AFAIK, if the work goes sleep, scheduler will spawn new worker</span>
+<span class="quote">&gt; thread so the active worker could be a lot but I cannot see any</span>
+<span class="quote">&gt; significant sleepable point in that work(ie, batch_free_work).</span>
+
+Looks like worker_thread() will spawn new worker through manage_worker().
+
+Note that pool-&gt;nr_running will always be zero for an unbound workqueue
+and thus need_more_worker() will return true as long as there are queued
+work items in the pool.
+
+Thanks,
+Aaron
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=36811">Minchan Kim</a> - March 23, 2017, 5:53 a.m.</div>
+<pre class="content">
+On Wed, Mar 22, 2017 at 09:43:04PM +0800, Aaron Lu wrote:
+<span class="quote">&gt; On Wed, Mar 22, 2017 at 05:55:12PM +0900, Minchan Kim wrote:</span>
+<span class="quote">&gt; &gt; On Wed, Mar 22, 2017 at 04:41:04PM +0800, Aaron Lu wrote:</span>
+<span class="quote">&gt; &gt; &gt; My understanding of the unbound workqueue is that it will create a</span>
+<span class="quote">&gt; &gt; &gt; thread pool for each node, versus each CPU as in the bound workqueue</span>
+<span class="quote">&gt; &gt; &gt; case, and use threads from the thread pool(create threads if not enough)</span>
+<span class="quote">&gt; &gt; &gt; to do the work.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Yes, that was my understand so I read code and found that</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; insert_work:</span>
+<span class="quote">&gt; &gt;         ..</span>
+<span class="quote">&gt; &gt;         if (__need_more_worker(pool))</span>
+<span class="quote">&gt; &gt;                 wake_up_worker(pool); </span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; so I thought if there is a running thread in that node, workqueue</span>
+<span class="quote">&gt; &gt; will not wake any other threads so parallelism should be max 2.</span>
+<span class="quote">&gt; &gt; AFAIK, if the work goes sleep, scheduler will spawn new worker</span>
+<span class="quote">&gt; &gt; thread so the active worker could be a lot but I cannot see any</span>
+<span class="quote">&gt; &gt; significant sleepable point in that work(ie, batch_free_work).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Looks like worker_thread() will spawn new worker through manage_worker().</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Note that pool-&gt;nr_running will always be zero for an unbound workqueue</span>
+<span class="quote">&gt; and thus need_more_worker() will return true as long as there are queued</span>
+<span class="quote">&gt; work items in the pool.</span>
+
+Aha, it solves my wonder. Thanks a lot!
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=65121">Dave Hansen</a> - March 23, 2017, 3:38 p.m.</div>
+<pre class="content">
+On 03/22/2017 01:41 AM, Aaron Lu wrote:
+<span class="quote">&gt; On Wed, Mar 22, 2017 at 03:33:35PM +0900, Minchan Kim wrote:</span>
+<span class="quote">&gt;&gt; On Wed, Mar 15, 2017 at 05:00:02PM +0800, Aaron Lu wrote:</span>
+<span class="quote">&gt;&gt;&gt; Introduce a workqueue for all the free workers so that user can fine</span>
+<span class="quote">&gt;&gt;&gt; tune how many workers can be active through sysfs interface: max_active.</span>
+<span class="quote">&gt;&gt;&gt; More workers will normally lead to better performance, but too many can</span>
+<span class="quote">&gt;&gt;&gt; cause severe lock contention.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Let me ask a question.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; How well can workqueue distribute the jobs in multiple CPU?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I would say it&#39;s good enough for my needs.</span>
+<span class="quote">&gt; After all, it doesn&#39;t need many kworkers to achieve the 50% time</span>
+<span class="quote">&gt; decrease: 2-4 kworkers for EP and 4-8 kworkers for EX are enough from</span>
+<span class="quote">&gt; previous attched data.</span>
+
+It&#39;s also worth noting that we&#39;d like to *also* like to look into
+increasing how scalable freeing pages to a given zone is.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=45931">Aaron Lu</a> - March 24, 2017, 12:37 p.m.</div>
+<pre class="content">
+On Thu, Mar 23, 2017 at 08:38:43AM -0700, Dave Hansen wrote:
+<span class="quote">&gt; On 03/22/2017 01:41 AM, Aaron Lu wrote:</span>
+<span class="quote">&gt; &gt; On Wed, Mar 22, 2017 at 03:33:35PM +0900, Minchan Kim wrote:</span>
+<span class="quote">&gt; &gt;&gt; On Wed, Mar 15, 2017 at 05:00:02PM +0800, Aaron Lu wrote:</span>
+<span class="quote">&gt; &gt;&gt;&gt; Introduce a workqueue for all the free workers so that user can fine</span>
+<span class="quote">&gt; &gt;&gt;&gt; tune how many workers can be active through sysfs interface: max_active.</span>
+<span class="quote">&gt; &gt;&gt;&gt; More workers will normally lead to better performance, but too many can</span>
+<span class="quote">&gt; &gt;&gt;&gt; cause severe lock contention.</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; Let me ask a question.</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; How well can workqueue distribute the jobs in multiple CPU?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I would say it&#39;s good enough for my needs.</span>
+<span class="quote">&gt; &gt; After all, it doesn&#39;t need many kworkers to achieve the 50% time</span>
+<span class="quote">&gt; &gt; decrease: 2-4 kworkers for EP and 4-8 kworkers for EX are enough from</span>
+<span class="quote">&gt; &gt; previous attched data.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It&#39;s also worth noting that we&#39;d like to *also* like to look into</span>
+<span class="quote">&gt; increasing how scalable freeing pages to a given zone is.</span>
+
+Still on EX, I restricted the allocation to be only on node 1, with
+120G memory allocated there:
+
+max_active            time            compared to base  lock from perf
+base(no parallel)     3.81s ±3.3%     N/A               &lt;1%
+1                     3.10s ±7.7%     ↓18.6%            14.76%
+2                     2.44s ±13.6%    ↓35.9%            36.95%
+4                     2.07s ±13.6%    ↓45.6%            59.67%
+8                     1.98s ±0.4%     ↓48.0%            62.59%
+16                    2.01s ±2.4%     ↓47.2%            79.62%
+
+If we can improve the scalibility of freeing a given zone, then parallel
+free will be able to achieve more.
+
+BTW, the lock is basically pgdat-&gt;lru_lock in release_pages and
+zone-&gt;lock in free_pcppages_bulk:
+    62.59%    62.59%  [kernel.kallsyms]  [k] native_queued_spin_lock_slowpath
+37.17% native_queued_spin_lock_slowpath;_raw_spin_lock_irqsave;free_pcppages_bulk;free_hot_cold_page;free_hot_cold_page_list;release_pages;free_pages_and_swap_cache;tlb_flush_mmu_free_batches;batch_free_work;process_one_work;worker_thread;kthread;ret_from_fork
+25.27% native_queued_spin_lock_slowpath;_raw_spin_lock_irqsave;release_pages;free_pages_and_swap_cache;tlb_flush_mmu_free_batches;batch_free_work;process_one_work;worker_thread;kthread;ret_from_fork
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/memory.c b/mm/memory.c</span>
+<span class="p_header">index 001c7720d773..19b25bb5f45b 100644</span>
+<span class="p_header">--- a/mm/memory.c</span>
+<span class="p_header">+++ b/mm/memory.c</span>
+<span class="p_chunk">@@ -253,6 +253,19 @@</span> <span class="p_context"> static void tlb_flush_mmu_tlbonly(struct mmu_gather *tlb)</span>
+ 	__tlb_reset_range(tlb);
+ }
+ 
+<span class="p_add">+static struct workqueue_struct *batch_free_wq;</span>
+<span class="p_add">+static int __init batch_free_wq_init(void)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	batch_free_wq = alloc_workqueue(&quot;batch_free_wq&quot;,</span>
+<span class="p_add">+					WQ_UNBOUND | WQ_SYSFS, 0);</span>
+<span class="p_add">+	if (!batch_free_wq) {</span>
+<span class="p_add">+		pr_warn(&quot;failed to create workqueue batch_free_wq\n&quot;);</span>
+<span class="p_add">+		return -ENOMEM;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+subsys_initcall(batch_free_wq_init);</span>
+<span class="p_add">+</span>
+ static void tlb_flush_mmu_free_batches(struct mmu_gather_batch *batch_start,
+ 				       bool free_batch_page)
+ {
+<span class="p_chunk">@@ -306,7 +319,7 @@</span> <span class="p_context"> static void tlb_flush_mmu_free(struct mmu_gather *tlb)</span>
+ 		batch_free-&gt;batch_start = tlb-&gt;local.next;
+ 		INIT_WORK(&amp;batch_free-&gt;work, batch_free_work);
+ 		list_add_tail(&amp;batch_free-&gt;list, &amp;tlb-&gt;worker_list);
+<span class="p_del">-		queue_work(system_unbound_wq, &amp;batch_free-&gt;work);</span>
+<span class="p_add">+		queue_work(batch_free_wq, &amp;batch_free-&gt;work);</span>
+ 
+ 		tlb-&gt;batch_count = 0;
+ 		tlb-&gt;local.next = NULL;
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

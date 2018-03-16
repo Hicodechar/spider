@@ -1,0 +1,844 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[HMM,06/16] mm/migrate: new memory migration helper for use with device memory v4 - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [HMM,06/16] mm/migrate: new memory migration helper for use with device memory v4</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=2554">Jerome Glisse</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>April 5, 2017, 8:40 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170405204026.3940-7-jglisse@redhat.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9665739/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9665739/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9665739/">/patch/9665739/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	86A6660353 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  5 Apr 2017 20:44:55 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 771D528584
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  5 Apr 2017 20:44:55 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 6BB072858B; Wed,  5 Apr 2017 20:44:55 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 25B4F28584
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  5 Apr 2017 20:44:54 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S934315AbdDEUos (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 5 Apr 2017 16:44:48 -0400
+Received: from mx1.redhat.com ([209.132.183.28]:45698 &quot;EHLO mx1.redhat.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1755868AbdDEUkr (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 5 Apr 2017 16:40:47 -0400
+Received: from smtp.corp.redhat.com
+	(int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 14D2E2ED12F;
+	Wed,  5 Apr 2017 20:40:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mx1.redhat.com 14D2E2ED12F
+Authentication-Results: ext-mx02.extmail.prod.ext.phx2.redhat.com;
+	dmarc=none (p=none dis=none) header.from=redhat.com
+Authentication-Results: ext-mx02.extmail.prod.ext.phx2.redhat.com;
+	spf=pass smtp.mailfrom=jglisse@redhat.com
+DKIM-Filter: OpenDKIM Filter v2.11.0 mx1.redhat.com 14D2E2ED12F
+Received: from localhost.localdomain.com (ovpn-120-177.rdu2.redhat.com
+	[10.10.120.177])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 74CB11868A;
+	Wed,  5 Apr 2017 20:40:45 +0000 (UTC)
+From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= &lt;jglisse@redhat.com&gt;
+To: akpm@linux-foundation.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org
+Cc: John Hubbard &lt;jhubbard@nvidia.com&gt;,
+	Dan Williams &lt;dan.j.williams@intel.com&gt;,
+	Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;,
+	David Nellans &lt;dnellans@nvidia.com&gt;,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= &lt;jglisse@redhat.com&gt;,
+	Evgeny Baskakov &lt;ebaskakov@nvidia.com&gt;,
+	Mark Hairgrove &lt;mhairgrove@nvidia.com&gt;,
+	Sherry Cheung &lt;SCheung@nvidia.com&gt;, Subhash Gutti &lt;sgutti@nvidia.com&gt;
+Subject: [HMM 06/16] mm/migrate: new memory migration helper for use with
+	device memory v4
+Date: Wed,  5 Apr 2017 16:40:16 -0400
+Message-Id: &lt;20170405204026.3940-7-jglisse@redhat.com&gt;
+In-Reply-To: &lt;20170405204026.3940-1-jglisse@redhat.com&gt;
+References: &lt;20170405204026.3940-1-jglisse@redhat.com&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16
+	(mx1.redhat.com [10.5.110.26]);
+	Wed, 05 Apr 2017 20:40:47 +0000 (UTC)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=2554">Jerome Glisse</a> - April 5, 2017, 8:40 p.m.</div>
+<pre class="content">
+This patch add a new memory migration helpers, which migrate memory
+backing a range of virtual address of a process to different memory
+(which can be allocated through special allocator). It differs from
+numa migration by working on a range of virtual address and thus by
+doing migration in chunk that can be large enough to use DMA engine
+or special copy offloading engine.
+
+Expected users are any one with heterogeneous memory where different
+memory have different characteristics (latency, bandwidth, ...). As
+an example IBM platform with CAPI bus can make use of this feature
+to migrate between regular memory and CAPI device memory. New CPU
+architecture with a pool of high performance memory not manage as
+cache but presented as regular memory (while being faster and with
+lower latency than DDR) will also be prime user of this patch.
+
+Migration to private device memory will be useful for device that
+have large pool of such like GPU, NVidia plans to use HMM for that.
+
+Changes since v3:
+  - Rebase
+
+Changes since v2:
+  - droped HMM prefix and HMM specific code
+Changes since v1:
+  - typos fix
+  - split early unmap optimization for page with single mapping
+<span class="signed-off-by">
+Signed-off-by: Jérôme Glisse &lt;jglisse@redhat.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Evgeny Baskakov &lt;ebaskakov@nvidia.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: John Hubbard &lt;jhubbard@nvidia.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Mark Hairgrove &lt;mhairgrove@nvidia.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Sherry Cheung &lt;SCheung@nvidia.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Subhash Gutti &lt;sgutti@nvidia.com&gt;</span>
+---
+ include/linux/migrate.h | 104 ++++++++++++
+ mm/migrate.c            | 444 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 548 insertions(+)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/include/linux/migrate.h b/include/linux/migrate.h</span>
+<span class="p_header">index 78a0fdc..576b3f5 100644</span>
+<span class="p_header">--- a/include/linux/migrate.h</span>
+<span class="p_header">+++ b/include/linux/migrate.h</span>
+<span class="p_chunk">@@ -127,4 +127,108 @@</span> <span class="p_context"> static inline int migrate_misplaced_transhuge_page(struct mm_struct *mm,</span>
+ }
+ #endif /* CONFIG_NUMA_BALANCING &amp;&amp; CONFIG_TRANSPARENT_HUGEPAGE*/
+ 
+<span class="p_add">+</span>
+<span class="p_add">+#ifdef CONFIG_MIGRATION</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define MIGRATE_PFN_VALID	(1UL &lt;&lt; 0)</span>
+<span class="p_add">+#define MIGRATE_PFN_MIGRATE	(1UL &lt;&lt; 1)</span>
+<span class="p_add">+#define MIGRATE_PFN_LOCKED	(1UL &lt;&lt; 2)</span>
+<span class="p_add">+#define MIGRATE_PFN_WRITE	(1UL &lt;&lt; 3)</span>
+<span class="p_add">+#define MIGRATE_PFN_ERROR	(1UL &lt;&lt; 4)</span>
+<span class="p_add">+#define MIGRATE_PFN_SHIFT	5</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline struct page *migrate_pfn_to_page(unsigned long mpfn)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (!(mpfn &amp; MIGRATE_PFN_VALID))</span>
+<span class="p_add">+		return NULL;</span>
+<span class="p_add">+	return pfn_to_page(mpfn &gt;&gt; MIGRATE_PFN_SHIFT);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline unsigned long migrate_pfn(unsigned long pfn)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	return (pfn &lt;&lt; MIGRATE_PFN_SHIFT) | MIGRATE_PFN_VALID;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * struct migrate_vma_ops - migrate operation callback</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * @alloc_and_copy: alloc destination memory and copy source memory to it</span>
+<span class="p_add">+ * @finalize_and_map: allow caller to map the successfully migrated pages</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * The alloc_and_copy() callback happens once all source pages have been locked,</span>
+<span class="p_add">+ * unmapped and checked (checked whether pinned or not). All pages that can be</span>
+<span class="p_add">+ * migrated will have an entry in the src array set with the pfn value of the</span>
+<span class="p_add">+ * page and with the MIGRATE_PFN_VALID and MIGRATE_PFN_MIGRATE flag set (other</span>
+<span class="p_add">+ * flags might be set but should be ignored by the callback).</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * The alloc_and_copy() callback can then allocate destination memory and copy</span>
+<span class="p_add">+ * source memory to it for all those entries (ie with MIGRATE_PFN_VALID and</span>
+<span class="p_add">+ * MIGRATE_PFN_MIGRATE flag set). Once these are allocated and copied, the</span>
+<span class="p_add">+ * callback must update each corresponding entry in the dst array with the pfn</span>
+<span class="p_add">+ * value of the destination page and with the MIGRATE_PFN_VALID and</span>
+<span class="p_add">+ * MIGRATE_PFN_LOCKED flags set (destination pages must have their struct pages</span>
+<span class="p_add">+ * locked, via lock_page()).</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * At this point the alloc_and_copy() callback is done and returns.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Note that the callback does not have to migrate all the pages that are</span>
+<span class="p_add">+ * marked with MIGRATE_PFN_MIGRATE flag in src array unless this is a migration</span>
+<span class="p_add">+ * from device memory to system memory (ie the MIGRATE_PFN_DEVICE flag is also</span>
+<span class="p_add">+ * set in the src array entry). If the device driver cannot migrate a device</span>
+<span class="p_add">+ * page back to system memory, then it must set the corresponding dst array</span>
+<span class="p_add">+ * entry to MIGRATE_PFN_ERROR. This will trigger a SIGBUS if CPU tries to</span>
+<span class="p_add">+ * access any of the virtual addresses originally backed by this page. Because</span>
+<span class="p_add">+ * a SIGBUS is such a severe result for the userspace process, the device</span>
+<span class="p_add">+ * driver should avoid setting MIGRATE_PFN_ERROR unless it is really in an</span>
+<span class="p_add">+ * unrecoverable state.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * THE alloc_and_copy() CALLBACK MUST NOT CHANGE ANY OF THE SRC ARRAY ENTRIES</span>
+<span class="p_add">+ * OR BAD THINGS WILL HAPPEN !</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * The finalize_and_map() callback happens after struct page migration from</span>
+<span class="p_add">+ * source to destination (destination struct pages are the struct pages for the</span>
+<span class="p_add">+ * memory allocated by the alloc_and_copy() callback).  Migration can fail, and</span>
+<span class="p_add">+ * thus the finalize_and_map() allows the driver to inspect which pages were</span>
+<span class="p_add">+ * successfully migrated, and which were not. Successfully migrated pages will</span>
+<span class="p_add">+ * have the MIGRATE_PFN_MIGRATE flag set for their src array entry.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * It is safe to update device page table from within the finalize_and_map()</span>
+<span class="p_add">+ * callback because both destination and source page are still locked, and the</span>
+<span class="p_add">+ * mmap_sem is held in read mode (hence no one can unmap the range being</span>
+<span class="p_add">+ * migrated).</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Once callback is done cleaning up things and updating its page table (if it</span>
+<span class="p_add">+ * chose to do so, this is not an obligation) then it returns. At this point,</span>
+<span class="p_add">+ * the HMM core will finish up the final steps, and the migration is complete.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * THE finalize_and_map() CALLBACK MUST NOT CHANGE ANY OF THE SRC OR DST ARRAY</span>
+<span class="p_add">+ * ENTRIES OR BAD THINGS WILL HAPPEN !</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+struct migrate_vma_ops {</span>
+<span class="p_add">+	void (*alloc_and_copy)(struct vm_area_struct *vma,</span>
+<span class="p_add">+			       const unsigned long *src,</span>
+<span class="p_add">+			       unsigned long *dst,</span>
+<span class="p_add">+			       unsigned long start,</span>
+<span class="p_add">+			       unsigned long end,</span>
+<span class="p_add">+			       void *private);</span>
+<span class="p_add">+	void (*finalize_and_map)(struct vm_area_struct *vma,</span>
+<span class="p_add">+				 const unsigned long *src,</span>
+<span class="p_add">+				 const unsigned long *dst,</span>
+<span class="p_add">+				 unsigned long start,</span>
+<span class="p_add">+				 unsigned long end,</span>
+<span class="p_add">+				 void *private);</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+<span class="p_add">+int migrate_vma(const struct migrate_vma_ops *ops,</span>
+<span class="p_add">+		struct vm_area_struct *vma,</span>
+<span class="p_add">+		unsigned long start,</span>
+<span class="p_add">+		unsigned long end,</span>
+<span class="p_add">+		unsigned long *src,</span>
+<span class="p_add">+		unsigned long *dst,</span>
+<span class="p_add">+		void *private);</span>
+<span class="p_add">+</span>
+<span class="p_add">+#endif /* CONFIG_MIGRATION */</span>
+<span class="p_add">+</span>
+ #endif /* _LINUX_MIGRATE_H */
+<span class="p_header">diff --git a/mm/migrate.c b/mm/migrate.c</span>
+<span class="p_header">index 5176772..b2ce541 100644</span>
+<span class="p_header">--- a/mm/migrate.c</span>
+<span class="p_header">+++ b/mm/migrate.c</span>
+<span class="p_chunk">@@ -395,6 +395,14 @@</span> <span class="p_context"> int migrate_page_move_mapping(struct address_space *mapping,</span>
+ 	int expected_count = 1 + extra_count;
+ 	void **pslot;
+ 
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * ZONE_DEVICE pages have 1 refcount always held by their device</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Note that DAX memory will never reach that point as it does not have</span>
+<span class="p_add">+	 * the MEMORY_DEVICE_ALLOW_MIGRATE flag set (see memory_hotplug.h).</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	expected_count += is_zone_device_page(page);</span>
+<span class="p_add">+</span>
+ 	if (!mapping) {
+ 		/* Anonymous page without mapping */
+ 		if (page_count(page) != expected_count)
+<span class="p_chunk">@@ -2075,3 +2083,439 @@</span> <span class="p_context"> int migrate_misplaced_transhuge_page(struct mm_struct *mm,</span>
+ #endif /* CONFIG_NUMA_BALANCING */
+ 
+ #endif /* CONFIG_NUMA */
+<span class="p_add">+</span>
+<span class="p_add">+</span>
+<span class="p_add">+struct migrate_vma {</span>
+<span class="p_add">+	struct vm_area_struct	*vma;</span>
+<span class="p_add">+	unsigned long		*dst;</span>
+<span class="p_add">+	unsigned long		*src;</span>
+<span class="p_add">+	unsigned long		cpages;</span>
+<span class="p_add">+	unsigned long		npages;</span>
+<span class="p_add">+	unsigned long		start;</span>
+<span class="p_add">+	unsigned long		end;</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int migrate_vma_collect_hole(unsigned long start,</span>
+<span class="p_add">+				    unsigned long end,</span>
+<span class="p_add">+				    struct mm_walk *walk)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct migrate_vma *migrate = walk-&gt;private;</span>
+<span class="p_add">+	unsigned long addr, next;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for (addr = start &amp; PAGE_MASK; addr &lt; end; addr += PAGE_SIZE) {</span>
+<span class="p_add">+		migrate-&gt;dst[migrate-&gt;npages] = 0;</span>
+<span class="p_add">+		migrate-&gt;src[migrate-&gt;npages++] = 0;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static int migrate_vma_collect_pmd(pmd_t *pmdp,</span>
+<span class="p_add">+				   unsigned long start,</span>
+<span class="p_add">+				   unsigned long end,</span>
+<span class="p_add">+				   struct mm_walk *walk)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct migrate_vma *migrate = walk-&gt;private;</span>
+<span class="p_add">+	struct mm_struct *mm = walk-&gt;vma-&gt;vm_mm;</span>
+<span class="p_add">+	unsigned long addr = start;</span>
+<span class="p_add">+	spinlock_t *ptl;</span>
+<span class="p_add">+	pte_t *ptep;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (pmd_none(*pmdp) || pmd_trans_unstable(pmdp)) {</span>
+<span class="p_add">+		/* FIXME support THP */</span>
+<span class="p_add">+		return migrate_vma_collect_hole(start, end, walk);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ptep = pte_offset_map_lock(mm, pmdp, addr, &amp;ptl);</span>
+<span class="p_add">+	for (; addr &lt; end; addr += PAGE_SIZE, ptep++) {</span>
+<span class="p_add">+		unsigned long mpfn, pfn;</span>
+<span class="p_add">+		struct page *page;</span>
+<span class="p_add">+		pte_t pte;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		pte = *ptep;</span>
+<span class="p_add">+		pfn = pte_pfn(pte);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (!pte_present(pte)) {</span>
+<span class="p_add">+			mpfn = pfn = 0;</span>
+<span class="p_add">+			goto next;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/* FIXME support THP */</span>
+<span class="p_add">+		page = vm_normal_page(migrate-&gt;vma, addr, pte);</span>
+<span class="p_add">+		if (!page || !page-&gt;mapping || PageTransCompound(page)) {</span>
+<span class="p_add">+			mpfn = pfn = 0;</span>
+<span class="p_add">+			goto next;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * By getting a reference on the page we pin it and that blocks</span>
+<span class="p_add">+		 * any kind of migration. Side effect is that it &quot;freezes&quot; the</span>
+<span class="p_add">+		 * pte.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * We drop this reference after isolating the page from the lru</span>
+<span class="p_add">+		 * for non device page (device page are not on the lru and thus</span>
+<span class="p_add">+		 * can&#39;t be dropped from it).</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		get_page(page);</span>
+<span class="p_add">+		migrate-&gt;cpages++;</span>
+<span class="p_add">+		mpfn = migrate_pfn(pfn) | MIGRATE_PFN_MIGRATE;</span>
+<span class="p_add">+		mpfn |= pte_write(pte) ? MIGRATE_PFN_WRITE : 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+next:</span>
+<span class="p_add">+		migrate-&gt;src[migrate-&gt;npages++] = mpfn;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	pte_unmap_unlock(ptep - 1, ptl);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * migrate_vma_collect() - collect pages over a range of virtual addresses</span>
+<span class="p_add">+ * @migrate: migrate struct containing all migration information</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This will walk the CPU page table. For each virtual address backed by a</span>
+<span class="p_add">+ * valid page, it updates the src array and takes a reference on the page, in</span>
+<span class="p_add">+ * order to pin the page until we lock it and unmap it.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static void migrate_vma_collect(struct migrate_vma *migrate)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct mm_walk mm_walk;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	mm_walk.pmd_entry = migrate_vma_collect_pmd;</span>
+<span class="p_add">+	mm_walk.pte_entry = NULL;</span>
+<span class="p_add">+	mm_walk.pte_hole = migrate_vma_collect_hole;</span>
+<span class="p_add">+	mm_walk.hugetlb_entry = NULL;</span>
+<span class="p_add">+	mm_walk.test_walk = NULL;</span>
+<span class="p_add">+	mm_walk.vma = migrate-&gt;vma;</span>
+<span class="p_add">+	mm_walk.mm = migrate-&gt;vma-&gt;vm_mm;</span>
+<span class="p_add">+	mm_walk.private = migrate;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	walk_page_range(migrate-&gt;start, migrate-&gt;end, &amp;mm_walk);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	migrate-&gt;end = migrate-&gt;start + (migrate-&gt;npages &lt;&lt; PAGE_SHIFT);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * migrate_vma_check_page() - check if page is pinned or not</span>
+<span class="p_add">+ * @page: struct page to check</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Pinned pages cannot be migrated. This is the same test as in</span>
+<span class="p_add">+ * migrate_page_move_mapping(), except that here we allow migration of a</span>
+<span class="p_add">+ * ZONE_DEVICE page.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static bool migrate_vma_check_page(struct page *page)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * One extra ref because caller holds an extra reference, either from</span>
+<span class="p_add">+	 * isolate_lru_page() for a regular page, or migrate_vma_collect() for</span>
+<span class="p_add">+	 * a device page.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	int extra = 1;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * FIXME support THP (transparent huge page), it is bit more complex to</span>
+<span class="p_add">+	 * check them than regular pages, because they can be mapped with a pmd</span>
+<span class="p_add">+	 * or with a pte (split pte mapping).</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (PageCompound(page))</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if ((page_count(page) - extra) &gt; page_mapcount(page))</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return true;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * migrate_vma_prepare() - lock pages and isolate them from the lru</span>
+<span class="p_add">+ * @migrate: migrate struct containing all migration information</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This locks pages that have been collected by migrate_vma_collect(). Once each</span>
+<span class="p_add">+ * page is locked it is isolated from the lru (for non-device pages). Finally,</span>
+<span class="p_add">+ * the ref taken by migrate_vma_collect() is dropped, as locked pages cannot be</span>
+<span class="p_add">+ * migrated by concurrent kernel threads.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static void migrate_vma_prepare(struct migrate_vma *migrate)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	const unsigned long npages = migrate-&gt;npages;</span>
+<span class="p_add">+	const unsigned long start = migrate-&gt;start;</span>
+<span class="p_add">+	unsigned long addr, i, restore = 0;</span>
+<span class="p_add">+	bool allow_drain = true;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	lru_add_drain();</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for (i = 0; i &lt; npages; i++) {</span>
+<span class="p_add">+		struct page *page = migrate_pfn_to_page(migrate-&gt;src[i]);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (!page)</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		lock_page(page);</span>
+<span class="p_add">+		migrate-&gt;src[i] |= MIGRATE_PFN_LOCKED;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (!PageLRU(page) &amp;&amp; allow_drain) {</span>
+<span class="p_add">+			/* Drain CPU&#39;s pagevec */</span>
+<span class="p_add">+			lru_add_drain_all();</span>
+<span class="p_add">+			allow_drain = false;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (isolate_lru_page(page)) {</span>
+<span class="p_add">+			migrate-&gt;src[i] = 0;</span>
+<span class="p_add">+			unlock_page(page);</span>
+<span class="p_add">+			migrate-&gt;cpages--;</span>
+<span class="p_add">+			put_page(page);</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (!migrate_vma_check_page(page)) {</span>
+<span class="p_add">+			migrate-&gt;src[i] = 0;</span>
+<span class="p_add">+			unlock_page(page);</span>
+<span class="p_add">+			migrate-&gt;cpages--;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			putback_lru_page(page);</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * migrate_vma_unmap() - replace page mapping with special migration pte entry</span>
+<span class="p_add">+ * @migrate: migrate struct containing all migration information</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Replace page mapping (CPU page table pte) with a special migration pte entry</span>
+<span class="p_add">+ * and check again if it has been pinned. Pinned pages are restored because we</span>
+<span class="p_add">+ * cannot migrate them.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This is the last step before we call the device driver callback to allocate</span>
+<span class="p_add">+ * destination memory and copy contents of original page over to new page.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static void migrate_vma_unmap(struct migrate_vma *migrate)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	int flags = TTU_MIGRATION | TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;</span>
+<span class="p_add">+	const unsigned long npages = migrate-&gt;npages;</span>
+<span class="p_add">+	const unsigned long start = migrate-&gt;start;</span>
+<span class="p_add">+	unsigned long addr, i, restore = 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for (i = 0; i &lt; npages; i++) {</span>
+<span class="p_add">+		struct page *page = migrate_pfn_to_page(migrate-&gt;src[i]);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (!page || !(migrate-&gt;src[i] &amp; MIGRATE_PFN_MIGRATE))</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		try_to_unmap(page, flags);</span>
+<span class="p_add">+		if (page_mapped(page) || !migrate_vma_check_page(page)) {</span>
+<span class="p_add">+			migrate-&gt;src[i] &amp;= ~MIGRATE_PFN_MIGRATE;</span>
+<span class="p_add">+			migrate-&gt;cpages--;</span>
+<span class="p_add">+			restore++;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for (addr = start, i = 0; i &lt; npages &amp;&amp; restore; addr += PAGE_SIZE, i++) {</span>
+<span class="p_add">+		struct page *page = migrate_pfn_to_page(migrate-&gt;src[i]);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (!page || (migrate-&gt;src[i] &amp; MIGRATE_PFN_MIGRATE))</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		remove_migration_ptes(page, page, false);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		migrate-&gt;src[i] = 0;</span>
+<span class="p_add">+		unlock_page(page);</span>
+<span class="p_add">+		restore--;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		putback_lru_page(page);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * migrate_vma_pages() - migrate meta-data from src page to dst page</span>
+<span class="p_add">+ * @migrate: migrate struct containing all migration information</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This migrates struct page meta-data from source struct page to destination</span>
+<span class="p_add">+ * struct page. This effectively finishes the migration from source page to the</span>
+<span class="p_add">+ * destination page.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static void migrate_vma_pages(struct migrate_vma *migrate)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	const unsigned long npages = migrate-&gt;npages;</span>
+<span class="p_add">+	const unsigned long start = migrate-&gt;start;</span>
+<span class="p_add">+	unsigned long addr, i;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for (i = 0, addr = start; i &lt; npages; addr += PAGE_SIZE, i++) {</span>
+<span class="p_add">+		struct page *newpage = migrate_pfn_to_page(migrate-&gt;dst[i]);</span>
+<span class="p_add">+		struct page *page = migrate_pfn_to_page(migrate-&gt;src[i]);</span>
+<span class="p_add">+		struct address_space *mapping;</span>
+<span class="p_add">+		int r;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (!page || !newpage)</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+		if (!(migrate-&gt;src[i] &amp; MIGRATE_PFN_MIGRATE))</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		mapping = page_mapping(page);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		r = migrate_page(mapping, newpage, page, MIGRATE_SYNC_NO_COPY);</span>
+<span class="p_add">+		if (r != MIGRATEPAGE_SUCCESS)</span>
+<span class="p_add">+			migrate-&gt;src[i] &amp;= ~MIGRATE_PFN_MIGRATE;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * migrate_vma_finalize() - restore CPU page table entry</span>
+<span class="p_add">+ * @migrate: migrate struct containing all migration information</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This replaces the special migration pte entry with either a mapping to the</span>
+<span class="p_add">+ * new page if migration was successful for that page, or to the original page</span>
+<span class="p_add">+ * otherwise.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This also unlocks the pages and puts them back on the lru, or drops the extra</span>
+<span class="p_add">+ * refcount, for device pages.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static void migrate_vma_finalize(struct migrate_vma *migrate)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	const unsigned long npages = migrate-&gt;npages;</span>
+<span class="p_add">+	unsigned long i;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for (i = 0; i &lt; npages; i++) {</span>
+<span class="p_add">+		struct page *newpage = migrate_pfn_to_page(migrate-&gt;dst[i]);</span>
+<span class="p_add">+		struct page *page = migrate_pfn_to_page(migrate-&gt;src[i]);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (!page)</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+		if (!(migrate-&gt;src[i] &amp; MIGRATE_PFN_MIGRATE) || !newpage) {</span>
+<span class="p_add">+			if (newpage) {</span>
+<span class="p_add">+				unlock_page(newpage);</span>
+<span class="p_add">+				put_page(newpage);</span>
+<span class="p_add">+			}</span>
+<span class="p_add">+			newpage = page;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+</span>
+<span class="p_add">+		remove_migration_ptes(page, newpage, false);</span>
+<span class="p_add">+		unlock_page(page);</span>
+<span class="p_add">+		migrate-&gt;cpages--;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		putback_lru_page(page);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (newpage != page) {</span>
+<span class="p_add">+			unlock_page(newpage);</span>
+<span class="p_add">+			putback_lru_page(newpage);</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * migrate_vma() - migrate a range of memory inside vma</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * @ops: migration callback for allocating destination memory and copying</span>
+<span class="p_add">+ * @vma: virtual memory area containing the range to be migrated</span>
+<span class="p_add">+ * @start: start address of the range to migrate (inclusive)</span>
+<span class="p_add">+ * @end: end address of the range to migrate (exclusive)</span>
+<span class="p_add">+ * @src: array of hmm_pfn_t containing source pfns</span>
+<span class="p_add">+ * @dst: array of hmm_pfn_t containing destination pfns</span>
+<span class="p_add">+ * @private: pointer passed back to each of the callback</span>
+<span class="p_add">+ * Returns: 0 on success, error code otherwise</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This function tries to migrate a range of memory virtual address range, using</span>
+<span class="p_add">+ * callbacks to allocate and copy memory from source to destination. First it</span>
+<span class="p_add">+ * collects all the pages backing each virtual address in the range, saving this</span>
+<span class="p_add">+ * inside the src array. Then it locks those pages and unmaps them. Once the pages</span>
+<span class="p_add">+ * are locked and unmapped, it checks whether each page is pinned or not. Pages</span>
+<span class="p_add">+ * that aren&#39;t pinned have the MIGRATE_PFN_MIGRATE flag set (by this function)</span>
+<span class="p_add">+ * in the corresponding src array entry. It then restores any pages that are</span>
+<span class="p_add">+ * pinned, by remapping and unlocking those pages.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * At this point it calls the alloc_and_copy() callback. For documentation on</span>
+<span class="p_add">+ * what is expected from that callback, see struct migrate_vma_ops comments in</span>
+<span class="p_add">+ * include/linux/migrate.h</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * After the alloc_and_copy() callback, this function goes over each entry in</span>
+<span class="p_add">+ * the src array that has the MIGRATE_PFN_VALID and MIGRATE_PFN_MIGRATE flag</span>
+<span class="p_add">+ * set. If the corresponding entry in dst array has MIGRATE_PFN_VALID flag set,</span>
+<span class="p_add">+ * then the function tries to migrate struct page information from the source</span>
+<span class="p_add">+ * struct page to the destination struct page. If it fails to migrate the struct</span>
+<span class="p_add">+ * page information, then it clears the MIGRATE_PFN_MIGRATE flag in the src</span>
+<span class="p_add">+ * array.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * At this point all successfully migrated pages have an entry in the src</span>
+<span class="p_add">+ * array with MIGRATE_PFN_VALID and MIGRATE_PFN_MIGRATE flag set and the dst</span>
+<span class="p_add">+ * array entry with MIGRATE_PFN_VALID flag set.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * It then calls the finalize_and_map() callback. See comments for &quot;struct</span>
+<span class="p_add">+ * migrate_vma_ops&quot;, in include/linux/migrate.h for details about</span>
+<span class="p_add">+ * finalize_and_map() behavior.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * After the finalize_and_map() callback, for successfully migrated pages, this</span>
+<span class="p_add">+ * function updates the CPU page table to point to new pages, otherwise it</span>
+<span class="p_add">+ * restores the CPU page table to point to the original source pages.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Function returns 0 after the above steps, even if no pages were migrated</span>
+<span class="p_add">+ * (The function only returns an error if any of the arguments are invalid.)</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Both src and dst array must be big enough for (end - start) &gt;&gt; PAGE_SHIFT</span>
+<span class="p_add">+ * unsigned long entries.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+int migrate_vma(const struct migrate_vma_ops *ops,</span>
+<span class="p_add">+		struct vm_area_struct *vma,</span>
+<span class="p_add">+		unsigned long start,</span>
+<span class="p_add">+		unsigned long end,</span>
+<span class="p_add">+		unsigned long *src,</span>
+<span class="p_add">+		unsigned long *dst,</span>
+<span class="p_add">+		void *private)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct migrate_vma migrate;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Sanity check the arguments */</span>
+<span class="p_add">+	start &amp;= PAGE_MASK;</span>
+<span class="p_add">+	end &amp;= PAGE_MASK;</span>
+<span class="p_add">+	if (is_vm_hugetlb_page(vma) || (vma-&gt;vm_flags &amp; VM_SPECIAL))</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+	if (!vma || !ops || !src || !dst || start &gt;= end)</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+	if (start &lt; vma-&gt;vm_start || start &gt;= vma-&gt;vm_end)</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+	if (end &lt;= vma-&gt;vm_start || end &gt; vma-&gt;vm_end)</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	memset(src, 0, sizeof(*src) * ((end - start) &gt;&gt; PAGE_SHIFT));</span>
+<span class="p_add">+	migrate.src = src;</span>
+<span class="p_add">+	migrate.dst = dst;</span>
+<span class="p_add">+	migrate.start = start;</span>
+<span class="p_add">+	migrate.npages = 0;</span>
+<span class="p_add">+	migrate.cpages = 0;</span>
+<span class="p_add">+	migrate.end = end;</span>
+<span class="p_add">+	migrate.vma = vma;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Collect, and try to unmap source pages */</span>
+<span class="p_add">+	migrate_vma_collect(&amp;migrate);</span>
+<span class="p_add">+	if (!migrate.cpages)</span>
+<span class="p_add">+		return 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Lock and isolate page */</span>
+<span class="p_add">+	migrate_vma_prepare(&amp;migrate);</span>
+<span class="p_add">+	if (!migrate.cpages)</span>
+<span class="p_add">+		return 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Unmap pages */</span>
+<span class="p_add">+	migrate_vma_unmap(&amp;migrate);</span>
+<span class="p_add">+	if (!migrate.cpages)</span>
+<span class="p_add">+		return 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * At this point pages are locked and unmapped, and thus they have</span>
+<span class="p_add">+	 * stable content and can safely be copied to destination memory that</span>
+<span class="p_add">+	 * is allocated by the callback.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Note that migration can fail in migrate_vma_struct_page() for each</span>
+<span class="p_add">+	 * individual page.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	ops-&gt;alloc_and_copy(vma, src, dst, start, end, private);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* This does the real migration of struct page */</span>
+<span class="p_add">+	migrate_vma_pages(&amp;migrate);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ops-&gt;finalize_and_map(vma, src, dst, start, end, private);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Unlock and remap pages */</span>
+<span class="p_add">+	migrate_vma_finalize(&amp;migrate);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return 0;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL(migrate_vma);</span>
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

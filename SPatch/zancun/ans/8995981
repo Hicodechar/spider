@@ -1,0 +1,797 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[BUG] x86/efi: MMRs no longer properly mapped after switch to isolated page table - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [BUG] x86/efi: MMRs no longer properly mapped after switch to isolated page table</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=66171">athorlton@sgi.com</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>May 3, 2016, 12:10 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20160503001036.GX113599@stormcage.americas.sgi.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/8995981/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/8995981/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/8995981/">/patch/8995981/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id EBD30BF29F
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  3 May 2016 00:10:52 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 0BB3420263
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  3 May 2016 00:10:52 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id F0C302025B
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  3 May 2016 00:10:50 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S932458AbcECAKm (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 2 May 2016 20:10:42 -0400
+Received: from relay1.sgi.com ([192.48.180.66]:39081 &quot;EHLO relay.sgi.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S932425AbcECAKj (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 2 May 2016 20:10:39 -0400
+Received: from stormcage.americas.sgi.com (stormcage.americas.sgi.com
+	[128.162.236.70])
+	by relay1.corp.sgi.com (Postfix) with ESMTP id 92F218F8035;
+	Mon,  2 May 2016 17:10:36 -0700 (PDT)
+Received: by stormcage.americas.sgi.com (Postfix, from userid 48426)
+	id 69F532025D4D2; Mon,  2 May 2016 19:10:36 -0500 (CDT)
+Date: Mon, 2 May 2016 19:10:36 -0500
+From: Alex Thorlton &lt;athorlton@sgi.com&gt;
+To: Alex Thorlton &lt;athorlton@sgi.com&gt;
+Cc: Borislav Petkov &lt;bp@suse.de&gt;, linux-kernel@vger.kernel.org,
+	Matt Fleming &lt;matt@codeblueprint.co.uk&gt;,
+	Thomas Gleixner &lt;tglx@linutronix.de&gt;, Ingo Molnar &lt;mingo@redhat.com&gt;,
+	&quot;H. Peter Anvin&quot; &lt;hpa@zytor.com&gt;, x86@kernel.org,
+	linux-efi@vger.kernel.org, Russ Anderson &lt;rja@sgi.com&gt;,
+	Dimitri Sivanich &lt;sivanich@sgi.com&gt;,
+	mike travis &lt;travis@sgi.com&gt;, Nathan Zimmer &lt;nzimmer@sgi.com&gt;
+Subject: Re: [BUG] x86/efi: MMRs no longer properly mapped after switch to
+	isolated page table
+Message-ID: &lt;20160503001036.GX113599@stormcage.americas.sgi.com&gt;
+References: &lt;20160427154132.GB113599@stormcage.americas.sgi.com&gt;
+	&lt;20160427225122.GG21282@pd.tnic&gt;
+	&lt;20160428014128.GF113599@stormcage.americas.sgi.com&gt;
+	&lt;20160428125711.GB9164@pd.tnic&gt;
+	&lt;20160429154119.GI113599@stormcage.americas.sgi.com&gt;
+	&lt;20160502100222.GB25669@pd.tnic&gt;
+	&lt;20160502222719.GW113599@stormcage.americas.sgi.com&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: &lt;20160502222719.GW113599@stormcage.americas.sgi.com&gt;
+User-Agent: Mutt/1.5.21 (2010-09-15)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-7.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=66171">athorlton@sgi.com</a> - May 3, 2016, 12:10 a.m.</div>
+<pre class="content">
+On Mon, May 02, 2016 at 05:27:19PM -0500, Alex Thorlton wrote:
+<span class="quote">&gt; Thanks for the help.  I&#39;ll get back to you when I know a bit more about</span>
+<span class="quote">&gt; what&#39;s happening with our runtime callbacks!</span>
+
+I&#39;ve made a bit of progress here.  I was able to switch over to a very
+slightly modified version of efi_call_virt and then tweak uv_bios_call
+just a bit, and that (along with the re-introduction of the map_low_mmrs
+calls) got my machine to boot:
+
+8&lt;---
+---&gt;8
+
+Note that the only change I made to efi_call_virt was to change
+efi.systab-&gt;runtime-&gt;f to simply f in the efi_call line.  This works up
+until we try to do callbacks from a loaded module.  When we try that we
+hit this:
+
+[   56.232086] BUG: unable to handle kernel paging request at ffffffff8106148f
+[   56.239880] IP: [&lt;fffffffedbb408ce&gt;] 0xfffffffedbb408ce
+[   56.245721] PGD 8698e0067 PUD 1a08063 PMD 10001e1 
+[   56.251102] Oops: 0003 [#1] SMP 
+[   56.254725] Modules linked in: hwperf(OE+) af_packet(E) iscsi_ibft(E) iscsi_boot_sysfs(E) msr(E) intel_rapl(E) x86_pkg_temp_thermal(E) intel_powerclamp(E) coretemp(E) kvm_intel(E) kvm(E) nl
+s_iso8859_1(E) nls_cp437(E) irqbypass(E) vfat(E) crct10dif_pclmul(E) fat(E) crc32_pclmul(E) ghash_clmulni_intel(E) drbg(E) ansi_cprng(E) aesni_intel(E) aes_x86_64(E) lrw(E) igb(E) iTCO_wdt(E) 
+gf128mul(E) glue_helper(E) iTCO_vendor_support(E) sb_edac(E) ablk_helper(E) ptp(E) edac_core(E) dm_mod(E) cryptd(E) pcspkr(E) lpc_ich(E) pps_core(E) i2c_i801(E) mfd_core(E) mei_me(E) ioatdma(E
+) mei(E) shpchp(E) wmi(E) dca(E) processor(E) button(E) efivarfs(E) xfs(E) libcrc32c(E) sd_mod(E) mgag200(E) i2c_algo_bit(E) drm_kms_helper(E) syscopyarea(E) sysfillrect(E) sysimgblt(E) xhci_p
+ci(E) fb_sys_fops(E) ahci(E) ehci_pci(E) ttm(E) xhci_hcd(E) ehci_hcd(E) crc32c_intel(E) libahci(E) ata_generic(E) drm(E) usbcore(E) libata(E) usb_common(E) sg(E) scsi_mod(E) autofs4(E)
+[   56.348094] CPU: 12 PID: 7515 Comm: modprobe Tainted: G           OE   4.6.0-rc5-maplow-uvcall+ #552
+[   56.358290] Hardware name: SGI UV3000/UV3000, BIOS SGI UV 3000 series BIOS 01/15/2015
+[   56.367032] task: ffff8808650a1100 ti: ffff8808647ac000 task.ti: ffff8808647ac000
+[   56.375385] RIP: 0010:[&lt;fffffffedbb408ce&gt;]  [&lt;fffffffedbb408ce&gt;] 0xfffffffedbb408ce
+[   56.383941] RSP: 0018:ffff8808647afad0  EFLAGS: 00010246
+[   56.389869] RAX: 0000000000000000 RBX: 0000000000000000 RCX: ffffffff8106148f
+[   56.397833] RDX: 0000000000000003 RSI: 0000000000000002 RDI: 0000000000000000
+[   56.405797] RBP: ffff8808647afc78 R08: 0000000000000002 R09: 0000000000000002
+[   56.413760] R10: 000000006a1b8540 R11: 0000000000000000 R12: 0000000000000002
+[   56.421724] R13: 0000000000000000 R14: 0000000000010000 R15: 0000000000000003
+[   56.429688] FS:  00007f6cf45c2700(0000) GS:ffff880878d80000(0000) knlGS:0000000000000000
+[   56.438720] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   56.445131] CR2: ffffffff8106148f CR3: 00000008698df000 CR4: 00000000001406e0
+[   56.453096] Stack:
+[   56.455337]  0000000000000000 0000000000000000 0000000000000000 0000000000000000
+[   56.463632]  ffff8808673ace78 ffff8808673ace60 0000000000000000 0000000000000003
+[   56.471928]  ffff8808647afb20 ffffffff81094402 ffff8808647afb68 ffffffff810abbb5
+[   56.480225] Call Trace:
+[   56.482958]  [&lt;ffffffff81094402&gt;] ? default_wake_function+0x12/0x20
+[   56.489953]  [&lt;ffffffff810abbb5&gt;] ? __wake_up_common+0x55/0x90
+[   56.496466]  [&lt;ffffffff8106148f&gt;] ? uv_bios_call+0x6f/0x110
+[   56.502686]  [&lt;ffffffff8105ea3c&gt;] ? efi_call+0x5c/0x90
+[   56.508425]  [&lt;ffffffff8130c751&gt;] ? vsnprintf+0x251/0x4b0
+[   56.514449]  [&lt;ffffffff8106148f&gt;] ? uv_bios_call+0x6f/0x110
+[   56.520667]  [&lt;ffffffff8106148f&gt;] uv_bios_call+0x6f/0x110
+[   56.526693]  [&lt;ffffffffa0296850&gt;] ? uv_hwperf_deregister_procfs+0x90/0x90 [hwperf]
+[   56.535143]  [&lt;ffffffffa0296948&gt;] uv_hwperf_entry+0xf8/0x200 [hwperf]
+[   56.542334]  [&lt;ffffffff810003dd&gt;] do_one_initcall+0xad/0x1e0
+[   56.548646]  [&lt;ffffffff81167ad2&gt;] ? do_init_module+0x27/0x1da
+[   56.555058]  [&lt;ffffffff81167b0b&gt;] do_init_module+0x60/0x1da
+[   56.561279]  [&lt;ffffffff810ef0f2&gt;] load_module+0x1402/0x1ae0
+[   56.567500]  [&lt;ffffffff810eb970&gt;] ? __symbol_put+0x40/0x40
+[   56.573623]  [&lt;ffffffff810ef9d9&gt;] SYSC_finit_module+0xa9/0xd0
+[   56.580035]  [&lt;ffffffff810efa1e&gt;] SyS_finit_module+0xe/0x10
+[   56.586257]  [&lt;ffffffff815c7432&gt;] entry_SYSCALL_64_fastpath+0x1a/0xa4
+[   56.593444] Code: 49 83 f9 02 0f 82 67 03 00 00 b9 01 00 00 00 e8 6d 12 00 00 ba 03 00 00 00 48 8b c8 e8 d0 12 00 00 48 8b 8c 24 d0 00 00 00 33 ff &lt;66&gt; 89 01 48 81 39 3f 42 0f 00 ba fe 00 0
+0 00 48 0f 44 fa 48 8b 
+[   56.615234] RIP  [&lt;fffffffedbb408ce&gt;] 0xfffffffedbb408ce
+[   56.621173]  RSP &lt;ffff8808647afad0&gt;
+[   56.625063] CR2: ffffffff8106148f
+[   56.628763] ---[ end trace fee09972b1382958 ]---
+[   56.633914] Kernel panic - not syncing: Fatal exception
+[   56.639767] Kernel Offset: disabled
+[   56.643659] ---[ end Kernel panic - not syncing: Fatal exception
+
+The bad paging request here appears to be on the:
+
+if (efi_scratch.use_pgd)
+
+Line of uv_call_virt.  It looks like it&#39;s having trouble accessing the
+efi_scratch struct using the EFI page table.  I&#39;m not sure why this
+is an issue with callbacks from modules and not with the ones in
+uv_system_init and friends.
+
+I&#39;ll keep investigating the module issue.  Looks like we&#39;re getting
+closer to sorting this out!
+
+Let me know if you have thoughts about the way I&#39;m getting stuff
+working.  I&#39;m thinking there&#39;s probably a better way to do this than by
+copying the whole efi_call_virt macro - this was a quick and dirty
+solution.
+
+- Alex
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=57321">Borislav Petkov</a> - May 3, 2016, 9:48 a.m.</div>
+<pre class="content">
+On Mon, May 02, 2016 at 07:10:36PM -0500, Alex Thorlton wrote:
+<span class="quote">&gt; +#define uv_call_virt(f, args...) \</span>
+<span class="quote">&gt; +({                                                                     \</span>
+<span class="quote">&gt; +       efi_status_t __s;                                               \</span>
+<span class="quote">&gt; +       kernel_fpu_begin();                                             \</span>
+<span class="quote">&gt; +       __s = ((efi_##f##_t __attribute__((regparm(0)))*)               \</span>
+<span class="quote">&gt; +               f)(args);                                               \</span>
+<span class="quote">&gt; +       kernel_fpu_end();                                               \</span>
+<span class="quote">&gt; +       __s;                                                            \</span>
+<span class="quote">&gt; +})</span>
+
+Right, can you use the EFI-ones in
+drivers/firmware/efi/runtime-wrappers.c directly?
+
+ (So they&#39;re going to land there, I&#39;m staring at latest -tip and those calls
+  have become all fancy now:
+
+#define efi_call_virt(f, args...)                                       \
+({                                                                      \
+        efi_status_t __s;                                               \
+        unsigned long flags;                                            \
+        arch_efi_call_virt_setup();                                     \
+        local_save_flags(flags);                                        \
+        __s = arch_efi_call_virt(f, args);                              \
+        efi_call_virt_check_flags(flags, __stringify(f));               \
+        arch_efi_call_virt_teardown();                                  \
+        __s;                                                            \
+})
+
+with efi_call_virt_check_flags() checking for IRQ flags corruption... And so
+on, but that&#39;s beside the point... )
+<span class="quote">
+&gt; +</span>
+<span class="quote">&gt;  /* Use this macro if your virtual call does not return any value */</span>
+<span class="quote">&gt;  #define __efi_call_virt(f, args...) \</span>
+<span class="quote">&gt;  ({                                                                     \</span>
+<span class="quote">&gt; @@ -104,6 +114,32 @@ struct efi_scratch {</span>
+<span class="quote">&gt;         __s;                                                            \</span>
+<span class="quote">&gt;  })</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +#define uv_call_virt(f, ...)                                           \</span>
+<span class="quote">&gt; +({                                                                     \</span>
+<span class="quote">&gt; +       efi_status_t __s;                                               \</span>
+<span class="quote">&gt; +                                                                       \</span>
+<span class="quote">&gt; +       efi_sync_low_kernel_mappings();                                 \</span>
+<span class="quote">&gt; +       preempt_disable();                                              \</span>
+<span class="quote">&gt; +       __kernel_fpu_begin();                                           \</span>
+<span class="quote">&gt; +                                                                       \</span>
+<span class="quote">&gt; +       if (efi_scratch.use_pgd) {                                      \</span>
+<span class="quote">&gt; +               efi_scratch.prev_cr3 = read_cr3();                      \</span>
+<span class="quote">&gt; +               write_cr3((unsigned long)efi_scratch.efi_pgt);          \</span>
+<span class="quote">&gt; +               __flush_tlb_all();                                      \</span>
+<span class="quote">&gt; +       }                                                               \</span>
+<span class="quote">&gt; +                                                                       \</span>
+<span class="quote">&gt; +       __s = efi_call((void *)f, __VA_ARGS__); \</span>
+<span class="quote">&gt; +                                                                       \</span>
+<span class="quote">&gt; +       if (efi_scratch.use_pgd) {                                      \</span>
+<span class="quote">&gt; +               write_cr3(efi_scratch.prev_cr3);                        \</span>
+<span class="quote">&gt; +               __flush_tlb_all();                                      \</span>
+<span class="quote">&gt; +       }                                                               \</span>
+<span class="quote">&gt; +                                                                       \</span>
+<span class="quote">&gt; +       __kernel_fpu_end();                                             \</span>
+<span class="quote">&gt; +       preempt_enable();                                               \</span>
+<span class="quote">&gt; +       __s;                                                            \</span>
+<span class="quote">&gt; +})</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  /*</span>
+<span class="quote">&gt;   * All X86_64 virt calls return non-void values. Thus, use non-void call for</span>
+<span class="quote">&gt;   * virt calls that would be void on X86_32.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/arch/x86/platform/uv/bios_uv.c b/arch/x86/platform/uv/bios_uv.c</span>
+<span class="quote">&gt; index 1584cbe..6e99f81 100644</span>
+<span class="quote">&gt; --- a/arch/x86/platform/uv/bios_uv.c</span>
+<span class="quote">&gt; +++ b/arch/x86/platform/uv/bios_uv.c</span>
+<span class="quote">&gt; @@ -39,8 +39,8 @@ s64 uv_bios_call(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5)</span>
+<span class="quote">&gt;                  */</span>
+<span class="quote">&gt;                 return BIOS_STATUS_UNIMPLEMENTED;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -       ret = efi_call((void *)__va(tab-&gt;function), (u64)which,</span>
+<span class="quote">&gt; -                       a1, a2, a3, a4, a5);</span>
+<span class="quote">&gt; +       ret = uv_call_virt(tab-&gt;function, (u64)which, a1, a2, a3, a4, a5);</span>
+<span class="quote">&gt; +</span>
+
+That could be simply
+
+		efi_call_virt(tab-&gt;function, ...)
+
+methinks.
+<span class="quote">
+&gt;         return ret;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  EXPORT_SYMBOL_GPL(uv_bios_call);</span>
+<span class="quote">&gt; ---&gt;8</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Note that the only change I made to efi_call_virt was to change</span>
+<span class="quote">&gt; efi.systab-&gt;runtime-&gt;f to simply f in the efi_call line.  This works up</span>
+<span class="quote">&gt; until we try to do callbacks from a loaded module.  When we try that we</span>
+<span class="quote">&gt; hit this:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; [   56.232086] BUG: unable to handle kernel paging request at ffffffff8106148f</span>
+<span class="quote">&gt; [   56.239880] IP: [&lt;fffffffedbb408ce&gt;] 0xfffffffedbb408ce</span>
+<span class="quote">&gt; [   56.245721] PGD 8698e0067 PUD 1a08063 PMD 10001e1 </span>
+
+PMD looks ok to me.
+
+Have you tried CONFIG_EFI_PGT_DUMP ? It will dump to dmesg so you might
+be able to spot stuff.
+
+Also, you could dump them from debugfs *right* before loading the module
+and then look at stuff.
+
+Also 2, booting with efi=debug should give you how the EFI regions get
+mapped.
+
+...
+<span class="quote">
+&gt; The bad paging request here appears to be on the:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; if (efi_scratch.use_pgd)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Line of uv_call_virt.  It looks like it&#39;s having trouble accessing the</span>
+<span class="quote">&gt; efi_scratch struct using the EFI page table.  I&#39;m not sure why this</span>
+<span class="quote">&gt; is an issue with callbacks from modules and not with the ones in</span>
+<span class="quote">&gt; uv_system_init and friends.</span>
+
+Just this one module or all modules doing EFI calls?
+<span class="quote">
+&gt; I&#39;ll keep investigating the module issue.  Looks like we&#39;re getting</span>
+<span class="quote">&gt; closer to sorting this out!</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Let me know if you have thoughts about the way I&#39;m getting stuff</span>
+<span class="quote">&gt; working.  I&#39;m thinking there&#39;s probably a better way to do this than by</span>
+<span class="quote">&gt; copying the whole efi_call_virt macro - this was a quick and dirty</span>
+<span class="quote">&gt; solution.</span>
+
+Yeah, try using the generic facilities. We should be able to accomodate
+all users...
+
+HTH.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=66171">athorlton@sgi.com</a> - May 3, 2016, 6:47 p.m.</div>
+<pre class="content">
+On Tue, May 03, 2016 at 11:48:20AM +0200, Borislav Petkov wrote:
+<span class="quote">&gt; On Mon, May 02, 2016 at 07:10:36PM -0500, Alex Thorlton wrote:</span>
+<span class="quote">&gt; &gt; +#define uv_call_virt(f, args...) \</span>
+<span class="quote">&gt; &gt; +({                                                                     \</span>
+<span class="quote">&gt; &gt; +       efi_status_t __s;                                               \</span>
+<span class="quote">&gt; &gt; +       kernel_fpu_begin();                                             \</span>
+<span class="quote">&gt; &gt; +       __s = ((efi_##f##_t __attribute__((regparm(0)))*)               \</span>
+<span class="quote">&gt; &gt; +               f)(args);                                               \</span>
+<span class="quote">&gt; &gt; +       kernel_fpu_end();                                               \</span>
+<span class="quote">&gt; &gt; +       __s;                                                            \</span>
+<span class="quote">&gt; &gt; +})</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Right, can you use the EFI-ones in</span>
+<span class="quote">&gt; drivers/firmware/efi/runtime-wrappers.c directly?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  (So they&#39;re going to land there, I&#39;m staring at latest -tip and those calls</span>
+<span class="quote">&gt;   have become all fancy now:</span>
+<span class="quote">&gt; with efi_call_virt_check_flags() checking for IRQ flags corruption... And so</span>
+<span class="quote">&gt; on, but that&#39;s beside the point... )</span>
+
+I think this will work for us, for the most part.  Only issue is that
+the efi_call_virt macro is only accessible from inside
+runtime-wrappers.c.  If we could pull that macro (and whatever else it
+needs) up to the header file, I think that might work for us.  Not sure
+if that&#39;s the appropriate solution, but it&#39;s a start.
+<span class="quote">
+&gt; &gt; -       ret = efi_call((void *)__va(tab-&gt;function), (u64)which,</span>
+<span class="quote">&gt; &gt; -                       a1, a2, a3, a4, a5);</span>
+<span class="quote">&gt; &gt; +       ret = uv_call_virt(tab-&gt;function, (u64)which, a1, a2, a3, a4, a5);</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; That could be simply</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 		efi_call_virt(tab-&gt;function, ...)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; methinks.</span>
+
+Looking at the -tip code, this sounds correct.
+<span class="quote">
+&gt; &gt; [   56.232086] BUG: unable to handle kernel paging request at ffffffff8106148f</span>
+<span class="quote">&gt; &gt; [   56.239880] IP: [&lt;fffffffedbb408ce&gt;] 0xfffffffedbb408ce</span>
+<span class="quote">&gt; &gt; [   56.245721] PGD 8698e0067 PUD 1a08063 PMD 10001e1 </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; PMD looks ok to me.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Have you tried CONFIG_EFI_PGT_DUMP ? It will dump to dmesg so you might</span>
+<span class="quote">&gt; be able to spot stuff.</span>
+
+Yes, I do have CONFIG_EFI_PGT_DUMP=y.  I don&#39;t *think* I see anything
+strange in there, but I could be missing something.  I will send you a
+full dump of my log buffer wit MLs et. al. off of Cc.
+
+Take note that the Oops bits here indicate that it was a *write* from
+kernel space that triggered this most recent Oops, whereas the ones we
+were hitting before were all just missing pages in the mappings.
+
+This means my suggestiong about the &quot;if(efi_scratch...&quot; bit was wrong.
+This issue is still rolling around in my head.  I&#39;ll address it below.
+<span class="quote">
+&gt; Also, you could dump them from debugfs *right* before loading the module</span>
+<span class="quote">&gt; and then look at stuff.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Also 2, booting with efi=debug should give you how the EFI regions get</span>
+<span class="quote">&gt; mapped.</span>
+
+I will try both of those ideas and see if I notice anything
+interesting.
+<span class="quote">
+&gt; &gt; The bad paging request here appears to be on the:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; if (efi_scratch.use_pgd)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Line of uv_call_virt.  It looks like it&#39;s having trouble accessing the</span>
+<span class="quote">&gt; &gt; efi_scratch struct using the EFI page table.  I&#39;m not sure why this</span>
+<span class="quote">&gt; &gt; is an issue with callbacks from modules and not with the ones in</span>
+<span class="quote">&gt; &gt; uv_system_init and friends.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Just this one module or all modules doing EFI calls?</span>
+
+I think this is our only module that does EFI calls (at least the only
+module doing EFI calls in efi.uv_systab, as opposed to efi.systab), so
+I&#39;m not sure about that.
+<span class="quote">
+&gt; &gt; I&#39;m thinking there&#39;s probably a better way to do this than by</span>
+<span class="quote">&gt; &gt; copying the whole efi_call_virt macro - this was a quick and dirty</span>
+<span class="quote">&gt; &gt; solution.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yeah, try using the generic facilities. We should be able to accomodate</span>
+<span class="quote">&gt; all users...</span>
+
+This is probably the answer for the future, when we can expect the
+changes to these macros be merged with the mainline kernel, but I don&#39;t
+know exactly how long it will be before that happens.
+
+I think we really want to come up with a fix to get into the mainline
+kernel, sooner, rather than later.  If that means coming up with an
+interim fix, and then planning for the changes in -tip later, then we
+might have to deal with that.
+
+Even though we&#39;re still having issues with our callbacks, we have
+proof-of-concept fixes for our first 2 issues.  In my mind, I think it
+would be best to fix as much as possible now, just to make sure that
+everything is in the best shape possible.  If this means leaving the
+callbacks broken for now, that might just have to be a fact of life.
+
+Let me know what you guys think!
+
+- Alex
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=57321">Borislav Petkov</a> - May 4, 2016, 10:36 a.m.</div>
+<pre class="content">
+On Tue, May 03, 2016 at 01:47:51PM -0500, Alex Thorlton wrote:
+<span class="quote">&gt; I think this will work for us, for the most part.  Only issue is that</span>
+<span class="quote">&gt; the efi_call_virt macro is only accessible from inside</span>
+<span class="quote">&gt; runtime-wrappers.c.  If we could pull that macro (and whatever else it</span>
+<span class="quote">&gt; needs) up to the header file, I think that might work for us.  Not sure</span>
+<span class="quote">&gt; if that&#39;s the appropriate solution, but it&#39;s a start.</span>
+
+Should be doable. You could give it a try and see how ugly it can get.
+<span class="quote">
+&gt; Yes, I do have CONFIG_EFI_PGT_DUMP=y.  I don&#39;t *think* I see anything</span>
+<span class="quote">&gt; strange in there, but I could be missing something.  I will send you a</span>
+<span class="quote">&gt; full dump of my log buffer wit MLs et. al. off of Cc.</span>
+
+Sure.
+<span class="quote">
+&gt; Take note that the Oops bits here indicate that it was a *write* from</span>
+<span class="quote">&gt; kernel space that triggered this most recent Oops, whereas the ones we</span>
+<span class="quote">&gt; were hitting before were all just missing pages in the mappings.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This means my suggestiong about the &quot;if(efi_scratch...&quot; bit was wrong.</span>
+<span class="quote">&gt; This issue is still rolling around in my head.  I&#39;ll address it below.</span>
+
+One thing I don&#39;t see in your uv_call_virt() is you&#39;re not grabbing
+efi_runtime_lock like the rest of the EFI callers do. And there&#39;s
+__wake_up_common() somewhere there in the callstack, not on the current
+frame but there&#39;s also another uv_bios_call() in there and this all
+looks like some locking issue...
+
+So please convert it to the generic one first, do the calls as runtime
+services in drivers/firmware/efi/runtime-wrappers.c do and we can
+continue debugging.
+<span class="quote">
+&gt; This is probably the answer for the future, when we can expect the</span>
+<span class="quote">&gt; changes to these macros be merged with the mainline kernel, but I don&#39;t</span>
+<span class="quote">&gt; know exactly how long it will be before that happens.</span>
+
+What&#39;s the hurry exactly here? You want stuff fixed in 4.6 when it
+releases in less than two weeks?
+
+Lemme try to understand the fallout range: that&#39;s only UV1 or UV3 too?
+Because the latest oops comes from UV3...
+
+If it is UV1 only, I&#39;d say we don&#39;t care since you guys wanted to even
+kill that support :-)
+
+Btw, does &quot;efi=old_memmap&quot; fix things and could it be used as an interim
+workaround until we&#39;ve fixed everything properly and stuff has trickled
+into -stable.?
+
+Thanks.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=66171">athorlton@sgi.com</a> - May 4, 2016, 4:32 p.m.</div>
+<pre class="content">
+On Wed, May 04, 2016 at 12:36:36PM +0200, Borislav Petkov wrote:
+<span class="quote">&gt; On Tue, May 03, 2016 at 01:47:51PM -0500, Alex Thorlton wrote:</span>
+<span class="quote">&gt; &gt; I think this will work for us, for the most part.  Only issue is that</span>
+<span class="quote">&gt; &gt; the efi_call_virt macro is only accessible from inside</span>
+<span class="quote">&gt; &gt; runtime-wrappers.c.  If we could pull that macro (and whatever else it</span>
+<span class="quote">&gt; &gt; needs) up to the header file, I think that might work for us.  Not sure</span>
+<span class="quote">&gt; &gt; if that&#39;s the appropriate solution, but it&#39;s a start.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Should be doable. You could give it a try and see how ugly it can get.</span>
+
+I can do that.  I don&#39;t think it should be too bad - I just wanted to
+make sure that was an appropriate move before starting to work on it.
+<span class="quote">
+&gt; &gt; Yes, I do have CONFIG_EFI_PGT_DUMP=y.  I don&#39;t *think* I see anything</span>
+<span class="quote">&gt; &gt; strange in there, but I could be missing something.  I will send you a</span>
+<span class="quote">&gt; &gt; full dump of my log buffer wit MLs et. al. off of Cc.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Sure.</span>
+
+I am sending this shortly.  Yesterday evening got away from me :)
+<span class="quote">
+&gt; &gt; Take note that the Oops bits here indicate that it was a *write* from</span>
+<span class="quote">&gt; &gt; kernel space that triggered this most recent Oops, whereas the ones we</span>
+<span class="quote">&gt; &gt; were hitting before were all just missing pages in the mappings.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; This means my suggestiong about the &quot;if(efi_scratch...&quot; bit was wrong.</span>
+<span class="quote">&gt; &gt; This issue is still rolling around in my head.  I&#39;ll address it below.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; One thing I don&#39;t see in your uv_call_virt() is you&#39;re not grabbing</span>
+<span class="quote">&gt; efi_runtime_lock like the rest of the EFI callers do. And there&#39;s</span>
+<span class="quote">&gt; __wake_up_common() somewhere there in the callstack, not on the current</span>
+<span class="quote">&gt; frame but there&#39;s also another uv_bios_call() in there and this all</span>
+<span class="quote">&gt; looks like some locking issue...</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So please convert it to the generic one first, do the calls as runtime</span>
+<span class="quote">&gt; services in drivers/firmware/efi/runtime-wrappers.c do and we can</span>
+<span class="quote">&gt; continue debugging.</span>
+
+Got it.
+<span class="quote">
+&gt; &gt; This is probably the answer for the future, when we can expect the</span>
+<span class="quote">&gt; &gt; changes to these macros be merged with the mainline kernel, but I don&#39;t</span>
+<span class="quote">&gt; &gt; know exactly how long it will be before that happens.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; What&#39;s the hurry exactly here? You want stuff fixed in 4.6 when it</span>
+<span class="quote">&gt; releases in less than two weeks?</span>
+
+Well, in a perfect world, yes.  I realize that might be a bit of a
+stretch, but we&#39;d *really* prefer to have 4.6 not be outright broken.  I
+think we might be able to get at least a few small fixes through to at
+least get our machines booting.  If worse comes to worse, we can get the
+fixes into -tip and then wrap back around and try to fix up 4.6 in a
+later stable kernel release.  I guess the best we can do is try to work
+quickly and see where things end up.
+<span class="quote">
+&gt; Lemme try to understand the fallout range: that&#39;s only UV1 or UV3 too?</span>
+<span class="quote">&gt; Because the latest oops comes from UV3...</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If it is UV1 only, I&#39;d say we don&#39;t care since you guys wanted to even</span>
+<span class="quote">&gt; kill that support :-)</span>
+
+Sorry, I may not have made this clear.  Currently *all* UVs *except* for
+UV1s are broken.  All of the testing I&#39;ve done since we started
+discussing this issue has been done on a UV3000, but everything &gt;= UV2
+is currently broken.
+<span class="quote">
+&gt; Btw, does &quot;efi=old_memmap&quot; fix things and could it be used as an interim</span>
+<span class="quote">&gt; workaround until we&#39;ve fixed everything properly and stuff has trickled</span>
+<span class="quote">&gt; into -stable.?</span>
+
+Unfortunately, without the call for map_low_mmrs, even that doesn&#39;t
+work.  I think that&#39;s an easy fix that we might be able to get in for
+4.6 though.  It&#39;s literally a one-liner.  I&#39;m going to try to get that
+out today, so at least our old workaround still works.  I think it might
+still have some trouble with modules doing EFI calls, but I&#39;d be at
+least halfway happy if the machine boots :)
+
+- Alex
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/kernel/apic/x2apic_uv_x.c</span>
+b/arch/x86/kernel/apic/x2apic_uv_x.c
+<span class="p_header">index 8f4942e..82aa6a7 100644</span>
+<span class="p_header">--- a/arch/x86/kernel/apic/x2apic_uv_x.c</span>
+<span class="p_header">+++ b/arch/x86/kernel/apic/x2apic_uv_x.c</span>
+<span class="p_chunk">@@ -892,7 +892,7 @@</span> <span class="p_context"> void __init uv_system_init(void)</span>
+        pr_info(&quot;UV: Found %s hub\n&quot;, hub);
+ 
+        /* We now only need to map the MMRs on UV1 */
+<span class="p_del">-       if (is_uv1_hub())</span>
+<span class="p_add">+       //if (is_uv1_hub())</span>
+                map_low_mmrs();
+ 
+        m_n_config.v = uv_read_local_mmr(UVH_RH_GAM_CONFIG_MMR );
+
+<span class="p_header">diff --git a/arch/x86/include/asm/efi.h b/arch/x86/include/asm/efi.h</span>
+<span class="p_header">index 53748c4..0c4d347 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/efi.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/efi.h</span>
+<span class="p_chunk">@@ -48,6 +48,16 @@</span> <span class="p_context"> extern unsigned long asmlinkage efi_call_phys(void *, ...);</span>
+        __s;                                                            \
+ })
+ 
+<span class="p_add">+#define uv_call_virt(f, args...) \</span>
+<span class="p_add">+({                                                                     \</span>
+<span class="p_add">+       efi_status_t __s;                                               \</span>
+<span class="p_add">+       kernel_fpu_begin();                                             \</span>
+<span class="p_add">+       __s = ((efi_##f##_t __attribute__((regparm(0)))*)               \</span>
+<span class="p_add">+               f)(args);                                               \</span>
+<span class="p_add">+       kernel_fpu_end();                                               \</span>
+<span class="p_add">+       __s;                                                            \</span>
+<span class="p_add">+})</span>
+<span class="p_add">+</span>
+ /* Use this macro if your virtual call does not return any value */
+ #define __efi_call_virt(f, args...) \
+ ({                                                                     \
+<span class="p_chunk">@@ -104,6 +114,32 @@</span> <span class="p_context"> struct efi_scratch {</span>
+        __s;                                                            \
+ })
+ 
+<span class="p_add">+#define uv_call_virt(f, ...)                                           \</span>
+<span class="p_add">+({                                                                     \</span>
+<span class="p_add">+       efi_status_t __s;                                               \</span>
+<span class="p_add">+                                                                       \</span>
+<span class="p_add">+       efi_sync_low_kernel_mappings();                                 \</span>
+<span class="p_add">+       preempt_disable();                                              \</span>
+<span class="p_add">+       __kernel_fpu_begin();                                           \</span>
+<span class="p_add">+                                                                       \</span>
+<span class="p_add">+       if (efi_scratch.use_pgd) {                                      \</span>
+<span class="p_add">+               efi_scratch.prev_cr3 = read_cr3();                      \</span>
+<span class="p_add">+               write_cr3((unsigned long)efi_scratch.efi_pgt);          \</span>
+<span class="p_add">+               __flush_tlb_all();                                      \</span>
+<span class="p_add">+       }                                                               \</span>
+<span class="p_add">+                                                                       \</span>
+<span class="p_add">+       __s = efi_call((void *)f, __VA_ARGS__); \</span>
+<span class="p_add">+                                                                       \</span>
+<span class="p_add">+       if (efi_scratch.use_pgd) {                                      \</span>
+<span class="p_add">+               write_cr3(efi_scratch.prev_cr3);                        \</span>
+<span class="p_add">+               __flush_tlb_all();                                      \</span>
+<span class="p_add">+       }                                                               \</span>
+<span class="p_add">+                                                                       \</span>
+<span class="p_add">+       __kernel_fpu_end();                                             \</span>
+<span class="p_add">+       preempt_enable();                                               \</span>
+<span class="p_add">+       __s;                                                            \</span>
+<span class="p_add">+})</span>
+<span class="p_add">+</span>
+ /*
+  * All X86_64 virt calls return non-void values. Thus, use non-void call for
+  * virt calls that would be void on X86_32.
+
+<span class="p_header">diff --git a/arch/x86/platform/uv/bios_uv.c b/arch/x86/platform/uv/bios_uv.c</span>
+<span class="p_header">index 1584cbe..6e99f81 100644</span>
+<span class="p_header">--- a/arch/x86/platform/uv/bios_uv.c</span>
+<span class="p_header">+++ b/arch/x86/platform/uv/bios_uv.c</span>
+<span class="p_chunk">@@ -39,8 +39,8 @@</span> <span class="p_context"> s64 uv_bios_call(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5)</span>
+                 */
+                return BIOS_STATUS_UNIMPLEMENTED;
+ 
+<span class="p_del">-       ret = efi_call((void *)__va(tab-&gt;function), (u64)which,</span>
+<span class="p_del">-                       a1, a2, a3, a4, a5);</span>
+<span class="p_add">+       ret = uv_call_virt(tab-&gt;function, (u64)which, a1, a2, a3, a4, a5);</span>
+<span class="p_add">+</span>
+        return ret;
+ }
+ EXPORT_SYMBOL_GPL(uv_bios_call);
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

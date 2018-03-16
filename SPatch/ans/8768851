@@ -1,0 +1,605 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[02/10] mm/hugetlb: Add PGD based implementation awareness - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [02/10] mm/hugetlb: Add PGD based implementation awareness</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=36302">Anshuman Khandual</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>April 7, 2016, 5:37 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1460007464-26726-3-git-send-email-khandual@linux.vnet.ibm.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/8768851/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/8768851/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/8768851/">/patch/8768851/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id 60122C0554
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  7 Apr 2016 05:38:33 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 79569201BB
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  7 Apr 2016 05:38:31 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id AE9E120120
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  7 Apr 2016 05:38:30 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1755158AbcDGFiL (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 7 Apr 2016 01:38:11 -0400
+Received: from e28smtp01.in.ibm.com ([125.16.236.1]:52025 &quot;EHLO
+	e28smtp01.in.ibm.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751790AbcDGFiF (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 7 Apr 2016 01:38:05 -0400
+Received: from localhost
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use
+	Only! Violators will be prosecuted
+	for &lt;linux-kernel@vger.kernel.org&gt; from &lt;khandual@linux.vnet.ibm.com&gt;;
+	Thu, 7 Apr 2016 11:08:02 +0530
+Received: from d28relay03.in.ibm.com (9.184.220.60)
+	by e28smtp01.in.ibm.com (192.168.1.131) with IBM ESMTP SMTP Gateway:
+	Authorized Use Only! Violators will be prosecuted; 
+	Thu, 7 Apr 2016 11:07:59 +0530
+X-IBM-Helo: d28relay03.in.ibm.com
+X-IBM-MailFrom: khandual@linux.vnet.ibm.com
+X-IBM-RcptTo: linux-kernel@vger.kernel.org
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay03.in.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id
+	u375bxAD8585594
+	for &lt;linux-kernel@vger.kernel.org&gt;; Thu, 7 Apr 2016 11:07:59 +0530
+Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id
+	u375bjNW006015
+	for &lt;linux-kernel@vger.kernel.org&gt;; Thu, 7 Apr 2016 11:07:57 +0530
+Received: from localhost.in.ibm.com ([9.124.158.233])
+	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVin) with ESMTP id
+	u375biFp005939; Thu, 7 Apr 2016 11:07:45 +0530
+From: Anshuman Khandual &lt;khandual@linux.vnet.ibm.com&gt;
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org
+Cc: hughd@google.com, kirill@shutemov.name, n-horiguchi@ah.jp.nec.com,
+	akpm@linux-foundation.org, mgorman@techsingularity.net,
+	dave.hansen@intel.com, aneesh.kumar@linux.vnet.ibm.com,
+	mpe@ellerman.id.au
+Subject: [PATCH 02/10] mm/hugetlb: Add PGD based implementation awareness
+Date: Thu,  7 Apr 2016 11:07:36 +0530
+Message-Id: &lt;1460007464-26726-3-git-send-email-khandual@linux.vnet.ibm.com&gt;
+X-Mailer: git-send-email 2.1.0
+In-Reply-To: &lt;1460007464-26726-1-git-send-email-khandual@linux.vnet.ibm.com&gt;
+References: &lt;1460007464-26726-1-git-send-email-khandual@linux.vnet.ibm.com&gt;
+X-TM-AS-MML: disable
+x-cbid: 16040705-4790-0000-0000-00000EB0666E
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-7.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=36302">Anshuman Khandual</a> - April 7, 2016, 5:37 a.m.</div>
+<pre class="content">
+Currently the config ARCH_WANT_GENERAL_HUGETLB enabled functions like
+&#39;huge_pte_alloc&#39; and &#39;huge_pte_offset&#39; dont take into account HugeTLB
+page implementation at the PGD level. This is also true for functions
+like &#39;follow_page_mask&#39; which is called from move_pages() system call.
+This lack of PGD level huge page support prohibits some architectures
+to use these generic HugeTLB functions.
+
+This change adds the required PGD based implementation awareness and
+with that, more architectures like POWER which implements 16GB pages
+at the PGD level along with the 16MB pages at the PMD level can now
+use ARCH_WANT_GENERAL_HUGETLB config option.
+<span class="signed-off-by">
+Signed-off-by: Anshuman Khandual &lt;khandual@linux.vnet.ibm.com&gt;</span>
+---
+ include/linux/hugetlb.h |  3 +++
+ mm/gup.c                |  6 ++++++
+ mm/hugetlb.c            | 20 ++++++++++++++++++++
+ 3 files changed, 29 insertions(+)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=4745">Balbir Singh</a> - April 7, 2016, 9:04 a.m.</div>
+<pre class="content">
+On 07/04/16 15:37, Anshuman Khandual wrote:
+<span class="quote">&gt; Currently the config ARCH_WANT_GENERAL_HUGETLB enabled functions like</span>
+<span class="quote">&gt; &#39;huge_pte_alloc&#39; and &#39;huge_pte_offset&#39; dont take into account HugeTLB</span>
+<span class="quote">&gt; page implementation at the PGD level. This is also true for functions</span>
+<span class="quote">&gt; like &#39;follow_page_mask&#39; which is called from move_pages() system call.</span>
+<span class="quote">&gt; This lack of PGD level huge page support prohibits some architectures</span>
+<span class="quote">&gt; to use these generic HugeTLB functions.</span>
+<span class="quote">&gt; </span>
+
+From what I know of move_pages(), it will always call follow_page_mask()
+with FOLL_GET (I could be wrong here) and the implementation below
+returns NULL for follow_huge_pgd().
+<span class="quote">
+&gt; This change adds the required PGD based implementation awareness and</span>
+<span class="quote">&gt; with that, more architectures like POWER which implements 16GB pages</span>
+<span class="quote">&gt; at the PGD level along with the 16MB pages at the PMD level can now</span>
+<span class="quote">&gt; use ARCH_WANT_GENERAL_HUGETLB config option.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Anshuman Khandual &lt;khandual@linux.vnet.ibm.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  include/linux/hugetlb.h |  3 +++</span>
+<span class="quote">&gt;  mm/gup.c                |  6 ++++++</span>
+<span class="quote">&gt;  mm/hugetlb.c            | 20 ++++++++++++++++++++</span>
+<span class="quote">&gt;  3 files changed, 29 insertions(+)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h</span>
+<span class="quote">&gt; index 7d953c2..71832e1 100644</span>
+<span class="quote">&gt; --- a/include/linux/hugetlb.h</span>
+<span class="quote">&gt; +++ b/include/linux/hugetlb.h</span>
+<span class="quote">&gt; @@ -115,6 +115,8 @@ struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,</span>
+<span class="quote">&gt;  				pmd_t *pmd, int flags);</span>
+<span class="quote">&gt;  struct page *follow_huge_pud(struct mm_struct *mm, unsigned long address,</span>
+<span class="quote">&gt;  				pud_t *pud, int flags);</span>
+<span class="quote">&gt; +struct page *follow_huge_pgd(struct mm_struct *mm, unsigned long address,</span>
+<span class="quote">&gt; +				pgd_t *pgd, int flags);</span>
+<span class="quote">&gt;  int pmd_huge(pmd_t pmd);</span>
+<span class="quote">&gt;  int pud_huge(pud_t pmd);</span>
+<span class="quote">&gt;  unsigned long hugetlb_change_protection(struct vm_area_struct *vma,</span>
+<span class="quote">&gt; @@ -143,6 +145,7 @@ static inline void hugetlb_show_meminfo(void)</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  #define follow_huge_pmd(mm, addr, pmd, flags)	NULL</span>
+<span class="quote">&gt;  #define follow_huge_pud(mm, addr, pud, flags)	NULL</span>
+<span class="quote">&gt; +#define follow_huge_pgd(mm, addr, pgd, flags)	NULL</span>
+<span class="quote">&gt;  #define prepare_hugepage_range(file, addr, len)	(-EINVAL)</span>
+<span class="quote">&gt;  #define pmd_huge(x)	0</span>
+<span class="quote">&gt;  #define pud_huge(x)	0</span>
+<span class="quote">&gt; diff --git a/mm/gup.c b/mm/gup.c</span>
+<span class="quote">&gt; index fb87aea..9bac78c 100644</span>
+<span class="quote">&gt; --- a/mm/gup.c</span>
+<span class="quote">&gt; +++ b/mm/gup.c</span>
+<span class="quote">&gt; @@ -234,6 +234,12 @@ struct page *follow_page_mask(struct vm_area_struct *vma,</span>
+<span class="quote">&gt;  	pgd = pgd_offset(mm, address);</span>
+<span class="quote">&gt;  	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))</span>
+<span class="quote">&gt;  		return no_page_table(vma, flags);</span>
+<span class="quote">&gt; +	if (pgd_huge(*pgd) &amp;&amp; vma-&gt;vm_flags &amp; VM_HUGETLB) {</span>
+<span class="quote">&gt; +		page = follow_huge_pgd(mm, address, pgd, flags);</span>
+<span class="quote">&gt; +		if (page)</span>
+<span class="quote">&gt; +			return page;</span>
+<span class="quote">&gt; +		return no_page_table(vma, flags);</span>
+This will return NULL as well?
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	pud = pud_offset(pgd, address);</span>
+<span class="quote">&gt;  	if (pud_none(*pud))</span>
+<span class="quote">&gt; diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="quote">&gt; index 19d0d08..5ea3158 100644</span>
+<span class="quote">&gt; --- a/mm/hugetlb.c</span>
+<span class="quote">&gt; +++ b/mm/hugetlb.c</span>
+<span class="quote">&gt; @@ -4250,6 +4250,11 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,</span>
+<span class="quote">&gt;  	pte_t *pte = NULL;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	pgd = pgd_offset(mm, addr);</span>
+<span class="quote">&gt; +	if (sz == PGDIR_SIZE) {</span>
+<span class="quote">&gt; +		pte = (pte_t *)pgd;</span>
+<span class="quote">&gt; +		goto huge_pgd;</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt; +</span>
+
+No allocation for a pgd slot - right?
+<span class="quote">
+&gt;  	pud = pud_alloc(mm, pgd, addr);</span>
+<span class="quote">&gt;  	if (pud) {</span>
+<span class="quote">&gt;  		if (sz == PUD_SIZE) {</span>
+<span class="quote">&gt; @@ -4262,6 +4267,8 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,</span>
+<span class="quote">&gt;  				pte = (pte_t *)pmd_alloc(mm, pud, addr);</span>
+<span class="quote">&gt;  		}</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +huge_pgd:</span>
+<span class="quote">&gt;  	BUG_ON(pte &amp;&amp; !pte_none(*pte) &amp;&amp; !pte_huge(*pte));</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	return pte;</span>
+<span class="quote">&gt; @@ -4275,6 +4282,8 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	pgd = pgd_offset(mm, addr);</span>
+<span class="quote">&gt;  	if (pgd_present(*pgd)) {</span>
+<span class="quote">&gt; +		if (pgd_huge(*pgd))</span>
+<span class="quote">&gt; +			return (pte_t *)pgd;</span>
+<span class="quote">&gt;  		pud = pud_offset(pgd, addr);</span>
+<span class="quote">&gt;  		if (pud_present(*pud)) {</span>
+<span class="quote">&gt;  			if (pud_huge(*pud))</span>
+<span class="quote">&gt; @@ -4343,6 +4352,17 @@ follow_huge_pud(struct mm_struct *mm, unsigned long address,</span>
+<span class="quote">&gt;  	return pte_page(*(pte_t *)pud) + ((address &amp; ~PUD_MASK) &gt;&gt; PAGE_SHIFT);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +struct page * __weak</span>
+<span class="quote">&gt; +follow_huge_pgd(struct mm_struct *mm, unsigned long address,</span>
+<span class="quote">&gt; +		pgd_t *pgd, int flags)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	if (flags &amp; FOLL_GET)</span>
+<span class="quote">&gt; +		return NULL;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	return pte_page(*(pte_t *)pgd) +</span>
+<span class="quote">&gt; +				((address &amp; ~PGDIR_MASK) &gt;&gt; PAGE_SHIFT);</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  #ifdef CONFIG_MEMORY_FAILURE</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  /*</span>
+<span class="quote">&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=36302">Anshuman Khandual</a> - April 11, 2016, 5:25 a.m.</div>
+<pre class="content">
+On 04/07/2016 02:34 PM, Balbir Singh wrote:
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; On 07/04/16 15:37, Anshuman Khandual wrote:</span>
+<span class="quote">&gt;&gt; Currently the config ARCH_WANT_GENERAL_HUGETLB enabled functions like</span>
+<span class="quote">&gt;&gt; &#39;huge_pte_alloc&#39; and &#39;huge_pte_offset&#39; dont take into account HugeTLB</span>
+<span class="quote">&gt;&gt; page implementation at the PGD level. This is also true for functions</span>
+<span class="quote">&gt;&gt; like &#39;follow_page_mask&#39; which is called from move_pages() system call.</span>
+<span class="quote">&gt;&gt; This lack of PGD level huge page support prohibits some architectures</span>
+<span class="quote">&gt;&gt; to use these generic HugeTLB functions.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; From what I know of move_pages(), it will always call follow_page_mask()</span>
+<span class="quote">&gt; with FOLL_GET (I could be wrong here) and the implementation below</span>
+<span class="quote">&gt; returns NULL for follow_huge_pgd().</span>
+
+You are right. This patch makes ARCH_WANT_GENERAL_HUGETLB functions aware
+of PGD implementation so that we can do all transactions on 16GB pages
+using these function instead of the present arch overrides. But that also
+requires follow_page_mask() changes for every other access to the page
+than the migrate_pages() usage.
+
+But yes, we dont support migrate_pages() on PGD based pages yet, hence
+it just returns NULL in that case. May be the commit message needs to
+reflect this.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt;&gt; This change adds the required PGD based implementation awareness and</span>
+<span class="quote">&gt;&gt; with that, more architectures like POWER which implements 16GB pages</span>
+<span class="quote">&gt;&gt; at the PGD level along with the 16MB pages at the PMD level can now</span>
+<span class="quote">&gt;&gt; use ARCH_WANT_GENERAL_HUGETLB config option.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Signed-off-by: Anshuman Khandual &lt;khandual@linux.vnet.ibm.com&gt;</span>
+<span class="quote">&gt;&gt; ---</span>
+<span class="quote">&gt;&gt;  include/linux/hugetlb.h |  3 +++</span>
+<span class="quote">&gt;&gt;  mm/gup.c                |  6 ++++++</span>
+<span class="quote">&gt;&gt;  mm/hugetlb.c            | 20 ++++++++++++++++++++</span>
+<span class="quote">&gt;&gt;  3 files changed, 29 insertions(+)</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h</span>
+<span class="quote">&gt;&gt; index 7d953c2..71832e1 100644</span>
+<span class="quote">&gt;&gt; --- a/include/linux/hugetlb.h</span>
+<span class="quote">&gt;&gt; +++ b/include/linux/hugetlb.h</span>
+<span class="quote">&gt;&gt; @@ -115,6 +115,8 @@ struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,</span>
+<span class="quote">&gt;&gt;  				pmd_t *pmd, int flags);</span>
+<span class="quote">&gt;&gt;  struct page *follow_huge_pud(struct mm_struct *mm, unsigned long address,</span>
+<span class="quote">&gt;&gt;  				pud_t *pud, int flags);</span>
+<span class="quote">&gt;&gt; +struct page *follow_huge_pgd(struct mm_struct *mm, unsigned long address,</span>
+<span class="quote">&gt;&gt; +				pgd_t *pgd, int flags);</span>
+<span class="quote">&gt;&gt;  int pmd_huge(pmd_t pmd);</span>
+<span class="quote">&gt;&gt;  int pud_huge(pud_t pmd);</span>
+<span class="quote">&gt;&gt;  unsigned long hugetlb_change_protection(struct vm_area_struct *vma,</span>
+<span class="quote">&gt;&gt; @@ -143,6 +145,7 @@ static inline void hugetlb_show_meminfo(void)</span>
+<span class="quote">&gt;&gt;  }</span>
+<span class="quote">&gt;&gt;  #define follow_huge_pmd(mm, addr, pmd, flags)	NULL</span>
+<span class="quote">&gt;&gt;  #define follow_huge_pud(mm, addr, pud, flags)	NULL</span>
+<span class="quote">&gt;&gt; +#define follow_huge_pgd(mm, addr, pgd, flags)	NULL</span>
+<span class="quote">&gt;&gt;  #define prepare_hugepage_range(file, addr, len)	(-EINVAL)</span>
+<span class="quote">&gt;&gt;  #define pmd_huge(x)	0</span>
+<span class="quote">&gt;&gt;  #define pud_huge(x)	0</span>
+<span class="quote">&gt;&gt; diff --git a/mm/gup.c b/mm/gup.c</span>
+<span class="quote">&gt;&gt; index fb87aea..9bac78c 100644</span>
+<span class="quote">&gt;&gt; --- a/mm/gup.c</span>
+<span class="quote">&gt;&gt; +++ b/mm/gup.c</span>
+<span class="quote">&gt;&gt; @@ -234,6 +234,12 @@ struct page *follow_page_mask(struct vm_area_struct *vma,</span>
+<span class="quote">&gt;&gt;  	pgd = pgd_offset(mm, address);</span>
+<span class="quote">&gt;&gt;  	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))</span>
+<span class="quote">&gt;&gt;  		return no_page_table(vma, flags);</span>
+<span class="quote">&gt;&gt; +	if (pgd_huge(*pgd) &amp;&amp; vma-&gt;vm_flags &amp; VM_HUGETLB) {</span>
+<span class="quote">&gt;&gt; +		page = follow_huge_pgd(mm, address, pgd, flags);</span>
+<span class="quote">&gt;&gt; +		if (page)</span>
+<span class="quote">&gt;&gt; +			return page;</span>
+<span class="quote">&gt;&gt; +		return no_page_table(vma, flags);</span>
+<span class="quote">&gt; This will return NULL as well?</span>
+
+That right, no_page_table() returns NULL for FOLL_GET when we fall through
+after failing on follow_huge_pgd().
+<span class="quote">
+&gt;&gt; +	}</span>
+<span class="quote">&gt;&gt;  </span>
+<span class="quote">&gt;&gt;  	pud = pud_offset(pgd, address);</span>
+<span class="quote">&gt;&gt;  	if (pud_none(*pud))</span>
+<span class="quote">&gt;&gt; diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="quote">&gt;&gt; index 19d0d08..5ea3158 100644</span>
+<span class="quote">&gt;&gt; --- a/mm/hugetlb.c</span>
+<span class="quote">&gt;&gt; +++ b/mm/hugetlb.c</span>
+<span class="quote">&gt;&gt; @@ -4250,6 +4250,11 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,</span>
+<span class="quote">&gt;&gt;  	pte_t *pte = NULL;</span>
+<span class="quote">&gt;&gt;  </span>
+<span class="quote">&gt;&gt;  	pgd = pgd_offset(mm, addr);</span>
+<span class="quote">&gt;&gt; +	if (sz == PGDIR_SIZE) {</span>
+<span class="quote">&gt;&gt; +		pte = (pte_t *)pgd;</span>
+<span class="quote">&gt;&gt; +		goto huge_pgd;</span>
+<span class="quote">&gt;&gt; +	}</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; No allocation for a pgd slot - right?</span>
+
+No, its already allocated for the mm during creation.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=36302">Anshuman Khandual</a> - April 11, 2016, 6:10 a.m.</div>
+<pre class="content">
+On 04/11/2016 10:55 AM, Anshuman Khandual wrote:
+<span class="quote">&gt; On 04/07/2016 02:34 PM, Balbir Singh wrote:</span>
+<span class="quote">&gt;&gt; &gt; </span>
+<span class="quote">&gt;&gt; &gt; </span>
+<span class="quote">&gt;&gt; &gt; On 07/04/16 15:37, Anshuman Khandual wrote:</span>
+<span class="quote">&gt;&gt;&gt; &gt;&gt; Currently the config ARCH_WANT_GENERAL_HUGETLB enabled functions like</span>
+<span class="quote">&gt;&gt;&gt; &gt;&gt; &#39;huge_pte_alloc&#39; and &#39;huge_pte_offset&#39; dont take into account HugeTLB</span>
+<span class="quote">&gt;&gt;&gt; &gt;&gt; page implementation at the PGD level. This is also true for functions</span>
+<span class="quote">&gt;&gt;&gt; &gt;&gt; like &#39;follow_page_mask&#39; which is called from move_pages() system call.</span>
+<span class="quote">&gt;&gt;&gt; &gt;&gt; This lack of PGD level huge page support prohibits some architectures</span>
+<span class="quote">&gt;&gt;&gt; &gt;&gt; to use these generic HugeTLB functions.</span>
+<span class="quote">&gt;&gt;&gt; &gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt; </span>
+<span class="quote">&gt;&gt; &gt; From what I know of move_pages(), it will always call follow_page_mask()</span>
+<span class="quote">&gt;&gt; &gt; with FOLL_GET (I could be wrong here) and the implementation below</span>
+<span class="quote">&gt;&gt; &gt; returns NULL for follow_huge_pgd().</span>
+<span class="quote">&gt; You are right. This patch makes ARCH_WANT_GENERAL_HUGETLB functions aware</span>
+<span class="quote">&gt; of PGD implementation so that we can do all transactions on 16GB pages</span>
+<span class="quote">&gt; using these function instead of the present arch overrides. But that also</span>
+<span class="quote">&gt; requires follow_page_mask() changes for every other access to the page</span>
+<span class="quote">&gt; than the migrate_pages() usage.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; But yes, we dont support migrate_pages() on PGD based pages yet, hence</span>
+<span class="quote">&gt; it just returns NULL in that case. May be the commit message needs to</span>
+<span class="quote">&gt; reflect this.</span>
+
+The next commit actually changes follow_huge_pud|pgd() functions to
+support FOLL_GET and PGD based huge page migration.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h</span>
+<span class="p_header">index 7d953c2..71832e1 100644</span>
+<span class="p_header">--- a/include/linux/hugetlb.h</span>
+<span class="p_header">+++ b/include/linux/hugetlb.h</span>
+<span class="p_chunk">@@ -115,6 +115,8 @@</span> <span class="p_context"> struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,</span>
+ 				pmd_t *pmd, int flags);
+ struct page *follow_huge_pud(struct mm_struct *mm, unsigned long address,
+ 				pud_t *pud, int flags);
+<span class="p_add">+struct page *follow_huge_pgd(struct mm_struct *mm, unsigned long address,</span>
+<span class="p_add">+				pgd_t *pgd, int flags);</span>
+ int pmd_huge(pmd_t pmd);
+ int pud_huge(pud_t pmd);
+ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
+<span class="p_chunk">@@ -143,6 +145,7 @@</span> <span class="p_context"> static inline void hugetlb_show_meminfo(void)</span>
+ }
+ #define follow_huge_pmd(mm, addr, pmd, flags)	NULL
+ #define follow_huge_pud(mm, addr, pud, flags)	NULL
+<span class="p_add">+#define follow_huge_pgd(mm, addr, pgd, flags)	NULL</span>
+ #define prepare_hugepage_range(file, addr, len)	(-EINVAL)
+ #define pmd_huge(x)	0
+ #define pud_huge(x)	0
+<span class="p_header">diff --git a/mm/gup.c b/mm/gup.c</span>
+<span class="p_header">index fb87aea..9bac78c 100644</span>
+<span class="p_header">--- a/mm/gup.c</span>
+<span class="p_header">+++ b/mm/gup.c</span>
+<span class="p_chunk">@@ -234,6 +234,12 @@</span> <span class="p_context"> struct page *follow_page_mask(struct vm_area_struct *vma,</span>
+ 	pgd = pgd_offset(mm, address);
+ 	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
+ 		return no_page_table(vma, flags);
+<span class="p_add">+	if (pgd_huge(*pgd) &amp;&amp; vma-&gt;vm_flags &amp; VM_HUGETLB) {</span>
+<span class="p_add">+		page = follow_huge_pgd(mm, address, pgd, flags);</span>
+<span class="p_add">+		if (page)</span>
+<span class="p_add">+			return page;</span>
+<span class="p_add">+		return no_page_table(vma, flags);</span>
+<span class="p_add">+	}</span>
+ 
+ 	pud = pud_offset(pgd, address);
+ 	if (pud_none(*pud))
+<span class="p_header">diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="p_header">index 19d0d08..5ea3158 100644</span>
+<span class="p_header">--- a/mm/hugetlb.c</span>
+<span class="p_header">+++ b/mm/hugetlb.c</span>
+<span class="p_chunk">@@ -4250,6 +4250,11 @@</span> <span class="p_context"> pte_t *huge_pte_alloc(struct mm_struct *mm,</span>
+ 	pte_t *pte = NULL;
+ 
+ 	pgd = pgd_offset(mm, addr);
+<span class="p_add">+	if (sz == PGDIR_SIZE) {</span>
+<span class="p_add">+		pte = (pte_t *)pgd;</span>
+<span class="p_add">+		goto huge_pgd;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+ 	pud = pud_alloc(mm, pgd, addr);
+ 	if (pud) {
+ 		if (sz == PUD_SIZE) {
+<span class="p_chunk">@@ -4262,6 +4267,8 @@</span> <span class="p_context"> pte_t *huge_pte_alloc(struct mm_struct *mm,</span>
+ 				pte = (pte_t *)pmd_alloc(mm, pud, addr);
+ 		}
+ 	}
+<span class="p_add">+</span>
+<span class="p_add">+huge_pgd:</span>
+ 	BUG_ON(pte &amp;&amp; !pte_none(*pte) &amp;&amp; !pte_huge(*pte));
+ 
+ 	return pte;
+<span class="p_chunk">@@ -4275,6 +4282,8 @@</span> <span class="p_context"> pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)</span>
+ 
+ 	pgd = pgd_offset(mm, addr);
+ 	if (pgd_present(*pgd)) {
+<span class="p_add">+		if (pgd_huge(*pgd))</span>
+<span class="p_add">+			return (pte_t *)pgd;</span>
+ 		pud = pud_offset(pgd, addr);
+ 		if (pud_present(*pud)) {
+ 			if (pud_huge(*pud))
+<span class="p_chunk">@@ -4343,6 +4352,17 @@</span> <span class="p_context"> follow_huge_pud(struct mm_struct *mm, unsigned long address,</span>
+ 	return pte_page(*(pte_t *)pud) + ((address &amp; ~PUD_MASK) &gt;&gt; PAGE_SHIFT);
+ }
+ 
+<span class="p_add">+struct page * __weak</span>
+<span class="p_add">+follow_huge_pgd(struct mm_struct *mm, unsigned long address,</span>
+<span class="p_add">+		pgd_t *pgd, int flags)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (flags &amp; FOLL_GET)</span>
+<span class="p_add">+		return NULL;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return pte_page(*(pte_t *)pgd) +</span>
+<span class="p_add">+				((address &amp; ~PGDIR_MASK) &gt;&gt; PAGE_SHIFT);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ #ifdef CONFIG_MEMORY_FAILURE
+ 
+ /*
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

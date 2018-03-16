@@ -1,0 +1,942 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[14/27] mm, memcg: Move memcg limit enforcement from zones to nodes - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [14/27] mm, memcg: Move memcg limit enforcement from zones to nodes</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=138281">Mel Gorman</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Feb. 23, 2016, 3:04 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1456239890-20737-15-git-send-email-mgorman@techsingularity.net&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/8393501/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/8393501/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/8393501/">/patch/8393501/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id EA3BAC0553
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 23 Feb 2016 15:05:37 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 55D1020304
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 23 Feb 2016 15:05:36 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 80C9820306
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue, 23 Feb 2016 15:05:34 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753754AbcBWPF2 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Tue, 23 Feb 2016 10:05:28 -0500
+Received: from outbound-smtp12.blacknight.com ([46.22.139.17]:60575 &quot;EHLO
+	outbound-smtp12.blacknight.com&quot; rhost-flags-OK-OK-OK-OK)
+	by vger.kernel.org with ESMTP id S1753473AbcBWPE4 (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Tue, 23 Feb 2016 10:04:56 -0500
+Received: from mail.blacknight.com (pemlinmail02.blacknight.ie
+	[81.17.254.11])
+	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id
+	93EFF1C1BD8 for &lt;linux-kernel@vger.kernel.org&gt;;
+	Tue, 23 Feb 2016 15:04:54 +0000 (GMT)
+Received: (qmail 3058 invoked from network); 23 Feb 2016 15:04:54 -0000
+Received: from unknown (HELO stampy.163woodhaven.lan)
+	(mgorman@techsingularity.net@[37.228.246.231])
+	by 81.17.254.9 with ESMTPA; 23 Feb 2016 15:04:54 -0000
+From: Mel Gorman &lt;mgorman@techsingularity.net&gt;
+To: Linux-MM &lt;linux-mm@kvack.org&gt;
+Cc: Rik van Riel &lt;riel@surriel.com&gt;, Vlastimil Babka &lt;vbabka@suse.cz&gt;,
+	Johannes Weiner &lt;hannes@cmpxchg.org&gt;,
+	LKML &lt;linux-kernel@vger.kernel.org&gt;,
+	Mel Gorman &lt;mgorman@techsingularity.net&gt;
+Subject: [PATCH 14/27] mm,
+	memcg: Move memcg limit enforcement from zones to nodes
+Date: Tue, 23 Feb 2016 15:04:37 +0000
+Message-Id: &lt;1456239890-20737-15-git-send-email-mgorman@techsingularity.net&gt;
+X-Mailer: git-send-email 2.6.4
+In-Reply-To: &lt;1456239890-20737-1-git-send-email-mgorman@techsingularity.net&gt;
+References: &lt;1456239890-20737-1-git-send-email-mgorman@techsingularity.net&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=138281">Mel Gorman</a> - Feb. 23, 2016, 3:04 p.m.</div>
+<pre class="content">
+Memcg was broken by the move of all LRUs to nodes because it is tracking
+limits on a per-zone basis while receiving reclaim requests on a per-node
+basis. This patch moves limit enforcement to the nodes. Technically, all
+the variable names should also change but people are already familiar by
+the meaning of &quot;mz&quot; even if &quot;mn&quot; would be a more appropriate name now.
+<span class="signed-off-by">
+Signed-off-by: Mel Gorman &lt;mgorman@techsingularity.net&gt;</span>
+---
+ include/linux/memcontrol.h |  21 ++---
+ include/linux/swap.h       |   2 +-
+ mm/memcontrol.c            | 204 +++++++++++++++++++--------------------------
+ mm/vmscan.c                |  21 +++--
+ mm/workingset.c            |   6 +-
+ 5 files changed, 110 insertions(+), 144 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h</span>
+<span class="p_header">index 51f4441a69fc..96b973e567f6 100644</span>
+<span class="p_header">--- a/include/linux/memcontrol.h</span>
+<span class="p_header">+++ b/include/linux/memcontrol.h</span>
+<span class="p_chunk">@@ -60,7 +60,7 @@</span> <span class="p_context"> enum mem_cgroup_stat_index {</span>
+ };
+ 
+ struct mem_cgroup_reclaim_cookie {
+<span class="p_del">-	struct zone *zone;</span>
+<span class="p_add">+	pg_data_t *pgdat;</span>
+ 	int priority;
+ 	unsigned int generation;
+ };
+<span class="p_chunk">@@ -113,7 +113,7 @@</span> <span class="p_context"> struct mem_cgroup_reclaim_iter {</span>
+ /*
+  * per-zone information in memory controller.
+  */
+<span class="p_del">-struct mem_cgroup_per_zone {</span>
+<span class="p_add">+struct mem_cgroup_per_node {</span>
+ 	struct lruvec		lruvec;
+ 	unsigned long		lru_size[NR_LRU_LISTS];
+ 
+<span class="p_chunk">@@ -127,10 +127,6 @@</span> <span class="p_context"> struct mem_cgroup_per_zone {</span>
+ 						/* use container_of	   */
+ };
+ 
+<span class="p_del">-struct mem_cgroup_per_node {</span>
+<span class="p_del">-	struct mem_cgroup_per_zone zoneinfo[MAX_NR_ZONES];</span>
+<span class="p_del">-};</span>
+<span class="p_del">-</span>
+ struct mem_cgroup_threshold {
+ 	struct eventfd_ctx *eventfd;
+ 	unsigned long threshold;
+<span class="p_chunk">@@ -306,8 +302,7 @@</span> <span class="p_context"> void mem_cgroup_uncharge_list(struct list_head *page_list);</span>
+ 
+ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage);
+ 
+<span class="p_del">-struct lruvec *mem_cgroup_lruvec(struct pglist_data *, struct zone *zone,</span>
+<span class="p_del">-				 struct mem_cgroup *);</span>
+<span class="p_add">+struct lruvec *mem_cgroup_lruvec(struct pglist_data *, struct mem_cgroup *);</span>
+ struct lruvec *mem_cgroup_page_lruvec(struct page *, struct pglist_data *);
+ 
+ bool task_in_mem_cgroup(struct task_struct *task, struct mem_cgroup *memcg);
+<span class="p_chunk">@@ -410,9 +405,9 @@</span> <span class="p_context"> unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,</span>
+ static inline
+ unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
+ {
+<span class="p_del">-	struct mem_cgroup_per_zone *mz;</span>
+<span class="p_add">+	struct mem_cgroup_per_node *mz;</span>
+ 
+<span class="p_del">-	mz = container_of(lruvec, struct mem_cgroup_per_zone, lruvec);</span>
+<span class="p_add">+	mz = container_of(lruvec, struct mem_cgroup_per_node, lruvec);</span>
+ 	return mz-&gt;lru_size[lru];
+ }
+ 
+<span class="p_chunk">@@ -502,7 +497,7 @@</span> <span class="p_context"> static inline void mem_cgroup_dec_page_stat(struct page *page,</span>
+ 	mem_cgroup_update_page_stat(page, idx, -1);
+ }
+ 
+<span class="p_del">-unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,</span>
+<span class="p_add">+unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,</span>
+ 						gfp_t gfp_mask,
+ 						unsigned long *total_scanned);
+ 
+<span class="p_chunk">@@ -594,7 +589,7 @@</span> <span class="p_context"> static inline void mem_cgroup_migrate(struct page *old, struct page *new)</span>
+ }
+ 
+ static inline struct lruvec *mem_cgroup_lruvec(struct pglist_data *pgdat,
+<span class="p_del">-				struct zone *zone, struct mem_cgroup *memcg)</span>
+<span class="p_add">+				struct mem_cgroup *memcg)</span>
+ {
+ 	return node_lruvec(pgdat);
+ }
+<span class="p_chunk">@@ -718,7 +713,7 @@</span> <span class="p_context"> static inline void mem_cgroup_dec_page_stat(struct page *page,</span>
+ }
+ 
+ static inline
+<span class="p_del">-unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,</span>
+<span class="p_add">+unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,</span>
+ 					    gfp_t gfp_mask,
+ 					    unsigned long *total_scanned)
+ {
+<span class="p_header">diff --git a/include/linux/swap.h b/include/linux/swap.h</span>
+<span class="p_header">index 2137416c1f15..4b1a95798560 100644</span>
+<span class="p_header">--- a/include/linux/swap.h</span>
+<span class="p_header">+++ b/include/linux/swap.h</span>
+<span class="p_chunk">@@ -326,7 +326,7 @@</span> <span class="p_context"> extern unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,</span>
+ 						  bool may_swap);
+ extern unsigned long mem_cgroup_shrink_node(struct mem_cgroup *mem,
+ 						gfp_t gfp_mask, bool noswap,
+<span class="p_del">-						struct zone *zone,</span>
+<span class="p_add">+						pg_data_t *pgdat,</span>
+ 						unsigned long *nr_scanned);
+ extern unsigned long shrink_all_memory(unsigned long nr_pages);
+ extern int vm_swappiness;
+<span class="p_header">diff --git a/mm/memcontrol.c b/mm/memcontrol.c</span>
+<span class="p_header">index 1cfb7c40fa36..5aac5d9827b5 100644</span>
+<span class="p_header">--- a/mm/memcontrol.c</span>
+<span class="p_header">+++ b/mm/memcontrol.c</span>
+<span class="p_chunk">@@ -132,15 +132,11 @@</span> <span class="p_context"> static const char * const mem_cgroup_lru_names[] = {</span>
+  * their hierarchy representation
+  */
+ 
+<span class="p_del">-struct mem_cgroup_tree_per_zone {</span>
+<span class="p_add">+struct mem_cgroup_tree_per_node {</span>
+ 	struct rb_root rb_root;
+ 	spinlock_t lock;
+ };
+ 
+<span class="p_del">-struct mem_cgroup_tree_per_node {</span>
+<span class="p_del">-	struct mem_cgroup_tree_per_zone rb_tree_per_zone[MAX_NR_ZONES];</span>
+<span class="p_del">-};</span>
+<span class="p_del">-</span>
+ struct mem_cgroup_tree {
+ 	struct mem_cgroup_tree_per_node *rb_tree_per_node[MAX_NUMNODES];
+ };
+<span class="p_chunk">@@ -322,13 +318,10 @@</span> <span class="p_context"> EXPORT_SYMBOL(memcg_kmem_enabled_key);</span>
+ 
+ #endif /* !CONFIG_SLOB */
+ 
+<span class="p_del">-static struct mem_cgroup_per_zone *</span>
+<span class="p_del">-mem_cgroup_zone_zoneinfo(struct mem_cgroup *memcg, struct zone *zone)</span>
+<span class="p_add">+static struct mem_cgroup_per_node *</span>
+<span class="p_add">+mem_cgroup_nodeinfo(struct mem_cgroup *memcg, pg_data_t *pgdat)</span>
+ {
+<span class="p_del">-	int nid = zone_to_nid(zone);</span>
+<span class="p_del">-	int zid = zone_idx(zone);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	return &amp;memcg-&gt;nodeinfo[nid]-&gt;zoneinfo[zid];</span>
+<span class="p_add">+	return memcg-&gt;nodeinfo[pgdat-&gt;node_id];</span>
+ }
+ 
+ /**
+<span class="p_chunk">@@ -382,37 +375,35 @@</span> <span class="p_context"> ino_t page_cgroup_ino(struct page *page)</span>
+ 	return ino;
+ }
+ 
+<span class="p_del">-static struct mem_cgroup_per_zone *</span>
+<span class="p_add">+static struct mem_cgroup_per_node *</span>
+ mem_cgroup_page_zoneinfo(struct mem_cgroup *memcg, struct page *page)
+ {
+ 	int nid = page_to_nid(page);
+<span class="p_del">-	int zid = page_zonenum(page);</span>
+ 
+<span class="p_del">-	return &amp;memcg-&gt;nodeinfo[nid]-&gt;zoneinfo[zid];</span>
+<span class="p_add">+	return memcg-&gt;nodeinfo[nid];</span>
+ }
+ 
+<span class="p_del">-static struct mem_cgroup_tree_per_zone *</span>
+<span class="p_del">-soft_limit_tree_node_zone(int nid, int zid)</span>
+<span class="p_add">+static struct mem_cgroup_tree_per_node *</span>
+<span class="p_add">+soft_limit_tree_node(int nid)</span>
+ {
+<span class="p_del">-	return &amp;soft_limit_tree.rb_tree_per_node[nid]-&gt;rb_tree_per_zone[zid];</span>
+<span class="p_add">+	return soft_limit_tree.rb_tree_per_node[nid];</span>
+ }
+ 
+<span class="p_del">-static struct mem_cgroup_tree_per_zone *</span>
+<span class="p_add">+static struct mem_cgroup_tree_per_node *</span>
+ soft_limit_tree_from_page(struct page *page)
+ {
+ 	int nid = page_to_nid(page);
+<span class="p_del">-	int zid = page_zonenum(page);</span>
+ 
+<span class="p_del">-	return &amp;soft_limit_tree.rb_tree_per_node[nid]-&gt;rb_tree_per_zone[zid];</span>
+<span class="p_add">+	return soft_limit_tree.rb_tree_per_node[nid];</span>
+ }
+ 
+<span class="p_del">-static void __mem_cgroup_insert_exceeded(struct mem_cgroup_per_zone *mz,</span>
+<span class="p_del">-					 struct mem_cgroup_tree_per_zone *mctz,</span>
+<span class="p_add">+static void __mem_cgroup_insert_exceeded(struct mem_cgroup_per_node *mz,</span>
+<span class="p_add">+					 struct mem_cgroup_tree_per_node *mctz,</span>
+ 					 unsigned long new_usage_in_excess)
+ {
+ 	struct rb_node **p = &amp;mctz-&gt;rb_root.rb_node;
+ 	struct rb_node *parent = NULL;
+<span class="p_del">-	struct mem_cgroup_per_zone *mz_node;</span>
+<span class="p_add">+	struct mem_cgroup_per_node *mz_node;</span>
+ 
+ 	if (mz-&gt;on_tree)
+ 		return;
+<span class="p_chunk">@@ -422,7 +413,7 @@</span> <span class="p_context"> static void __mem_cgroup_insert_exceeded(struct mem_cgroup_per_zone *mz,</span>
+ 		return;
+ 	while (*p) {
+ 		parent = *p;
+<span class="p_del">-		mz_node = rb_entry(parent, struct mem_cgroup_per_zone,</span>
+<span class="p_add">+		mz_node = rb_entry(parent, struct mem_cgroup_per_node,</span>
+ 					tree_node);
+ 		if (mz-&gt;usage_in_excess &lt; mz_node-&gt;usage_in_excess)
+ 			p = &amp;(*p)-&gt;rb_left;
+<span class="p_chunk">@@ -438,8 +429,8 @@</span> <span class="p_context"> static void __mem_cgroup_insert_exceeded(struct mem_cgroup_per_zone *mz,</span>
+ 	mz-&gt;on_tree = true;
+ }
+ 
+<span class="p_del">-static void __mem_cgroup_remove_exceeded(struct mem_cgroup_per_zone *mz,</span>
+<span class="p_del">-					 struct mem_cgroup_tree_per_zone *mctz)</span>
+<span class="p_add">+static void __mem_cgroup_remove_exceeded(struct mem_cgroup_per_node *mz,</span>
+<span class="p_add">+					 struct mem_cgroup_tree_per_node *mctz)</span>
+ {
+ 	if (!mz-&gt;on_tree)
+ 		return;
+<span class="p_chunk">@@ -447,8 +438,8 @@</span> <span class="p_context"> static void __mem_cgroup_remove_exceeded(struct mem_cgroup_per_zone *mz,</span>
+ 	mz-&gt;on_tree = false;
+ }
+ 
+<span class="p_del">-static void mem_cgroup_remove_exceeded(struct mem_cgroup_per_zone *mz,</span>
+<span class="p_del">-				       struct mem_cgroup_tree_per_zone *mctz)</span>
+<span class="p_add">+static void mem_cgroup_remove_exceeded(struct mem_cgroup_per_node *mz,</span>
+<span class="p_add">+				       struct mem_cgroup_tree_per_node *mctz)</span>
+ {
+ 	unsigned long flags;
+ 
+<span class="p_chunk">@@ -472,8 +463,8 @@</span> <span class="p_context"> static unsigned long soft_limit_excess(struct mem_cgroup *memcg)</span>
+ static void mem_cgroup_update_tree(struct mem_cgroup *memcg, struct page *page)
+ {
+ 	unsigned long excess;
+<span class="p_del">-	struct mem_cgroup_per_zone *mz;</span>
+<span class="p_del">-	struct mem_cgroup_tree_per_zone *mctz;</span>
+<span class="p_add">+	struct mem_cgroup_per_node *mz;</span>
+<span class="p_add">+	struct mem_cgroup_tree_per_node *mctz;</span>
+ 
+ 	mctz = soft_limit_tree_from_page(page);
+ 	/*
+<span class="p_chunk">@@ -506,24 +497,22 @@</span> <span class="p_context"> static void mem_cgroup_update_tree(struct mem_cgroup *memcg, struct page *page)</span>
+ 
+ static void mem_cgroup_remove_from_trees(struct mem_cgroup *memcg)
+ {
+<span class="p_del">-	struct mem_cgroup_tree_per_zone *mctz;</span>
+<span class="p_del">-	struct mem_cgroup_per_zone *mz;</span>
+<span class="p_del">-	int nid, zid;</span>
+<span class="p_add">+	struct mem_cgroup_tree_per_node *mctz;</span>
+<span class="p_add">+	struct mem_cgroup_per_node *mz;</span>
+<span class="p_add">+	int nid;</span>
+ 
+ 	for_each_node(nid) {
+<span class="p_del">-		for (zid = 0; zid &lt; MAX_NR_ZONES; zid++) {</span>
+<span class="p_del">-			mz = &amp;memcg-&gt;nodeinfo[nid]-&gt;zoneinfo[zid];</span>
+<span class="p_del">-			mctz = soft_limit_tree_node_zone(nid, zid);</span>
+<span class="p_del">-			mem_cgroup_remove_exceeded(mz, mctz);</span>
+<span class="p_del">-		}</span>
+<span class="p_add">+		mz = mem_cgroup_nodeinfo(memcg, NODE_DATA(nid));</span>
+<span class="p_add">+		mctz = soft_limit_tree_node(nid);</span>
+<span class="p_add">+		mem_cgroup_remove_exceeded(mz, mctz);</span>
+ 	}
+ }
+ 
+<span class="p_del">-static struct mem_cgroup_per_zone *</span>
+<span class="p_del">-__mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)</span>
+<span class="p_add">+static struct mem_cgroup_per_node *</span>
+<span class="p_add">+__mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_node *mctz)</span>
+ {
+ 	struct rb_node *rightmost = NULL;
+<span class="p_del">-	struct mem_cgroup_per_zone *mz;</span>
+<span class="p_add">+	struct mem_cgroup_per_node *mz;</span>
+ 
+ retry:
+ 	mz = NULL;
+<span class="p_chunk">@@ -531,7 +520,7 @@</span> <span class="p_context"> __mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)</span>
+ 	if (!rightmost)
+ 		goto done;		/* Nothing to reclaim from */
+ 
+<span class="p_del">-	mz = rb_entry(rightmost, struct mem_cgroup_per_zone, tree_node);</span>
+<span class="p_add">+	mz = rb_entry(rightmost, struct mem_cgroup_per_node, tree_node);</span>
+ 	/*
+ 	 * Remove the node now but someone else can add it back,
+ 	 * we will to add it back at the end of reclaim to its correct
+<span class="p_chunk">@@ -545,10 +534,10 @@</span> <span class="p_context"> __mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)</span>
+ 	return mz;
+ }
+ 
+<span class="p_del">-static struct mem_cgroup_per_zone *</span>
+<span class="p_del">-mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)</span>
+<span class="p_add">+static struct mem_cgroup_per_node *</span>
+<span class="p_add">+mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_node *mctz)</span>
+ {
+<span class="p_del">-	struct mem_cgroup_per_zone *mz;</span>
+<span class="p_add">+	struct mem_cgroup_per_node *mz;</span>
+ 
+ 	spin_lock_irq(&amp;mctz-&gt;lock);
+ 	mz = __mem_cgroup_largest_soft_limit_node(mctz);
+<span class="p_chunk">@@ -642,20 +631,16 @@</span> <span class="p_context"> unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,</span>
+ 					   int nid, unsigned int lru_mask)
+ {
+ 	unsigned long nr = 0;
+<span class="p_del">-	int zid;</span>
+<span class="p_add">+	struct mem_cgroup_per_node *mz;</span>
+<span class="p_add">+	enum lru_list lru;</span>
+ 
+ 	VM_BUG_ON((unsigned)nid &gt;= nr_node_ids);
+ 
+<span class="p_del">-	for (zid = 0; zid &lt; MAX_NR_ZONES; zid++) {</span>
+<span class="p_del">-		struct mem_cgroup_per_zone *mz;</span>
+<span class="p_del">-		enum lru_list lru;</span>
+<span class="p_del">-</span>
+<span class="p_del">-		for_each_lru(lru) {</span>
+<span class="p_del">-			if (!(BIT(lru) &amp; lru_mask))</span>
+<span class="p_del">-				continue;</span>
+<span class="p_del">-			mz = &amp;memcg-&gt;nodeinfo[nid]-&gt;zoneinfo[zid];</span>
+<span class="p_del">-			nr += mz-&gt;lru_size[lru];</span>
+<span class="p_del">-		}</span>
+<span class="p_add">+	for_each_lru(lru) {</span>
+<span class="p_add">+		if (!(BIT(lru) &amp; lru_mask))</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+		mz = mem_cgroup_nodeinfo(memcg, NODE_DATA(nid));</span>
+<span class="p_add">+		nr += mz-&gt;lru_size[lru];</span>
+ 	}
+ 	return nr;
+ }
+<span class="p_chunk">@@ -808,9 +793,9 @@</span> <span class="p_context"> struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,</span>
+ 	rcu_read_lock();
+ 
+ 	if (reclaim) {
+<span class="p_del">-		struct mem_cgroup_per_zone *mz;</span>
+<span class="p_add">+		struct mem_cgroup_per_node *mz;</span>
+ 
+<span class="p_del">-		mz = mem_cgroup_zone_zoneinfo(root, reclaim-&gt;zone);</span>
+<span class="p_add">+		mz = mem_cgroup_nodeinfo(root, reclaim-&gt;pgdat);</span>
+ 		iter = &amp;mz-&gt;iter[reclaim-&gt;priority];
+ 
+ 		if (prev &amp;&amp; reclaim-&gt;generation != iter-&gt;generation)
+<span class="p_chunk">@@ -909,19 +894,17 @@</span> <span class="p_context"> static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)</span>
+ {
+ 	struct mem_cgroup *memcg = dead_memcg;
+ 	struct mem_cgroup_reclaim_iter *iter;
+<span class="p_del">-	struct mem_cgroup_per_zone *mz;</span>
+<span class="p_del">-	int nid, zid;</span>
+<span class="p_add">+	struct mem_cgroup_per_node *mz;</span>
+<span class="p_add">+	int nid;</span>
+ 	int i;
+ 
+ 	while ((memcg = parent_mem_cgroup(memcg))) {
+ 		for_each_node(nid) {
+<span class="p_del">-			for (zid = 0; zid &lt; MAX_NR_ZONES; zid++) {</span>
+<span class="p_del">-				mz = &amp;memcg-&gt;nodeinfo[nid]-&gt;zoneinfo[zid];</span>
+<span class="p_del">-				for (i = 0; i &lt;= DEF_PRIORITY; i++) {</span>
+<span class="p_del">-					iter = &amp;mz-&gt;iter[i];</span>
+<span class="p_del">-					cmpxchg(&amp;iter-&gt;position,</span>
+<span class="p_del">-						dead_memcg, NULL);</span>
+<span class="p_del">-				}</span>
+<span class="p_add">+			mz = mem_cgroup_nodeinfo(memcg, NODE_DATA(nid));</span>
+<span class="p_add">+			for (i = 0; i &lt;= DEF_PRIORITY; i++) {</span>
+<span class="p_add">+				iter = &amp;mz-&gt;iter[i];</span>
+<span class="p_add">+				cmpxchg(&amp;iter-&gt;position,</span>
+<span class="p_add">+					dead_memcg, NULL);</span>
+ 			}
+ 		}
+ 	}
+<span class="p_chunk">@@ -945,7 +928,6 @@</span> <span class="p_context"> static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)</span>
+ /**
+  * mem_cgroup_lruvec - get the lru list vector for a node or a memcg zone
+  * @node: node of the wanted lruvec
+<span class="p_del">- * @zone: zone of the wanted lruvec</span>
+  * @memcg: memcg of the wanted lruvec
+  *
+  * Returns the lru list vector holding pages for a given @node or a given
+<span class="p_chunk">@@ -953,9 +935,9 @@</span> <span class="p_context"> static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)</span>
+  * is disabled.
+  */
+ struct lruvec *mem_cgroup_lruvec(struct pglist_data *pgdat,
+<span class="p_del">-				 struct zone *zone, struct mem_cgroup *memcg)</span>
+<span class="p_add">+				 struct mem_cgroup *memcg)</span>
+ {
+<span class="p_del">-	struct mem_cgroup_per_zone *mz;</span>
+<span class="p_add">+	struct mem_cgroup_per_node *mz;</span>
+ 	struct lruvec *lruvec;
+ 
+ 	if (mem_cgroup_disabled()) {
+<span class="p_chunk">@@ -963,7 +945,7 @@</span> <span class="p_context"> struct lruvec *mem_cgroup_lruvec(struct pglist_data *pgdat,</span>
+ 		goto out;
+ 	}
+ 
+<span class="p_del">-	mz = mem_cgroup_zone_zoneinfo(memcg, zone);</span>
+<span class="p_add">+	mz = mem_cgroup_nodeinfo(memcg, pgdat);</span>
+ 	lruvec = &amp;mz-&gt;lruvec;
+ out:
+ 	/*
+<span class="p_chunk">@@ -971,8 +953,8 @@</span> <span class="p_context"> struct lruvec *mem_cgroup_lruvec(struct pglist_data *pgdat,</span>
+ 	 * we have to be prepared to initialize lruvec-&gt;zone here;
+ 	 * and if offlined then reonlined, we need to reinitialize it.
+ 	 */
+<span class="p_del">-	if (unlikely(lruvec-&gt;pgdat != zone-&gt;zone_pgdat))</span>
+<span class="p_del">-		lruvec-&gt;pgdat = zone-&gt;zone_pgdat;</span>
+<span class="p_add">+	if (unlikely(lruvec-&gt;pgdat != pgdat))</span>
+<span class="p_add">+		lruvec-&gt;pgdat = pgdat;</span>
+ 	return lruvec;
+ }
+ 
+<span class="p_chunk">@@ -987,7 +969,7 @@</span> <span class="p_context"> struct lruvec *mem_cgroup_lruvec(struct pglist_data *pgdat,</span>
+  */
+ struct lruvec *mem_cgroup_page_lruvec(struct page *page, struct pglist_data *pgdat)
+ {
+<span class="p_del">-	struct mem_cgroup_per_zone *mz;</span>
+<span class="p_add">+	struct mem_cgroup_per_node *mz;</span>
+ 	struct mem_cgroup *memcg;
+ 	struct lruvec *lruvec;
+ 
+<span class="p_chunk">@@ -1029,13 +1011,13 @@</span> <span class="p_context"> struct lruvec *mem_cgroup_page_lruvec(struct page *page, struct pglist_data *pgd</span>
+ void mem_cgroup_update_lru_size(struct lruvec *lruvec, enum lru_list lru,
+ 				int nr_pages)
+ {
+<span class="p_del">-	struct mem_cgroup_per_zone *mz;</span>
+<span class="p_add">+	struct mem_cgroup_per_node *mz;</span>
+ 	unsigned long *lru_size;
+ 
+ 	if (mem_cgroup_disabled())
+ 		return;
+ 
+<span class="p_del">-	mz = container_of(lruvec, struct mem_cgroup_per_zone, lruvec);</span>
+<span class="p_add">+	mz = container_of(lruvec, struct mem_cgroup_per_node, lruvec);</span>
+ 	lru_size = mz-&gt;lru_size + lru;
+ 	*lru_size += nr_pages;
+ 	VM_BUG_ON((long)(*lru_size) &lt; 0);
+<span class="p_chunk">@@ -1415,7 +1397,7 @@</span> <span class="p_context"> int mem_cgroup_select_victim_node(struct mem_cgroup *memcg)</span>
+ #endif
+ 
+ static int mem_cgroup_soft_reclaim(struct mem_cgroup *root_memcg,
+<span class="p_del">-				   struct zone *zone,</span>
+<span class="p_add">+				   pg_data_t *pgdat,</span>
+ 				   gfp_t gfp_mask,
+ 				   unsigned long *total_scanned)
+ {
+<span class="p_chunk">@@ -1425,7 +1407,7 @@</span> <span class="p_context"> static int mem_cgroup_soft_reclaim(struct mem_cgroup *root_memcg,</span>
+ 	unsigned long excess;
+ 	unsigned long nr_scanned;
+ 	struct mem_cgroup_reclaim_cookie reclaim = {
+<span class="p_del">-		.zone = zone,</span>
+<span class="p_add">+		.pgdat = pgdat,</span>
+ 		.priority = 0,
+ 	};
+ 
+<span class="p_chunk">@@ -1456,7 +1438,7 @@</span> <span class="p_context"> static int mem_cgroup_soft_reclaim(struct mem_cgroup *root_memcg,</span>
+ 			continue;
+ 		}
+ 		total += mem_cgroup_shrink_node(victim, gfp_mask, false,
+<span class="p_del">-					zone, &amp;nr_scanned);</span>
+<span class="p_add">+					pgdat, &amp;nr_scanned);</span>
+ 		*total_scanned += nr_scanned;
+ 		if (!soft_limit_excess(root_memcg))
+ 			break;
+<span class="p_chunk">@@ -2548,22 +2530,22 @@</span> <span class="p_context"> static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,</span>
+ 	return ret;
+ }
+ 
+<span class="p_del">-unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,</span>
+<span class="p_add">+unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,</span>
+ 					    gfp_t gfp_mask,
+ 					    unsigned long *total_scanned)
+ {
+ 	unsigned long nr_reclaimed = 0;
+<span class="p_del">-	struct mem_cgroup_per_zone *mz, *next_mz = NULL;</span>
+<span class="p_add">+	struct mem_cgroup_per_node *mz, *next_mz = NULL;</span>
+ 	unsigned long reclaimed;
+ 	int loop = 0;
+<span class="p_del">-	struct mem_cgroup_tree_per_zone *mctz;</span>
+<span class="p_add">+	struct mem_cgroup_tree_per_node *mctz;</span>
+ 	unsigned long excess;
+ 	unsigned long nr_scanned;
+ 
+ 	if (order &gt; 0)
+ 		return 0;
+ 
+<span class="p_del">-	mctz = soft_limit_tree_node_zone(zone_to_nid(zone), zone_idx(zone));</span>
+<span class="p_add">+	mctz = soft_limit_tree_node(pgdat-&gt;node_id);</span>
+ 	/*
+ 	 * This loop can run a while, specially if mem_cgroup&#39;s continuously
+ 	 * keep exceeding their soft limit and putting the system under
+<span class="p_chunk">@@ -2578,7 +2560,7 @@</span> <span class="p_context"> unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,</span>
+ 			break;
+ 
+ 		nr_scanned = 0;
+<span class="p_del">-		reclaimed = mem_cgroup_soft_reclaim(mz-&gt;memcg, zone,</span>
+<span class="p_add">+		reclaimed = mem_cgroup_soft_reclaim(mz-&gt;memcg, pgdat,</span>
+ 						    gfp_mask, &amp;nr_scanned);
+ 		nr_reclaimed += reclaimed;
+ 		*total_scanned += nr_scanned;
+<span class="p_chunk">@@ -3197,22 +3179,21 @@</span> <span class="p_context"> static int memcg_stat_show(struct seq_file *m, void *v)</span>
+ 
+ #ifdef CONFIG_DEBUG_VM
+ 	{
+<span class="p_del">-		int nid, zid;</span>
+<span class="p_del">-		struct mem_cgroup_per_zone *mz;</span>
+<span class="p_add">+		pg_data_t *pgdat;</span>
+<span class="p_add">+		struct mem_cgroup_per_node *mz;</span>
+ 		struct zone_reclaim_stat *rstat;
+ 		unsigned long recent_rotated[2] = {0, 0};
+ 		unsigned long recent_scanned[2] = {0, 0};
+ 
+<span class="p_del">-		for_each_online_node(nid)</span>
+<span class="p_del">-			for (zid = 0; zid &lt; MAX_NR_ZONES; zid++) {</span>
+<span class="p_del">-				mz = &amp;memcg-&gt;nodeinfo[nid]-&gt;zoneinfo[zid];</span>
+<span class="p_del">-				rstat = &amp;mz-&gt;lruvec.reclaim_stat;</span>
+<span class="p_add">+		for_each_online_pgdat(pgdat) {</span>
+<span class="p_add">+			mz = mem_cgroup_nodeinfo(memcg, pgdat);</span>
+<span class="p_add">+			rstat = &amp;mz-&gt;lruvec.reclaim_stat;</span>
+ 
+<span class="p_del">-				recent_rotated[0] += rstat-&gt;recent_rotated[0];</span>
+<span class="p_del">-				recent_rotated[1] += rstat-&gt;recent_rotated[1];</span>
+<span class="p_del">-				recent_scanned[0] += rstat-&gt;recent_scanned[0];</span>
+<span class="p_del">-				recent_scanned[1] += rstat-&gt;recent_scanned[1];</span>
+<span class="p_del">-			}</span>
+<span class="p_add">+			recent_rotated[0] += rstat-&gt;recent_rotated[0];</span>
+<span class="p_add">+			recent_rotated[1] += rstat-&gt;recent_rotated[1];</span>
+<span class="p_add">+			recent_scanned[0] += rstat-&gt;recent_scanned[0];</span>
+<span class="p_add">+			recent_scanned[1] += rstat-&gt;recent_scanned[1];</span>
+<span class="p_add">+		}</span>
+ 		seq_printf(m, &quot;recent_rotated_anon %lu\n&quot;, recent_rotated[0]);
+ 		seq_printf(m, &quot;recent_rotated_file %lu\n&quot;, recent_rotated[1]);
+ 		seq_printf(m, &quot;recent_scanned_anon %lu\n&quot;, recent_scanned[0]);
+<span class="p_chunk">@@ -4038,11 +4019,10 @@</span> <span class="p_context"> static struct cftype mem_cgroup_legacy_files[] = {</span>
+ 	{ },	/* terminate */
+ };
+ 
+<span class="p_del">-static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)</span>
+<span class="p_add">+static int alloc_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)</span>
+ {
+ 	struct mem_cgroup_per_node *pn;
+<span class="p_del">-	struct mem_cgroup_per_zone *mz;</span>
+<span class="p_del">-	int zone, tmp = node;</span>
+<span class="p_add">+	int tmp = node;</span>
+ 	/*
+ 	 * This routine is called against possible nodes.
+ 	 * But it&#39;s BUG to call kmalloc() against offline node.
+<span class="p_chunk">@@ -4057,18 +4037,16 @@</span> <span class="p_context"> static int alloc_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)</span>
+ 	if (!pn)
+ 		return 1;
+ 
+<span class="p_del">-	for (zone = 0; zone &lt; MAX_NR_ZONES; zone++) {</span>
+<span class="p_del">-		mz = &amp;pn-&gt;zoneinfo[zone];</span>
+<span class="p_del">-		lruvec_init(&amp;mz-&gt;lruvec);</span>
+<span class="p_del">-		mz-&gt;usage_in_excess = 0;</span>
+<span class="p_del">-		mz-&gt;on_tree = false;</span>
+<span class="p_del">-		mz-&gt;memcg = memcg;</span>
+<span class="p_del">-	}</span>
+<span class="p_add">+	lruvec_init(&amp;pn-&gt;lruvec);</span>
+<span class="p_add">+	pn-&gt;usage_in_excess = 0;</span>
+<span class="p_add">+	pn-&gt;on_tree = false;</span>
+<span class="p_add">+	pn-&gt;memcg = memcg;</span>
+<span class="p_add">+</span>
+ 	memcg-&gt;nodeinfo[node] = pn;
+ 	return 0;
+ }
+ 
+<span class="p_del">-static void free_mem_cgroup_per_zone_info(struct mem_cgroup *memcg, int node)</span>
+<span class="p_add">+static void free_mem_cgroup_per_node_info(struct mem_cgroup *memcg, int node)</span>
+ {
+ 	kfree(memcg-&gt;nodeinfo[node]);
+ }
+<span class="p_chunk">@@ -4079,7 +4057,7 @@</span> <span class="p_context"> static void mem_cgroup_free(struct mem_cgroup *memcg)</span>
+ 
+ 	memcg_wb_domain_exit(memcg);
+ 	for_each_node(node)
+<span class="p_del">-		free_mem_cgroup_per_zone_info(memcg, node);</span>
+<span class="p_add">+		free_mem_cgroup_per_node_info(memcg, node);</span>
+ 	free_percpu(memcg-&gt;stat);
+ 	kfree(memcg);
+ }
+<span class="p_chunk">@@ -4102,7 +4080,7 @@</span> <span class="p_context"> static struct mem_cgroup *mem_cgroup_alloc(void)</span>
+ 		goto fail;
+ 
+ 	for_each_node(node)
+<span class="p_del">-		if (alloc_mem_cgroup_per_zone_info(memcg, node))</span>
+<span class="p_add">+		if (alloc_mem_cgroup_per_node_info(memcg, node))</span>
+ 			goto fail;
+ 
+ 	if (memcg_wb_domain_init(memcg, GFP_KERNEL))
+<span class="p_chunk">@@ -5650,18 +5628,12 @@</span> <span class="p_context"> static int __init mem_cgroup_init(void)</span>
+ 
+ 	for_each_node(node) {
+ 		struct mem_cgroup_tree_per_node *rtpn;
+<span class="p_del">-		int zone;</span>
+ 
+ 		rtpn = kzalloc_node(sizeof(*rtpn), GFP_KERNEL,
+ 				    node_online(node) ? node : NUMA_NO_NODE);
+ 
+<span class="p_del">-		for (zone = 0; zone &lt; MAX_NR_ZONES; zone++) {</span>
+<span class="p_del">-			struct mem_cgroup_tree_per_zone *rtpz;</span>
+<span class="p_del">-</span>
+<span class="p_del">-			rtpz = &amp;rtpn-&gt;rb_tree_per_zone[zone];</span>
+<span class="p_del">-			rtpz-&gt;rb_root = RB_ROOT;</span>
+<span class="p_del">-			spin_lock_init(&amp;rtpz-&gt;lock);</span>
+<span class="p_del">-		}</span>
+<span class="p_add">+		rtpn-&gt;rb_root = RB_ROOT;</span>
+<span class="p_add">+		spin_lock_init(&amp;rtpn-&gt;lock);</span>
+ 		soft_limit_tree.rb_tree_per_node[node] = rtpn;
+ 	}
+ 
+<span class="p_header">diff --git a/mm/vmscan.c b/mm/vmscan.c</span>
+<span class="p_header">index 3f67edc69e04..607a12c77da7 100644</span>
+<span class="p_header">--- a/mm/vmscan.c</span>
+<span class="p_header">+++ b/mm/vmscan.c</span>
+<span class="p_chunk">@@ -2222,8 +2222,7 @@</span> <span class="p_context"> static inline void init_tlb_ubc(void)</span>
+ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memcg,
+ 			      struct scan_control *sc, unsigned long *lru_pages)
+ {
+<span class="p_del">-	struct zone *zone = &amp;pgdat-&gt;node_zones[sc-&gt;reclaim_idx];</span>
+<span class="p_del">-	struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, zone, memcg);</span>
+<span class="p_add">+	struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, memcg);</span>
+ 	unsigned long nr[NR_LRU_LISTS];
+ 	unsigned long targets[NR_LRU_LISTS];
+ 	unsigned long nr_to_scan;
+<span class="p_chunk">@@ -2431,7 +2430,7 @@</span> <span class="p_context"> static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc,</span>
+ 	do {
+ 		struct mem_cgroup *root = sc-&gt;target_mem_cgroup;
+ 		struct mem_cgroup_reclaim_cookie reclaim = {
+<span class="p_del">-			.zone = &amp;pgdat-&gt;node_zones[classzone_idx],</span>
+<span class="p_add">+			.pgdat = pgdat,</span>
+ 			.priority = sc-&gt;priority,
+ 		};
+ 		unsigned long node_lru_pages = 0;
+<span class="p_chunk">@@ -2630,7 +2629,7 @@</span> <span class="p_context"> static void shrink_zones(struct zonelist *zonelist, struct scan_control *sc,</span>
+ 			 * and balancing, not for a memcg&#39;s limit.
+ 			 */
+ 			nr_soft_scanned = 0;
+<span class="p_del">-			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone,</span>
+<span class="p_add">+			nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone-&gt;zone_pgdat,</span>
+ 						sc-&gt;order, sc-&gt;gfp_mask,
+ 						&amp;nr_soft_scanned);
+ 			sc-&gt;nr_reclaimed += nr_soft_reclaimed;
+<span class="p_chunk">@@ -2896,7 +2895,7 @@</span> <span class="p_context"> unsigned long try_to_free_pages(struct zonelist *zonelist, int order,</span>
+ 
+ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
+ 						gfp_t gfp_mask, bool noswap,
+<span class="p_del">-						struct zone *zone,</span>
+<span class="p_add">+						pg_data_t *pgdat,</span>
+ 						unsigned long *nr_scanned)
+ {
+ 	struct scan_control sc = {
+<span class="p_chunk">@@ -2904,7 +2903,7 @@</span> <span class="p_context"> unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,</span>
+ 		.target_mem_cgroup = memcg,
+ 		.may_writepage = !laptop_mode,
+ 		.may_unmap = 1,
+<span class="p_del">-		.reclaim_idx = zone_idx(zone),</span>
+<span class="p_add">+		.reclaim_idx = MAX_NR_ZONES - 1,</span>
+ 		.may_swap = !noswap,
+ 	};
+ 	unsigned long lru_pages;
+<span class="p_chunk">@@ -2923,7 +2922,7 @@</span> <span class="p_context"> unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,</span>
+ 	 * will pick up pages from other mem cgroup&#39;s as well. We hack
+ 	 * the priority and make it zero.
+ 	 */
+<span class="p_del">-	shrink_node_memcg(zone-&gt;zone_pgdat, memcg, &amp;sc, &amp;lru_pages);</span>
+<span class="p_add">+	shrink_node_memcg(pgdat, memcg, &amp;sc, &amp;lru_pages);</span>
+ 
+ 	trace_mm_vmscan_memcg_softlimit_reclaim_end(sc.nr_reclaimed);
+ 
+<span class="p_chunk">@@ -2972,7 +2971,7 @@</span> <span class="p_context"> unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,</span>
+ #endif
+ 
+ static void age_active_anon(struct pglist_data *pgdat,
+<span class="p_del">-				struct zone *zone, struct scan_control *sc)</span>
+<span class="p_add">+				struct scan_control *sc)</span>
+ {
+ 	struct mem_cgroup *memcg;
+ 
+<span class="p_chunk">@@ -2981,7 +2980,7 @@</span> <span class="p_context"> static void age_active_anon(struct pglist_data *pgdat,</span>
+ 
+ 	memcg = mem_cgroup_iter(NULL, NULL, NULL);
+ 	do {
+<span class="p_del">-		struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, zone, memcg);</span>
+<span class="p_add">+		struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, memcg);</span>
+ 
+ 		if (inactive_anon_is_low(lruvec))
+ 			shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
+<span class="p_chunk">@@ -3170,7 +3169,7 @@</span> <span class="p_context"> static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)</span>
+ 		 * about consistent aging.
+ 		 */
+ 		sc.reclaim_idx = MAX_NR_ZONES - 1;
+<span class="p_del">-		age_active_anon(pgdat, &amp;pgdat-&gt;node_zones[sc.reclaim_idx], &amp;sc);</span>
+<span class="p_add">+		age_active_anon(pgdat, &amp;sc);</span>
+ 
+ 		/*
+ 		 * If we&#39;re getting trouble reclaiming, start doing writepage
+<span class="p_chunk">@@ -3182,7 +3181,7 @@</span> <span class="p_context"> static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)</span>
+ 		/* Call soft limit reclaim before calling shrink_node. */
+ 		sc.nr_scanned = 0;
+ 		nr_soft_scanned = 0;
+<span class="p_del">-		nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(zone, order,</span>
+<span class="p_add">+		nr_soft_reclaimed = mem_cgroup_soft_limit_reclaim(pgdat, order,</span>
+ 						sc.gfp_mask, &amp;nr_soft_scanned);
+ 		sc.nr_reclaimed += nr_soft_reclaimed;
+ 
+<span class="p_header">diff --git a/mm/workingset.c b/mm/workingset.c</span>
+<span class="p_header">index f68cc74a7795..d06d69670b5d 100644</span>
+<span class="p_header">--- a/mm/workingset.c</span>
+<span class="p_header">+++ b/mm/workingset.c</span>
+<span class="p_chunk">@@ -218,7 +218,7 @@</span> <span class="p_context"> void *workingset_eviction(struct address_space *mapping, struct page *page)</span>
+ 	VM_BUG_ON_PAGE(page_count(page), page);
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 
+<span class="p_del">-	lruvec = mem_cgroup_lruvec(zone-&gt;zone_pgdat, zone, memcg);</span>
+<span class="p_add">+	lruvec = mem_cgroup_lruvec(zone-&gt;zone_pgdat, memcg);</span>
+ 	eviction = atomic_long_inc_return(&amp;lruvec-&gt;inactive_age);
+ 	return pack_shadow(memcgid, zone, eviction);
+ }
+<span class="p_chunk">@@ -267,7 +267,7 @@</span> <span class="p_context"> bool workingset_refault(void *shadow)</span>
+ 		rcu_read_unlock();
+ 		return false;
+ 	}
+<span class="p_del">-	lruvec = mem_cgroup_lruvec(zone-&gt;zone_pgdat, zone, memcg);</span>
+<span class="p_add">+	lruvec = mem_cgroup_lruvec(zone-&gt;zone_pgdat, memcg);</span>
+ 	refault = atomic_long_read(&amp;lruvec-&gt;inactive_age);
+ 	active_file = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE);
+ 	rcu_read_unlock();
+<span class="p_chunk">@@ -317,7 +317,7 @@</span> <span class="p_context"> void workingset_activation(struct page *page)</span>
+ 	 */
+ 	if (!mem_cgroup_disabled() &amp;&amp; !page_memcg(page))
+ 		goto out;
+<span class="p_del">-	lruvec = mem_cgroup_lruvec(page_zone(page)-&gt;zone_pgdat, page_zone(page), page_memcg(page));</span>
+<span class="p_add">+	lruvec = mem_cgroup_lruvec(page_zone(page)-&gt;zone_pgdat, page_memcg(page));</span>
+ 	atomic_long_inc(&amp;lruvec-&gt;inactive_age);
+ out:
+ 	unlock_page_memcg(page);
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,388 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v1] mm: hugetlb: fix hugepage memory leak caused by wrong reserve count - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v1] mm: hugetlb: fix hugepage memory leak caused by wrong reserve count</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=41">Andrew Morton</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Nov. 20, 2015, 10:26 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20151120142638.c505927a43dc1ede32570db0@linux-foundation.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7671701/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7671701/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7671701/">/patch/7671701/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork1.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork1.web.kernel.org (Postfix) with ESMTP id 6D8E69F2EC
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri, 20 Nov 2015 22:26:45 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 8E56C20522
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri, 20 Nov 2015 22:26:44 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 79598204D5
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri, 20 Nov 2015 22:26:43 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1760363AbbKTW0k (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Fri, 20 Nov 2015 17:26:40 -0500
+Received: from mail.linuxfoundation.org ([140.211.169.12]:47291 &quot;EHLO
+	mail.linuxfoundation.org&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1757174AbbKTW0j (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Fri, 20 Nov 2015 17:26:39 -0500
+Received: from akpm3.mtv.corp.google.com (unknown [216.239.45.65])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id CF11A1BB;
+	Fri, 20 Nov 2015 22:26:38 +0000 (UTC)
+Date: Fri, 20 Nov 2015 14:26:38 -0800
+From: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+To: &quot;Hillf Danton&quot; &lt;hillf.zj@alibaba-inc.com&gt;
+Cc: &quot;&#39;Naoya Horiguchi&#39;&quot; &lt;n-horiguchi@ah.jp.nec.com&gt;,
+	&quot;&#39;David Rientjes&#39;&quot; &lt;rientjes@google.com&gt;,
+	&quot;&#39;Dave Hansen&#39;&quot; &lt;dave.hansen@intel.com&gt;,
+	&quot;&#39;Mel Gorman&#39;&quot; &lt;mgorman@suse.de&gt;,
+	&quot;&#39;Joonsoo Kim&#39;&quot; &lt;iamjoonsoo.kim@lge.com&gt;,
+	&quot;&#39;Mike Kravetz&#39;&quot; &lt;mike.kravetz@oracle.com&gt;, &lt;linux-mm@kvack.org&gt;,
+	&lt;linux-kernel@vger.kernel.org&gt;,
+	&quot;&#39;Naoya Horiguchi&#39;&quot; &lt;nao.horiguchi@gmail.com&gt;
+Subject: Re: [PATCH v1] mm: hugetlb: fix hugepage memory leak caused by
+	wrong reserve count
+Message-Id: &lt;20151120142638.c505927a43dc1ede32570db0@linux-foundation.org&gt;
+In-Reply-To: &lt;050201d12369$167a0a10$436e1e30$@alibaba-inc.com&gt;
+References: &lt;1448004017-23679-1-git-send-email-n-horiguchi@ah.jp.nec.com&gt;
+	&lt;050201d12369$167a0a10$436e1e30$@alibaba-inc.com&gt;
+X-Mailer: Sylpheed 3.4.1 (GTK+ 2.24.23; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-7.5 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41">Andrew Morton</a> - Nov. 20, 2015, 10:26 p.m.</div>
+<pre class="content">
+On Fri, 20 Nov 2015 15:57:21 +0800 &quot;Hillf Danton&quot; &lt;hillf.zj@alibaba-inc.com&gt; wrote:
+<span class="quote">
+&gt; &gt; </span>
+<span class="quote">&gt; &gt; When dequeue_huge_page_vma() in alloc_huge_page() fails, we fall back to</span>
+<span class="quote">&gt; &gt; alloc_buddy_huge_page() to directly create a hugepage from the buddy allocator.</span>
+<span class="quote">&gt; &gt; In that case, however, if alloc_buddy_huge_page() succeeds we don&#39;t decrement</span>
+<span class="quote">&gt; &gt; h-&gt;resv_huge_pages, which means that successful hugetlb_fault() returns without</span>
+<span class="quote">&gt; &gt; releasing the reserve count. As a result, subsequent hugetlb_fault() might fail</span>
+<span class="quote">&gt; &gt; despite that there are still free hugepages.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; This patch simply adds decrementing code on that code path.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I reproduced this problem when testing v4.3 kernel in the following situation:</span>
+<span class="quote">&gt; &gt; - the test machine/VM is a NUMA system,</span>
+<span class="quote">&gt; &gt; - hugepage overcommiting is enabled,</span>
+<span class="quote">&gt; &gt; - most of hugepages are allocated and there&#39;s only one free hugepage</span>
+<span class="quote">&gt; &gt;   which is on node 0 (for example),</span>
+<span class="quote">&gt; &gt; - another program, which calls set_mempolicy(MPOL_BIND) to bind itself to</span>
+<span class="quote">&gt; &gt;   node 1, tries to allocate a hugepage,</span>
+<span class="quote">&gt; &gt; - the allocation should fail but the reserve count is still hold.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Signed-off-by: Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;</span>
+<span class="quote">&gt; &gt; Cc: &lt;stable@vger.kernel.org&gt; [3.16+]</span>
+<span class="quote">&gt; &gt; ---</span>
+<span class="quote">&gt; &gt; - the reason why I set stable target to &quot;3.16+&quot; is that this patch can be</span>
+<span class="quote">&gt; &gt;   applied easily/automatically on these versions. But this bug seems to be</span>
+<span class="quote">&gt; &gt;   old one, so if you are interested in backporting to older kernels,</span>
+<span class="quote">&gt; &gt;   please let me know.</span>
+<span class="quote">&gt; &gt; ---</span>
+<span class="quote">&gt; &gt;  mm/hugetlb.c |    5 ++++-</span>
+<span class="quote">&gt; &gt;  1 files changed, 4 insertions(+), 1 deletions(-)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; diff --git v4.3/mm/hugetlb.c v4.3_patched/mm/hugetlb.c</span>
+<span class="quote">&gt; &gt; index 9cc7734..77c518c 100644</span>
+<span class="quote">&gt; &gt; --- v4.3/mm/hugetlb.c</span>
+<span class="quote">&gt; &gt; +++ v4.3_patched/mm/hugetlb.c</span>
+<span class="quote">&gt; &gt; @@ -1790,7 +1790,10 @@ struct page *alloc_huge_page(struct vm_area_struct *vma,</span>
+<span class="quote">&gt; &gt;  		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);</span>
+<span class="quote">&gt; &gt;  		if (!page)</span>
+<span class="quote">&gt; &gt;  			goto out_uncharge_cgroup;</span>
+<span class="quote">&gt; &gt; -</span>
+<span class="quote">&gt; &gt; +		if (!avoid_reserve &amp;&amp; vma_has_reserves(vma, gbl_chg)) {</span>
+<span class="quote">&gt; &gt; +			SetPagePrivate(page);</span>
+<span class="quote">&gt; &gt; +			h-&gt;resv_huge_pages--;</span>
+<span class="quote">&gt; &gt; +		}</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I am wondering if this patch was prepared against the next tree.</span>
+
+It&#39;s against 4.3.
+
+Here&#39;s the version I have, against current -linus:
+
+
+It needs a careful re-review and, preferably, retest please.
+
+Probably when Greg comes to merge this he&#39;ll hit problems and we&#39;ll
+need to provide him with the against-4.3 patch.
+
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=4407">Naoya Horiguchi</a> - Nov. 24, 2015, 5:03 a.m.</div>
+<pre class="content">
+On Fri, Nov 20, 2015 at 02:26:38PM -0800, Andrew Morton wrote:
+<span class="quote">&gt; On Fri, 20 Nov 2015 15:57:21 +0800 &quot;Hillf Danton&quot; &lt;hillf.zj@alibaba-inc.com&gt; wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; When dequeue_huge_page_vma() in alloc_huge_page() fails, we fall back to</span>
+<span class="quote">&gt; &gt; &gt; alloc_buddy_huge_page() to directly create a hugepage from the buddy allocator.</span>
+<span class="quote">&gt; &gt; &gt; In that case, however, if alloc_buddy_huge_page() succeeds we don&#39;t decrement</span>
+<span class="quote">&gt; &gt; &gt; h-&gt;resv_huge_pages, which means that successful hugetlb_fault() returns without</span>
+<span class="quote">&gt; &gt; &gt; releasing the reserve count. As a result, subsequent hugetlb_fault() might fail</span>
+<span class="quote">&gt; &gt; &gt; despite that there are still free hugepages.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; This patch simply adds decrementing code on that code path.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; I reproduced this problem when testing v4.3 kernel in the following situation:</span>
+<span class="quote">&gt; &gt; &gt; - the test machine/VM is a NUMA system,</span>
+<span class="quote">&gt; &gt; &gt; - hugepage overcommiting is enabled,</span>
+<span class="quote">&gt; &gt; &gt; - most of hugepages are allocated and there&#39;s only one free hugepage</span>
+<span class="quote">&gt; &gt; &gt;   which is on node 0 (for example),</span>
+<span class="quote">&gt; &gt; &gt; - another program, which calls set_mempolicy(MPOL_BIND) to bind itself to</span>
+<span class="quote">&gt; &gt; &gt;   node 1, tries to allocate a hugepage,</span>
+<span class="quote">&gt; &gt; &gt; - the allocation should fail but the reserve count is still hold.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Signed-off-by: Naoya Horiguchi &lt;n-horiguchi@ah.jp.nec.com&gt;</span>
+<span class="quote">&gt; &gt; &gt; Cc: &lt;stable@vger.kernel.org&gt; [3.16+]</span>
+<span class="quote">&gt; &gt; &gt; ---</span>
+<span class="quote">&gt; &gt; &gt; - the reason why I set stable target to &quot;3.16+&quot; is that this patch can be</span>
+<span class="quote">&gt; &gt; &gt;   applied easily/automatically on these versions. But this bug seems to be</span>
+<span class="quote">&gt; &gt; &gt;   old one, so if you are interested in backporting to older kernels,</span>
+<span class="quote">&gt; &gt; &gt;   please let me know.</span>
+<span class="quote">&gt; &gt; &gt; ---</span>
+<span class="quote">&gt; &gt; &gt;  mm/hugetlb.c |    5 ++++-</span>
+<span class="quote">&gt; &gt; &gt;  1 files changed, 4 insertions(+), 1 deletions(-)</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; diff --git v4.3/mm/hugetlb.c v4.3_patched/mm/hugetlb.c</span>
+<span class="quote">&gt; &gt; &gt; index 9cc7734..77c518c 100644</span>
+<span class="quote">&gt; &gt; &gt; --- v4.3/mm/hugetlb.c</span>
+<span class="quote">&gt; &gt; &gt; +++ v4.3_patched/mm/hugetlb.c</span>
+<span class="quote">&gt; &gt; &gt; @@ -1790,7 +1790,10 @@ struct page *alloc_huge_page(struct vm_area_struct *vma,</span>
+<span class="quote">&gt; &gt; &gt;  		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);</span>
+<span class="quote">&gt; &gt; &gt;  		if (!page)</span>
+<span class="quote">&gt; &gt; &gt;  			goto out_uncharge_cgroup;</span>
+<span class="quote">&gt; &gt; &gt; -</span>
+<span class="quote">&gt; &gt; &gt; +		if (!avoid_reserve &amp;&amp; vma_has_reserves(vma, gbl_chg)) {</span>
+<span class="quote">&gt; &gt; &gt; +			SetPagePrivate(page);</span>
+<span class="quote">&gt; &gt; &gt; +			h-&gt;resv_huge_pages--;</span>
+<span class="quote">&gt; &gt; &gt; +		}</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I am wondering if this patch was prepared against the next tree.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It&#39;s against 4.3.</span>
+
+Hi Hillf, Andrew,
+
+That&#39;s right, this was against 4.3, and I agree with the adjustment
+for next as done below.
+<span class="quote">
+&gt; Here&#39;s the version I have, against current -linus:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; --- a/mm/hugetlb.c~mm-hugetlb-fix-hugepage-memory-leak-caused-by-wrong-reserve-count</span>
+<span class="quote">&gt; +++ a/mm/hugetlb.c</span>
+<span class="quote">&gt; @@ -1886,7 +1886,10 @@ struct page *alloc_huge_page(struct vm_a</span>
+<span class="quote">&gt;  		page = __alloc_buddy_huge_page_with_mpol(h, vma, addr);</span>
+<span class="quote">&gt;  		if (!page)</span>
+<span class="quote">&gt;  			goto out_uncharge_cgroup;</span>
+<span class="quote">&gt; -</span>
+<span class="quote">&gt; +		if (!avoid_reserve &amp;&amp; vma_has_reserves(vma, gbl_chg)) {</span>
+<span class="quote">&gt; +			SetPagePrivate(page);</span>
+<span class="quote">&gt; +			h-&gt;resv_huge_pages--;</span>
+<span class="quote">&gt; +		}</span>
+<span class="quote">&gt;  		spin_lock(&amp;hugetlb_lock);</span>
+<span class="quote">&gt;  		list_move(&amp;page-&gt;lru, &amp;h-&gt;hugepage_activelist);</span>
+<span class="quote">&gt;  		/* Fall through */</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It needs a careful re-review and, preferably, retest please.</span>
+
+I retested and made sure that the fix works on next-20151123.
+
+Thanks,
+Naoya Horiguchi
+<span class="quote">
+&gt; Probably when Greg comes to merge this he&#39;ll hit problems and we&#39;ll</span>
+<span class="quote">&gt; need to provide him with the against-4.3 patch.</span>
+<span class="quote">&gt; --</span>
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- a/mm/hugetlb.c~mm-hugetlb-fix-hugepage-memory-leak-caused-by-wrong-reserve-count</span>
+<span class="p_header">+++ a/mm/hugetlb.c</span>
+<span class="p_chunk">@@ -1886,7 +1886,10 @@</span> <span class="p_context"> struct page *alloc_huge_page(struct vm_a</span>
+ 		page = __alloc_buddy_huge_page_with_mpol(h, vma, addr);
+ 		if (!page)
+ 			goto out_uncharge_cgroup;
+<span class="p_del">-</span>
+<span class="p_add">+		if (!avoid_reserve &amp;&amp; vma_has_reserves(vma, gbl_chg)) {</span>
+<span class="p_add">+			SetPagePrivate(page);</span>
+<span class="p_add">+			h-&gt;resv_huge_pages--;</span>
+<span class="p_add">+		}</span>
+ 		spin_lock(&amp;hugetlb_lock);
+ 		list_move(&amp;page-&gt;lru, &amp;h-&gt;hugepage_activelist);
+ 		/* Fall through */
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

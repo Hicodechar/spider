@@ -1,0 +1,611 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v2] hugetlbfs: check for pgoff value overflow - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v2] hugetlbfs: check for pgoff value overflow</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>March 8, 2018, 9:05 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20180308210502.15952-1-mike.kravetz@oracle.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10269229/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10269229/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10269229/">/patch/10269229/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	B2F226016D for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  8 Mar 2018 21:10:24 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id A555329B7E
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  8 Mar 2018 21:10:24 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 9A2B329B77; Thu,  8 Mar 2018 21:10:24 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-7.0 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,RCVD_IN_DNSWL_HI,UNPARSEABLE_RELAY
+	autolearn=unavailable version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 11FD029B6D
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  8 Mar 2018 21:10:23 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751218AbeCHVKU (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 8 Mar 2018 16:10:20 -0500
+Received: from userp2130.oracle.com ([156.151.31.86]:36380 &quot;EHLO
+	userp2130.oracle.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1750912AbeCHVKS (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 8 Mar 2018 16:10:18 -0500
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.22/8.16.0.22) with SMTP id
+	w28L7D1e125765; Thu, 8 Mar 2018 21:10:10 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com;
+	h=from : to : cc :
+	subject : date : message-id : in-reply-to : references;
+	s=corp-2017-10-26; 
+	bh=zBU1XsWgfoqtLwohs663fzPirzz8qCqxuzBG50K5ghA=;
+	b=BIkuNTeLigRQg6kO0gRZ9z9PpY1mkkhppOs2HjlYC9CZMif6ivJSpkDyhhJaUn8at1Cm
+	esLmZqjb8vt/4j4MzlDals5N0Y8MUSI0t++1CQnEyEY4hsAL17D7Hecv2Q6q0jyUCa/t
+	Z343ofcPOtpl1XVDPeL/BSuLJmjeVoNK4QevAKz2rM3XAq04SKAzF8RBEA5Sq6vYhbzv
+	AygfCLQGMMIiVzp8eKUua7WgyRTemVq3DRqcFGa30nGrS73LfY13NqCbvWC2BAEsn2tY
+	9Dmpj2TyKjVG+IL6n2ROwY1EWvu/w6b5Izf6omc43wgY+QmXpjzU7Q3wCq+jZlSwz1gP
+	Wg== 
+Received: from aserv0021.oracle.com (aserv0021.oracle.com [141.146.126.233])
+	by userp2130.oracle.com with ESMTP id 2gkcq301fr-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256
+	verify=OK); Thu, 08 Mar 2018 21:10:09 +0000
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by aserv0021.oracle.com (8.14.4/8.14.4) with ESMTP id w28L58qP017714
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256
+	verify=OK); Thu, 8 Mar 2018 21:05:08 GMT
+Received: from abhmp0005.oracle.com (abhmp0005.oracle.com [141.146.116.11])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id
+	w28L57rV007551; Thu, 8 Mar 2018 21:05:07 GMT
+Received: from monkey.oracle.com (/98.246.252.205)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 08 Mar 2018 13:05:07 -0800
+From: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	bugzilla-daemon@bugzilla.kernel.org
+Cc: Michal Hocko &lt;mhocko@kernel.org&gt;,
+	&quot;Kirill A . Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;,
+	Nic Losby &lt;blurbdust@gmail.com&gt;, Yisheng Xie &lt;xieyisheng1@huawei.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Mike Kravetz &lt;mike.kravetz@oracle.com&gt;, stable@vger.kernel.org
+Subject: [PATCH v2] hugetlbfs: check for pgoff value overflow
+Date: Thu,  8 Mar 2018 13:05:02 -0800
+Message-Id: &lt;20180308210502.15952-1-mike.kravetz@oracle.com&gt;
+X-Mailer: git-send-email 2.13.6
+In-Reply-To: &lt;20180306133135.4dc344e478d98f0e29f47698@linux-foundation.org&gt;
+References: &lt;20180306133135.4dc344e478d98f0e29f47698@linux-foundation.org&gt;
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=8826
+	signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0
+	suspectscore=0 malwarescore=0
+	phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+	adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+	engine=8.0.1-1711220000 definitions=main-1803080228
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - March 8, 2018, 9:05 p.m.</div>
+<pre class="content">
+A vma with vm_pgoff large enough to overflow a loff_t type when
+converted to a byte offset can be passed via the remap_file_pages
+system call.  The hugetlbfs mmap routine uses the byte offset to
+calculate reservations and file size.
+
+A sequence such as:
+  mmap(0x20a00000, 0x600000, 0, 0x66033, -1, 0);
+  remap_file_pages(0x20a00000, 0x600000, 0, 0x20000000000000, 0);
+will result in the following when task exits/file closed,
+  kernel BUG at mm/hugetlb.c:749!
+Call Trace:
+  hugetlbfs_evict_inode+0x2f/0x40
+  evict+0xcb/0x190
+  __dentry_kill+0xcb/0x150
+  __fput+0x164/0x1e0
+  task_work_run+0x84/0xa0
+  exit_to_usermode_loop+0x7d/0x80
+  do_syscall_64+0x18b/0x190
+  entry_SYSCALL_64_after_hwframe+0x3d/0xa2
+
+The overflowed pgoff value causes hugetlbfs to try to set up a
+mapping with a negative range (end &lt; start) that leaves invalid
+state which causes the BUG.
+
+The previous overflow fix to this code was incomplete and did not
+take the remap_file_pages system call into account.
+
+Fixes: 045c7a3f53d9 (&quot;hugetlbfs: fix offset overflow in hugetlbfs mmap&quot;)
+Cc: &lt;stable@vger.kernel.org&gt;
+Reported-by: Nic Losby &lt;blurbdust@gmail.com&gt;
+<span class="signed-off-by">Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+---
+Changes in v2
+  * Use bitmask for overflow check as suggested by Yisheng Xie
+  * Add explicit (from &gt; to) check when setting up reservations
+  * Cc stable
+
+ fs/hugetlbfs/inode.c | 11 ++++++++---
+ mm/hugetlb.c         |  6 ++++++
+ 2 files changed, 14 insertions(+), 3 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41">Andrew Morton</a> - March 8, 2018, 10:15 p.m.</div>
+<pre class="content">
+On Thu,  8 Mar 2018 13:05:02 -0800 Mike Kravetz &lt;mike.kravetz@oracle.com&gt; wrote:
+<span class="quote">
+&gt; A vma with vm_pgoff large enough to overflow a loff_t type when</span>
+<span class="quote">&gt; converted to a byte offset can be passed via the remap_file_pages</span>
+<span class="quote">&gt; system call.  The hugetlbfs mmap routine uses the byte offset to</span>
+<span class="quote">&gt; calculate reservations and file size.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; A sequence such as:</span>
+<span class="quote">&gt;   mmap(0x20a00000, 0x600000, 0, 0x66033, -1, 0);</span>
+<span class="quote">&gt;   remap_file_pages(0x20a00000, 0x600000, 0, 0x20000000000000, 0);</span>
+<span class="quote">&gt; will result in the following when task exits/file closed,</span>
+<span class="quote">&gt;   kernel BUG at mm/hugetlb.c:749!</span>
+<span class="quote">&gt; Call Trace:</span>
+<span class="quote">&gt;   hugetlbfs_evict_inode+0x2f/0x40</span>
+<span class="quote">&gt;   evict+0xcb/0x190</span>
+<span class="quote">&gt;   __dentry_kill+0xcb/0x150</span>
+<span class="quote">&gt;   __fput+0x164/0x1e0</span>
+<span class="quote">&gt;   task_work_run+0x84/0xa0</span>
+<span class="quote">&gt;   exit_to_usermode_loop+0x7d/0x80</span>
+<span class="quote">&gt;   do_syscall_64+0x18b/0x190</span>
+<span class="quote">&gt;   entry_SYSCALL_64_after_hwframe+0x3d/0xa2</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The overflowed pgoff value causes hugetlbfs to try to set up a</span>
+<span class="quote">&gt; mapping with a negative range (end &lt; start) that leaves invalid</span>
+<span class="quote">&gt; state which causes the BUG.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The previous overflow fix to this code was incomplete and did not</span>
+<span class="quote">&gt; take the remap_file_pages system call into account.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; --- a/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; +++ b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; @@ -111,6 +111,7 @@ static void huge_pagevec_release(struct pagevec *pvec)</span>
+<span class="quote">&gt;  static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	struct inode *inode = file_inode(file);</span>
+<span class="quote">&gt; +	unsigned long ovfl_mask;</span>
+<span class="quote">&gt;  	loff_t len, vma_len;</span>
+<span class="quote">&gt;  	int ret;</span>
+<span class="quote">&gt;  	struct hstate *h = hstate_file(file);</span>
+<span class="quote">&gt; @@ -127,12 +128,16 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)</span>
+<span class="quote">&gt;  	vma-&gt;vm_ops = &amp;hugetlb_vm_ops;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/*</span>
+<span class="quote">&gt; -	 * Offset passed to mmap (before page shift) could have been</span>
+<span class="quote">&gt; -	 * negative when represented as a (l)off_t.</span>
+<span class="quote">&gt; +	 * page based offset in vm_pgoff could be sufficiently large to</span>
+<span class="quote">&gt; +	 * overflow a (l)off_t when converted to byte offset.</span>
+<span class="quote">&gt;  	 */</span>
+<span class="quote">&gt; -	if (((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT) &lt; 0)</span>
+<span class="quote">&gt; +	ovfl_mask = (1UL &lt;&lt; (PAGE_SHIFT + 1)) - 1;</span>
+<span class="quote">&gt; +	ovfl_mask &lt;&lt;= ((sizeof(unsigned long) * BITS_PER_BYTE) -</span>
+<span class="quote">&gt; +		       (PAGE_SHIFT + 1));</span>
+
+That&#39;s a compile-time constant.  The compiler will indeed generate an
+immediate load, but I think it would be better to make the code look
+more like we know that it&#39;s a constant, if you get what I mean. 
+Something like
+
+/*
+ * If a pgoff_t is to be converted to a byte index, this is the max value it
+ * can have to avoid overflow in that conversion.
+ */
+#define PGOFF_T_MAX	&lt;long string of crap&gt;
+
+And I bet that this constant could be used elsewhere - surely it&#39;s a
+very common thing to be checking for.
+
+
+Also, the expression seems rather complicated.  Why are we adding 1 to
+PAGE_SHIFT?  Isn&#39;t there a logical way of using PAGE_MASK?
+
+The resulting constant is 0xfff8000000000000 on 64-bit.  We could just
+use along the lines of
+
+	1UL &lt;&lt; (BITS_PER_LONG - PAGE_SHIFT - 1)
+
+But why the -1?  We should be able to handle a pgoff_t of
+0xfff0000000000000 in this code?
+
+
+Also, we later to
+
+	len = vma_len + ((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT);
+	/* check for overflow */
+	if (len &lt; vma_len)
+		return -EINVAL;
+
+which is ungainly: even if we passed the PGOFF_T_MAX test, there can
+still be an overflow which we still must check for.  Is that avoidable?
+Probably not...
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - March 8, 2018, 11:37 p.m.</div>
+<pre class="content">
+On 03/08/2018 02:15 PM, Andrew Morton wrote:
+<span class="quote">&gt; On Thu,  8 Mar 2018 13:05:02 -0800 Mike Kravetz &lt;mike.kravetz@oracle.com&gt; wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; A vma with vm_pgoff large enough to overflow a loff_t type when</span>
+<span class="quote">&gt;&gt; converted to a byte offset can be passed via the remap_file_pages</span>
+<span class="quote">&gt;&gt; system call.  The hugetlbfs mmap routine uses the byte offset to</span>
+<span class="quote">&gt;&gt; calculate reservations and file size.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; A sequence such as:</span>
+<span class="quote">&gt;&gt;   mmap(0x20a00000, 0x600000, 0, 0x66033, -1, 0);</span>
+<span class="quote">&gt;&gt;   remap_file_pages(0x20a00000, 0x600000, 0, 0x20000000000000, 0);</span>
+<span class="quote">&gt;&gt; will result in the following when task exits/file closed,</span>
+<span class="quote">&gt;&gt;   kernel BUG at mm/hugetlb.c:749!</span>
+<span class="quote">&gt;&gt; Call Trace:</span>
+<span class="quote">&gt;&gt;   hugetlbfs_evict_inode+0x2f/0x40</span>
+<span class="quote">&gt;&gt;   evict+0xcb/0x190</span>
+<span class="quote">&gt;&gt;   __dentry_kill+0xcb/0x150</span>
+<span class="quote">&gt;&gt;   __fput+0x164/0x1e0</span>
+<span class="quote">&gt;&gt;   task_work_run+0x84/0xa0</span>
+<span class="quote">&gt;&gt;   exit_to_usermode_loop+0x7d/0x80</span>
+<span class="quote">&gt;&gt;   do_syscall_64+0x18b/0x190</span>
+<span class="quote">&gt;&gt;   entry_SYSCALL_64_after_hwframe+0x3d/0xa2</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; The overflowed pgoff value causes hugetlbfs to try to set up a</span>
+<span class="quote">&gt;&gt; mapping with a negative range (end &lt; start) that leaves invalid</span>
+<span class="quote">&gt;&gt; state which causes the BUG.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; The previous overflow fix to this code was incomplete and did not</span>
+<span class="quote">&gt;&gt; take the remap_file_pages system call into account.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; --- a/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt; +++ b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt; @@ -111,6 +111,7 @@ static void huge_pagevec_release(struct pagevec *pvec)</span>
+<span class="quote">&gt;&gt;  static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)</span>
+<span class="quote">&gt;&gt;  {</span>
+<span class="quote">&gt;&gt;  	struct inode *inode = file_inode(file);</span>
+<span class="quote">&gt;&gt; +	unsigned long ovfl_mask;</span>
+<span class="quote">&gt;&gt;  	loff_t len, vma_len;</span>
+<span class="quote">&gt;&gt;  	int ret;</span>
+<span class="quote">&gt;&gt;  	struct hstate *h = hstate_file(file);</span>
+<span class="quote">&gt;&gt; @@ -127,12 +128,16 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)</span>
+<span class="quote">&gt;&gt;  	vma-&gt;vm_ops = &amp;hugetlb_vm_ops;</span>
+<span class="quote">&gt;&gt;  </span>
+<span class="quote">&gt;&gt;  	/*</span>
+<span class="quote">&gt;&gt; -	 * Offset passed to mmap (before page shift) could have been</span>
+<span class="quote">&gt;&gt; -	 * negative when represented as a (l)off_t.</span>
+<span class="quote">&gt;&gt; +	 * page based offset in vm_pgoff could be sufficiently large to</span>
+<span class="quote">&gt;&gt; +	 * overflow a (l)off_t when converted to byte offset.</span>
+<span class="quote">&gt;&gt;  	 */</span>
+<span class="quote">&gt;&gt; -	if (((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT) &lt; 0)</span>
+<span class="quote">&gt;&gt; +	ovfl_mask = (1UL &lt;&lt; (PAGE_SHIFT + 1)) - 1;</span>
+<span class="quote">&gt;&gt; +	ovfl_mask &lt;&lt;= ((sizeof(unsigned long) * BITS_PER_BYTE) -</span>
+<span class="quote">&gt;&gt; +		       (PAGE_SHIFT + 1));</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; That&#39;s a compile-time constant.  The compiler will indeed generate an</span>
+<span class="quote">&gt; immediate load, but I think it would be better to make the code look</span>
+<span class="quote">&gt; more like we know that it&#39;s a constant, if you get what I mean. </span>
+<span class="quote">&gt; Something like</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; /*</span>
+<span class="quote">&gt;  * If a pgoff_t is to be converted to a byte index, this is the max value it</span>
+<span class="quote">&gt;  * can have to avoid overflow in that conversion.</span>
+<span class="quote">&gt;  */</span>
+<span class="quote">&gt; #define PGOFF_T_MAX	&lt;long string of crap&gt;</span>
+
+Ok
+<span class="quote">
+&gt; And I bet that this constant could be used elsewhere - surely it&#39;s a</span>
+<span class="quote">&gt; very common thing to be checking for.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Also, the expression seems rather complicated.  Why are we adding 1 to</span>
+<span class="quote">&gt; PAGE_SHIFT?  Isn&#39;t there a logical way of using PAGE_MASK?</span>
+
+The + 1 is there because this value will eventually be converted to
+a loff_t which is signed.  So, we need to take that sign bit into
+account or we could end up with a negative value.
+
+For PAGE_SHIFT == 12, PAGE_MASK is 0xfffffffffffff000.  Our target
+mask is  0xfff8000000000000 (for the sign bit).  So, we could do
+PAGE_MASK &lt;&lt; (BITS_PER_LONG - (2 * PAGE_SHIFT) - 1)
+
+This legacy hugetlbfs code may be a little different than other areas
+in the use of loff_t.  When doing some previous work in this area, I
+did not find enough common used to make this more general purpose.  See,
+https://lkml.org/lkml/2017/4/12/793
+<span class="quote">
+&gt; The resulting constant is 0xfff8000000000000 on 64-bit.  We could just</span>
+<span class="quote">&gt; use along the lines of</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 	1UL &lt;&lt; (BITS_PER_LONG - PAGE_SHIFT - 1)</span>
+
+Ah yes, BITS_PER_LONG is better than (sizeof(unsigned long) * BITS_PER_BYTE
+<span class="quote">
+&gt; But why the -1?  We should be able to handle a pgoff_t of</span>
+<span class="quote">&gt; 0xfff0000000000000 in this code?</span>
+
+I&#39;m not exactly sure what you are asking/suggesting here and in the line
+above.  It is because of the conversion to a signed value that we have to
+go with 0xfff8000000000000 instead of 0xfff0000000000000.
+
+Here are a couple options for computing the mask.  I changed the name
+you suggested to make it more obvious that the mask is being used to
+check for loff_t overflow.
+
+If we want to explicitly comptue the mask as in code above.
+#define PGOFF_LOFFT_MAX \
+	(((1UL &lt;&lt; (PAGE_SHIFT + 1)) - 1) &lt;&lt;  (BITS_PER_LONG - (PAGE_SHIFT + 1)))
+
+Or, we use PAGE_MASK
+#define PGOFF_LOFFT_MAX (PAGE_MASK &lt;&lt; (BITS_PER_LONG - (2 * PAGE_SHIFT) - 1))
+
+In either case, we need a big comment explaining the mask and
+how we have that extra bit +/- 1 because the offset will be converted
+to a signed value.
+<span class="quote">	
+&gt; Also, we later to</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; 	len = vma_len + ((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT);</span>
+<span class="quote">&gt; 	/* check for overflow */</span>
+<span class="quote">&gt; 	if (len &lt; vma_len)</span>
+<span class="quote">&gt; 		return -EINVAL;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; which is ungainly: even if we passed the PGOFF_T_MAX test, there can</span>
+<span class="quote">&gt; still be an overflow which we still must check for.  Is that avoidable?</span>
+<span class="quote">&gt; Probably not...</span>
+
+Yes, it is required.  That check takes into account the length argument
+which is added to page offset.  So, yes you can pass the first check and
+fail this one.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41">Andrew Morton</a> - March 8, 2018, 11:53 p.m.</div>
+<pre class="content">
+On Thu, 8 Mar 2018 15:37:57 -0800 Mike Kravetz &lt;mike.kravetz@oracle.com&gt; wrote:
+<span class="quote">
+&gt; Here are a couple options for computing the mask.  I changed the name</span>
+<span class="quote">&gt; you suggested to make it more obvious that the mask is being used to</span>
+<span class="quote">&gt; check for loff_t overflow.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If we want to explicitly comptue the mask as in code above.</span>
+<span class="quote">&gt; #define PGOFF_LOFFT_MAX \</span>
+<span class="quote">&gt; 	(((1UL &lt;&lt; (PAGE_SHIFT + 1)) - 1) &lt;&lt;  (BITS_PER_LONG - (PAGE_SHIFT + 1)))</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Or, we use PAGE_MASK</span>
+<span class="quote">&gt; #define PGOFF_LOFFT_MAX (PAGE_MASK &lt;&lt; (BITS_PER_LONG - (2 * PAGE_SHIFT) - 1))</span>
+
+Sounds good.
+<span class="quote">
+&gt; In either case, we need a big comment explaining the mask and</span>
+<span class="quote">&gt; how we have that extra bit +/- 1 because the offset will be converted</span>
+<span class="quote">&gt; to a signed value.</span>
+
+Yup.
+<span class="quote">
+&gt; &gt; Also, we later to</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; 	len = vma_len + ((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT);</span>
+<span class="quote">&gt; &gt; 	/* check for overflow */</span>
+<span class="quote">&gt; &gt; 	if (len &lt; vma_len)</span>
+<span class="quote">&gt; &gt; 		return -EINVAL;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; which is ungainly: even if we passed the PGOFF_T_MAX test, there can</span>
+<span class="quote">&gt; &gt; still be an overflow which we still must check for.  Is that avoidable?</span>
+<span class="quote">&gt; &gt; Probably not...</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yes, it is required.  That check takes into account the length argument</span>
+<span class="quote">&gt; which is added to page offset.  So, yes you can pass the first check and</span>
+<span class="quote">&gt; fail this one.</span>
+
+Well I was sort of wondering if both checks could be done in a single
+operation, but I guess not.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="p_header">index 8fe1b0aa2896..dafffa6affae 100644</span>
+<span class="p_header">--- a/fs/hugetlbfs/inode.c</span>
+<span class="p_header">+++ b/fs/hugetlbfs/inode.c</span>
+<span class="p_chunk">@@ -111,6 +111,7 @@</span> <span class="p_context"> static void huge_pagevec_release(struct pagevec *pvec)</span>
+ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
+ {
+ 	struct inode *inode = file_inode(file);
+<span class="p_add">+	unsigned long ovfl_mask;</span>
+ 	loff_t len, vma_len;
+ 	int ret;
+ 	struct hstate *h = hstate_file(file);
+<span class="p_chunk">@@ -127,12 +128,16 @@</span> <span class="p_context"> static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)</span>
+ 	vma-&gt;vm_ops = &amp;hugetlb_vm_ops;
+ 
+ 	/*
+<span class="p_del">-	 * Offset passed to mmap (before page shift) could have been</span>
+<span class="p_del">-	 * negative when represented as a (l)off_t.</span>
+<span class="p_add">+	 * page based offset in vm_pgoff could be sufficiently large to</span>
+<span class="p_add">+	 * overflow a (l)off_t when converted to byte offset.</span>
+ 	 */
+<span class="p_del">-	if (((loff_t)vma-&gt;vm_pgoff &lt;&lt; PAGE_SHIFT) &lt; 0)</span>
+<span class="p_add">+	ovfl_mask = (1UL &lt;&lt; (PAGE_SHIFT + 1)) - 1;</span>
+<span class="p_add">+	ovfl_mask &lt;&lt;= ((sizeof(unsigned long) * BITS_PER_BYTE) -</span>
+<span class="p_add">+		       (PAGE_SHIFT + 1));</span>
+<span class="p_add">+	if (vma-&gt;vm_pgoff &amp; ovfl_mask)</span>
+ 		return -EINVAL;
+ 
+<span class="p_add">+	/* must be huge page aligned */</span>
+ 	if (vma-&gt;vm_pgoff &amp; (~huge_page_mask(h) &gt;&gt; PAGE_SHIFT))
+ 		return -EINVAL;
+ 
+<span class="p_header">diff --git a/mm/hugetlb.c b/mm/hugetlb.c</span>
+<span class="p_header">index 7c204e3d132b..8eeade0a0b7a 100644</span>
+<span class="p_header">--- a/mm/hugetlb.c</span>
+<span class="p_header">+++ b/mm/hugetlb.c</span>
+<span class="p_chunk">@@ -4374,6 +4374,12 @@</span> <span class="p_context"> int hugetlb_reserve_pages(struct inode *inode,</span>
+ 	struct resv_map *resv_map;
+ 	long gbl_reserve;
+ 
+<span class="p_add">+	/* This should never happen */</span>
+<span class="p_add">+	if (from &gt; to) {</span>
+<span class="p_add">+		VM_WARN(1, &quot;%s called with a negative range\n&quot;, __func__);</span>
+<span class="p_add">+		return -EINVAL;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+ 	/*
+ 	 * Only apply hugepage reservation if asked. At fault time, an
+ 	 * attempt will be made for VM_NORESERVE to allocate a page
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

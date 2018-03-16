@@ -1,0 +1,1532 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,3/3] x86: Create dma_mark_dirty to dirty pages used for DMA by VM guest - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,3/3] x86: Create dma_mark_dirty to dirty pages used for DMA by VM guest</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=145631">Alexander Duyck</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Dec. 13, 2015, 9:28 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20151213212831.5410.84365.stgit@localhost.localdomain&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7839781/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7839781/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7839781/">/patch/7839781/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork1.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork1.web.kernel.org (Postfix) with ESMTP id 704B79F54F
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sun, 13 Dec 2015 21:28:44 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 5575E203DF
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sun, 13 Dec 2015 21:28:43 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 05C54203E5
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sun, 13 Dec 2015 21:28:42 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S932163AbbLMV2i (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Sun, 13 Dec 2015 16:28:38 -0500
+Received: from mail-pa0-f51.google.com ([209.85.220.51]:33568 &quot;EHLO
+	mail-pa0-f51.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S932137AbbLMV2e (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Sun, 13 Dec 2015 16:28:34 -0500
+Received: by pabur14 with SMTP id ur14so93248578pab.0
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Sun, 13 Dec 2015 13:28:33 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=mirantis.com; s=google;
+	h=subject:from:to:cc:date:message-id:in-reply-to:references
+	:user-agent:mime-version:content-type:content-transfer-encoding;
+	bh=qweEA9bKmXjUFbuydb0JGkyYLgKcvID0uXPQX24ziEU=;
+	b=e9jKxI39BQLHOHmIL2TH0ONp1YDd1PpgrBe3HYObz/+n5NC1jYNzcvPmrePxnI/bEs
+	+5XcEUSYHBW9EPqLxaqO1IriYq0sGQbVwOjKCKP7RnF2c8iGCFLzB4hMhcZPt0Q6hYv8
+	h1qTOjPRK59mD+2CdH9MiOsu0+vAtAvyhZdlw=
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20130820;
+	h=x-gm-message-state:subject:from:to:cc:date:message-id:in-reply-to
+	:references:user-agent:mime-version:content-type
+	:content-transfer-encoding;
+	bh=qweEA9bKmXjUFbuydb0JGkyYLgKcvID0uXPQX24ziEU=;
+	b=NLrR14wX53Ssq4sLBWfr9+u6QEQdx3J4jVJINKmIc5kTyP0wzZsXCKsN86LdnWKJJm
+	GUYkzwVfUrH0cymW3zfHDzVPId9fFV/PUxb3QMIdhM0xFzd1tPTPhrYdXsWwn69qaJjk
+	gjcHin8Y5mjE9VF9fQkmq7DAvqkWAnnXD5PioBsv7alcAm1P1EiOYn7rLYS3QBlgrqRB
+	tE6JJEIDBeUktKeF8yViSkk20G6ajnVy+smDC2cLBmRR06UbxRuKcBxiqNHib/d/RQ2j
+	S2Ti7exyf/kmgGjve3moLwOLyOnDbk6sQs5kycddePWSbzKi01FGYMYZkxlbpeY25TB7
+	uxwQ==
+X-Gm-Message-State: ALoCoQmgjoL7J0S0w7A5shj7rA39nZmu5Vje2kuP2I+Au89I9C5cQNRf1CwpDeGsL/ynLAY6BTR3+zh8sb22pj9/Fa5cXMlGfg==
+X-Received: by 10.66.164.234 with SMTP id yt10mr40886893pab.11.1450042113125;
+	Sun, 13 Dec 2015 13:28:33 -0800 (PST)
+Received: from localhost.localdomain
+	(static-50-53-21-5.bvtn.or.frontiernet.net. [50.53.21.5])
+	by smtp.gmail.com with ESMTPSA id
+	r26sm37830152pfa.45.2015.12.13.13.28.31
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Sun, 13 Dec 2015 13:28:32 -0800 (PST)
+Subject: [RFC PATCH 3/3] x86: Create dma_mark_dirty to dirty pages used for
+	DMA by VM guest
+From: Alexander Duyck &lt;aduyck@mirantis.com&gt;
+To: kvm@vger.kernel.org, linux-pci@vger.kernel.org, x86@kernel.org,
+	linux-kernel@vger.kernel.org, alexander.duyck@gmail.com,
+	qemu-devel@nongnu.org
+Cc: tianyu.lan@intel.com, yang.zhang.wz@gmail.com, mst@redhat.com,
+	konrad.wilk@oracle.com, dgilbert@redhat.com, agraf@suse.de,
+	alex.williamson@redhat.com
+Date: Sun, 13 Dec 2015 13:28:31 -0800
+Message-ID: &lt;20151213212831.5410.84365.stgit@localhost.localdomain&gt;
+In-Reply-To: &lt;20151213212557.5410.48577.stgit@localhost.localdomain&gt;
+References: &lt;20151213212557.5410.48577.stgit@localhost.localdomain&gt;
+User-Agent: StGit/0.17.1-dirty
+MIME-Version: 1.0
+Content-Type: text/plain; charset=&quot;utf-8&quot;
+Content-Transfer-Encoding: 7bit
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.8 required=5.0 tests=BAYES_00,DKIM_SIGNED,
+	RCVD_IN_DNSWL_HI,T_DKIM_INVALID,T_RP_MATCHES_RCVD,UNPARSEABLE_RELAY
+	autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=145631">Alexander Duyck</a> - Dec. 13, 2015, 9:28 p.m.</div>
+<pre class="content">
+This patch is meant to provide the guest with a way of flagging DMA pages
+as being dirty to the host when using a direct-assign device within a
+guest.  The advantage to this approach is that it is fairly simple, however
+It currently has a singificant impact on device performance in all the
+scenerios where it won&#39;t be needed.
+
+As such this is really meant only as a proof of concept and to get the ball
+rolling in terms of figuring out how best to approach the issue of dirty
+page tracking for a guest that is using a direct assigned device.  In
+addition with just this patch it should be possible to modify current
+migration approaches so that instead of having to hot-remove the device
+before starting the migration this can instead be delayed until the period
+before the final stop and copy.
+<span class="signed-off-by">
+Signed-off-by: Alexander Duyck &lt;aduyck@mirantis.com&gt;</span>
+---
+ arch/arm/include/asm/dma-mapping.h       |    3 ++-
+ arch/arm64/include/asm/dma-mapping.h     |    5 ++---
+ arch/ia64/include/asm/dma.h              |    1 +
+ arch/mips/include/asm/dma-mapping.h      |    1 +
+ arch/powerpc/include/asm/swiotlb.h       |    1 +
+ arch/tile/include/asm/dma-mapping.h      |    1 +
+ arch/unicore32/include/asm/dma-mapping.h |    1 +
+ arch/x86/Kconfig                         |   11 +++++++++++
+ arch/x86/include/asm/swiotlb.h           |   26 ++++++++++++++++++++++++++
+ drivers/xen/swiotlb-xen.c                |    6 ++++++
+ lib/swiotlb.c                            |    6 ++++++
+ 11 files changed, 58 insertions(+), 4 deletions(-)
+
+
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=1984">Michael S. Tsirkin</a> - Dec. 14, 2015, 2 p.m.</div>
+<pre class="content">
+On Sun, Dec 13, 2015 at 01:28:31PM -0800, Alexander Duyck wrote:
+<span class="quote">&gt; This patch is meant to provide the guest with a way of flagging DMA pages</span>
+<span class="quote">&gt; as being dirty to the host when using a direct-assign device within a</span>
+<span class="quote">&gt; guest.  The advantage to this approach is that it is fairly simple, however</span>
+<span class="quote">&gt; It currently has a singificant impact on device performance in all the</span>
+<span class="quote">&gt; scenerios where it won&#39;t be needed.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; As such this is really meant only as a proof of concept and to get the ball</span>
+<span class="quote">&gt; rolling in terms of figuring out how best to approach the issue of dirty</span>
+<span class="quote">&gt; page tracking for a guest that is using a direct assigned device.  In</span>
+<span class="quote">&gt; addition with just this patch it should be possible to modify current</span>
+<span class="quote">&gt; migration approaches so that instead of having to hot-remove the device</span>
+<span class="quote">&gt; before starting the migration this can instead be delayed until the period</span>
+<span class="quote">&gt; before the final stop and copy.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Alexander Duyck &lt;aduyck@mirantis.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  arch/arm/include/asm/dma-mapping.h       |    3 ++-</span>
+<span class="quote">&gt;  arch/arm64/include/asm/dma-mapping.h     |    5 ++---</span>
+<span class="quote">&gt;  arch/ia64/include/asm/dma.h              |    1 +</span>
+<span class="quote">&gt;  arch/mips/include/asm/dma-mapping.h      |    1 +</span>
+<span class="quote">&gt;  arch/powerpc/include/asm/swiotlb.h       |    1 +</span>
+<span class="quote">&gt;  arch/tile/include/asm/dma-mapping.h      |    1 +</span>
+<span class="quote">&gt;  arch/unicore32/include/asm/dma-mapping.h |    1 +</span>
+<span class="quote">&gt;  arch/x86/Kconfig                         |   11 +++++++++++</span>
+<span class="quote">&gt;  arch/x86/include/asm/swiotlb.h           |   26 ++++++++++++++++++++++++++</span>
+<span class="quote">&gt;  drivers/xen/swiotlb-xen.c                |    6 ++++++</span>
+<span class="quote">&gt;  lib/swiotlb.c                            |    6 ++++++</span>
+<span class="quote">&gt;  11 files changed, 58 insertions(+), 4 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/arch/arm/include/asm/dma-mapping.h b/arch/arm/include/asm/dma-mapping.h</span>
+<span class="quote">&gt; index ccb3aa64640d..1962d7b471c7 100644</span>
+<span class="quote">&gt; --- a/arch/arm/include/asm/dma-mapping.h</span>
+<span class="quote">&gt; +++ b/arch/arm/include/asm/dma-mapping.h</span>
+<span class="quote">&gt; @@ -167,7 +167,8 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)</span>
+<span class="quote">&gt;  	return 1;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -static inline void dma_mark_clean(void *addr, size_t size) { }</span>
+<span class="quote">&gt; +static inline void dma_mark_clean(void *addr, size_t size) {}</span>
+<span class="quote">&gt; +static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  extern int arm_dma_set_mask(struct device *dev, u64 dma_mask);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; diff --git a/arch/arm64/include/asm/dma-mapping.h b/arch/arm64/include/asm/dma-mapping.h</span>
+<span class="quote">&gt; index 61e08f360e31..8d24fe11c8a3 100644</span>
+<span class="quote">&gt; --- a/arch/arm64/include/asm/dma-mapping.h</span>
+<span class="quote">&gt; +++ b/arch/arm64/include/asm/dma-mapping.h</span>
+<span class="quote">&gt; @@ -84,9 +84,8 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)</span>
+<span class="quote">&gt;  	return addr + size - 1 &lt;= *dev-&gt;dma_mask;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -static inline void dma_mark_clean(void *addr, size_t size)</span>
+<span class="quote">&gt; -{</span>
+<span class="quote">&gt; -}</span>
+<span class="quote">&gt; +static inline void dma_mark_clean(void *addr, size_t size) {}</span>
+<span class="quote">&gt; +static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  #endif	/* __KERNEL__ */</span>
+<span class="quote">&gt;  #endif	/* __ASM_DMA_MAPPING_H */</span>
+<span class="quote">&gt; diff --git a/arch/ia64/include/asm/dma.h b/arch/ia64/include/asm/dma.h</span>
+<span class="quote">&gt; index 4d97f60f1ef5..d92ebeb2758e 100644</span>
+<span class="quote">&gt; --- a/arch/ia64/include/asm/dma.h</span>
+<span class="quote">&gt; +++ b/arch/ia64/include/asm/dma.h</span>
+<span class="quote">&gt; @@ -20,5 +20,6 @@ extern unsigned long MAX_DMA_ADDRESS;</span>
+<span class="quote">&gt;  #define free_dma(x)</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  void dma_mark_clean(void *addr, size_t size);</span>
+<span class="quote">&gt; +static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  #endif /* _ASM_IA64_DMA_H */</span>
+<span class="quote">&gt; diff --git a/arch/mips/include/asm/dma-mapping.h b/arch/mips/include/asm/dma-mapping.h</span>
+<span class="quote">&gt; index e604f760c4a0..567f6e03e337 100644</span>
+<span class="quote">&gt; --- a/arch/mips/include/asm/dma-mapping.h</span>
+<span class="quote">&gt; +++ b/arch/mips/include/asm/dma-mapping.h</span>
+<span class="quote">&gt; @@ -28,6 +28,7 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static inline void dma_mark_clean(void *addr, size_t size) {}</span>
+<span class="quote">&gt; +static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  #include &lt;asm-generic/dma-mapping-common.h&gt;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; diff --git a/arch/powerpc/include/asm/swiotlb.h b/arch/powerpc/include/asm/swiotlb.h</span>
+<span class="quote">&gt; index de99d6e29430..b694e8399e28 100644</span>
+<span class="quote">&gt; --- a/arch/powerpc/include/asm/swiotlb.h</span>
+<span class="quote">&gt; +++ b/arch/powerpc/include/asm/swiotlb.h</span>
+<span class="quote">&gt; @@ -16,6 +16,7 @@</span>
+<span class="quote">&gt;  extern struct dma_map_ops swiotlb_dma_ops;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static inline void dma_mark_clean(void *addr, size_t size) {}</span>
+<span class="quote">&gt; +static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  extern unsigned int ppc_swiotlb_enable;</span>
+<span class="quote">&gt;  int __init swiotlb_setup_bus_notifier(void);</span>
+<span class="quote">&gt; diff --git a/arch/tile/include/asm/dma-mapping.h b/arch/tile/include/asm/dma-mapping.h</span>
+<span class="quote">&gt; index 96ac6cce4a32..79953f09e938 100644</span>
+<span class="quote">&gt; --- a/arch/tile/include/asm/dma-mapping.h</span>
+<span class="quote">&gt; +++ b/arch/tile/include/asm/dma-mapping.h</span>
+<span class="quote">&gt; @@ -58,6 +58,7 @@ static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static inline void dma_mark_clean(void *addr, size_t size) {}</span>
+<span class="quote">&gt; +static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static inline void set_dma_ops(struct device *dev, struct dma_map_ops *ops)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; diff --git a/arch/unicore32/include/asm/dma-mapping.h b/arch/unicore32/include/asm/dma-mapping.h</span>
+<span class="quote">&gt; index 8140e053ccd3..b9d357ab122d 100644</span>
+<span class="quote">&gt; --- a/arch/unicore32/include/asm/dma-mapping.h</span>
+<span class="quote">&gt; +++ b/arch/unicore32/include/asm/dma-mapping.h</span>
+<span class="quote">&gt; @@ -49,6 +49,7 @@ static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static inline void dma_mark_clean(void *addr, size_t size) {}</span>
+<span class="quote">&gt; +static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static inline void dma_cache_sync(struct device *dev, void *vaddr,</span>
+<span class="quote">&gt;  		size_t size, enum dma_data_direction direction)</span>
+<span class="quote">&gt; diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig</span>
+<span class="quote">&gt; index db3622f22b61..f0b09156d7d8 100644</span>
+<span class="quote">&gt; --- a/arch/x86/Kconfig</span>
+<span class="quote">&gt; +++ b/arch/x86/Kconfig</span>
+<span class="quote">&gt; @@ -841,6 +841,17 @@ config SWIOTLB</span>
+<span class="quote">&gt;  	  with more than 3 GB of memory.</span>
+<span class="quote">&gt;  	  If unsure, say Y.</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +config SWIOTLB_PAGE_DIRTYING</span>
+<span class="quote">&gt; +	bool &quot;SWIOTLB page dirtying&quot;</span>
+<span class="quote">&gt; +	depends on SWIOTLB</span>
+<span class="quote">&gt; +	default n</span>
+<span class="quote">&gt; +	---help---</span>
+<span class="quote">&gt; +	  SWIOTLB page dirtying support provides a means for the guest to</span>
+<span class="quote">&gt; +	  trigger write faults on pages which received DMA from the device</span>
+<span class="quote">&gt; +	  without changing the data contained within.  By doing this the</span>
+<span class="quote">&gt; +	  guest can then support migration assuming the device and any</span>
+<span class="quote">&gt; +	  remaining pages are unmapped prior to the CPU itself being halted.</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  config IOMMU_HELPER</span>
+<span class="quote">&gt;  	def_bool y</span>
+<span class="quote">&gt;  	depends on CALGARY_IOMMU || GART_IOMMU || SWIOTLB || AMD_IOMMU</span>
+<span class="quote">&gt; diff --git a/arch/x86/include/asm/swiotlb.h b/arch/x86/include/asm/swiotlb.h</span>
+<span class="quote">&gt; index ab05d73e2bb7..7f9f2e76d081 100644</span>
+<span class="quote">&gt; --- a/arch/x86/include/asm/swiotlb.h</span>
+<span class="quote">&gt; +++ b/arch/x86/include/asm/swiotlb.h</span>
+<span class="quote">&gt; @@ -29,6 +29,32 @@ static inline void pci_swiotlb_late_init(void)</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static inline void dma_mark_clean(void *addr, size_t size) {}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +/*</span>
+<span class="quote">&gt; + * Make certain that the pages get marked as dirty</span>
+<span class="quote">&gt; + * now that the device has completed the DMA transaction.</span>
+<span class="quote">&gt; + *</span>
+<span class="quote">&gt; + * Without this we run the risk of a guest migration missing</span>
+<span class="quote">&gt; + * the pages that the device has written to as they are not</span>
+<span class="quote">&gt; + * tracked as a part of the dirty page tracking.</span>
+<span class="quote">&gt; + */</span>
+<span class="quote">&gt; +static inline void dma_mark_dirty(void *addr, size_t size)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +#ifdef CONFIG_SWIOTLB_PAGE_DIRTYING</span>
+
+I like where this is going. However
+as distributions don&#39;t like shipping multiple kernels,
+I think we also need a way to configure this
+at runtime, even if enabled at build time.
+
+How about
+- mark dirty is enabled at boot if requested (e.g. by kernel command line)
+- mark dirty can later be disabled/enabled by sysctl
+
+(Enabling at runtime might be a bit tricky as it has to
+ sync with all CPUs - use e.g. RCU for this?).
+
+This way distro can use a guest agent to disable
+dirtying until before migration starts.
+<span class="quote">
+&gt; +	unsigned long pg_addr, start;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	start = (unsigned long)addr;</span>
+<span class="quote">&gt; +	pg_addr = PAGE_ALIGN(start + size);</span>
+<span class="quote">&gt; +	start &amp;= ~(sizeof(atomic_t) - 1);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/* trigger a write fault on each page, excluding first page */</span>
+<span class="quote">&gt; +	while ((pg_addr -= PAGE_SIZE) &gt; start)</span>
+<span class="quote">&gt; +		atomic_add(0, (atomic_t *)pg_addr);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	/* trigger a write fault on first word of DMA */</span>
+<span class="quote">&gt; +	atomic_add(0, (atomic_t *)start);</span>
+
+start might not be aligned correctly for a cast to atomic_t.
+It&#39;s harmless to do this for any memory, so I think you should
+just do this for 1st byte of all pages including the first one.
+<span class="quote">
+
+&gt; +#endif /* CONFIG_SWIOTLB_PAGE_DIRTYING */</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  extern void *x86_swiotlb_alloc_coherent(struct device *hwdev, size_t size,</span>
+<span class="quote">&gt;  					dma_addr_t *dma_handle, gfp_t flags,</span>
+<span class="quote">&gt;  					struct dma_attrs *attrs);</span>
+<span class="quote">&gt; diff --git a/drivers/xen/swiotlb-xen.c b/drivers/xen/swiotlb-xen.c</span>
+<span class="quote">&gt; index 2154c70e47da..1533b3eefb67 100644</span>
+<span class="quote">&gt; --- a/drivers/xen/swiotlb-xen.c</span>
+<span class="quote">&gt; +++ b/drivers/xen/swiotlb-xen.c</span>
+<span class="quote">&gt; @@ -456,6 +456,9 @@ void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,</span>
+<span class="quote">&gt;  	 */</span>
+<span class="quote">&gt;  	if (dir == DMA_FROM_DEVICE)</span>
+<span class="quote">&gt;  		dma_mark_clean(phys_to_virt(paddr), size);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	if (dir != DMA_TO_DEVICE)</span>
+<span class="quote">&gt; +		dma_mark_dirty(phys_to_virt(paddr), size);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  EXPORT_SYMBOL_GPL(xen_swiotlb_unmap_page);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; @@ -485,6 +488,9 @@ xen_swiotlb_sync_single_for_cpu(struct device *hwdev, dma_addr_t dev_addr,</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	if (dir == DMA_FROM_DEVICE)</span>
+<span class="quote">&gt;  		dma_mark_clean(phys_to_virt(paddr), size);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	if (dir != DMA_TO_DEVICE)</span>
+<span class="quote">&gt; +		dma_mark_dirty(phys_to_virt(paddr), size);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  EXPORT_SYMBOL_GPL(xen_swiotlb_sync_single_for_cpu);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; diff --git a/lib/swiotlb.c b/lib/swiotlb.c</span>
+<span class="quote">&gt; index 384ac06217b2..4223d6c54724 100644</span>
+<span class="quote">&gt; --- a/lib/swiotlb.c</span>
+<span class="quote">&gt; +++ b/lib/swiotlb.c</span>
+<span class="quote">&gt; @@ -802,6 +802,9 @@ void swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,</span>
+<span class="quote">&gt;  	 */</span>
+<span class="quote">&gt;  	if (dir == DMA_FROM_DEVICE)</span>
+<span class="quote">&gt;  		dma_mark_clean(phys_to_virt(paddr), size);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	if (dir != DMA_TO_DEVICE)</span>
+<span class="quote">&gt; +		dma_mark_dirty(phys_to_virt(paddr), size);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  EXPORT_SYMBOL_GPL(swiotlb_unmap_page);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; @@ -830,6 +833,9 @@ swiotlb_sync_single_for_cpu(struct device *hwdev, dma_addr_t dev_addr,</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	if (dir == DMA_FROM_DEVICE)</span>
+<span class="quote">&gt;  		dma_mark_clean(phys_to_virt(paddr), size);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	if (dir != DMA_TO_DEVICE)</span>
+<span class="quote">&gt; +		dma_mark_dirty(phys_to_virt(paddr), size);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  EXPORT_SYMBOL(swiotlb_sync_single_for_cpu);</span>
+<span class="quote">&gt;  </span>
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=3511">Alexander Duyck</a> - Dec. 14, 2015, 4:34 p.m.</div>
+<pre class="content">
+On Mon, Dec 14, 2015 at 6:00 AM, Michael S. Tsirkin &lt;mst@redhat.com&gt; wrote:
+<span class="quote">&gt; On Sun, Dec 13, 2015 at 01:28:31PM -0800, Alexander Duyck wrote:</span>
+<span class="quote">&gt;&gt; This patch is meant to provide the guest with a way of flagging DMA pages</span>
+<span class="quote">&gt;&gt; as being dirty to the host when using a direct-assign device within a</span>
+<span class="quote">&gt;&gt; guest.  The advantage to this approach is that it is fairly simple, however</span>
+<span class="quote">&gt;&gt; It currently has a singificant impact on device performance in all the</span>
+<span class="quote">&gt;&gt; scenerios where it won&#39;t be needed.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; As such this is really meant only as a proof of concept and to get the ball</span>
+<span class="quote">&gt;&gt; rolling in terms of figuring out how best to approach the issue of dirty</span>
+<span class="quote">&gt;&gt; page tracking for a guest that is using a direct assigned device.  In</span>
+<span class="quote">&gt;&gt; addition with just this patch it should be possible to modify current</span>
+<span class="quote">&gt;&gt; migration approaches so that instead of having to hot-remove the device</span>
+<span class="quote">&gt;&gt; before starting the migration this can instead be delayed until the period</span>
+<span class="quote">&gt;&gt; before the final stop and copy.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Signed-off-by: Alexander Duyck &lt;aduyck@mirantis.com&gt;</span>
+<span class="quote">&gt;&gt; ---</span>
+<span class="quote">&gt;&gt;  arch/arm/include/asm/dma-mapping.h       |    3 ++-</span>
+<span class="quote">&gt;&gt;  arch/arm64/include/asm/dma-mapping.h     |    5 ++---</span>
+<span class="quote">&gt;&gt;  arch/ia64/include/asm/dma.h              |    1 +</span>
+<span class="quote">&gt;&gt;  arch/mips/include/asm/dma-mapping.h      |    1 +</span>
+<span class="quote">&gt;&gt;  arch/powerpc/include/asm/swiotlb.h       |    1 +</span>
+<span class="quote">&gt;&gt;  arch/tile/include/asm/dma-mapping.h      |    1 +</span>
+<span class="quote">&gt;&gt;  arch/unicore32/include/asm/dma-mapping.h |    1 +</span>
+<span class="quote">&gt;&gt;  arch/x86/Kconfig                         |   11 +++++++++++</span>
+<span class="quote">&gt;&gt;  arch/x86/include/asm/swiotlb.h           |   26 ++++++++++++++++++++++++++</span>
+<span class="quote">&gt;&gt;  drivers/xen/swiotlb-xen.c                |    6 ++++++</span>
+<span class="quote">&gt;&gt;  lib/swiotlb.c                            |    6 ++++++</span>
+<span class="quote">&gt;&gt;  11 files changed, 58 insertions(+), 4 deletions(-)</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; diff --git a/arch/arm/include/asm/dma-mapping.h b/arch/arm/include/asm/dma-mapping.h</span>
+<span class="quote">&gt;&gt; index ccb3aa64640d..1962d7b471c7 100644</span>
+<span class="quote">&gt;&gt; --- a/arch/arm/include/asm/dma-mapping.h</span>
+<span class="quote">&gt;&gt; +++ b/arch/arm/include/asm/dma-mapping.h</span>
+<span class="quote">&gt;&gt; @@ -167,7 +167,8 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)</span>
+<span class="quote">&gt;&gt;       return 1;</span>
+<span class="quote">&gt;&gt;  }</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; -static inline void dma_mark_clean(void *addr, size_t size) { }</span>
+<span class="quote">&gt;&gt; +static inline void dma_mark_clean(void *addr, size_t size) {}</span>
+<span class="quote">&gt;&gt; +static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;  extern int arm_dma_set_mask(struct device *dev, u64 dma_mask);</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; diff --git a/arch/arm64/include/asm/dma-mapping.h b/arch/arm64/include/asm/dma-mapping.h</span>
+<span class="quote">&gt;&gt; index 61e08f360e31..8d24fe11c8a3 100644</span>
+<span class="quote">&gt;&gt; --- a/arch/arm64/include/asm/dma-mapping.h</span>
+<span class="quote">&gt;&gt; +++ b/arch/arm64/include/asm/dma-mapping.h</span>
+<span class="quote">&gt;&gt; @@ -84,9 +84,8 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)</span>
+<span class="quote">&gt;&gt;       return addr + size - 1 &lt;= *dev-&gt;dma_mask;</span>
+<span class="quote">&gt;&gt;  }</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; -static inline void dma_mark_clean(void *addr, size_t size)</span>
+<span class="quote">&gt;&gt; -{</span>
+<span class="quote">&gt;&gt; -}</span>
+<span class="quote">&gt;&gt; +static inline void dma_mark_clean(void *addr, size_t size) {}</span>
+<span class="quote">&gt;&gt; +static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;  #endif       /* __KERNEL__ */</span>
+<span class="quote">&gt;&gt;  #endif       /* __ASM_DMA_MAPPING_H */</span>
+<span class="quote">&gt;&gt; diff --git a/arch/ia64/include/asm/dma.h b/arch/ia64/include/asm/dma.h</span>
+<span class="quote">&gt;&gt; index 4d97f60f1ef5..d92ebeb2758e 100644</span>
+<span class="quote">&gt;&gt; --- a/arch/ia64/include/asm/dma.h</span>
+<span class="quote">&gt;&gt; +++ b/arch/ia64/include/asm/dma.h</span>
+<span class="quote">&gt;&gt; @@ -20,5 +20,6 @@ extern unsigned long MAX_DMA_ADDRESS;</span>
+<span class="quote">&gt;&gt;  #define free_dma(x)</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;  void dma_mark_clean(void *addr, size_t size);</span>
+<span class="quote">&gt;&gt; +static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;  #endif /* _ASM_IA64_DMA_H */</span>
+<span class="quote">&gt;&gt; diff --git a/arch/mips/include/asm/dma-mapping.h b/arch/mips/include/asm/dma-mapping.h</span>
+<span class="quote">&gt;&gt; index e604f760c4a0..567f6e03e337 100644</span>
+<span class="quote">&gt;&gt; --- a/arch/mips/include/asm/dma-mapping.h</span>
+<span class="quote">&gt;&gt; +++ b/arch/mips/include/asm/dma-mapping.h</span>
+<span class="quote">&gt;&gt; @@ -28,6 +28,7 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)</span>
+<span class="quote">&gt;&gt;  }</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;  static inline void dma_mark_clean(void *addr, size_t size) {}</span>
+<span class="quote">&gt;&gt; +static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;  #include &lt;asm-generic/dma-mapping-common.h&gt;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; diff --git a/arch/powerpc/include/asm/swiotlb.h b/arch/powerpc/include/asm/swiotlb.h</span>
+<span class="quote">&gt;&gt; index de99d6e29430..b694e8399e28 100644</span>
+<span class="quote">&gt;&gt; --- a/arch/powerpc/include/asm/swiotlb.h</span>
+<span class="quote">&gt;&gt; +++ b/arch/powerpc/include/asm/swiotlb.h</span>
+<span class="quote">&gt;&gt; @@ -16,6 +16,7 @@</span>
+<span class="quote">&gt;&gt;  extern struct dma_map_ops swiotlb_dma_ops;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;  static inline void dma_mark_clean(void *addr, size_t size) {}</span>
+<span class="quote">&gt;&gt; +static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;  extern unsigned int ppc_swiotlb_enable;</span>
+<span class="quote">&gt;&gt;  int __init swiotlb_setup_bus_notifier(void);</span>
+<span class="quote">&gt;&gt; diff --git a/arch/tile/include/asm/dma-mapping.h b/arch/tile/include/asm/dma-mapping.h</span>
+<span class="quote">&gt;&gt; index 96ac6cce4a32..79953f09e938 100644</span>
+<span class="quote">&gt;&gt; --- a/arch/tile/include/asm/dma-mapping.h</span>
+<span class="quote">&gt;&gt; +++ b/arch/tile/include/asm/dma-mapping.h</span>
+<span class="quote">&gt;&gt; @@ -58,6 +58,7 @@ static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)</span>
+<span class="quote">&gt;&gt;  }</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;  static inline void dma_mark_clean(void *addr, size_t size) {}</span>
+<span class="quote">&gt;&gt; +static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;  static inline void set_dma_ops(struct device *dev, struct dma_map_ops *ops)</span>
+<span class="quote">&gt;&gt;  {</span>
+<span class="quote">&gt;&gt; diff --git a/arch/unicore32/include/asm/dma-mapping.h b/arch/unicore32/include/asm/dma-mapping.h</span>
+<span class="quote">&gt;&gt; index 8140e053ccd3..b9d357ab122d 100644</span>
+<span class="quote">&gt;&gt; --- a/arch/unicore32/include/asm/dma-mapping.h</span>
+<span class="quote">&gt;&gt; +++ b/arch/unicore32/include/asm/dma-mapping.h</span>
+<span class="quote">&gt;&gt; @@ -49,6 +49,7 @@ static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)</span>
+<span class="quote">&gt;&gt;  }</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;  static inline void dma_mark_clean(void *addr, size_t size) {}</span>
+<span class="quote">&gt;&gt; +static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;  static inline void dma_cache_sync(struct device *dev, void *vaddr,</span>
+<span class="quote">&gt;&gt;               size_t size, enum dma_data_direction direction)</span>
+<span class="quote">&gt;&gt; diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig</span>
+<span class="quote">&gt;&gt; index db3622f22b61..f0b09156d7d8 100644</span>
+<span class="quote">&gt;&gt; --- a/arch/x86/Kconfig</span>
+<span class="quote">&gt;&gt; +++ b/arch/x86/Kconfig</span>
+<span class="quote">&gt;&gt; @@ -841,6 +841,17 @@ config SWIOTLB</span>
+<span class="quote">&gt;&gt;         with more than 3 GB of memory.</span>
+<span class="quote">&gt;&gt;         If unsure, say Y.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; +config SWIOTLB_PAGE_DIRTYING</span>
+<span class="quote">&gt;&gt; +     bool &quot;SWIOTLB page dirtying&quot;</span>
+<span class="quote">&gt;&gt; +     depends on SWIOTLB</span>
+<span class="quote">&gt;&gt; +     default n</span>
+<span class="quote">&gt;&gt; +     ---help---</span>
+<span class="quote">&gt;&gt; +       SWIOTLB page dirtying support provides a means for the guest to</span>
+<span class="quote">&gt;&gt; +       trigger write faults on pages which received DMA from the device</span>
+<span class="quote">&gt;&gt; +       without changing the data contained within.  By doing this the</span>
+<span class="quote">&gt;&gt; +       guest can then support migration assuming the device and any</span>
+<span class="quote">&gt;&gt; +       remaining pages are unmapped prior to the CPU itself being halted.</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt;  config IOMMU_HELPER</span>
+<span class="quote">&gt;&gt;       def_bool y</span>
+<span class="quote">&gt;&gt;       depends on CALGARY_IOMMU || GART_IOMMU || SWIOTLB || AMD_IOMMU</span>
+<span class="quote">&gt;&gt; diff --git a/arch/x86/include/asm/swiotlb.h b/arch/x86/include/asm/swiotlb.h</span>
+<span class="quote">&gt;&gt; index ab05d73e2bb7..7f9f2e76d081 100644</span>
+<span class="quote">&gt;&gt; --- a/arch/x86/include/asm/swiotlb.h</span>
+<span class="quote">&gt;&gt; +++ b/arch/x86/include/asm/swiotlb.h</span>
+<span class="quote">&gt;&gt; @@ -29,6 +29,32 @@ static inline void pci_swiotlb_late_init(void)</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;  static inline void dma_mark_clean(void *addr, size_t size) {}</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; +/*</span>
+<span class="quote">&gt;&gt; + * Make certain that the pages get marked as dirty</span>
+<span class="quote">&gt;&gt; + * now that the device has completed the DMA transaction.</span>
+<span class="quote">&gt;&gt; + *</span>
+<span class="quote">&gt;&gt; + * Without this we run the risk of a guest migration missing</span>
+<span class="quote">&gt;&gt; + * the pages that the device has written to as they are not</span>
+<span class="quote">&gt;&gt; + * tracked as a part of the dirty page tracking.</span>
+<span class="quote">&gt;&gt; + */</span>
+<span class="quote">&gt;&gt; +static inline void dma_mark_dirty(void *addr, size_t size)</span>
+<span class="quote">&gt;&gt; +{</span>
+<span class="quote">&gt;&gt; +#ifdef CONFIG_SWIOTLB_PAGE_DIRTYING</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I like where this is going. However</span>
+<span class="quote">&gt; as distributions don&#39;t like shipping multiple kernels,</span>
+<span class="quote">&gt; I think we also need a way to configure this</span>
+<span class="quote">&gt; at runtime, even if enabled at build time.</span>
+
+Agreed.  Like I sad in the cover page this is just needed until we can
+come up with a way to limit the scope.  Then we could probably default
+this to Y and distributions can have it enabled by default.
+<span class="quote">
+&gt; How about</span>
+<span class="quote">&gt; - mark dirty is enabled at boot if requested (e.g. by kernel command line)</span>
+<span class="quote">&gt; - mark dirty can later be disabled/enabled by sysctl</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; (Enabling at runtime might be a bit tricky as it has to</span>
+<span class="quote">&gt;  sync with all CPUs - use e.g. RCU for this?).</span>
+
+I was considering RCU but I am still not sure it is the best way to go
+since all we essentially need to do is swap a couple of function
+pointers.  I was thinking of making use of the dma_ops pointer
+contained in dev_archdata.  If I were to create two dma_ops setups,
+one with standard swiotlb and one with a dirty page pointer version
+for the unmap and sync calls then it is just a matter of assigning a
+pointer to enable the DMA page dirtying, and clearing the pointer to
+disable it.  An alternative might be to just add a device specific
+flag and then pass the device to the dma_mark_dirty function.  I&#39;m
+still debating the possible options.
+<span class="quote">
+&gt; This way distro can use a guest agent to disable</span>
+<span class="quote">&gt; dirtying until before migration starts.</span>
+
+Right.  For a v2 version I would definitely want to have some way to
+limit the scope of this.  My main reason for putting this out here is
+to start altering the course of discussions since it seems like were
+weren&#39;t getting anywhere with the ixgbevf migration changes that were
+being proposed.
+<span class="quote">
+&gt;&gt; +     unsigned long pg_addr, start;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +     start = (unsigned long)addr;</span>
+<span class="quote">&gt;&gt; +     pg_addr = PAGE_ALIGN(start + size);</span>
+<span class="quote">&gt;&gt; +     start &amp;= ~(sizeof(atomic_t) - 1);</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +     /* trigger a write fault on each page, excluding first page */</span>
+<span class="quote">&gt;&gt; +     while ((pg_addr -= PAGE_SIZE) &gt; start)</span>
+<span class="quote">&gt;&gt; +             atomic_add(0, (atomic_t *)pg_addr);</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +     /* trigger a write fault on first word of DMA */</span>
+<span class="quote">&gt;&gt; +     atomic_add(0, (atomic_t *)start);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; start might not be aligned correctly for a cast to atomic_t.</span>
+<span class="quote">&gt; It&#39;s harmless to do this for any memory, so I think you should</span>
+<span class="quote">&gt; just do this for 1st byte of all pages including the first one.</span>
+
+You may not have noticed it but I actually aligned start in the line
+after pg_addr.  However instead of aligning to the start of the next
+atomic_t I just masked off the lower bits so that we start at the
+DWORD that contains the first byte of the starting address.  The
+assumption here is that I cannot trigger any sort of fault since if I
+have access to a given byte within a DWORD I will have access to the
+entire DWORD.  I coded this up so that the spots where we touch the
+memory should match up with addresses provided by the hardware to
+perform the DMA over the PCI bus.
+
+Also I intentionally ran from highest address to lowest since that way
+we don&#39;t risk pushing the first cache line of the DMA buffer out of
+the L1 cache due to the PAGE_SIZE stride.
+
+- Alex
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=1984">Michael S. Tsirkin</a> - Dec. 14, 2015, 5:20 p.m.</div>
+<pre class="content">
+On Mon, Dec 14, 2015 at 08:34:00AM -0800, Alexander Duyck wrote:
+<span class="quote">&gt; &gt; This way distro can use a guest agent to disable</span>
+<span class="quote">&gt; &gt; dirtying until before migration starts.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Right.  For a v2 version I would definitely want to have some way to</span>
+<span class="quote">&gt; limit the scope of this.  My main reason for putting this out here is</span>
+<span class="quote">&gt; to start altering the course of discussions since it seems like were</span>
+<span class="quote">&gt; weren&#39;t getting anywhere with the ixgbevf migration changes that were</span>
+<span class="quote">&gt; being proposed.</span>
+
+Absolutely, thanks for working on this.
+<span class="quote">
+&gt; &gt;&gt; +     unsigned long pg_addr, start;</span>
+<span class="quote">&gt; &gt;&gt; +</span>
+<span class="quote">&gt; &gt;&gt; +     start = (unsigned long)addr;</span>
+<span class="quote">&gt; &gt;&gt; +     pg_addr = PAGE_ALIGN(start + size);</span>
+<span class="quote">&gt; &gt;&gt; +     start &amp;= ~(sizeof(atomic_t) - 1);</span>
+<span class="quote">&gt; &gt;&gt; +</span>
+<span class="quote">&gt; &gt;&gt; +     /* trigger a write fault on each page, excluding first page */</span>
+<span class="quote">&gt; &gt;&gt; +     while ((pg_addr -= PAGE_SIZE) &gt; start)</span>
+<span class="quote">&gt; &gt;&gt; +             atomic_add(0, (atomic_t *)pg_addr);</span>
+<span class="quote">&gt; &gt;&gt; +</span>
+<span class="quote">&gt; &gt;&gt; +     /* trigger a write fault on first word of DMA */</span>
+<span class="quote">&gt; &gt;&gt; +     atomic_add(0, (atomic_t *)start);</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; start might not be aligned correctly for a cast to atomic_t.</span>
+<span class="quote">&gt; &gt; It&#39;s harmless to do this for any memory, so I think you should</span>
+<span class="quote">&gt; &gt; just do this for 1st byte of all pages including the first one.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; You may not have noticed it but I actually aligned start in the line</span>
+<span class="quote">&gt; after pg_addr.</span>
+
+Yes you did. alignof would make it a bit more noticeable.
+<span class="quote">
+&gt;  However instead of aligning to the start of the next</span>
+<span class="quote">&gt; atomic_t I just masked off the lower bits so that we start at the</span>
+<span class="quote">&gt; DWORD that contains the first byte of the starting address.  The</span>
+<span class="quote">&gt; assumption here is that I cannot trigger any sort of fault since if I</span>
+<span class="quote">&gt; have access to a given byte within a DWORD I will have access to the</span>
+<span class="quote">&gt; entire DWORD.</span>
+
+I&#39;m curious where does this come from.  Isn&#39;t it true that access is
+controlled at page granularity normally, so you can touch beginning of
+page just as well?
+<span class="quote">
+&gt;  I coded this up so that the spots where we touch the</span>
+<span class="quote">&gt; memory should match up with addresses provided by the hardware to</span>
+<span class="quote">&gt; perform the DMA over the PCI bus.</span>
+
+Yes but there&#39;s no requirement to do it like this from
+virt POV. You just need to touch each page.
+<span class="quote">
+&gt; Also I intentionally ran from highest address to lowest since that way</span>
+<span class="quote">&gt; we don&#39;t risk pushing the first cache line of the DMA buffer out of</span>
+<span class="quote">&gt; the L1 cache due to the PAGE_SIZE stride.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; - Alex</span>
+
+Interesting. How does order of access help with this?
+
+By the way, if you are into these micro-optimizations you might want to
+limit prefetch, to this end you want to access the last line of the
+page.  And it&#39;s probably worth benchmarking a bit and not doing it all just
+based on theory, keep code simple in v1 otherwise.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=3511">Alexander Duyck</a> - Dec. 14, 2015, 5:59 p.m.</div>
+<pre class="content">
+On Mon, Dec 14, 2015 at 9:20 AM, Michael S. Tsirkin &lt;mst@redhat.com&gt; wrote:
+<span class="quote">&gt; On Mon, Dec 14, 2015 at 08:34:00AM -0800, Alexander Duyck wrote:</span>
+<span class="quote">&gt;&gt; &gt; This way distro can use a guest agent to disable</span>
+<span class="quote">&gt;&gt; &gt; dirtying until before migration starts.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Right.  For a v2 version I would definitely want to have some way to</span>
+<span class="quote">&gt;&gt; limit the scope of this.  My main reason for putting this out here is</span>
+<span class="quote">&gt;&gt; to start altering the course of discussions since it seems like were</span>
+<span class="quote">&gt;&gt; weren&#39;t getting anywhere with the ixgbevf migration changes that were</span>
+<span class="quote">&gt;&gt; being proposed.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Absolutely, thanks for working on this.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; +     unsigned long pg_addr, start;</span>
+<span class="quote">&gt;&gt; &gt;&gt; +</span>
+<span class="quote">&gt;&gt; &gt;&gt; +     start = (unsigned long)addr;</span>
+<span class="quote">&gt;&gt; &gt;&gt; +     pg_addr = PAGE_ALIGN(start + size);</span>
+<span class="quote">&gt;&gt; &gt;&gt; +     start &amp;= ~(sizeof(atomic_t) - 1);</span>
+<span class="quote">&gt;&gt; &gt;&gt; +</span>
+<span class="quote">&gt;&gt; &gt;&gt; +     /* trigger a write fault on each page, excluding first page */</span>
+<span class="quote">&gt;&gt; &gt;&gt; +     while ((pg_addr -= PAGE_SIZE) &gt; start)</span>
+<span class="quote">&gt;&gt; &gt;&gt; +             atomic_add(0, (atomic_t *)pg_addr);</span>
+<span class="quote">&gt;&gt; &gt;&gt; +</span>
+<span class="quote">&gt;&gt; &gt;&gt; +     /* trigger a write fault on first word of DMA */</span>
+<span class="quote">&gt;&gt; &gt;&gt; +     atomic_add(0, (atomic_t *)start);</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; start might not be aligned correctly for a cast to atomic_t.</span>
+<span class="quote">&gt;&gt; &gt; It&#39;s harmless to do this for any memory, so I think you should</span>
+<span class="quote">&gt;&gt; &gt; just do this for 1st byte of all pages including the first one.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; You may not have noticed it but I actually aligned start in the line</span>
+<span class="quote">&gt;&gt; after pg_addr.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Yes you did. alignof would make it a bit more noticeable.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt;  However instead of aligning to the start of the next</span>
+<span class="quote">&gt;&gt; atomic_t I just masked off the lower bits so that we start at the</span>
+<span class="quote">&gt;&gt; DWORD that contains the first byte of the starting address.  The</span>
+<span class="quote">&gt;&gt; assumption here is that I cannot trigger any sort of fault since if I</span>
+<span class="quote">&gt;&gt; have access to a given byte within a DWORD I will have access to the</span>
+<span class="quote">&gt;&gt; entire DWORD.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I&#39;m curious where does this come from.  Isn&#39;t it true that access is</span>
+<span class="quote">&gt; controlled at page granularity normally, so you can touch beginning of</span>
+<span class="quote">&gt; page just as well?</span>
+
+Yeah, I am pretty sure it probably is page granularity.  However my
+thought was to try and stick to the start of the DMA as the last
+access.  That way we don&#39;t pull in any more cache lines than we need
+to in order to dirty the pages.  Usually the start of the DMA region
+will contain some sort of headers or something that needs to be
+accessed with the highest priority so I wanted to make certain that we
+were forcing usable data into the L1 cache rather than just the first
+cache line of the page where the DMA started.  If however the start of
+a DMA was the start of the page there is nothing there to prevent
+that.
+<span class="quote">
+&gt;&gt;  I coded this up so that the spots where we touch the</span>
+<span class="quote">&gt;&gt; memory should match up with addresses provided by the hardware to</span>
+<span class="quote">&gt;&gt; perform the DMA over the PCI bus.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Yes but there&#39;s no requirement to do it like this from</span>
+<span class="quote">&gt; virt POV. You just need to touch each page.</span>
+
+I know, but at the same time if we match up with the DMA then it is
+more likely that we avoid grabbing unneeded cache lines.  In the case
+of most drivers the data for headers and start is at the start of the
+DMA.  So if we dirty the cache line associated with the start of the
+DMA it will be pulled into the L1 cache and there is a greater chance
+that it may already be prefetched as well.
+<span class="quote">
+&gt;&gt; Also I intentionally ran from highest address to lowest since that way</span>
+<span class="quote">&gt;&gt; we don&#39;t risk pushing the first cache line of the DMA buffer out of</span>
+<span class="quote">&gt;&gt; the L1 cache due to the PAGE_SIZE stride.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Interesting. How does order of access help with this?</span>
+
+If you use a PAGE_SIZE stride you will start evicting things from L1
+cache after something like 8 accesses on an x86 processor as most of
+the recent ones have a 32K 8 way associative L1 cache.  So if I go
+from back to front then I evict the stuff that would likely be in the
+data portion of a buffer instead of headers which are usually located
+at the front.
+<span class="quote">
+&gt; By the way, if you are into these micro-optimizations you might want to</span>
+<span class="quote">&gt; limit prefetch, to this end you want to access the last line of the</span>
+<span class="quote">&gt; page.  And it&#39;s probably worth benchmarking a bit and not doing it all just</span>
+<span class="quote">&gt; based on theory, keep code simple in v1 otherwise.</span>
+
+My main goal for now is functional code over high performance code.
+That is why I have kept this code fairly simple.  I might have done
+some optimization but it was as much about the optimization as keeping
+the code simple.  For example by using the start of the page instead
+of the end I could easily do the comparison against start and avoid
+doing more than one write per page.
+
+The issue for me doing performance testing is that I don&#39;t have
+anything that uses DMA blocks that are actually big enough to make use
+of the PAGE_SIZE stride.  That is why the PAGE_SIZE stride portion is
+mostly just theoretical.  I just have a few NICs and most of them only
+allocate 1 page or so for DMA buffers.  What little benchmarking I
+have done with netperf only showed a ~1% CPU penalty for the page
+dirtying code.  For setups where we did more with the DMA such as
+small packet handling I would expect that value to increase, but I
+still wouldn&#39;t expect to see a penalty of much more than ~5% most
+likely since there are still a number of other items that are calling
+atomic operations as well such as the code for releasing pages.
+
+- Alex
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=1984">Michael S. Tsirkin</a> - Dec. 14, 2015, 8:52 p.m.</div>
+<pre class="content">
+On Mon, Dec 14, 2015 at 09:59:13AM -0800, Alexander Duyck wrote:
+<span class="quote">&gt; On Mon, Dec 14, 2015 at 9:20 AM, Michael S. Tsirkin &lt;mst@redhat.com&gt; wrote:</span>
+<span class="quote">&gt; &gt; On Mon, Dec 14, 2015 at 08:34:00AM -0800, Alexander Duyck wrote:</span>
+<span class="quote">&gt; &gt;&gt; &gt; This way distro can use a guest agent to disable</span>
+<span class="quote">&gt; &gt;&gt; &gt; dirtying until before migration starts.</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; Right.  For a v2 version I would definitely want to have some way to</span>
+<span class="quote">&gt; &gt;&gt; limit the scope of this.  My main reason for putting this out here is</span>
+<span class="quote">&gt; &gt;&gt; to start altering the course of discussions since it seems like were</span>
+<span class="quote">&gt; &gt;&gt; weren&#39;t getting anywhere with the ixgbevf migration changes that were</span>
+<span class="quote">&gt; &gt;&gt; being proposed.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Absolutely, thanks for working on this.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt;&gt; +     unsigned long pg_addr, start;</span>
+<span class="quote">&gt; &gt;&gt; &gt;&gt; +</span>
+<span class="quote">&gt; &gt;&gt; &gt;&gt; +     start = (unsigned long)addr;</span>
+<span class="quote">&gt; &gt;&gt; &gt;&gt; +     pg_addr = PAGE_ALIGN(start + size);</span>
+<span class="quote">&gt; &gt;&gt; &gt;&gt; +     start &amp;= ~(sizeof(atomic_t) - 1);</span>
+<span class="quote">&gt; &gt;&gt; &gt;&gt; +</span>
+<span class="quote">&gt; &gt;&gt; &gt;&gt; +     /* trigger a write fault on each page, excluding first page */</span>
+<span class="quote">&gt; &gt;&gt; &gt;&gt; +     while ((pg_addr -= PAGE_SIZE) &gt; start)</span>
+<span class="quote">&gt; &gt;&gt; &gt;&gt; +             atomic_add(0, (atomic_t *)pg_addr);</span>
+<span class="quote">&gt; &gt;&gt; &gt;&gt; +</span>
+<span class="quote">&gt; &gt;&gt; &gt;&gt; +     /* trigger a write fault on first word of DMA */</span>
+<span class="quote">&gt; &gt;&gt; &gt;&gt; +     atomic_add(0, (atomic_t *)start);</span>
+
+Actually, I have second thoughts about using atomic_add here,
+especially for _sync.
+
+Many architectures do
+
+#define ATOMIC_OP_RETURN(op, c_op)                                      \
+static inline int atomic_##op##_return(int i, atomic_t *v)              \
+{                                                                       \
+        unsigned long flags;                                            \
+        int ret;                                                        \
+                                                                        \
+        raw_local_irq_save(flags);                                      \
+        ret = (v-&gt;counter = v-&gt;counter c_op i);                         \
+        raw_local_irq_restore(flags);                                   \
+                                                                        \
+        return ret;                                                     \
+}
+
+and this is not safe if device is still doing DMA to/from
+this memory.
+
+Generally, atomic_t is there for SMP effects, not for sync
+with devices.
+
+This is why I said you should do
+	cmpxchg(pg_addr, 0xdead, 0xdead); 
+
+Yes, we probably never actually want to run m68k within a VM,
+but let&#39;s not misuse interfaces like this.
+<span class="quote">
+
+&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt; &gt; start might not be aligned correctly for a cast to atomic_t.</span>
+<span class="quote">&gt; &gt;&gt; &gt; It&#39;s harmless to do this for any memory, so I think you should</span>
+<span class="quote">&gt; &gt;&gt; &gt; just do this for 1st byte of all pages including the first one.</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; You may not have noticed it but I actually aligned start in the line</span>
+<span class="quote">&gt; &gt;&gt; after pg_addr.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Yes you did. alignof would make it a bit more noticeable.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt;&gt;  However instead of aligning to the start of the next</span>
+<span class="quote">&gt; &gt;&gt; atomic_t I just masked off the lower bits so that we start at the</span>
+<span class="quote">&gt; &gt;&gt; DWORD that contains the first byte of the starting address.  The</span>
+<span class="quote">&gt; &gt;&gt; assumption here is that I cannot trigger any sort of fault since if I</span>
+<span class="quote">&gt; &gt;&gt; have access to a given byte within a DWORD I will have access to the</span>
+<span class="quote">&gt; &gt;&gt; entire DWORD.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; I&#39;m curious where does this come from.  Isn&#39;t it true that access is</span>
+<span class="quote">&gt; &gt; controlled at page granularity normally, so you can touch beginning of</span>
+<span class="quote">&gt; &gt; page just as well?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Yeah, I am pretty sure it probably is page granularity.  However my</span>
+<span class="quote">&gt; thought was to try and stick to the start of the DMA as the last</span>
+<span class="quote">&gt; access.  That way we don&#39;t pull in any more cache lines than we need</span>
+<span class="quote">&gt; to in order to dirty the pages.  Usually the start of the DMA region</span>
+<span class="quote">&gt; will contain some sort of headers or something that needs to be</span>
+<span class="quote">&gt; accessed with the highest priority so I wanted to make certain that we</span>
+<span class="quote">&gt; were forcing usable data into the L1 cache rather than just the first</span>
+<span class="quote">&gt; cache line of the page where the DMA started.  If however the start of</span>
+<span class="quote">&gt; a DMA was the start of the page there is nothing there to prevent</span>
+<span class="quote">&gt; that.</span>
+
+OK, maybe this helps. You should document all these tricks
+in code comments.
+<span class="quote">
+&gt; &gt;&gt;  I coded this up so that the spots where we touch the</span>
+<span class="quote">&gt; &gt;&gt; memory should match up with addresses provided by the hardware to</span>
+<span class="quote">&gt; &gt;&gt; perform the DMA over the PCI bus.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Yes but there&#39;s no requirement to do it like this from</span>
+<span class="quote">&gt; &gt; virt POV. You just need to touch each page.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I know, but at the same time if we match up with the DMA then it is</span>
+<span class="quote">&gt; more likely that we avoid grabbing unneeded cache lines.  In the case</span>
+<span class="quote">&gt; of most drivers the data for headers and start is at the start of the</span>
+<span class="quote">&gt; DMA.  So if we dirty the cache line associated with the start of the</span>
+<span class="quote">&gt; DMA it will be pulled into the L1 cache and there is a greater chance</span>
+<span class="quote">&gt; that it may already be prefetched as well.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt;&gt; Also I intentionally ran from highest address to lowest since that way</span>
+<span class="quote">&gt; &gt;&gt; we don&#39;t risk pushing the first cache line of the DMA buffer out of</span>
+<span class="quote">&gt; &gt;&gt; the L1 cache due to the PAGE_SIZE stride.</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; Interesting. How does order of access help with this?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If you use a PAGE_SIZE stride you will start evicting things from L1</span>
+<span class="quote">&gt; cache after something like 8 accesses on an x86 processor as most of</span>
+<span class="quote">&gt; the recent ones have a 32K 8 way associative L1 cache.  So if I go</span>
+<span class="quote">&gt; from back to front then I evict the stuff that would likely be in the</span>
+<span class="quote">&gt; data portion of a buffer instead of headers which are usually located</span>
+<span class="quote">&gt; at the front.</span>
+
+I see, interesting.
+<span class="quote">
+&gt; &gt; By the way, if you are into these micro-optimizations you might want to</span>
+<span class="quote">&gt; &gt; limit prefetch, to this end you want to access the last line of the</span>
+<span class="quote">&gt; &gt; page.  And it&#39;s probably worth benchmarking a bit and not doing it all just</span>
+<span class="quote">&gt; &gt; based on theory, keep code simple in v1 otherwise.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; My main goal for now is functional code over high performance code.</span>
+<span class="quote">&gt; That is why I have kept this code fairly simple.  I might have done</span>
+<span class="quote">&gt; some optimization but it was as much about the optimization as keeping</span>
+<span class="quote">&gt; the code simple.</span>
+
+Well you were trying to avoid putting extra stress on
+the cache, and it seems clear to me that prefetch
+is not your friend here. So
+-             atomic_add(0, (atomic_t *)pg_addr);
++             atomic_add(0, (atomic_t *)(pg_addr + PAGE_SIZE - sizeof(atomic_t));
+(or whatever we change atomic_t to) is probably a win.
+<span class="quote">
+&gt;  For example by using the start of the page instead</span>
+<span class="quote">&gt; of the end I could easily do the comparison against start and avoid</span>
+<span class="quote">&gt; doing more than one write per page.</span>
+
+That&#39;s probably worth fixing, we don&#39;t want two atomics
+if we can help it.
+
+-     while ((pg_addr -= PAGE_SIZE) &gt; start)
++     while ((pg_addr -= PAGE_SIZE) &gt;= PAGE_ALIGN(start + PAGE_SIZE))
+
+will do it with no fuss.
+<span class="quote">
+&gt; The issue for me doing performance testing is that I don&#39;t have</span>
+<span class="quote">&gt; anything that uses DMA blocks that are actually big enough to make use</span>
+<span class="quote">&gt; of the PAGE_SIZE stride.  That is why the PAGE_SIZE stride portion is</span>
+<span class="quote">&gt; mostly just theoretical.  I just have a few NICs and most of them only</span>
+<span class="quote">&gt; allocate 1 page or so for DMA buffers.  What little benchmarking I</span>
+<span class="quote">&gt; have done with netperf only showed a ~1% CPU penalty for the page</span>
+<span class="quote">&gt; dirtying code.  For setups where we did more with the DMA such as</span>
+<span class="quote">&gt; small packet handling I would expect that value to increase, but I</span>
+<span class="quote">&gt; still wouldn&#39;t expect to see a penalty of much more than ~5% most</span>
+<span class="quote">&gt; likely since there are still a number of other items that are calling</span>
+<span class="quote">&gt; atomic operations as well such as the code for releasing pages.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; - Alex</span>
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=3511">Alexander Duyck</a> - Dec. 14, 2015, 10:32 p.m.</div>
+<pre class="content">
+On Mon, Dec 14, 2015 at 12:52 PM, Michael S. Tsirkin &lt;mst@redhat.com&gt; wrote:
+<span class="quote">&gt; On Mon, Dec 14, 2015 at 09:59:13AM -0800, Alexander Duyck wrote:</span>
+<span class="quote">&gt;&gt; On Mon, Dec 14, 2015 at 9:20 AM, Michael S. Tsirkin &lt;mst@redhat.com&gt; wrote:</span>
+<span class="quote">&gt;&gt; &gt; On Mon, Dec 14, 2015 at 08:34:00AM -0800, Alexander Duyck wrote:</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt; This way distro can use a guest agent to disable</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt; dirtying until before migration starts.</span>
+<span class="quote">&gt;&gt; &gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; Right.  For a v2 version I would definitely want to have some way to</span>
+<span class="quote">&gt;&gt; &gt;&gt; limit the scope of this.  My main reason for putting this out here is</span>
+<span class="quote">&gt;&gt; &gt;&gt; to start altering the course of discussions since it seems like were</span>
+<span class="quote">&gt;&gt; &gt;&gt; weren&#39;t getting anywhere with the ixgbevf migration changes that were</span>
+<span class="quote">&gt;&gt; &gt;&gt; being proposed.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; Absolutely, thanks for working on this.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;&gt; +     unsigned long pg_addr, start;</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;&gt; +</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;&gt; +     start = (unsigned long)addr;</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;&gt; +     pg_addr = PAGE_ALIGN(start + size);</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;&gt; +     start &amp;= ~(sizeof(atomic_t) - 1);</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;&gt; +</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;&gt; +     /* trigger a write fault on each page, excluding first page */</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;&gt; +     while ((pg_addr -= PAGE_SIZE) &gt; start)</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;&gt; +             atomic_add(0, (atomic_t *)pg_addr);</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;&gt; +</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;&gt; +     /* trigger a write fault on first word of DMA */</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt;&gt; +     atomic_add(0, (atomic_t *)start);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Actually, I have second thoughts about using atomic_add here,</span>
+<span class="quote">&gt; especially for _sync.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Many architectures do</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; #define ATOMIC_OP_RETURN(op, c_op)                                      \</span>
+<span class="quote">&gt; static inline int atomic_##op##_return(int i, atomic_t *v)              \</span>
+<span class="quote">&gt; {                                                                       \</span>
+<span class="quote">&gt;         unsigned long flags;                                            \</span>
+<span class="quote">&gt;         int ret;                                                        \</span>
+<span class="quote">&gt;                                                                         \</span>
+<span class="quote">&gt;         raw_local_irq_save(flags);                                      \</span>
+<span class="quote">&gt;         ret = (v-&gt;counter = v-&gt;counter c_op i);                         \</span>
+<span class="quote">&gt;         raw_local_irq_restore(flags);                                   \</span>
+<span class="quote">&gt;                                                                         \</span>
+<span class="quote">&gt;         return ret;                                                     \</span>
+<span class="quote">&gt; }</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; and this is not safe if device is still doing DMA to/from</span>
+<span class="quote">&gt; this memory.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Generally, atomic_t is there for SMP effects, not for sync</span>
+<span class="quote">&gt; with devices.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; This is why I said you should do</span>
+<span class="quote">&gt;         cmpxchg(pg_addr, 0xdead, 0xdead);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Yes, we probably never actually want to run m68k within a VM,</span>
+<span class="quote">&gt; but let&#39;s not misuse interfaces like this.</span>
+
+Right now this implementation is for x86 only.  Any other architecture
+currently reports dma_mark_dirty as an empty inline function.  The
+reason why I chose the atomic_add for x86 is simply because it is
+guaranteed dirty the cache line with relatively few instructions and
+operands as all I have to have is the pointer and 0.
+
+For the m68k we could implement it as a cmpxchg instead.  The general
+thought here is that each architecture is probably going to have to do
+it a little bit differently.
+<span class="quote">
+&gt;&gt; &gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt; start might not be aligned correctly for a cast to atomic_t.</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt; It&#39;s harmless to do this for any memory, so I think you should</span>
+<span class="quote">&gt;&gt; &gt;&gt; &gt; just do this for 1st byte of all pages including the first one.</span>
+<span class="quote">&gt;&gt; &gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; You may not have noticed it but I actually aligned start in the line</span>
+<span class="quote">&gt;&gt; &gt;&gt; after pg_addr.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; Yes you did. alignof would make it a bit more noticeable.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt;  However instead of aligning to the start of the next</span>
+<span class="quote">&gt;&gt; &gt;&gt; atomic_t I just masked off the lower bits so that we start at the</span>
+<span class="quote">&gt;&gt; &gt;&gt; DWORD that contains the first byte of the starting address.  The</span>
+<span class="quote">&gt;&gt; &gt;&gt; assumption here is that I cannot trigger any sort of fault since if I</span>
+<span class="quote">&gt;&gt; &gt;&gt; have access to a given byte within a DWORD I will have access to the</span>
+<span class="quote">&gt;&gt; &gt;&gt; entire DWORD.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; I&#39;m curious where does this come from.  Isn&#39;t it true that access is</span>
+<span class="quote">&gt;&gt; &gt; controlled at page granularity normally, so you can touch beginning of</span>
+<span class="quote">&gt;&gt; &gt; page just as well?</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Yeah, I am pretty sure it probably is page granularity.  However my</span>
+<span class="quote">&gt;&gt; thought was to try and stick to the start of the DMA as the last</span>
+<span class="quote">&gt;&gt; access.  That way we don&#39;t pull in any more cache lines than we need</span>
+<span class="quote">&gt;&gt; to in order to dirty the pages.  Usually the start of the DMA region</span>
+<span class="quote">&gt;&gt; will contain some sort of headers or something that needs to be</span>
+<span class="quote">&gt;&gt; accessed with the highest priority so I wanted to make certain that we</span>
+<span class="quote">&gt;&gt; were forcing usable data into the L1 cache rather than just the first</span>
+<span class="quote">&gt;&gt; cache line of the page where the DMA started.  If however the start of</span>
+<span class="quote">&gt;&gt; a DMA was the start of the page there is nothing there to prevent</span>
+<span class="quote">&gt;&gt; that.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; OK, maybe this helps. You should document all these tricks</span>
+<span class="quote">&gt; in code comments.</span>
+
+I&#39;ll try to get that taken care of for v2.
+<span class="quote">
+&gt;&gt; &gt;&gt;  I coded this up so that the spots where we touch the</span>
+<span class="quote">&gt;&gt; &gt;&gt; memory should match up with addresses provided by the hardware to</span>
+<span class="quote">&gt;&gt; &gt;&gt; perform the DMA over the PCI bus.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; Yes but there&#39;s no requirement to do it like this from</span>
+<span class="quote">&gt;&gt; &gt; virt POV. You just need to touch each page.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; I know, but at the same time if we match up with the DMA then it is</span>
+<span class="quote">&gt;&gt; more likely that we avoid grabbing unneeded cache lines.  In the case</span>
+<span class="quote">&gt;&gt; of most drivers the data for headers and start is at the start of the</span>
+<span class="quote">&gt;&gt; DMA.  So if we dirty the cache line associated with the start of the</span>
+<span class="quote">&gt;&gt; DMA it will be pulled into the L1 cache and there is a greater chance</span>
+<span class="quote">&gt;&gt; that it may already be prefetched as well.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; &gt;&gt; Also I intentionally ran from highest address to lowest since that way</span>
+<span class="quote">&gt;&gt; &gt;&gt; we don&#39;t risk pushing the first cache line of the DMA buffer out of</span>
+<span class="quote">&gt;&gt; &gt;&gt; the L1 cache due to the PAGE_SIZE stride.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; Interesting. How does order of access help with this?</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; If you use a PAGE_SIZE stride you will start evicting things from L1</span>
+<span class="quote">&gt;&gt; cache after something like 8 accesses on an x86 processor as most of</span>
+<span class="quote">&gt;&gt; the recent ones have a 32K 8 way associative L1 cache.  So if I go</span>
+<span class="quote">&gt;&gt; from back to front then I evict the stuff that would likely be in the</span>
+<span class="quote">&gt;&gt; data portion of a buffer instead of headers which are usually located</span>
+<span class="quote">&gt;&gt; at the front.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I see, interesting.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; &gt; By the way, if you are into these micro-optimizations you might want to</span>
+<span class="quote">&gt;&gt; &gt; limit prefetch, to this end you want to access the last line of the</span>
+<span class="quote">&gt;&gt; &gt; page.  And it&#39;s probably worth benchmarking a bit and not doing it all just</span>
+<span class="quote">&gt;&gt; &gt; based on theory, keep code simple in v1 otherwise.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; My main goal for now is functional code over high performance code.</span>
+<span class="quote">&gt;&gt; That is why I have kept this code fairly simple.  I might have done</span>
+<span class="quote">&gt;&gt; some optimization but it was as much about the optimization as keeping</span>
+<span class="quote">&gt;&gt; the code simple.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Well you were trying to avoid putting extra stress on</span>
+<span class="quote">&gt; the cache, and it seems clear to me that prefetch</span>
+<span class="quote">&gt; is not your friend here. So</span>
+<span class="quote">&gt; -             atomic_add(0, (atomic_t *)pg_addr);</span>
+<span class="quote">&gt; +             atomic_add(0, (atomic_t *)(pg_addr + PAGE_SIZE - sizeof(atomic_t));</span>
+<span class="quote">&gt; (or whatever we change atomic_t to) is probably a win.</span>
+
+What is the advantage to writing to the last field in the page versus
+the first?  I think that is the part I am not getting.
+<span class="quote">
+&gt;&gt;  For example by using the start of the page instead</span>
+<span class="quote">&gt;&gt; of the end I could easily do the comparison against start and avoid</span>
+<span class="quote">&gt;&gt; doing more than one write per page.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; That&#39;s probably worth fixing, we don&#39;t want two atomics</span>
+<span class="quote">&gt; if we can help it.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; -     while ((pg_addr -= PAGE_SIZE) &gt; start)</span>
+<span class="quote">&gt; +     while ((pg_addr -= PAGE_SIZE) &gt;= PAGE_ALIGN(start + PAGE_SIZE))</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; will do it with no fuss.</span>
+
+I&#39;m still not seeing what the gain here is.  It just seems like it is
+making things more complicated.
+
+The main goal of keeping things inside the DMA is to keep us from
+doing too much cache bouncing.  Us reaching out and dirtying cache
+lines that we aren&#39;t actually using seems to be really wasteful.  If
+for example a page was split between two CPUs with one doing DMA on
+one half, and one doing DMA on another I wouldn&#39;t want to have both
+devices dirtying the same cache line, I would rather have them each
+marking a separate cache line in order to avoid cache thrash.  By
+having the start aligned with the start of the DMA, and all of the
+other entries aligned with the start of pages contained within the DMA
+we can avoid that since devices are generally working with at least
+cache aligned buffers.
+
+- Alex
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/arm/include/asm/dma-mapping.h b/arch/arm/include/asm/dma-mapping.h</span>
+<span class="p_header">index ccb3aa64640d..1962d7b471c7 100644</span>
+<span class="p_header">--- a/arch/arm/include/asm/dma-mapping.h</span>
+<span class="p_header">+++ b/arch/arm/include/asm/dma-mapping.h</span>
+<span class="p_chunk">@@ -167,7 +167,8 @@</span> <span class="p_context"> static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)</span>
+ 	return 1;
+ }
+ 
+<span class="p_del">-static inline void dma_mark_clean(void *addr, size_t size) { }</span>
+<span class="p_add">+static inline void dma_mark_clean(void *addr, size_t size) {}</span>
+<span class="p_add">+static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+ 
+ extern int arm_dma_set_mask(struct device *dev, u64 dma_mask);
+ 
+<span class="p_header">diff --git a/arch/arm64/include/asm/dma-mapping.h b/arch/arm64/include/asm/dma-mapping.h</span>
+<span class="p_header">index 61e08f360e31..8d24fe11c8a3 100644</span>
+<span class="p_header">--- a/arch/arm64/include/asm/dma-mapping.h</span>
+<span class="p_header">+++ b/arch/arm64/include/asm/dma-mapping.h</span>
+<span class="p_chunk">@@ -84,9 +84,8 @@</span> <span class="p_context"> static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)</span>
+ 	return addr + size - 1 &lt;= *dev-&gt;dma_mask;
+ }
+ 
+<span class="p_del">-static inline void dma_mark_clean(void *addr, size_t size)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-}</span>
+<span class="p_add">+static inline void dma_mark_clean(void *addr, size_t size) {}</span>
+<span class="p_add">+static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+ 
+ #endif	/* __KERNEL__ */
+ #endif	/* __ASM_DMA_MAPPING_H */
+<span class="p_header">diff --git a/arch/ia64/include/asm/dma.h b/arch/ia64/include/asm/dma.h</span>
+<span class="p_header">index 4d97f60f1ef5..d92ebeb2758e 100644</span>
+<span class="p_header">--- a/arch/ia64/include/asm/dma.h</span>
+<span class="p_header">+++ b/arch/ia64/include/asm/dma.h</span>
+<span class="p_chunk">@@ -20,5 +20,6 @@</span> <span class="p_context"> extern unsigned long MAX_DMA_ADDRESS;</span>
+ #define free_dma(x)
+ 
+ void dma_mark_clean(void *addr, size_t size);
+<span class="p_add">+static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+ 
+ #endif /* _ASM_IA64_DMA_H */
+<span class="p_header">diff --git a/arch/mips/include/asm/dma-mapping.h b/arch/mips/include/asm/dma-mapping.h</span>
+<span class="p_header">index e604f760c4a0..567f6e03e337 100644</span>
+<span class="p_header">--- a/arch/mips/include/asm/dma-mapping.h</span>
+<span class="p_header">+++ b/arch/mips/include/asm/dma-mapping.h</span>
+<span class="p_chunk">@@ -28,6 +28,7 @@</span> <span class="p_context"> static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)</span>
+ }
+ 
+ static inline void dma_mark_clean(void *addr, size_t size) {}
+<span class="p_add">+static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+ 
+ #include &lt;asm-generic/dma-mapping-common.h&gt;
+ 
+<span class="p_header">diff --git a/arch/powerpc/include/asm/swiotlb.h b/arch/powerpc/include/asm/swiotlb.h</span>
+<span class="p_header">index de99d6e29430..b694e8399e28 100644</span>
+<span class="p_header">--- a/arch/powerpc/include/asm/swiotlb.h</span>
+<span class="p_header">+++ b/arch/powerpc/include/asm/swiotlb.h</span>
+<span class="p_chunk">@@ -16,6 +16,7 @@</span> <span class="p_context"></span>
+ extern struct dma_map_ops swiotlb_dma_ops;
+ 
+ static inline void dma_mark_clean(void *addr, size_t size) {}
+<span class="p_add">+static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+ 
+ extern unsigned int ppc_swiotlb_enable;
+ int __init swiotlb_setup_bus_notifier(void);
+<span class="p_header">diff --git a/arch/tile/include/asm/dma-mapping.h b/arch/tile/include/asm/dma-mapping.h</span>
+<span class="p_header">index 96ac6cce4a32..79953f09e938 100644</span>
+<span class="p_header">--- a/arch/tile/include/asm/dma-mapping.h</span>
+<span class="p_header">+++ b/arch/tile/include/asm/dma-mapping.h</span>
+<span class="p_chunk">@@ -58,6 +58,7 @@</span> <span class="p_context"> static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)</span>
+ }
+ 
+ static inline void dma_mark_clean(void *addr, size_t size) {}
+<span class="p_add">+static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+ 
+ static inline void set_dma_ops(struct device *dev, struct dma_map_ops *ops)
+ {
+<span class="p_header">diff --git a/arch/unicore32/include/asm/dma-mapping.h b/arch/unicore32/include/asm/dma-mapping.h</span>
+<span class="p_header">index 8140e053ccd3..b9d357ab122d 100644</span>
+<span class="p_header">--- a/arch/unicore32/include/asm/dma-mapping.h</span>
+<span class="p_header">+++ b/arch/unicore32/include/asm/dma-mapping.h</span>
+<span class="p_chunk">@@ -49,6 +49,7 @@</span> <span class="p_context"> static inline phys_addr_t dma_to_phys(struct device *dev, dma_addr_t daddr)</span>
+ }
+ 
+ static inline void dma_mark_clean(void *addr, size_t size) {}
+<span class="p_add">+static inline void dma_mark_dirty(void *addr, size_t size) {}</span>
+ 
+ static inline void dma_cache_sync(struct device *dev, void *vaddr,
+ 		size_t size, enum dma_data_direction direction)
+<span class="p_header">diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig</span>
+<span class="p_header">index db3622f22b61..f0b09156d7d8 100644</span>
+<span class="p_header">--- a/arch/x86/Kconfig</span>
+<span class="p_header">+++ b/arch/x86/Kconfig</span>
+<span class="p_chunk">@@ -841,6 +841,17 @@</span> <span class="p_context"> config SWIOTLB</span>
+ 	  with more than 3 GB of memory.
+ 	  If unsure, say Y.
+ 
+<span class="p_add">+config SWIOTLB_PAGE_DIRTYING</span>
+<span class="p_add">+	bool &quot;SWIOTLB page dirtying&quot;</span>
+<span class="p_add">+	depends on SWIOTLB</span>
+<span class="p_add">+	default n</span>
+<span class="p_add">+	---help---</span>
+<span class="p_add">+	  SWIOTLB page dirtying support provides a means for the guest to</span>
+<span class="p_add">+	  trigger write faults on pages which received DMA from the device</span>
+<span class="p_add">+	  without changing the data contained within.  By doing this the</span>
+<span class="p_add">+	  guest can then support migration assuming the device and any</span>
+<span class="p_add">+	  remaining pages are unmapped prior to the CPU itself being halted.</span>
+<span class="p_add">+</span>
+ config IOMMU_HELPER
+ 	def_bool y
+ 	depends on CALGARY_IOMMU || GART_IOMMU || SWIOTLB || AMD_IOMMU
+<span class="p_header">diff --git a/arch/x86/include/asm/swiotlb.h b/arch/x86/include/asm/swiotlb.h</span>
+<span class="p_header">index ab05d73e2bb7..7f9f2e76d081 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/swiotlb.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/swiotlb.h</span>
+<span class="p_chunk">@@ -29,6 +29,32 @@</span> <span class="p_context"> static inline void pci_swiotlb_late_init(void)</span>
+ 
+ static inline void dma_mark_clean(void *addr, size_t size) {}
+ 
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Make certain that the pages get marked as dirty</span>
+<span class="p_add">+ * now that the device has completed the DMA transaction.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * Without this we run the risk of a guest migration missing</span>
+<span class="p_add">+ * the pages that the device has written to as they are not</span>
+<span class="p_add">+ * tracked as a part of the dirty page tracking.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static inline void dma_mark_dirty(void *addr, size_t size)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+#ifdef CONFIG_SWIOTLB_PAGE_DIRTYING</span>
+<span class="p_add">+	unsigned long pg_addr, start;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	start = (unsigned long)addr;</span>
+<span class="p_add">+	pg_addr = PAGE_ALIGN(start + size);</span>
+<span class="p_add">+	start &amp;= ~(sizeof(atomic_t) - 1);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* trigger a write fault on each page, excluding first page */</span>
+<span class="p_add">+	while ((pg_addr -= PAGE_SIZE) &gt; start)</span>
+<span class="p_add">+		atomic_add(0, (atomic_t *)pg_addr);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* trigger a write fault on first word of DMA */</span>
+<span class="p_add">+	atomic_add(0, (atomic_t *)start);</span>
+<span class="p_add">+#endif /* CONFIG_SWIOTLB_PAGE_DIRTYING */</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ extern void *x86_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
+ 					dma_addr_t *dma_handle, gfp_t flags,
+ 					struct dma_attrs *attrs);
+<span class="p_header">diff --git a/drivers/xen/swiotlb-xen.c b/drivers/xen/swiotlb-xen.c</span>
+<span class="p_header">index 2154c70e47da..1533b3eefb67 100644</span>
+<span class="p_header">--- a/drivers/xen/swiotlb-xen.c</span>
+<span class="p_header">+++ b/drivers/xen/swiotlb-xen.c</span>
+<span class="p_chunk">@@ -456,6 +456,9 @@</span> <span class="p_context"> void xen_swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,</span>
+ 	 */
+ 	if (dir == DMA_FROM_DEVICE)
+ 		dma_mark_clean(phys_to_virt(paddr), size);
+<span class="p_add">+</span>
+<span class="p_add">+	if (dir != DMA_TO_DEVICE)</span>
+<span class="p_add">+		dma_mark_dirty(phys_to_virt(paddr), size);</span>
+ }
+ EXPORT_SYMBOL_GPL(xen_swiotlb_unmap_page);
+ 
+<span class="p_chunk">@@ -485,6 +488,9 @@</span> <span class="p_context"> xen_swiotlb_sync_single_for_cpu(struct device *hwdev, dma_addr_t dev_addr,</span>
+ 
+ 	if (dir == DMA_FROM_DEVICE)
+ 		dma_mark_clean(phys_to_virt(paddr), size);
+<span class="p_add">+</span>
+<span class="p_add">+	if (dir != DMA_TO_DEVICE)</span>
+<span class="p_add">+		dma_mark_dirty(phys_to_virt(paddr), size);</span>
+ }
+ EXPORT_SYMBOL_GPL(xen_swiotlb_sync_single_for_cpu);
+ 
+<span class="p_header">diff --git a/lib/swiotlb.c b/lib/swiotlb.c</span>
+<span class="p_header">index 384ac06217b2..4223d6c54724 100644</span>
+<span class="p_header">--- a/lib/swiotlb.c</span>
+<span class="p_header">+++ b/lib/swiotlb.c</span>
+<span class="p_chunk">@@ -802,6 +802,9 @@</span> <span class="p_context"> void swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,</span>
+ 	 */
+ 	if (dir == DMA_FROM_DEVICE)
+ 		dma_mark_clean(phys_to_virt(paddr), size);
+<span class="p_add">+</span>
+<span class="p_add">+	if (dir != DMA_TO_DEVICE)</span>
+<span class="p_add">+		dma_mark_dirty(phys_to_virt(paddr), size);</span>
+ }
+ EXPORT_SYMBOL_GPL(swiotlb_unmap_page);
+ 
+<span class="p_chunk">@@ -830,6 +833,9 @@</span> <span class="p_context"> swiotlb_sync_single_for_cpu(struct device *hwdev, dma_addr_t dev_addr,</span>
+ 
+ 	if (dir == DMA_FROM_DEVICE)
+ 		dma_mark_clean(phys_to_virt(paddr), size);
+<span class="p_add">+</span>
+<span class="p_add">+	if (dir != DMA_TO_DEVICE)</span>
+<span class="p_add">+		dma_mark_dirty(phys_to_virt(paddr), size);</span>
+ }
+ EXPORT_SYMBOL(swiotlb_sync_single_for_cpu);
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,986 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[01/25] mm, vmstat: Add infrastructure for per-node vmstats - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [01/25] mm, vmstat: Add infrastructure for per-node vmstats</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=24451">Mel Gorman</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>June 8, 2015, 1:56 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1433771791-30567-2-git-send-email-mgorman@suse.de&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/6565511/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/6565511/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/6565511/">/patch/6565511/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork1.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork1.web.kernel.org (Postfix) with ESMTP id E23779F2F4
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  8 Jun 2015 13:57:24 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id EF07B20490
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  8 Jun 2015 13:57:22 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id 4036620499
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  8 Jun 2015 13:57:19 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S932620AbbFHN5L (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 8 Jun 2015 09:57:11 -0400
+Received: from cantor2.suse.de ([195.135.220.15]:52351 &quot;EHLO mx2.suse.de&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1752910AbbFHN4h (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 8 Jun 2015 09:56:37 -0400
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay1.suse.de (charybdis-ext.suse.de [195.135.220.254])
+	by mx2.suse.de (Postfix) with ESMTP id C0252AC8C;
+	Mon,  8 Jun 2015 13:56:35 +0000 (UTC)
+From: Mel Gorman &lt;mgorman@suse.de&gt;
+To: Linux-MM &lt;linux-mm@kvack.org&gt;
+Cc: Rik van Riel &lt;riel@redhat.com&gt;, Johannes Weiner &lt;hannes@cmpxchg.org&gt;,
+	Michal Hocko &lt;mhocko@suse.cz&gt;,
+	LKML &lt;linux-kernel@vger.kernel.org&gt;, Mel Gorman &lt;mgorman@suse.de&gt;
+Subject: [PATCH 01/25] mm, vmstat: Add infrastructure for per-node vmstats
+Date: Mon,  8 Jun 2015 14:56:07 +0100
+Message-Id: &lt;1433771791-30567-2-git-send-email-mgorman@suse.de&gt;
+X-Mailer: git-send-email 2.3.5
+In-Reply-To: &lt;1433771791-30567-1-git-send-email-mgorman@suse.de&gt;
+References: &lt;1433771791-30567-1-git-send-email-mgorman@suse.de&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	T_RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=24451">Mel Gorman</a> - June 8, 2015, 1:56 p.m.</div>
+<pre class="content">
+VM statistic counters for reclaim decisions are zone-based. If the kernel
+is to reclaim on a per-node basis then we need to track per-node statistics
+but there is no infrastructure for that. This patch adds it in preparation
+but is currently unused.
+<span class="signed-off-by">
+Signed-off-by: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+---
+ drivers/base/node.c    |  72 ++++++++-------
+ include/linux/mmzone.h |  12 +++
+ include/linux/vmstat.h |  94 +++++++++++++++++--
+ mm/page_alloc.c        |   9 +-
+ mm/vmstat.c            | 240 ++++++++++++++++++++++++++++++++++++++++++++-----
+ 5 files changed, 364 insertions(+), 63 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/drivers/base/node.c b/drivers/base/node.c</span>
+<span class="p_header">index 36fabe43cd44..0b6392789b66 100644</span>
+<span class="p_header">--- a/drivers/base/node.c</span>
+<span class="p_header">+++ b/drivers/base/node.c</span>
+<span class="p_chunk">@@ -74,16 +74,16 @@</span> <span class="p_context"> static ssize_t node_read_meminfo(struct device *dev,</span>
+ 		       nid, K(i.totalram),
+ 		       nid, K(i.freeram),
+ 		       nid, K(i.totalram - i.freeram),
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_ACTIVE_ANON) +</span>
+<span class="p_del">-				node_page_state(nid, NR_ACTIVE_FILE)),</span>
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_INACTIVE_ANON) +</span>
+<span class="p_del">-				node_page_state(nid, NR_INACTIVE_FILE)),</span>
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_ACTIVE_ANON)),</span>
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_INACTIVE_ANON)),</span>
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_ACTIVE_FILE)),</span>
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_INACTIVE_FILE)),</span>
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_UNEVICTABLE)),</span>
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_MLOCK)));</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_ACTIVE_ANON) +</span>
+<span class="p_add">+				sum_zone_node_page_state(nid, NR_ACTIVE_FILE)),</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_INACTIVE_ANON) +</span>
+<span class="p_add">+				sum_zone_node_page_state(nid, NR_INACTIVE_FILE)),</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_ACTIVE_ANON)),</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_INACTIVE_ANON)),</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_ACTIVE_FILE)),</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_INACTIVE_FILE)),</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_UNEVICTABLE)),</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_MLOCK)));</span>
+ 
+ #ifdef CONFIG_HIGHMEM
+ 	n += sprintf(buf + n,
+<span class="p_chunk">@@ -115,28 +115,28 @@</span> <span class="p_context"> static ssize_t node_read_meminfo(struct device *dev,</span>
+ 		       &quot;Node %d AnonHugePages:  %8lu kB\n&quot;
+ #endif
+ 			,
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_FILE_DIRTY)),</span>
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_WRITEBACK)),</span>
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_FILE_PAGES)),</span>
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_FILE_MAPPED)),</span>
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_ANON_PAGES)),</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_FILE_DIRTY)),</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_WRITEBACK)),</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_FILE_PAGES)),</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_FILE_MAPPED)),</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_ANON_PAGES)),</span>
+ 		       nid, K(i.sharedram),
+<span class="p_del">-		       nid, node_page_state(nid, NR_KERNEL_STACK) *</span>
+<span class="p_add">+		       nid, sum_zone_node_page_state(nid, NR_KERNEL_STACK) *</span>
+ 				THREAD_SIZE / 1024,
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_PAGETABLE)),</span>
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_UNSTABLE_NFS)),</span>
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_BOUNCE)),</span>
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_WRITEBACK_TEMP)),</span>
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE) +</span>
+<span class="p_del">-				node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),</span>
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_SLAB_RECLAIMABLE)),</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_PAGETABLE)),</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_UNSTABLE_NFS)),</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_BOUNCE)),</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_WRITEBACK_TEMP)),</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_SLAB_RECLAIMABLE) +</span>
+<span class="p_add">+				sum_zone_node_page_state(nid, NR_SLAB_UNRECLAIMABLE)),</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_SLAB_RECLAIMABLE)),</span>
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE))</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_SLAB_UNRECLAIMABLE))</span>
+ 			, nid,
+<span class="p_del">-			K(node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *</span>
+<span class="p_add">+			K(sum_zone_node_page_state(nid, NR_ANON_TRANSPARENT_HUGEPAGES) *</span>
+ 			HPAGE_PMD_NR));
+ #else
+<span class="p_del">-		       nid, K(node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));</span>
+<span class="p_add">+		       nid, K(sum_zone_node_page_state(nid, NR_SLAB_UNRECLAIMABLE)));</span>
+ #endif
+ 	n += hugetlb_report_node_meminfo(nid, buf + n);
+ 	return n;
+<span class="p_chunk">@@ -155,12 +155,12 @@</span> <span class="p_context"> static ssize_t node_read_numastat(struct device *dev,</span>
+ 		       &quot;interleave_hit %lu\n&quot;
+ 		       &quot;local_node %lu\n&quot;
+ 		       &quot;other_node %lu\n&quot;,
+<span class="p_del">-		       node_page_state(dev-&gt;id, NUMA_HIT),</span>
+<span class="p_del">-		       node_page_state(dev-&gt;id, NUMA_MISS),</span>
+<span class="p_del">-		       node_page_state(dev-&gt;id, NUMA_FOREIGN),</span>
+<span class="p_del">-		       node_page_state(dev-&gt;id, NUMA_INTERLEAVE_HIT),</span>
+<span class="p_del">-		       node_page_state(dev-&gt;id, NUMA_LOCAL),</span>
+<span class="p_del">-		       node_page_state(dev-&gt;id, NUMA_OTHER));</span>
+<span class="p_add">+		       sum_zone_node_page_state(dev-&gt;id, NUMA_HIT),</span>
+<span class="p_add">+		       sum_zone_node_page_state(dev-&gt;id, NUMA_MISS),</span>
+<span class="p_add">+		       sum_zone_node_page_state(dev-&gt;id, NUMA_FOREIGN),</span>
+<span class="p_add">+		       sum_zone_node_page_state(dev-&gt;id, NUMA_INTERLEAVE_HIT),</span>
+<span class="p_add">+		       sum_zone_node_page_state(dev-&gt;id, NUMA_LOCAL),</span>
+<span class="p_add">+		       sum_zone_node_page_state(dev-&gt;id, NUMA_OTHER));</span>
+ }
+ static DEVICE_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
+ 
+<span class="p_chunk">@@ -168,12 +168,18 @@</span> <span class="p_context"> static ssize_t node_read_vmstat(struct device *dev,</span>
+ 				struct device_attribute *attr, char *buf)
+ {
+ 	int nid = dev-&gt;id;
+<span class="p_add">+	struct pglist_data *pgdat = NODE_DATA(nid);</span>
+ 	int i;
+ 	int n = 0;
+ 
+ 	for (i = 0; i &lt; NR_VM_ZONE_STAT_ITEMS; i++)
+ 		n += sprintf(buf+n, &quot;%s %lu\n&quot;, vmstat_text[i],
+<span class="p_del">-			     node_page_state(nid, i));</span>
+<span class="p_add">+			     sum_zone_node_page_state(nid, i));</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for (i = 0; i &lt; NR_VM_NODE_STAT_ITEMS; i++)</span>
+<span class="p_add">+		n += sprintf(buf+n, &quot;%s %lu\n&quot;,</span>
+<span class="p_add">+			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],</span>
+<span class="p_add">+			     node_page_state(pgdat, i));</span>
+ 
+ 	return n;
+ }
+<span class="p_header">diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h</span>
+<span class="p_header">index 2782df47101e..c52a3e3f178c 100644</span>
+<span class="p_header">--- a/include/linux/mmzone.h</span>
+<span class="p_header">+++ b/include/linux/mmzone.h</span>
+<span class="p_chunk">@@ -159,6 +159,10 @@</span> <span class="p_context"> enum zone_stat_item {</span>
+ 	NR_FREE_CMA_PAGES,
+ 	NR_VM_ZONE_STAT_ITEMS };
+ 
+<span class="p_add">+enum node_stat_item {</span>
+<span class="p_add">+	NR_VM_NODE_STAT_ITEMS</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+ /*
+  * We do arithmetic on the LRU lists in various places in the code,
+  * so it is important to keep the active lists LRU_ACTIVE higher in
+<span class="p_chunk">@@ -269,6 +273,11 @@</span> <span class="p_context"> struct per_cpu_pageset {</span>
+ #endif
+ };
+ 
+<span class="p_add">+struct per_cpu_nodestat {</span>
+<span class="p_add">+	s8 stat_threshold;</span>
+<span class="p_add">+	s8 vm_node_stat_diff[NR_VM_NODE_STAT_ITEMS];</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+ #endif /* !__GENERATING_BOUNDS.H */
+ 
+ enum zone_type {
+<span class="p_chunk">@@ -762,6 +771,9 @@</span> <span class="p_context"> typedef struct pglist_data {</span>
+ 	/* Number of pages migrated during the rate limiting time interval */
+ 	unsigned long numabalancing_migrate_nr_pages;
+ #endif
+<span class="p_add">+</span>
+<span class="p_add">+	struct per_cpu_nodestat __percpu *per_cpu_nodestats;</span>
+<span class="p_add">+	atomic_long_t		vm_stat[NR_VM_NODE_STAT_ITEMS];</span>
+ } pg_data_t;
+ 
+ #define node_present_pages(nid)	(NODE_DATA(nid)-&gt;node_present_pages)
+<span class="p_header">diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h</span>
+<span class="p_header">index 82e7db7f7100..99564636ddfc 100644</span>
+<span class="p_header">--- a/include/linux/vmstat.h</span>
+<span class="p_header">+++ b/include/linux/vmstat.h</span>
+<span class="p_chunk">@@ -106,20 +106,38 @@</span> <span class="p_context"> static inline void vm_events_fold_cpu(int cpu)</span>
+ 		zone_idx(zone), delta)
+ 
+ /*
+<span class="p_del">- * Zone based page accounting with per cpu differentials.</span>
+<span class="p_add">+ * Zone and node-based page accounting with per cpu differentials.</span>
+  */
+<span class="p_del">-extern atomic_long_t vm_stat[NR_VM_ZONE_STAT_ITEMS];</span>
+<span class="p_add">+extern atomic_long_t vm_zone_stat[NR_VM_ZONE_STAT_ITEMS];</span>
+<span class="p_add">+extern atomic_long_t vm_node_stat[NR_VM_NODE_STAT_ITEMS];</span>
+ 
+ static inline void zone_page_state_add(long x, struct zone *zone,
+ 				 enum zone_stat_item item)
+ {
+ 	atomic_long_add(x, &amp;zone-&gt;vm_stat[item]);
+<span class="p_del">-	atomic_long_add(x, &amp;vm_stat[item]);</span>
+<span class="p_add">+	atomic_long_add(x, &amp;vm_zone_stat[item]);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void node_page_state_add(long x, struct pglist_data *pgdat,</span>
+<span class="p_add">+				 enum node_stat_item item)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	atomic_long_add(x, &amp;pgdat-&gt;vm_stat[item]);</span>
+<span class="p_add">+	atomic_long_add(x, &amp;vm_node_stat[item]);</span>
+ }
+ 
+ static inline unsigned long global_page_state(enum zone_stat_item item)
+ {
+<span class="p_del">-	long x = atomic_long_read(&amp;vm_stat[item]);</span>
+<span class="p_add">+	long x = atomic_long_read(&amp;vm_zone_stat[item]);</span>
+<span class="p_add">+#ifdef CONFIG_SMP</span>
+<span class="p_add">+	if (x &lt; 0)</span>
+<span class="p_add">+		x = 0;</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+	return x;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline unsigned long global_node_page_state(enum node_stat_item item)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	long x = atomic_long_read(&amp;vm_node_stat[item]);</span>
+ #ifdef CONFIG_SMP
+ 	if (x &lt; 0)
+ 		x = 0;
+<span class="p_chunk">@@ -138,6 +156,17 @@</span> <span class="p_context"> static inline unsigned long zone_page_state(struct zone *zone,</span>
+ 	return x;
+ }
+ 
+<span class="p_add">+static inline unsigned long node_page_state(struct pglist_data *pgdat,</span>
+<span class="p_add">+					enum node_stat_item item)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	long x = atomic_long_read(&amp;pgdat-&gt;vm_stat[item]);</span>
+<span class="p_add">+#ifdef CONFIG_SMP</span>
+<span class="p_add">+	if (x &lt; 0)</span>
+<span class="p_add">+		x = 0;</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+	return x;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ /*
+  * More accurate version that also considers the currently pending
+  * deltas. For that we need to loop over all cpus to find the current
+<span class="p_chunk">@@ -166,7 +195,7 @@</span> <span class="p_context"> static inline unsigned long zone_page_state_snapshot(struct zone *zone,</span>
+  * is called frequently in a NUMA machine, so try to be as
+  * frugal as possible.
+  */
+<span class="p_del">-static inline unsigned long node_page_state(int node,</span>
+<span class="p_add">+static inline unsigned long sum_zone_node_page_state(int node,</span>
+ 				 enum zone_stat_item item)
+ {
+ 	struct zone *zones = NODE_DATA(node)-&gt;node_zones;
+<span class="p_chunk">@@ -189,27 +218,39 @@</span> <span class="p_context"> extern void zone_statistics(struct zone *, struct zone *, gfp_t gfp);</span>
+ 
+ #else
+ 
+<span class="p_del">-#define node_page_state(node, item) global_page_state(item)</span>
+ #define zone_statistics(_zl, _z, gfp) do { } while (0)
+ 
+ #endif /* CONFIG_NUMA */
+ 
+ #define add_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, __d)
+ #define sub_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, -(__d))
+<span class="p_add">+#define add_node_page_state(__p, __i, __d) mod_node_page_state(__p, __i, __d)</span>
+<span class="p_add">+#define sub_node_page_state(__p, __i, __d) mod_node_page_state(__p, __i, -(__d))</span>
+ 
+ #ifdef CONFIG_SMP
+ void __mod_zone_page_state(struct zone *, enum zone_stat_item item, int);
+ void __inc_zone_page_state(struct page *, enum zone_stat_item);
+ void __dec_zone_page_state(struct page *, enum zone_stat_item);
+ 
+<span class="p_add">+void __mod_node_page_state(struct pglist_data *, enum node_stat_item item, int);</span>
+<span class="p_add">+void __inc_node_page_state(struct page *, enum node_stat_item);</span>
+<span class="p_add">+void __dec_node_page_state(struct page *, enum node_stat_item);</span>
+<span class="p_add">+</span>
+ void mod_zone_page_state(struct zone *, enum zone_stat_item, int);
+ void inc_zone_page_state(struct page *, enum zone_stat_item);
+ void dec_zone_page_state(struct page *, enum zone_stat_item);
+ 
+<span class="p_add">+void mod_node_page_state(struct pglist_data *, enum node_stat_item, int);</span>
+<span class="p_add">+void inc_node_page_state(struct page *, enum node_stat_item);</span>
+<span class="p_add">+void dec_node_page_state(struct page *, enum node_stat_item);</span>
+<span class="p_add">+</span>
+ extern void inc_zone_state(struct zone *, enum zone_stat_item);
+<span class="p_add">+extern void inc_node_state(struct pglist_data *, enum node_stat_item);</span>
+ extern void __inc_zone_state(struct zone *, enum zone_stat_item);
+<span class="p_add">+extern void __inc_node_state(struct pglist_data *, enum node_stat_item);</span>
+ extern void dec_zone_state(struct zone *, enum zone_stat_item);
+ extern void __dec_zone_state(struct zone *, enum zone_stat_item);
+<span class="p_add">+extern void __dec_node_state(struct pglist_data *, enum node_stat_item);</span>
+ 
+ void cpu_vm_stats_fold(int cpu);
+ void refresh_zone_stat_thresholds(void);
+<span class="p_chunk">@@ -232,16 +273,34 @@</span> <span class="p_context"> static inline void __mod_zone_page_state(struct zone *zone,</span>
+ 	zone_page_state_add(delta, zone, item);
+ }
+ 
+<span class="p_add">+static inline void __mod_node_page_state(struct pglist_data *pgdat,</span>
+<span class="p_add">+			enum node_stat_item item, int delta)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	node_page_state_add(delta, pgdat, item);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ static inline void __inc_zone_state(struct zone *zone, enum zone_stat_item item)
+ {
+ 	atomic_long_inc(&amp;zone-&gt;vm_stat[item]);
+<span class="p_del">-	atomic_long_inc(&amp;vm_stat[item]);</span>
+<span class="p_add">+	atomic_long_inc(&amp;vm_zone_stat[item]);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void __inc_node_state(struct pglist_data *pgdat, enum node_stat_item item)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	atomic_long_inc(&amp;pgdat-&gt;vm_stat[item]);</span>
+<span class="p_add">+	atomic_long_inc(&amp;vm_node_stat[item]);</span>
+ }
+ 
+ static inline void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
+ {
+ 	atomic_long_dec(&amp;zone-&gt;vm_stat[item]);
+<span class="p_del">-	atomic_long_dec(&amp;vm_stat[item]);</span>
+<span class="p_add">+	atomic_long_dec(&amp;vm_zone_stat[item]);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void __dec_node_state(struct pglist_data *pgdat, enum node_stat_item item)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	atomic_long_dec(&amp;pgdat-&gt;vm_stat[item]);</span>
+<span class="p_add">+	atomic_long_dec(&amp;vm_node_stat[item]);</span>
+ }
+ 
+ static inline void __inc_zone_page_state(struct page *page,
+<span class="p_chunk">@@ -250,12 +309,26 @@</span> <span class="p_context"> static inline void __inc_zone_page_state(struct page *page,</span>
+ 	__inc_zone_state(page_zone(page), item);
+ }
+ 
+<span class="p_add">+static inline void __inc_node_page_state(struct page *page,</span>
+<span class="p_add">+			enum node_stat_item item)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	__inc_node_state(page_zone(page)-&gt;zone_pgdat, item);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+</span>
+ static inline void __dec_zone_page_state(struct page *page,
+ 			enum zone_stat_item item)
+ {
+ 	__dec_zone_state(page_zone(page), item);
+ }
+ 
+<span class="p_add">+static inline void __dec_node_page_state(struct page *page,</span>
+<span class="p_add">+			enum node_stat_item item)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	__dec_node_state(page_zone(page)-&gt;zone_pgdat, item);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+</span>
+ /*
+  * We only use atomic operations to update counters. So there is no need to
+  * disable interrupts.
+<span class="p_chunk">@@ -264,7 +337,12 @@</span> <span class="p_context"> static inline void __dec_zone_page_state(struct page *page,</span>
+ #define dec_zone_page_state __dec_zone_page_state
+ #define mod_zone_page_state __mod_zone_page_state
+ 
+<span class="p_add">+#define inc_node_page_state __inc_node_page_state</span>
+<span class="p_add">+#define dec_node_page_state __dec_node_page_state</span>
+<span class="p_add">+#define mod_node_page_state __mod_node_page_state</span>
+<span class="p_add">+</span>
+ #define inc_zone_state __inc_zone_state
+<span class="p_add">+#define inc_node_state __inc_node_state</span>
+ #define dec_zone_state __dec_zone_state
+ 
+ #define set_pgdat_percpu_threshold(pgdat, callback) { }
+<span class="p_header">diff --git a/mm/page_alloc.c b/mm/page_alloc.c</span>
+<span class="p_header">index 40e29429e7b0..b58c27b13061 100644</span>
+<span class="p_header">--- a/mm/page_alloc.c</span>
+<span class="p_header">+++ b/mm/page_alloc.c</span>
+<span class="p_chunk">@@ -3134,8 +3134,8 @@</span> <span class="p_context"> void si_meminfo_node(struct sysinfo *val, int nid)</span>
+ 	for (zone_type = 0; zone_type &lt; MAX_NR_ZONES; zone_type++)
+ 		managed_pages += pgdat-&gt;node_zones[zone_type].managed_pages;
+ 	val-&gt;totalram = managed_pages;
+<span class="p_del">-	val-&gt;sharedram = node_page_state(nid, NR_SHMEM);</span>
+<span class="p_del">-	val-&gt;freeram = node_page_state(nid, NR_FREE_PAGES);</span>
+<span class="p_add">+	val-&gt;sharedram = sum_zone_node_page_state(nid, NR_SHMEM);</span>
+<span class="p_add">+	val-&gt;freeram = sum_zone_node_page_state(nid, NR_FREE_PAGES);</span>
+ #ifdef CONFIG_HIGHMEM
+ 	val-&gt;totalhigh = pgdat-&gt;node_zones[ZONE_HIGHMEM].managed_pages;
+ 	val-&gt;freehigh = zone_page_state(&amp;pgdat-&gt;node_zones[ZONE_HIGHMEM],
+<span class="p_chunk">@@ -4335,6 +4335,11 @@</span> <span class="p_context"> static void __meminit setup_zone_pageset(struct zone *zone)</span>
+ 	zone-&gt;pageset = alloc_percpu(struct per_cpu_pageset);
+ 	for_each_possible_cpu(cpu)
+ 		zone_pageset_init(zone, cpu);
+<span class="p_add">+</span>
+<span class="p_add">+	if (!zone-&gt;zone_pgdat-&gt;per_cpu_nodestats) {</span>
+<span class="p_add">+		zone-&gt;zone_pgdat-&gt;per_cpu_nodestats =</span>
+<span class="p_add">+			alloc_percpu(struct per_cpu_nodestat);</span>
+<span class="p_add">+	}</span>
+ }
+ 
+ /*
+<span class="p_header">diff --git a/mm/vmstat.c b/mm/vmstat.c</span>
+<span class="p_header">index 4f5cd974e11a..effafdb80975 100644</span>
+<span class="p_header">--- a/mm/vmstat.c</span>
+<span class="p_header">+++ b/mm/vmstat.c</span>
+<span class="p_chunk">@@ -86,8 +86,10 @@</span> <span class="p_context"> void vm_events_fold_cpu(int cpu)</span>
+  *
+  * vm_stat contains the global counters
+  */
+<span class="p_del">-atomic_long_t vm_stat[NR_VM_ZONE_STAT_ITEMS] __cacheline_aligned_in_smp;</span>
+<span class="p_del">-EXPORT_SYMBOL(vm_stat);</span>
+<span class="p_add">+atomic_long_t vm_zone_stat[NR_VM_ZONE_STAT_ITEMS] __cacheline_aligned_in_smp;</span>
+<span class="p_add">+atomic_long_t vm_node_stat[NR_VM_NODE_STAT_ITEMS] __cacheline_aligned_in_smp;</span>
+<span class="p_add">+EXPORT_SYMBOL(vm_zone_stat);</span>
+<span class="p_add">+EXPORT_SYMBOL(vm_node_stat);</span>
+ 
+ #ifdef CONFIG_SMP
+ 
+<span class="p_chunk">@@ -176,9 +178,13 @@</span> <span class="p_context"> void refresh_zone_stat_thresholds(void)</span>
+ 
+ 		threshold = calculate_normal_threshold(zone);
+ 
+<span class="p_del">-		for_each_online_cpu(cpu)</span>
+<span class="p_add">+		for_each_online_cpu(cpu) {</span>
+<span class="p_add">+			struct pglist_data *pgdat = zone-&gt;zone_pgdat;</span>
+ 			per_cpu_ptr(zone-&gt;pageset, cpu)-&gt;stat_threshold
+ 							= threshold;
+<span class="p_add">+			per_cpu_ptr(pgdat-&gt;per_cpu_nodestats, cpu)-&gt;stat_threshold</span>
+<span class="p_add">+							= threshold;</span>
+<span class="p_add">+		}</span>
+ 
+ 		/*
+ 		 * Only set percpu_drift_mark if there is a danger that
+<span class="p_chunk">@@ -238,6 +244,26 @@</span> <span class="p_context"> void __mod_zone_page_state(struct zone *zone, enum zone_stat_item item,</span>
+ }
+ EXPORT_SYMBOL(__mod_zone_page_state);
+ 
+<span class="p_add">+void __mod_node_page_state(struct pglist_data *pgdat, enum node_stat_item item,</span>
+<span class="p_add">+				int delta)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct per_cpu_nodestat __percpu *pcp = pgdat-&gt;per_cpu_nodestats;</span>
+<span class="p_add">+	s8 __percpu *p = pcp-&gt;vm_node_stat_diff + item;</span>
+<span class="p_add">+	long x;</span>
+<span class="p_add">+	long t;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	x = delta + __this_cpu_read(*p);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	t = __this_cpu_read(pcp-&gt;stat_threshold);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (unlikely(x &gt; t || x &lt; -t)) {</span>
+<span class="p_add">+		node_page_state_add(x, pgdat, item);</span>
+<span class="p_add">+		x = 0;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	__this_cpu_write(*p, x);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL(__mod_node_page_state);</span>
+<span class="p_add">+</span>
+ /*
+  * Optimized increment and decrement functions.
+  *
+<span class="p_chunk">@@ -277,12 +303,34 @@</span> <span class="p_context"> void __inc_zone_state(struct zone *zone, enum zone_stat_item item)</span>
+ 	}
+ }
+ 
+<span class="p_add">+void __inc_node_state(struct pglist_data *pgdat, enum node_stat_item item)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct per_cpu_nodestat __percpu *pcp = pgdat-&gt;per_cpu_nodestats;</span>
+<span class="p_add">+	s8 __percpu *p = pcp-&gt;vm_node_stat_diff + item;</span>
+<span class="p_add">+	s8 v, t;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	v = __this_cpu_inc_return(*p);</span>
+<span class="p_add">+	t = __this_cpu_read(pcp-&gt;stat_threshold);</span>
+<span class="p_add">+	if (unlikely(v &gt; t)) {</span>
+<span class="p_add">+		s8 overstep = t &gt;&gt; 1;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		node_page_state_add(v + overstep, pgdat, item);</span>
+<span class="p_add">+		__this_cpu_write(*p, -overstep);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ void __inc_zone_page_state(struct page *page, enum zone_stat_item item)
+ {
+ 	__inc_zone_state(page_zone(page), item);
+ }
+ EXPORT_SYMBOL(__inc_zone_page_state);
+ 
+<span class="p_add">+void __inc_node_page_state(struct page *page, enum node_stat_item item)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	__inc_node_state(page_zone(page)-&gt;zone_pgdat, item);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL(__inc_node_page_state);</span>
+<span class="p_add">+</span>
+ void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
+ {
+ 	struct per_cpu_pageset __percpu *pcp = zone-&gt;pageset;
+<span class="p_chunk">@@ -299,12 +347,34 @@</span> <span class="p_context"> void __dec_zone_state(struct zone *zone, enum zone_stat_item item)</span>
+ 	}
+ }
+ 
+<span class="p_add">+void __dec_node_state(struct pglist_data *pgdat, enum node_stat_item item)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct per_cpu_nodestat __percpu *pcp = pgdat-&gt;per_cpu_nodestats;</span>
+<span class="p_add">+	s8 __percpu *p = pcp-&gt;vm_node_stat_diff + item;</span>
+<span class="p_add">+	s8 v, t;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	v = __this_cpu_dec_return(*p);</span>
+<span class="p_add">+	t = __this_cpu_read(pcp-&gt;stat_threshold);</span>
+<span class="p_add">+	if (unlikely(v &lt; - t)) {</span>
+<span class="p_add">+		s8 overstep = t &gt;&gt; 1;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		node_page_state_add(v - overstep, pgdat, item);</span>
+<span class="p_add">+		__this_cpu_write(*p, overstep);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ void __dec_zone_page_state(struct page *page, enum zone_stat_item item)
+ {
+ 	__dec_zone_state(page_zone(page), item);
+ }
+ EXPORT_SYMBOL(__dec_zone_page_state);
+ 
+<span class="p_add">+void __dec_node_page_state(struct page *page, enum node_stat_item item)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	__dec_node_state(page_zone(page)-&gt;zone_pgdat, item);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL(__dec_node_page_state);</span>
+<span class="p_add">+</span>
+ #ifdef CONFIG_HAVE_CMPXCHG_LOCAL
+ /*
+  * If we have cmpxchg_local support then we do not need to incur the overhead
+<span class="p_chunk">@@ -318,7 +388,7 @@</span> <span class="p_context"> EXPORT_SYMBOL(__dec_zone_page_state);</span>
+  *     1       Overstepping half of threshold
+  *     -1      Overstepping minus half of threshold
+ */
+<span class="p_del">-static inline void mod_state(struct zone *zone,</span>
+<span class="p_add">+static inline void mod_zone_state(struct zone *zone,</span>
+        enum zone_stat_item item, int delta, int overstep_mode)
+ {
+ 	struct per_cpu_pageset __percpu *pcp = zone-&gt;pageset;
+<span class="p_chunk">@@ -359,26 +429,88 @@</span> <span class="p_context"> static inline void mod_state(struct zone *zone,</span>
+ void mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
+ 					int delta)
+ {
+<span class="p_del">-	mod_state(zone, item, delta, 0);</span>
+<span class="p_add">+	mod_zone_state(zone, item, delta, 0);</span>
+ }
+ EXPORT_SYMBOL(mod_zone_page_state);
+ 
+ void inc_zone_state(struct zone *zone, enum zone_stat_item item)
+ {
+<span class="p_del">-	mod_state(zone, item, 1, 1);</span>
+<span class="p_add">+	mod_zone_state(zone, item, 1, 1);</span>
+ }
+ 
+ void inc_zone_page_state(struct page *page, enum zone_stat_item item)
+ {
+<span class="p_del">-	mod_state(page_zone(page), item, 1, 1);</span>
+<span class="p_add">+	mod_zone_state(page_zone(page), item, 1, 1);</span>
+ }
+ EXPORT_SYMBOL(inc_zone_page_state);
+ 
+ void dec_zone_page_state(struct page *page, enum zone_stat_item item)
+ {
+<span class="p_del">-	mod_state(page_zone(page), item, -1, -1);</span>
+<span class="p_add">+	mod_zone_state(page_zone(page), item, -1, -1);</span>
+ }
+ EXPORT_SYMBOL(dec_zone_page_state);
+<span class="p_add">+</span>
+<span class="p_add">+static inline void mod_node_state(struct pglist_data *pgdat,</span>
+<span class="p_add">+       enum node_stat_item item, int delta, int overstep_mode)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct per_cpu_nodestat __percpu *pcp = pgdat-&gt;per_cpu_nodestats;</span>
+<span class="p_add">+	s8 __percpu *p = pcp-&gt;vm_node_stat_diff + item;</span>
+<span class="p_add">+	long o, n, t, z;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	do {</span>
+<span class="p_add">+		z = 0;  /* overflow to zone counters */</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * The fetching of the stat_threshold is racy. We may apply</span>
+<span class="p_add">+		 * a counter threshold to the wrong the cpu if we get</span>
+<span class="p_add">+		 * rescheduled while executing here. However, the next</span>
+<span class="p_add">+		 * counter update will apply the threshold again and</span>
+<span class="p_add">+		 * therefore bring the counter under the threshold again.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * Most of the time the thresholds are the same anyways</span>
+<span class="p_add">+		 * for all cpus in a zone.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		t = this_cpu_read(pcp-&gt;stat_threshold);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		o = this_cpu_read(*p);</span>
+<span class="p_add">+		n = delta + o;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (n &gt; t || n &lt; -t) {</span>
+<span class="p_add">+			int os = overstep_mode * (t &gt;&gt; 1) ;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			/* Overflow must be added to zone counters */</span>
+<span class="p_add">+			z = n + os;</span>
+<span class="p_add">+			n = -os;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	} while (this_cpu_cmpxchg(*p, o, n) != o);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (z)</span>
+<span class="p_add">+		node_page_state_add(z, pgdat, item);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+void mod_node_page_state(struct pglist_data *pgdat, enum node_stat_item item,</span>
+<span class="p_add">+					int delta)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	mod_node_state(pgdat, item, delta, 0);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL(mod_node_page_state);</span>
+<span class="p_add">+</span>
+<span class="p_add">+void inc_node_state(struct pglist_data *pgdat, enum node_stat_item item)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	mod_node_state(pgdat, item, 1, 1);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+void inc_node_page_state(struct page *page, enum node_stat_item item)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	mod_node_state(page_zone(page)-&gt;zone_pgdat, item, 1, 1);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL(inc_node_page_state);</span>
+<span class="p_add">+</span>
+<span class="p_add">+void dec_node_page_state(struct page *page, enum node_stat_item item)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	mod_node_state(page_zone(page)-&gt;zone_pgdat, item, -1, -1);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL(dec_node_page_state);</span>
+ #else
+ /*
+  * Use interrupt disable to serialize counter updates
+<span class="p_chunk">@@ -394,15 +526,6 @@</span> <span class="p_context"> void mod_zone_page_state(struct zone *zone, enum zone_stat_item item,</span>
+ }
+ EXPORT_SYMBOL(mod_zone_page_state);
+ 
+<span class="p_del">-void inc_zone_state(struct zone *zone, enum zone_stat_item item)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	unsigned long flags;</span>
+<span class="p_del">-</span>
+<span class="p_del">-	local_irq_save(flags);</span>
+<span class="p_del">-	__inc_zone_state(zone, item);</span>
+<span class="p_del">-	local_irq_restore(flags);</span>
+<span class="p_del">-}</span>
+<span class="p_del">-</span>
+ void inc_zone_page_state(struct page *page, enum zone_stat_item item)
+ {
+ 	unsigned long flags;
+<span class="p_chunk">@@ -424,8 +547,50 @@</span> <span class="p_context"> void dec_zone_page_state(struct page *page, enum zone_stat_item item)</span>
+ 	local_irq_restore(flags);
+ }
+ EXPORT_SYMBOL(dec_zone_page_state);
+<span class="p_del">-#endif</span>
+ 
+<span class="p_add">+void inc_node_state(struct pglist_data *pgdat, enum node_stat_item item)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long flags;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	local_irq_save(flags);</span>
+<span class="p_add">+	__inc_node_state(pgdat, item);</span>
+<span class="p_add">+	local_irq_restore(flags);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL(inc_node_state);</span>
+<span class="p_add">+</span>
+<span class="p_add">+void mod_node_page_state(struct pglist_data *pgdat, enum node_stat_item item,</span>
+<span class="p_add">+					int delta)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long flags;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	local_irq_save(flags);</span>
+<span class="p_add">+	__mod_node_page_state(node, item, delta);</span>
+<span class="p_add">+	local_irq_restore(flags);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL(mod_node_page_state);</span>
+<span class="p_add">+</span>
+<span class="p_add">+void inc_node_page_state(struct page *page, enum node_stat_item item)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long flags;</span>
+<span class="p_add">+	struct pglist_data *pgdat;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pgdat = page_zone(page)-&gt;zone_pgdat;</span>
+<span class="p_add">+	local_irq_save(flags);</span>
+<span class="p_add">+	__inc_zone_state(pgdat, item);</span>
+<span class="p_add">+	local_irq_restore(flags);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL(inc_node_page_state);</span>
+<span class="p_add">+</span>
+<span class="p_add">+void dec_node_page_state(struct page *page, enum node_stat_item item)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long flags;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	local_irq_save(flags);</span>
+<span class="p_add">+	__dec_node_page_state(page, item);</span>
+<span class="p_add">+	local_irq_restore(flags);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL(dec_node_page_state);</span>
+<span class="p_add">+#endif</span>
+ 
+ /*
+  * Fold a differential into the global counters.
+<span class="p_chunk">@@ -438,7 +603,7 @@</span> <span class="p_context"> static int fold_diff(int *diff)</span>
+ 
+ 	for (i = 0; i &lt; NR_VM_ZONE_STAT_ITEMS; i++)
+ 		if (diff[i]) {
+<span class="p_del">-			atomic_long_add(diff[i], &amp;vm_stat[i]);</span>
+<span class="p_add">+			atomic_long_add(diff[i], &amp;vm_zone_stat[i]);</span>
+ 			changes++;
+ 	}
+ 	return changes;
+<span class="p_chunk">@@ -462,6 +627,7 @@</span> <span class="p_context"> static int fold_diff(int *diff)</span>
+  */
+ static int refresh_cpu_vm_stats(void)
+ {
+<span class="p_add">+	struct pglist_data *pgdat;</span>
+ 	struct zone *zone;
+ 	int i;
+ 	int global_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
+<span class="p_chunk">@@ -514,6 +680,21 @@</span> <span class="p_context"> static int refresh_cpu_vm_stats(void)</span>
+ 		}
+ #endif
+ 	}
+<span class="p_add">+</span>
+<span class="p_add">+	for_each_online_pgdat(pgdat) {</span>
+<span class="p_add">+		struct per_cpu_nodestat __percpu *p = pgdat-&gt;per_cpu_nodestats;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		for (i = 0; i &lt; NR_VM_NODE_STAT_ITEMS; i++) {</span>
+<span class="p_add">+			int v;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			v = this_cpu_xchg(p-&gt;vm_node_stat_diff[i], 0);</span>
+<span class="p_add">+			if (v) {</span>
+<span class="p_add">+				atomic_long_add(v, &amp;pgdat-&gt;vm_stat[i]);</span>
+<span class="p_add">+				changes += v;</span>
+<span class="p_add">+			}</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+ 	changes += fold_diff(global_diff);
+ 	return changes;
+ }
+<span class="p_chunk">@@ -525,6 +706,7 @@</span> <span class="p_context"> static int refresh_cpu_vm_stats(void)</span>
+  */
+ void cpu_vm_stats_fold(int cpu)
+ {
+<span class="p_add">+	struct pglist_data *pgdat;</span>
+ 	struct zone *zone;
+ 	int i;
+ 	int global_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
+<span class="p_chunk">@@ -545,6 +727,19 @@</span> <span class="p_context"> void cpu_vm_stats_fold(int cpu)</span>
+ 			}
+ 	}
+ 
+<span class="p_add">+	for_each_online_pgdat(pgdat) {</span>
+<span class="p_add">+		struct per_cpu_nodestat __percpu *p = pgdat-&gt;per_cpu_nodestats;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		for (i = 0; i &lt; NR_VM_NODE_STAT_ITEMS; i++)</span>
+<span class="p_add">+			if (p-&gt;vm_node_stat_diff[i]) {</span>
+<span class="p_add">+				int v;</span>
+<span class="p_add">+</span>
+<span class="p_add">+				v = p-&gt;vm_node_stat_diff[i];</span>
+<span class="p_add">+				p-&gt;vm_node_stat_diff[i] = 0;</span>
+<span class="p_add">+				atomic_long_add(v, &amp;pgdat-&gt;vm_stat[i]);</span>
+<span class="p_add">+			}</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+ 	fold_diff(global_diff);
+ }
+ 
+<span class="p_chunk">@@ -561,7 +756,7 @@</span> <span class="p_context"> void drain_zonestat(struct zone *zone, struct per_cpu_pageset *pset)</span>
+ 			int v = pset-&gt;vm_stat_diff[i];
+ 			pset-&gt;vm_stat_diff[i] = 0;
+ 			atomic_long_add(v, &amp;zone-&gt;vm_stat[i]);
+<span class="p_del">-			atomic_long_add(v, &amp;vm_stat[i]);</span>
+<span class="p_add">+			atomic_long_add(v, &amp;vm_zone_stat[i]);</span>
+ 		}
+ }
+ #endif
+<span class="p_chunk">@@ -1287,6 +1482,7 @@</span> <span class="p_context"> static void *vmstat_start(struct seq_file *m, loff_t *pos)</span>
+ 	if (*pos &gt;= ARRAY_SIZE(vmstat_text))
+ 		return NULL;
+ 	stat_items_size = NR_VM_ZONE_STAT_ITEMS * sizeof(unsigned long) +
+<span class="p_add">+			  NR_VM_NODE_STAT_ITEMS * sizeof(unsigned long) +</span>
+ 			  NR_VM_WRITEBACK_STAT_ITEMS * sizeof(unsigned long);
+ 
+ #ifdef CONFIG_VM_EVENT_COUNTERS
+<span class="p_chunk">@@ -1301,6 +1497,10 @@</span> <span class="p_context"> static void *vmstat_start(struct seq_file *m, loff_t *pos)</span>
+ 		v[i] = global_page_state(i);
+ 	v += NR_VM_ZONE_STAT_ITEMS;
+ 
+<span class="p_add">+	for (i = 0; i &lt; NR_VM_NODE_STAT_ITEMS; i++)</span>
+<span class="p_add">+		v[i] = global_node_page_state(i);</span>
+<span class="p_add">+	v += NR_VM_NODE_STAT_ITEMS;</span>
+<span class="p_add">+</span>
+ 	global_dirty_limits(v + NR_DIRTY_BG_THRESHOLD,
+ 			    v + NR_DIRTY_THRESHOLD);
+ 	v += NR_VM_WRITEBACK_STAT_ITEMS;
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

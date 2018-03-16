@@ -1,0 +1,454 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,09/14] sparc64: TLB/TSB miss handling for shared context - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,09/14] sparc64: TLB/TSB miss handling for shared context</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Dec. 16, 2016, 6:35 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1481913337-9331-10-git-send-email-mike.kravetz@oracle.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9478229/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9478229/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9478229/">/patch/9478229/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	996D9601C2 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri, 16 Dec 2016 18:38:24 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 8F23528787
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri, 16 Dec 2016 18:38:24 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 82BC228783; Fri, 16 Dec 2016 18:38:24 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	UNPARSEABLE_RELAY autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id DC1B728783
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri, 16 Dec 2016 18:38:23 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1762106AbcLPSiR (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Fri, 16 Dec 2016 13:38:17 -0500
+Received: from aserp1040.oracle.com ([141.146.126.69]:39956 &quot;EHLO
+	aserp1040.oracle.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1758220AbcLPSiK (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Fri, 16 Dec 2016 13:38:10 -0500
+Received: from userv0022.oracle.com (userv0022.oracle.com [156.151.31.74])
+	by aserp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with
+	ESMTP id uBGIa2Qa025084
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256
+	verify=OK); Fri, 16 Dec 2016 18:36:02 GMT
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by userv0022.oracle.com (8.14.4/8.14.4) with ESMTP id
+	uBGIa1Ic026661
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256
+	verify=OK); Fri, 16 Dec 2016 18:36:01 GMT
+Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id uBGIa0kd012362; 
+	Fri, 16 Dec 2016 18:36:00 GMT
+Received: from monkey.oracle.com (/50.188.161.229)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Fri, 16 Dec 2016 10:36:00 -0800
+From: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+To: sparclinux@vger.kernel.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Cc: &quot;David S . Miller&quot; &lt;davem@davemloft.net&gt;,
+	Bob Picco &lt;bob.picco@oracle.com&gt;, Nitin Gupta &lt;nitin.m.gupta@oracle.com&gt;,
+	Vijay Kumar &lt;vijay.ac.kumar@oracle.com&gt;,
+	Julian Calaby &lt;julian.calaby@gmail.com&gt;,
+	Adam Buchbinder &lt;adam.buchbinder@gmail.com&gt;,
+	&quot;Kirill A . Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;,
+	Michal Hocko &lt;mhocko@suse.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+Subject: [RFC PATCH 09/14] sparc64: TLB/TSB miss handling for shared context
+Date: Fri, 16 Dec 2016 10:35:32 -0800
+Message-Id: &lt;1481913337-9331-10-git-send-email-mike.kravetz@oracle.com&gt;
+X-Mailer: git-send-email 2.7.4
+In-Reply-To: &lt;1481913337-9331-1-git-send-email-mike.kravetz@oracle.com&gt;
+References: &lt;1481913337-9331-1-git-send-email-mike.kravetz@oracle.com&gt;
+X-Source-IP: userv0022.oracle.com [156.151.31.74]
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Dec. 16, 2016, 6:35 p.m.</div>
+<pre class="content">
+Modifications to the fault handling code to take shared context TSB
+into account.  For now, the shared context code mirrors the huge
+page code.  The _PAGE_SHR_CTX_4V page flag is used to determine
+which TSB should be used.
+
+Note, TRAP_PER_CPU_TSB_HUGE_TEMP is used to stash away calculation
+of a TTE address in the huge page TSB.  At present, tehre is no
+similar mechanism for shared context TSB so the address must be
+recalculated.
+<span class="signed-off-by">
+Signed-off-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+---
+ arch/sparc/kernel/sun4v_tlb_miss.S |   8 +++
+ arch/sparc/kernel/tsb.S            | 122 ++++++++++++++++++++++++++++++++-----
+ 2 files changed, 116 insertions(+), 14 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/sparc/kernel/sun4v_tlb_miss.S b/arch/sparc/kernel/sun4v_tlb_miss.S</span>
+<span class="p_header">index 46fbc16..c438ccc 100644</span>
+<span class="p_header">--- a/arch/sparc/kernel/sun4v_tlb_miss.S</span>
+<span class="p_header">+++ b/arch/sparc/kernel/sun4v_tlb_miss.S</span>
+<span class="p_chunk">@@ -152,6 +152,14 @@</span> <span class="p_context"> sun4v_tsb_miss_common:</span>
+ 	sub	%g2, TRAP_PER_CPU_FAULT_INFO, %g2
+ 
+ #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * FIXME</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * This just computes the possible huge page TSB entry.  It does</span>
+<span class="p_add">+	 * not consider the shared huge page TSB.  Also, care must be taken</span>
+<span class="p_add">+	 * so that TRAP_PER_CPU_TSB_HUGE_TEMP is only used for non-shared</span>
+<span class="p_add">+	 * huge TSB.</span>
+<span class="p_add">+	 */</span>
+ 	mov	SCRATCHPAD_UTSBREG2, %g5
+ 	ldxa	[%g5] ASI_SCRATCHPAD, %g5
+ 	cmp	%g5, -1
+<span class="p_header">diff --git a/arch/sparc/kernel/tsb.S b/arch/sparc/kernel/tsb.S</span>
+<span class="p_header">index 3ed3e7c..57ee5ad 100644</span>
+<span class="p_header">--- a/arch/sparc/kernel/tsb.S</span>
+<span class="p_header">+++ b/arch/sparc/kernel/tsb.S</span>
+<span class="p_chunk">@@ -55,6 +55,9 @@</span> <span class="p_context"> tsb_miss_page_table_walk:</span>
+ 	 */
+ #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
+ 
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * First check the normal huge page TSB</span>
+<span class="p_add">+	 */</span>
+ 661:	ldx		[%g7 + TRAP_PER_CPU_TSB_HUGE], %g5
+ 	nop
+ 	.section	.sun4v_2insn_patch, &quot;ax&quot;
+<span class="p_chunk">@@ -64,7 +67,47 @@</span> <span class="p_context"> tsb_miss_page_table_walk:</span>
+ 	.previous
+ 
+ 	cmp		%g5, -1
+<span class="p_del">-	be,pt		%xcc, 80f</span>
+<span class="p_add">+	be,pt		%xcc, chk_huge_page_shared</span>
+<span class="p_add">+	 nop</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* We need an aligned pair of registers containing 2 values</span>
+<span class="p_add">+	 * which can be easily rematerialized.  %g6 and %g7 foot the</span>
+<span class="p_add">+	 * bill just nicely.  We&#39;ll save %g6 away into %g2 for the</span>
+<span class="p_add">+	 * huge page TSB TAG comparison.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Perform a huge page TSB lookup.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	mov		%g6, %g2</span>
+<span class="p_add">+</span>
+<span class="p_add">+	COMPUTE_TSB_PTR(%g5, %g4, REAL_HPAGE_SHIFT, %g6, %g7)</span>
+<span class="p_add">+</span>
+<span class="p_add">+	TSB_LOAD_QUAD(%g5, %g6)</span>
+<span class="p_add">+	cmp		%g6, %g2</span>
+<span class="p_add">+	be,a,pt		%xcc, tsb_tlb_reload</span>
+<span class="p_add">+	 mov		%g7, %g5</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * No match, restore %g6 and %g7.</span>
+<span class="p_add">+	 * Store huge page TSB entry address</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * FIXME - Look into use of TRAP_PER_CPU_TSB_HUGE_TEMP as it</span>
+<span class="p_add">+	 * is only used for regular, not shared huge pages.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	TRAP_LOAD_TRAP_BLOCK(%g7, %g6)</span>
+<span class="p_add">+	srlx		%g4, 22, %g6</span>
+<span class="p_add">+</span>
+<span class="p_add">+chk_huge_page_shared:</span>
+<span class="p_add">+	stx		%g5, [%g7 + TRAP_PER_CPU_TSB_HUGE_TEMP]</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * For now (POC) only check shared context on hypervisor</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	IF_TLB_TYPE_NOT_HYPE(%g2, huge_checks_done)</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/* Check the shared huge page TSB */</span>
+<span class="p_add">+	ldx		[%g7 + TRAP_PER_CPU_TSB_HUGE_SHARED], %g5</span>
+<span class="p_add">+	cmp		%g5, -1</span>
+<span class="p_add">+	bne,pn		%xcc, huge_checks_done</span>
+ 	 nop
+ 
+ 	/* We need an aligned pair of registers containing 2 values
+<span class="p_chunk">@@ -75,15 +118,8 @@</span> <span class="p_context"> tsb_miss_page_table_walk:</span>
+ 	 * Perform a huge page TSB lookup.
+ 	 */
+ 	mov		%g6, %g2
+<span class="p_del">-	and		%g5, 0x7, %g6</span>
+<span class="p_del">-	mov		512, %g7</span>
+<span class="p_del">-	andn		%g5, 0x7, %g5</span>
+<span class="p_del">-	sllx		%g7, %g6, %g7</span>
+<span class="p_del">-	srlx		%g4, REAL_HPAGE_SHIFT, %g6</span>
+<span class="p_del">-	sub		%g7, 1, %g7</span>
+<span class="p_del">-	and		%g6, %g7, %g6</span>
+<span class="p_del">-	sllx		%g6, 4, %g6</span>
+<span class="p_del">-	add		%g5, %g6, %g5</span>
+<span class="p_add">+</span>
+<span class="p_add">+	COMPUTE_TSB_PTR(%g5, %g4, REAL_HPAGE_SHIFT, %g6, %g7)</span>
+ 
+ 	TSB_LOAD_QUAD(%g5, %g6)
+ 	cmp		%g6, %g2
+<span class="p_chunk">@@ -91,25 +127,29 @@</span> <span class="p_context"> tsb_miss_page_table_walk:</span>
+ 	 mov		%g7, %g5
+ 
+ 	/* No match, remember the huge page TSB entry address,
+<span class="p_del">-	 * and restore %g6 and %g7.</span>
+<span class="p_add">+	 * restore %g6 and %g7.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * NOT REALLY REMEMBERING -  See FIXME above</span>
+ 	 */
+ 	TRAP_LOAD_TRAP_BLOCK(%g7, %g6)
+ 	srlx		%g4, 22, %g6
+<span class="p_del">-80:	stx		%g5, [%g7 + TRAP_PER_CPU_TSB_HUGE_TEMP]</span>
+ 
+<span class="p_add">+huge_checks_done:</span>
+<span class="p_add">+	stx		%g5, [%g7 + TRAP_PER_CPU_TSB_HUGE_TEMP]</span>
+ #endif
+ 
+ 	ldx		[%g7 + TRAP_PER_CPU_PGD_PADDR], %g7
+ 
+ 	/* At this point we have:
+<span class="p_del">-	 * %g1 --	TSB entry address</span>
+<span class="p_add">+	 * %g1 --	Base TSB entry address</span>
+ 	 * %g3 --	FAULT_CODE_{D,I}TLB
+ 	 * %g4 --	missing virtual address
+ 	 * %g6 --	TAG TARGET (vaddr &gt;&gt; 22)
+ 	 * %g7 --	page table physical address
+ 	 *
+ 	 * We know that both the base PAGE_SIZE TSB and the HPAGE_SIZE
+<span class="p_del">-	 * TSB both lack a matching entry.</span>
+<span class="p_add">+	 * TSB both lack a matching entry, as well as shared TSBs if</span>
+<span class="p_add">+	 * present.</span>
+ 	 */
+ tsb_miss_page_table_walk_sun4v_fastpath:
+ 	USER_PGTABLE_WALK_TL1(%g4, %g7, %g5, %g2, tsb_do_fault)
+<span class="p_chunk">@@ -152,12 +192,42 @@</span> <span class="p_context"> tsb_miss_page_table_walk_sun4v_fastpath:</span>
+ 	 * thus handle it here.  This also makes sure that we can
+ 	 * allocate the TSB hash table on the correct NUMA node.
+ 	 */
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Check for shared context PTE, in this case we do not have</span>
+<span class="p_add">+	 * a saved TSB entry pointer and must compute now</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	IF_TLB_TYPE_NOT_HYPE(%g2, no_shared_ctx_pte)</span>
+<span class="p_add">+</span>
+<span class="p_add">+	mov		_PAGE_SHR_CTX_4V, %g2</span>
+<span class="p_add">+	andcc		%g5, %g2, %g2</span>
+<span class="p_add">+	be,pn		%xcc, no_shared_ctx_pte</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * If there was a shared context TSB, then we need to copmute the</span>
+<span class="p_add">+	 * TSB entry address.  Previously, only the non-shared context</span>
+<span class="p_add">+	 * TSB entry address was calculated.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * FIXME</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	TRAP_LOAD_TRAP_BLOCK(%g7, %g1)</span>
+<span class="p_add">+	ldx		[%g7 + TRAP_PER_CPU_TSB_HUGE_SHARED], %g1</span>
+<span class="p_add">+	cmp		%g1, -1</span>
+<span class="p_add">+	be,pn		%xcc, no_shared_hugetlb</span>
+<span class="p_add">+	 nop</span>
+<span class="p_add">+</span>
+<span class="p_add">+	COMPUTE_TSB_PTR(%g1, %g4, REAL_HPAGE_SHIFT, %g2, %g7)</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ba,a,pt %xcc,tsb_reload</span>
+<span class="p_add">+</span>
+<span class="p_add">+no_shared_ctx_pte:</span>
+ 	TRAP_LOAD_TRAP_BLOCK(%g7, %g2)
+ 	ldx		[%g7 + TRAP_PER_CPU_TSB_HUGE_TEMP], %g1
+ 	cmp		%g1, -1
+ 	bne,pt		%xcc, 60f
+ 	 nop
+ 
+<span class="p_add">+no_hugetlb:</span>
+ 661:	rdpr		%pstate, %g5
+ 	wrpr		%g5, PSTATE_AG | PSTATE_MG, %pstate
+ 	.section	.sun4v_2insn_patch, &quot;ax&quot;
+<span class="p_chunk">@@ -177,6 +247,30 @@</span> <span class="p_context"> tsb_miss_page_table_walk_sun4v_fastpath:</span>
+ 	ba,pt	%xcc, rtrap
+ 	 nop
+ 
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * This is the same as above call to hugetlb_setup.</span>
+<span class="p_add">+	 * FIXME</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+no_shared_hugetlb:</span>
+<span class="p_add">+661:	rdpr		%pstate, %g5</span>
+<span class="p_add">+	wrpr		%g5, PSTATE_AG | PSTATE_MG, %pstate</span>
+<span class="p_add">+	.section	.sun4v_2insn_patch, &quot;ax&quot;</span>
+<span class="p_add">+	.word		661b</span>
+<span class="p_add">+	SET_GL(1)</span>
+<span class="p_add">+	nop</span>
+<span class="p_add">+	.previous</span>
+<span class="p_add">+</span>
+<span class="p_add">+	rdpr	%tl, %g7</span>
+<span class="p_add">+	cmp	%g7, 1</span>
+<span class="p_add">+	bne,pn	%xcc, winfix_trampoline</span>
+<span class="p_add">+	 mov	%g3, %g4</span>
+<span class="p_add">+	ba,pt	%xcc, etrap</span>
+<span class="p_add">+	 rd	%pc, %g7</span>
+<span class="p_add">+	call	hugetlb_shared_setup</span>
+<span class="p_add">+	 add	%sp, PTREGS_OFF, %o0</span>
+<span class="p_add">+	ba,pt	%xcc, rtrap</span>
+<span class="p_add">+	 nop</span>
+<span class="p_add">+</span>
+ 60:
+ #endif
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

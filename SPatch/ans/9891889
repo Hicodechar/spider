@@ -1,0 +1,503 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v5,03/10] swiotlb: Map the buffer if it was unmapped by XPFO - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v5,03/10] swiotlb: Map the buffer if it was unmapped by XPFO</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=173139">Tycho Andersen</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Aug. 9, 2017, 8:07 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170809200755.11234-4-tycho@docker.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9891889/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9891889/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9891889/">/patch/9891889/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	C623A60363 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  9 Aug 2017 20:10:29 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id B8A7C28AA5
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  9 Aug 2017 20:10:29 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id ADB4228A8F; Wed,  9 Aug 2017 20:10:29 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.5 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID, DKIM_VALID_AU, RCVD_IN_DNSWL_HI,
+	RCVD_IN_SORBS_SPAM autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 4982C28AAD
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  9 Aug 2017 20:10:29 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752487AbdHIUK0 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 9 Aug 2017 16:10:26 -0400
+Received: from mail-it0-f43.google.com ([209.85.214.43]:37249 &quot;EHLO
+	mail-it0-f43.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1752060AbdHIUI6 (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 9 Aug 2017 16:08:58 -0400
+Received: by mail-it0-f43.google.com with SMTP id 76so3292976ith.0
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Wed, 09 Aug 2017 13:08:57 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=docker.com; s=google;
+	h=from:to:cc:subject:date:message-id:in-reply-to:references;
+	bh=smWs/ioHgWxjGrsgmEs0wxYBrpTHYx0x8RZxDFoLDLc=;
+	b=US+FVf/jGm7I31dQg5Bg+tMKcYpy8rN7/j2vJCqJRrGoL9fb0wgoVfMTZPveN+vaMd
+	RLHeJpuNmcATs5hnfaWO6NO0qL2x/W4nhYow+gkPxj+lUeQU86pb6Ms2S6AQhTLsniCK
+	4lQ+ySVQrGym+cHN9BZqUcYYmqyxnMS2JoGBk=
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
+	:references;
+	bh=smWs/ioHgWxjGrsgmEs0wxYBrpTHYx0x8RZxDFoLDLc=;
+	b=pWWFa/6i6F6MLNdvs8sSo6FwEV4Bby6AazzHIvAgZWm+LJWG4Zq4n6kfnImtokekwj
+	/3bRzoMBaXN0cLZwctUWMbTAnoqVqe37M83GOCGt93NIoyrajSZrryzy2WfuepyBwVVt
+	tTiZuRPXHf/JPE6l+NgclgLpWMP0LXvSAZC+GnMkE5i/yTUAb68cQqImLPVgOps9JPhh
+	zEIMVPcIZYM2icJWu6gsE9erX9JYKsu91uh6SylTCn8XbcmGnLtTDTlHWP8bprO+FTVs
+	ppgciZh0wTMs3Chlsr0rS8ZEUYVEKFL5xxLIJB/cIOkTaxSElbgTc+yopHpX+xHJ+S5g
+	gjFA==
+X-Gm-Message-State: AIVw1107QlNd18/UdK8JyNQn1GQd3YWopJhSXbsY4/zMpyvoYwO5cEIA
+	H48GTQ/1tT4B5eBXJoYkGA==
+X-Received: by 10.36.71.135 with SMTP id t129mr7673036itb.141.1502309337338; 
+	Wed, 09 Aug 2017 13:08:57 -0700 (PDT)
+Received: from localhost.localdomain ([8.24.24.129])
+	by smtp.gmail.com with ESMTPSA id
+	p63sm2324422itg.32.2017.08.09.13.08.56
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Wed, 09 Aug 2017 13:08:56 -0700 (PDT)
+From: Tycho Andersen &lt;tycho@docker.com&gt;
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, kernel-hardening@lists.openwall.com,
+	Marco Benatto &lt;marco.antonio.780@gmail.com&gt;,
+	Juerg Haefliger &lt;juerg.haefliger@canonical.com&gt;,
+	Juerg Haefliger &lt;juerg.haefliger@hpe.com&gt;
+Subject: [PATCH v5 03/10] swiotlb: Map the buffer if it was unmapped by XPFO
+Date: Wed,  9 Aug 2017 14:07:48 -0600
+Message-Id: &lt;20170809200755.11234-4-tycho@docker.com&gt;
+X-Mailer: git-send-email 2.11.0
+In-Reply-To: &lt;20170809200755.11234-1-tycho@docker.com&gt;
+References: &lt;20170809200755.11234-1-tycho@docker.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=173139">Tycho Andersen</a> - Aug. 9, 2017, 8:07 p.m.</div>
+<pre class="content">
+<span class="from">From: Juerg Haefliger &lt;juerg.haefliger@hpe.com&gt;</span>
+<span class="signed-off-by">
+Signed-off-by: Juerg Haefliger &lt;juerg.haefliger@canonical.com&gt;</span>
+<span class="tested-by">Tested-by: Tycho Andersen &lt;tycho@docker.com&gt;</span>
+---
+ include/linux/xpfo.h | 4 ++++
+ lib/swiotlb.c        | 3 ++-
+ mm/xpfo.c            | 9 +++++++++
+ 3 files changed, 15 insertions(+), 1 deletion(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=3565">Konrad Rzeszutek</a> - Aug. 10, 2017, 1:01 p.m.</div>
+<pre class="content">
+On Wed, Aug 09, 2017 at 02:07:48PM -0600, Tycho Andersen wrote:
+<span class="quote">&gt; From: Juerg Haefliger &lt;juerg.haefliger@hpe.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Juerg Haefliger &lt;juerg.haefliger@canonical.com&gt;</span>
+<span class="quote">&gt; Tested-by: Tycho Andersen &lt;tycho@docker.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  include/linux/xpfo.h | 4 ++++</span>
+<span class="quote">&gt;  lib/swiotlb.c        | 3 ++-</span>
+<span class="quote">&gt;  mm/xpfo.c            | 9 +++++++++</span>
+<span class="quote">&gt;  3 files changed, 15 insertions(+), 1 deletion(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h</span>
+<span class="quote">&gt; index 1ff2d1976837..6b61f7b820f4 100644</span>
+<span class="quote">&gt; --- a/include/linux/xpfo.h</span>
+<span class="quote">&gt; +++ b/include/linux/xpfo.h</span>
+<span class="quote">&gt; @@ -27,6 +27,8 @@ void xpfo_kunmap(void *kaddr, struct page *page);</span>
+<span class="quote">&gt;  void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp);</span>
+<span class="quote">&gt;  void xpfo_free_pages(struct page *page, int order);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +bool xpfo_page_is_unmapped(struct page *page);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  #else /* !CONFIG_XPFO */</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static inline void xpfo_kmap(void *kaddr, struct page *page) { }</span>
+<span class="quote">&gt; @@ -34,6 +36,8 @@ static inline void xpfo_kunmap(void *kaddr, struct page *page) { }</span>
+<span class="quote">&gt;  static inline void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp) { }</span>
+<span class="quote">&gt;  static inline void xpfo_free_pages(struct page *page, int order) { }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +static inline bool xpfo_page_is_unmapped(struct page *page) { return false; }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  #endif /* CONFIG_XPFO */</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  #endif /* _LINUX_XPFO_H */</span>
+<span class="quote">&gt; diff --git a/lib/swiotlb.c b/lib/swiotlb.c</span>
+<span class="quote">&gt; index a8d74a733a38..d4fee5ca2d9e 100644</span>
+<span class="quote">&gt; --- a/lib/swiotlb.c</span>
+<span class="quote">&gt; +++ b/lib/swiotlb.c</span>
+<span class="quote">&gt; @@ -420,8 +420,9 @@ static void swiotlb_bounce(phys_addr_t orig_addr, phys_addr_t tlb_addr,</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	unsigned long pfn = PFN_DOWN(orig_addr);</span>
+<span class="quote">&gt;  	unsigned char *vaddr = phys_to_virt(tlb_addr);</span>
+<span class="quote">&gt; +	struct page *page = pfn_to_page(pfn);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	if (PageHighMem(pfn_to_page(pfn))) {</span>
+<span class="quote">&gt; +	if (PageHighMem(page) || xpfo_page_is_unmapped(page)) {</span>
+<span class="quote">&gt;  		/* The buffer does not have a mapping.  Map it in and copy */</span>
+<span class="quote">&gt;  		unsigned int offset = orig_addr &amp; ~PAGE_MASK;</span>
+<span class="quote">&gt;  		char *buffer;</span>
+<span class="quote">&gt; diff --git a/mm/xpfo.c b/mm/xpfo.c</span>
+<span class="quote">&gt; index 3cd45f68b5ad..3f305f31a072 100644</span>
+<span class="quote">&gt; --- a/mm/xpfo.c</span>
+<span class="quote">&gt; +++ b/mm/xpfo.c</span>
+<span class="quote">&gt; @@ -206,3 +206,12 @@ void xpfo_kunmap(void *kaddr, struct page *page)</span>
+<span class="quote">&gt;  	spin_unlock_irqrestore(&amp;xpfo-&gt;maplock, flags);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  EXPORT_SYMBOL(xpfo_kunmap);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +inline bool xpfo_page_is_unmapped(struct page *page)</span>
+<span class="quote">&gt; +{</span>
+<span class="quote">&gt; +	if (!static_branch_unlikely(&amp;xpfo_inited))</span>
+<span class="quote">&gt; +		return false;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	return test_bit(XPFO_PAGE_UNMAPPED, &amp;lookup_xpfo(page)-&gt;flags);</span>
+<span class="quote">&gt; +}</span>
+<span class="quote">&gt; +EXPORT_SYMBOL(xpfo_page_is_unmapped);</span>
+
+How can it be inline and &#39;EXPORT_SYMBOL&#39; ? And why make it inline? It
+surely does not need to be access that often?
+<span class="quote">
+&gt; -- </span>
+<span class="quote">&gt; 2.11.0</span>
+<span class="quote">&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=173139">Tycho Andersen</a> - Aug. 10, 2017, 4:22 p.m.</div>
+<pre class="content">
+On Thu, Aug 10, 2017 at 09:01:06AM -0400, Konrad Rzeszutek Wilk wrote:
+<span class="quote">&gt; On Wed, Aug 09, 2017 at 02:07:48PM -0600, Tycho Andersen wrote:</span>
+<span class="quote">&gt; &gt; +inline bool xpfo_page_is_unmapped(struct page *page)</span>
+<span class="quote">&gt; &gt; +{</span>
+<span class="quote">&gt; &gt; +	if (!static_branch_unlikely(&amp;xpfo_inited))</span>
+<span class="quote">&gt; &gt; +		return false;</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +	return test_bit(XPFO_PAGE_UNMAPPED, &amp;lookup_xpfo(page)-&gt;flags);</span>
+<span class="quote">&gt; &gt; +}</span>
+<span class="quote">&gt; &gt; +EXPORT_SYMBOL(xpfo_page_is_unmapped);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; How can it be inline and &#39;EXPORT_SYMBOL&#39; ? And why make it inline? It</span>
+<span class="quote">&gt; surely does not need to be access that often?</span>
+
+Good point. I&#39;ll drop inline from the next version, thanks!
+
+Tycho
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=65121">Dave Hansen</a> - Sept. 20, 2017, 4:19 p.m.</div>
+<pre class="content">
+On 08/09/2017 01:07 PM, Tycho Andersen wrote:
+<span class="quote">&gt; --- a/lib/swiotlb.c</span>
+<span class="quote">&gt; +++ b/lib/swiotlb.c</span>
+<span class="quote">&gt; @@ -420,8 +420,9 @@ static void swiotlb_bounce(phys_addr_t orig_addr, phys_addr_t tlb_addr,</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	unsigned long pfn = PFN_DOWN(orig_addr);</span>
+<span class="quote">&gt;  	unsigned char *vaddr = phys_to_virt(tlb_addr);</span>
+<span class="quote">&gt; +	struct page *page = pfn_to_page(pfn);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	if (PageHighMem(pfn_to_page(pfn))) {</span>
+<span class="quote">&gt; +	if (PageHighMem(page) || xpfo_page_is_unmapped(page)) {</span>
+<span class="quote">&gt;  		/* The buffer does not have a mapping.  Map it in and copy */</span>
+<span class="quote">&gt;  		unsigned int offset = orig_addr &amp; ~PAGE_MASK;</span>
+<span class="quote">&gt;  		char *buffer;</span>
+
+This is a little scary.  I wonder how many more of these are in the
+kernel, like:
+<span class="quote">
+&gt; static inline void *skcipher_map(struct scatter_walk *walk)</span>
+<span class="quote">&gt; {</span>
+<span class="quote">&gt;         struct page *page = scatterwalk_page(walk);</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;         return (PageHighMem(page) ? kmap_atomic(page) : page_address(page)) +</span>
+<span class="quote">&gt;                offset_in_page(walk-&gt;offset);</span>
+<span class="quote">&gt; }</span>
+
+Is there any better way to catch these?  Like, can we add some debugging
+to check for XPFO pages in __va()?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=173139">Tycho Andersen</a> - Sept. 20, 2017, 10:47 p.m.</div>
+<pre class="content">
+On Wed, Sep 20, 2017 at 09:19:56AM -0700, Dave Hansen wrote:
+<span class="quote">&gt; On 08/09/2017 01:07 PM, Tycho Andersen wrote:</span>
+<span class="quote">&gt; &gt; --- a/lib/swiotlb.c</span>
+<span class="quote">&gt; &gt; +++ b/lib/swiotlb.c</span>
+<span class="quote">&gt; &gt; @@ -420,8 +420,9 @@ static void swiotlb_bounce(phys_addr_t orig_addr, phys_addr_t tlb_addr,</span>
+<span class="quote">&gt; &gt;  {</span>
+<span class="quote">&gt; &gt;  	unsigned long pfn = PFN_DOWN(orig_addr);</span>
+<span class="quote">&gt; &gt;  	unsigned char *vaddr = phys_to_virt(tlb_addr);</span>
+<span class="quote">&gt; &gt; +	struct page *page = pfn_to_page(pfn);</span>
+<span class="quote">&gt; &gt;  </span>
+<span class="quote">&gt; &gt; -	if (PageHighMem(pfn_to_page(pfn))) {</span>
+<span class="quote">&gt; &gt; +	if (PageHighMem(page) || xpfo_page_is_unmapped(page)) {</span>
+<span class="quote">&gt; &gt;  		/* The buffer does not have a mapping.  Map it in and copy */</span>
+<span class="quote">&gt; &gt;  		unsigned int offset = orig_addr &amp; ~PAGE_MASK;</span>
+<span class="quote">&gt; &gt;  		char *buffer;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This is a little scary.  I wonder how many more of these are in the</span>
+<span class="quote">&gt; kernel, like:</span>
+
+I don&#39;t know, but I assume several :)
+<span class="quote">
+&gt; &gt; static inline void *skcipher_map(struct scatter_walk *walk)</span>
+<span class="quote">&gt; &gt; {</span>
+<span class="quote">&gt; &gt;         struct page *page = scatterwalk_page(walk);</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;         return (PageHighMem(page) ? kmap_atomic(page) : page_address(page)) +</span>
+<span class="quote">&gt; &gt;                offset_in_page(walk-&gt;offset);</span>
+<span class="quote">&gt; &gt; }</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Is there any better way to catch these?  Like, can we add some debugging</span>
+<span class="quote">&gt; to check for XPFO pages in __va()?</span>
+
+Yes, and perhaps also a debugging check in PageHighMem? Would __va
+have caught either of the two cases you&#39;ve pointed out?
+
+Tycho
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=65121">Dave Hansen</a> - Sept. 20, 2017, 11:25 p.m.</div>
+<pre class="content">
+On 09/20/2017 03:47 PM, Tycho Andersen wrote:
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt;&gt; static inline void *skcipher_map(struct scatter_walk *walk)</span>
+<span class="quote">&gt;&gt;&gt; {</span>
+<span class="quote">&gt;&gt;&gt;         struct page *page = scatterwalk_page(walk);</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;         return (PageHighMem(page) ? kmap_atomic(page) : page_address(page)) +</span>
+<span class="quote">&gt;&gt;&gt;                offset_in_page(walk-&gt;offset);</span>
+<span class="quote">&gt;&gt;&gt; }</span>
+<span class="quote">&gt;&gt; Is there any better way to catch these?  Like, can we add some debugging</span>
+<span class="quote">&gt;&gt; to check for XPFO pages in __va()?</span>
+<span class="quote">&gt; Yes, and perhaps also a debugging check in PageHighMem?</span>
+
+I&#39;m not sure what PageHighMem() would check.  It&#39;s OK to use as long as
+you don&#39;t depend on the contents of the page.
+<span class="quote">		
+&gt; Would __va have caught either of the two cases you&#39;ve pointed out?</span>
+Yes.  __va() is what is eventually called by lowmem_page_address(),
+which is only OK to call on things that are actually mapped into the kernel.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/include/linux/xpfo.h b/include/linux/xpfo.h</span>
+<span class="p_header">index 1ff2d1976837..6b61f7b820f4 100644</span>
+<span class="p_header">--- a/include/linux/xpfo.h</span>
+<span class="p_header">+++ b/include/linux/xpfo.h</span>
+<span class="p_chunk">@@ -27,6 +27,8 @@</span> <span class="p_context"> void xpfo_kunmap(void *kaddr, struct page *page);</span>
+ void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp);
+ void xpfo_free_pages(struct page *page, int order);
+ 
+<span class="p_add">+bool xpfo_page_is_unmapped(struct page *page);</span>
+<span class="p_add">+</span>
+ #else /* !CONFIG_XPFO */
+ 
+ static inline void xpfo_kmap(void *kaddr, struct page *page) { }
+<span class="p_chunk">@@ -34,6 +36,8 @@</span> <span class="p_context"> static inline void xpfo_kunmap(void *kaddr, struct page *page) { }</span>
+ static inline void xpfo_alloc_pages(struct page *page, int order, gfp_t gfp) { }
+ static inline void xpfo_free_pages(struct page *page, int order) { }
+ 
+<span class="p_add">+static inline bool xpfo_page_is_unmapped(struct page *page) { return false; }</span>
+<span class="p_add">+</span>
+ #endif /* CONFIG_XPFO */
+ 
+ #endif /* _LINUX_XPFO_H */
+<span class="p_header">diff --git a/lib/swiotlb.c b/lib/swiotlb.c</span>
+<span class="p_header">index a8d74a733a38..d4fee5ca2d9e 100644</span>
+<span class="p_header">--- a/lib/swiotlb.c</span>
+<span class="p_header">+++ b/lib/swiotlb.c</span>
+<span class="p_chunk">@@ -420,8 +420,9 @@</span> <span class="p_context"> static void swiotlb_bounce(phys_addr_t orig_addr, phys_addr_t tlb_addr,</span>
+ {
+ 	unsigned long pfn = PFN_DOWN(orig_addr);
+ 	unsigned char *vaddr = phys_to_virt(tlb_addr);
+<span class="p_add">+	struct page *page = pfn_to_page(pfn);</span>
+ 
+<span class="p_del">-	if (PageHighMem(pfn_to_page(pfn))) {</span>
+<span class="p_add">+	if (PageHighMem(page) || xpfo_page_is_unmapped(page)) {</span>
+ 		/* The buffer does not have a mapping.  Map it in and copy */
+ 		unsigned int offset = orig_addr &amp; ~PAGE_MASK;
+ 		char *buffer;
+<span class="p_header">diff --git a/mm/xpfo.c b/mm/xpfo.c</span>
+<span class="p_header">index 3cd45f68b5ad..3f305f31a072 100644</span>
+<span class="p_header">--- a/mm/xpfo.c</span>
+<span class="p_header">+++ b/mm/xpfo.c</span>
+<span class="p_chunk">@@ -206,3 +206,12 @@</span> <span class="p_context"> void xpfo_kunmap(void *kaddr, struct page *page)</span>
+ 	spin_unlock_irqrestore(&amp;xpfo-&gt;maplock, flags);
+ }
+ EXPORT_SYMBOL(xpfo_kunmap);
+<span class="p_add">+</span>
+<span class="p_add">+inline bool xpfo_page_is_unmapped(struct page *page)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (!static_branch_unlikely(&amp;xpfo_inited))</span>
+<span class="p_add">+		return false;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return test_bit(XPFO_PAGE_UNMAPPED, &amp;lookup_xpfo(page)-&gt;flags);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL(xpfo_page_is_unmapped);</span>
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

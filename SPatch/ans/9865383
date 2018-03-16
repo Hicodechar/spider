@@ -1,0 +1,662 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>mm, oom: allow oom reaper to race with exit_mmap - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    mm, oom: allow oom reaper to race with exit_mmap</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=965">Andrea Arcangeli</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>July 26, 2017, 4:29 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170726162912.GA29716@redhat.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9865383/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9865383/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9865383/">/patch/9865383/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	4FA7B603F9 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 26 Jul 2017 16:30:18 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 384E32866A
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 26 Jul 2017 16:30:18 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 2CE1D2879C; Wed, 26 Jul 2017 16:30:18 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 74F6F2879C
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 26 Jul 2017 16:30:16 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751776AbdGZQ3R (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 26 Jul 2017 12:29:17 -0400
+Received: from mx1.redhat.com ([209.132.183.28]:38130 &quot;EHLO mx1.redhat.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1751658AbdGZQ3P (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 26 Jul 2017 12:29:15 -0400
+Received: from smtp.corp.redhat.com
+	(int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 93F7F46210;
+	Wed, 26 Jul 2017 16:29:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mx1.redhat.com 93F7F46210
+Authentication-Results: ext-mx05.extmail.prod.ext.phx2.redhat.com;
+	dmarc=none (p=none dis=none) header.from=redhat.com
+Authentication-Results: ext-mx05.extmail.prod.ext.phx2.redhat.com;
+	spf=fail smtp.mailfrom=aarcange@redhat.com
+Received: from mail.random (ovpn-116-29.ams2.redhat.com [10.36.116.29])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 6739D7DE21;
+	Wed, 26 Jul 2017 16:29:13 +0000 (UTC)
+Date: Wed, 26 Jul 2017 18:29:12 +0200
+From: Andrea Arcangeli &lt;aarcange@redhat.com&gt;
+To: Michal Hocko &lt;mhocko@kernel.org&gt;
+Cc: &quot;Kirill A. Shutemov&quot; &lt;kirill@shutemov.name&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	David Rientjes &lt;rientjes@google.com&gt;,
+	Tetsuo Handa &lt;penguin-kernel@I-love.SAKURA.ne.jp&gt;,
+	Oleg Nesterov &lt;oleg@redhat.com&gt;,
+	Hugh Dickins &lt;hughd@google.com&gt;, linux-mm@kvack.org,
+	LKML &lt;linux-kernel@vger.kernel.org&gt;
+Subject: Re: [PATCH] mm, oom: allow oom reaper to race with exit_mmap
+Message-ID: &lt;20170726162912.GA29716@redhat.com&gt;
+References: &lt;20170724141526.GM25221@dhcp22.suse.cz&gt;
+	&lt;20170724145142.i5xqpie3joyxbnck@node.shutemov.name&gt;
+	&lt;20170724161146.GQ25221@dhcp22.suse.cz&gt;
+	&lt;20170725142626.GJ26723@dhcp22.suse.cz&gt;
+	&lt;20170725151754.3txp44a2kbffsxdg@node.shutemov.name&gt;
+	&lt;20170725152300.GM26723@dhcp22.suse.cz&gt;
+	&lt;20170725153110.qzfz7wpnxkjwh5bc@node.shutemov.name&gt;
+	&lt;20170725160359.GO26723@dhcp22.suse.cz&gt;
+	&lt;20170725191952.GR29716@redhat.com&gt;
+	&lt;20170726054557.GB960@dhcp22.suse.cz&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: &lt;20170726054557.GB960@dhcp22.suse.cz&gt;
+User-Agent: Mutt/1.8.3 (2017-05-23)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16
+	(mx1.redhat.com [10.5.110.29]);
+	Wed, 26 Jul 2017 16:29:15 +0000 (UTC)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=965">Andrea Arcangeli</a> - July 26, 2017, 4:29 p.m.</div>
+<pre class="content">
+On Wed, Jul 26, 2017 at 07:45:57AM +0200, Michal Hocko wrote:
+<span class="quote">&gt; On Tue 25-07-17 21:19:52, Andrea Arcangeli wrote:</span>
+<span class="quote">&gt; &gt; On Tue, Jul 25, 2017 at 06:04:00PM +0200, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; &gt; -	down_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt; &gt; &gt; +	if (tsk_is_oom_victim(current))</span>
+<span class="quote">&gt; &gt; &gt; +		down_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt; &gt; &gt;  	free_pgtables(&amp;tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);</span>
+<span class="quote">&gt; &gt; &gt;  	tlb_finish_mmu(&amp;tlb, 0, -1);</span>
+<span class="quote">&gt; &gt; &gt;  </span>
+<span class="quote">&gt; &gt; &gt; @@ -3012,7 +3014,8 @@ void exit_mmap(struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt; &gt;  	}</span>
+<span class="quote">&gt; &gt; &gt;  	mm-&gt;mmap = NULL;</span>
+<span class="quote">&gt; &gt; &gt;  	vm_unacct_memory(nr_accounted);</span>
+<span class="quote">&gt; &gt; &gt; -	up_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt; &gt; &gt; +	if (tsk_is_oom_victim(current))</span>
+<span class="quote">&gt; &gt; &gt; +		up_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; How is this possibly safe? mark_oom_victim can run while exit_mmap is</span>
+<span class="quote">&gt; &gt; running.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I believe it cannot. We always call mark_oom_victim (on !current) with</span>
+<span class="quote">&gt; task_lock held and check task-&gt;mm != NULL and we call do_exit-&gt;mmput after</span>
+<span class="quote">&gt; mm is set to NULL under the same lock.</span>
+
+Holding the mmap_sem for writing and setting mm-&gt;mmap to NULL to
+filter which tasks already released the mmap_sem for writing post
+free_pgtables still look unnecessary to solve this.
+
+Using MMF_OOM_SKIP as flag had side effects of oom_badness() skipping
+it, but we can use the same tsk_is_oom_victim instead and relay on the
+locking in mark_oom_victim you pointed out above instead of the
+test_and_set_bit of my patch, because current-&gt;mm is already NULL at
+that point.
+
+A race at the light of the above now is, because current-&gt;mm is NULL by the
+time mmput is called, how can you start the oom_reap_task on a process
+with current-&gt;mm NULL that called the last mmput and is blocked
+in exit_aio? It looks like no false positive can get fixed until this
+is solved first because 
+
+Isn&#39;t this enough? If this is enough it avoids other modification to
+the exit_mmap runtime that looks unnecessary: mm-&gt;mmap = NULL replaced
+by MMF_OOM_SKIP that has to be set anyway by __mmput later and one
+unnecessary branch to call the up_write.
+
+From 3d9001490ee1a71f39c7bfaf19e96821f9d3ff16 Mon Sep 17 00:00:00 2001
+<span class="from">From: Andrea Arcangeli &lt;aarcange@redhat.com&gt;</span>
+Date: Tue, 25 Jul 2017 20:02:27 +0200
+Subject: [PATCH 1/1] mm: oom: let oom_reap_task and exit_mmap to run
+ concurrently
+
+This is purely required because exit_aio() may block and exit_mmap() may
+never start, if the oom_reap_task cannot start running on a mm with
+mm_users == 0.
+
+At the same time if the OOM reaper doesn&#39;t wait at all for the memory
+of the current OOM candidate to be freed by exit_mmap-&gt;unmap_vmas, it
+would generate a spurious OOM kill.
+
+If it wasn&#39;t because of the exit_aio or similar blocking functions in
+the last mmput, it would be enough to change the oom_reap_task() in
+the case it finds mm_users == 0, to wait for a timeout or to wait for
+__mmput to set MMF_OOM_SKIP itself, but it&#39;s not just exit_mmap the
+problem here so the concurrency of exit_mmap and oom_reap_task is
+apparently warranted.
+
+It&#39;s a non standard runtime, exit_mmap() runs without mmap_sem, and
+oom_reap_task runs with the mmap_sem for reading as usual (kind of
+MADV_DONTNEED).
+
+The race between the two is solved with a combination of
+tsk_is_oom_victim() (serialized by task_lock) and MMF_OOM_SKIP
+(serialized by a dummy down_write/up_write cycle on the same lines of
+the ksm_exit method).
+
+If the oom_reap_task() may be running concurrently during exit_mmap,
+exit_mmap will wait it to finish in down_write (before taking down mm
+structures that would make the oom_reap_task fail with use after
+free).
+
+If exit_mmap comes first, oom_reap_task() will skip the mm if
+MMF_OOM_SKIP is already set and in turn all memory is already freed
+and furthermore the mm data structures may already have been taken
+down by free_pgtables.
+<span class="signed-off-by">
+Signed-off-by: Andrea Arcangeli &lt;aarcange@redhat.com&gt;</span>
+---
+ kernel/fork.c |  1 -
+ mm/mmap.c     | 17 +++++++++++++++++
+ mm/oom_kill.c | 15 +++++----------
+ 3 files changed, 22 insertions(+), 11 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=143191">kbuild test robot</a> - July 28, 2017, 1:58 a.m.</div>
+<pre class="content">
+Hi Andrea,
+
+[auto build test WARNING on linus/master]
+[also build test WARNING on v4.13-rc2 next-20170727]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+
+url:    https://github.com/0day-ci/linux/commits/Andrea-Arcangeli/mm-oom-let-oom_reap_task-and-exit_mmap-to-run/20170728-082915
+config: x86_64-randconfig-x013-201730 (attached as .config)
+compiler: gcc-6 (Debian 6.2.0-3) 6.2.0 20160901
+reproduce:
+        # save the attached .config to linux build tree
+        make ARCH=x86_64 
+
+All warnings (new ones prefixed by &gt;&gt;):
+
+   In file included from include/linux/linkage.h:4:0,
+                    from include/linux/kernel.h:6,
+                    from mm/mmap.c:11:
+   mm/mmap.c: In function &#39;exit_mmap&#39;:
+   mm/mmap.c:2997:6: error: implicit declaration of function &#39;tsk_is_oom_victim&#39; [-Werror=implicit-function-declaration]
+     if (tsk_is_oom_victim(current)) {
+         ^
+   include/linux/compiler.h:156:30: note: in definition of macro &#39;__trace_if&#39;
+     if (__builtin_constant_p(!!(cond)) ? !!(cond) :   \
+                                 ^~~~
+<span class="quote">&gt;&gt; mm/mmap.c:2997:2: note: in expansion of macro &#39;if&#39;</span>
+     if (tsk_is_oom_victim(current)) {
+     ^~
+   mm/mmap.c: At top level:
+   include/linux/compiler.h:162:4: warning: &#39;______f&#39; is static but declared in inline function &#39;strcpy&#39; which is not static
+       ______f = {     \
+       ^
+   include/linux/compiler.h:154:23: note: in expansion of macro &#39;__trace_if&#39;
+    #define if(cond, ...) __trace_if( (cond , ## __VA_ARGS__) )
+                          ^~~~~~~~~~
+   include/linux/string.h:390:2: note: in expansion of macro &#39;if&#39;
+     if (p_size == (size_t)-1 &amp;&amp; q_size == (size_t)-1)
+     ^~
+   include/linux/compiler.h:162:4: warning: &#39;______f&#39; is static but declared in inline function &#39;kmemdup&#39; which is not static
+       ______f = {     \
+       ^
+   include/linux/compiler.h:154:23: note: in expansion of macro &#39;__trace_if&#39;
+    #define if(cond, ...) __trace_if( (cond , ## __VA_ARGS__) )
+                          ^~~~~~~~~~
+   include/linux/string.h:380:2: note: in expansion of macro &#39;if&#39;
+     if (p_size &lt; size)
+     ^~
+   include/linux/compiler.h:162:4: warning: &#39;______f&#39; is static but declared in inline function &#39;kmemdup&#39; which is not static
+       ______f = {     \
+       ^
+   include/linux/compiler.h:154:23: note: in expansion of macro &#39;__trace_if&#39;
+    #define if(cond, ...) __trace_if( (cond , ## __VA_ARGS__) )
+                          ^~~~~~~~~~
+   include/linux/string.h:378:2: note: in expansion of macro &#39;if&#39;
+     if (__builtin_constant_p(size) &amp;&amp; p_size &lt; size)
+     ^~
+   include/linux/compiler.h:162:4: warning: &#39;______f&#39; is static but declared in inline function &#39;memchr_inv&#39; which is not static
+       ______f = {     \
+       ^
+   include/linux/compiler.h:154:23: note: in expansion of macro &#39;__trace_if&#39;
+    #define if(cond, ...) __trace_if( (cond , ## __VA_ARGS__) )
+                          ^~~~~~~~~~
+   include/linux/string.h:369:2: note: in expansion of macro &#39;if&#39;
+     if (p_size &lt; size)
+     ^~
+   include/linux/compiler.h:162:4: warning: &#39;______f&#39; is static but declared in inline function &#39;memchr_inv&#39; which is not static
+       ______f = {     \
+       ^
+   include/linux/compiler.h:154:23: note: in expansion of macro &#39;__trace_if&#39;
+    #define if(cond, ...) __trace_if( (cond , ## __VA_ARGS__) )
+                          ^~~~~~~~~~
+   include/linux/string.h:367:2: note: in expansion of macro &#39;if&#39;
+     if (__builtin_constant_p(size) &amp;&amp; p_size &lt; size)
+     ^~
+   include/linux/compiler.h:162:4: warning: &#39;______f&#39; is static but declared in inline function &#39;memchr&#39; which is not static
+       ______f = {     \
+       ^
+   include/linux/compiler.h:154:23: note: in expansion of macro &#39;__trace_if&#39;
+    #define if(cond, ...) __trace_if( (cond , ## __VA_ARGS__) )
+                          ^~~~~~~~~~
+   include/linux/string.h:358:2: note: in expansion of macro &#39;if&#39;
+     if (p_size &lt; size)
+     ^~
+   include/linux/compiler.h:162:4: warning: &#39;______f&#39; is static but declared in inline function &#39;memchr&#39; which is not static
+       ______f = {     \
+       ^
+   include/linux/compiler.h:154:23: note: in expansion of macro &#39;__trace_if&#39;
+    #define if(cond, ...) __trace_if( (cond , ## __VA_ARGS__) )
+                          ^~~~~~~~~~
+   include/linux/string.h:356:2: note: in expansion of macro &#39;if&#39;
+     if (__builtin_constant_p(size) &amp;&amp; p_size &lt; size)
+     ^~
+   include/linux/compiler.h:162:4: warning: &#39;______f&#39; is static but declared in inline function &#39;memcmp&#39; which is not static
+       ______f = {     \
+       ^
+   include/linux/compiler.h:154:23: note: in expansion of macro &#39;__trace_if&#39;
+    #define if(cond, ...) __trace_if( (cond , ## __VA_ARGS__) )
+                          ^~~~~~~~~~
+   include/linux/string.h:348:2: note: in expansion of macro &#39;if&#39;
+     if (p_size &lt; size || q_size &lt; size)
+     ^~
+   include/linux/compiler.h:162:4: warning: &#39;______f&#39; is static but declared in inline function &#39;memcmp&#39; which is not static
+       ______f = {     \
+       ^
+   include/linux/compiler.h:154:23: note: in expansion of macro &#39;__trace_if&#39;
+    #define if(cond, ...) __trace_if( (cond , ## __VA_ARGS__) )
+                          ^~~~~~~~~~
+   include/linux/string.h:345:3: note: in expansion of macro &#39;if&#39;
+      if (q_size &lt; size)
+      ^~
+   include/linux/compiler.h:162:4: warning: &#39;______f&#39; is static but declared in inline function &#39;memcmp&#39; which is not static
+       ______f = {     \
+       ^
+   include/linux/compiler.h:154:23: note: in expansion of macro &#39;__trace_if&#39;
+    #define if(cond, ...) __trace_if( (cond , ## __VA_ARGS__) )
+                          ^~~~~~~~~~
+   include/linux/string.h:343:3: note: in expansion of macro &#39;if&#39;
+      if (p_size &lt; size)
+      ^~
+   include/linux/compiler.h:162:4: warning: &#39;______f&#39; is static but declared in inline function &#39;memcmp&#39; which is not static
+       ______f = {     \
+       ^
+   include/linux/compiler.h:154:23: note: in expansion of macro &#39;__trace_if&#39;
+    #define if(cond, ...) __trace_if( (cond , ## __VA_ARGS__) )
+                          ^~~~~~~~~~
+   include/linux/string.h:342:2: note: in expansion of macro &#39;if&#39;
+
+vim +/if +2997 mm/mmap.c
+
+  2963	
+  2964	/* Release all mmaps. */
+  2965	void exit_mmap(struct mm_struct *mm)
+  2966	{
+  2967		struct mmu_gather tlb;
+  2968		struct vm_area_struct *vma;
+  2969		unsigned long nr_accounted = 0;
+  2970	
+  2971		/* mm&#39;s last user has gone, and its about to be pulled down */
+  2972		mmu_notifier_release(mm);
+  2973	
+  2974		if (mm-&gt;locked_vm) {
+  2975			vma = mm-&gt;mmap;
+  2976			while (vma) {
+  2977				if (vma-&gt;vm_flags &amp; VM_LOCKED)
+  2978					munlock_vma_pages_all(vma);
+  2979				vma = vma-&gt;vm_next;
+  2980			}
+  2981		}
+  2982	
+  2983		arch_exit_mmap(mm);
+  2984	
+  2985		vma = mm-&gt;mmap;
+  2986		if (!vma)	/* Can happen if dup_mmap() received an OOM */
+  2987			return;
+  2988	
+  2989		lru_add_drain();
+  2990		flush_cache_mm(mm);
+  2991		tlb_gather_mmu(&amp;tlb, mm, 0, -1);
+  2992		/* update_hiwater_rss(mm) here? but nobody should be looking */
+  2993		/* Use -1 here to ensure all VMAs in the mm are unmapped */
+  2994		unmap_vmas(&amp;tlb, vma, 0, -1);
+  2995	
+  2996		set_bit(MMF_OOM_SKIP, &amp;mm-&gt;flags);
+<span class="quote">&gt; 2997		if (tsk_is_oom_victim(current)) {</span>
+  2998			/*
+  2999			 * Wait for oom_reap_task() to stop working on this
+  3000			 * mm. Because MMF_OOM_SKIP is already set before
+  3001			 * calling down_read(), oom_reap_task() will not run
+  3002			 * on this &quot;mm&quot; post up_write().
+  3003			 *
+  3004			 * tsk_is_oom_victim() cannot be set from under us
+  3005			 * either because current-&gt;mm is already set to NULL
+  3006			 * under task_lock before calling mmput and oom_mm is
+  3007			 * set not NULL by the OOM killer only if current-&gt;mm
+  3008			 * is found not NULL while holding the task_lock.
+  3009			 */
+  3010			down_write(&amp;mm-&gt;mmap_sem);
+  3011			up_write(&amp;mm-&gt;mmap_sem);
+  3012		}
+  3013		free_pgtables(&amp;tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
+  3014		tlb_finish_mmu(&amp;tlb, 0, -1);
+  3015	
+  3016		/*
+  3017		 * Walk the list again, actually closing and freeing it,
+  3018		 * with preemption enabled, without holding any MM locks.
+  3019		 */
+  3020		while (vma) {
+  3021			if (vma-&gt;vm_flags &amp; VM_ACCOUNT)
+  3022				nr_accounted += vma_pages(vma);
+  3023			vma = remove_vma(vma);
+  3024		}
+  3025		vm_unacct_memory(nr_accounted);
+  3026	}
+  3027	
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=579">David Rientjes</a> - Aug. 15, 2017, 12:20 a.m.</div>
+<pre class="content">
+On Wed, 26 Jul 2017, Andrea Arcangeli wrote:
+<span class="quote">
+&gt; From 3d9001490ee1a71f39c7bfaf19e96821f9d3ff16 Mon Sep 17 00:00:00 2001</span>
+<span class="quote">&gt; From: Andrea Arcangeli &lt;aarcange@redhat.com&gt;</span>
+<span class="quote">&gt; Date: Tue, 25 Jul 2017 20:02:27 +0200</span>
+<span class="quote">&gt; Subject: [PATCH 1/1] mm: oom: let oom_reap_task and exit_mmap to run</span>
+<span class="quote">&gt;  concurrently</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This is purely required because exit_aio() may block and exit_mmap() may</span>
+<span class="quote">&gt; never start, if the oom_reap_task cannot start running on a mm with</span>
+<span class="quote">&gt; mm_users == 0.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; At the same time if the OOM reaper doesn&#39;t wait at all for the memory</span>
+<span class="quote">&gt; of the current OOM candidate to be freed by exit_mmap-&gt;unmap_vmas, it</span>
+<span class="quote">&gt; would generate a spurious OOM kill.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If it wasn&#39;t because of the exit_aio or similar blocking functions in</span>
+<span class="quote">&gt; the last mmput, it would be enough to change the oom_reap_task() in</span>
+<span class="quote">&gt; the case it finds mm_users == 0, to wait for a timeout or to wait for</span>
+<span class="quote">&gt; __mmput to set MMF_OOM_SKIP itself, but it&#39;s not just exit_mmap the</span>
+<span class="quote">&gt; problem here so the concurrency of exit_mmap and oom_reap_task is</span>
+<span class="quote">&gt; apparently warranted.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It&#39;s a non standard runtime, exit_mmap() runs without mmap_sem, and</span>
+<span class="quote">&gt; oom_reap_task runs with the mmap_sem for reading as usual (kind of</span>
+<span class="quote">&gt; MADV_DONTNEED).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The race between the two is solved with a combination of</span>
+<span class="quote">&gt; tsk_is_oom_victim() (serialized by task_lock) and MMF_OOM_SKIP</span>
+<span class="quote">&gt; (serialized by a dummy down_write/up_write cycle on the same lines of</span>
+<span class="quote">&gt; the ksm_exit method).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If the oom_reap_task() may be running concurrently during exit_mmap,</span>
+<span class="quote">&gt; exit_mmap will wait it to finish in down_write (before taking down mm</span>
+<span class="quote">&gt; structures that would make the oom_reap_task fail with use after</span>
+<span class="quote">&gt; free).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; If exit_mmap comes first, oom_reap_task() will skip the mm if</span>
+<span class="quote">&gt; MMF_OOM_SKIP is already set and in turn all memory is already freed</span>
+<span class="quote">&gt; and furthermore the mm data structures may already have been taken</span>
+<span class="quote">&gt; down by free_pgtables.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Andrea Arcangeli &lt;aarcange@redhat.com&gt;</span>
+
+With your follow-up one liner to include linux/oom.h folded in:
+<span class="tested-by">
+Tested-by: David Rientjes &lt;rientjes@google.com&gt;</span>
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/kernel/fork.c b/kernel/fork.c</span>
+<span class="p_header">index 9ec98b0c4675..ed412d85a596 100644</span>
+<span class="p_header">--- a/kernel/fork.c</span>
+<span class="p_header">+++ b/kernel/fork.c</span>
+<span class="p_chunk">@@ -910,7 +910,6 @@</span> <span class="p_context"> static inline void __mmput(struct mm_struct *mm)</span>
+ 	}
+ 	if (mm-&gt;binfmt)
+ 		module_put(mm-&gt;binfmt-&gt;module);
+<span class="p_del">-	set_bit(MMF_OOM_SKIP, &amp;mm-&gt;flags);</span>
+ 	mmdrop(mm);
+ }
+ 
+<span class="p_header">diff --git a/mm/mmap.c b/mm/mmap.c</span>
+<span class="p_header">index f19efcf75418..bdab595ce25c 100644</span>
+<span class="p_header">--- a/mm/mmap.c</span>
+<span class="p_header">+++ b/mm/mmap.c</span>
+<span class="p_chunk">@@ -2993,6 +2993,23 @@</span> <span class="p_context"> void exit_mmap(struct mm_struct *mm)</span>
+ 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+ 	unmap_vmas(&amp;tlb, vma, 0, -1);
+ 
+<span class="p_add">+	set_bit(MMF_OOM_SKIP, &amp;mm-&gt;flags);</span>
+<span class="p_add">+	if (tsk_is_oom_victim(current)) {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Wait for oom_reap_task() to stop working on this</span>
+<span class="p_add">+		 * mm. Because MMF_OOM_SKIP is already set before</span>
+<span class="p_add">+		 * calling down_read(), oom_reap_task() will not run</span>
+<span class="p_add">+		 * on this &quot;mm&quot; post up_write().</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * tsk_is_oom_victim() cannot be set from under us</span>
+<span class="p_add">+		 * either because current-&gt;mm is already set to NULL</span>
+<span class="p_add">+		 * under task_lock before calling mmput and oom_mm is</span>
+<span class="p_add">+		 * set not NULL by the OOM killer only if current-&gt;mm</span>
+<span class="p_add">+		 * is found not NULL while holding the task_lock.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		down_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="p_add">+		up_write(&amp;mm-&gt;mmap_sem);</span>
+<span class="p_add">+	}</span>
+ 	free_pgtables(&amp;tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
+ 	tlb_finish_mmu(&amp;tlb, 0, -1);
+ 
+<span class="p_header">diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="p_header">index 9e8b4f030c1c..242a1f0d579b 100644</span>
+<span class="p_header">--- a/mm/oom_kill.c</span>
+<span class="p_header">+++ b/mm/oom_kill.c</span>
+<span class="p_chunk">@@ -495,11 +495,12 @@</span> <span class="p_context"> static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+ 	}
+ 
+ 	/*
+<span class="p_del">-	 * increase mm_users only after we know we will reap something so</span>
+<span class="p_del">-	 * that the mmput_async is called only when we have reaped something</span>
+<span class="p_del">-	 * and delayed __mmput doesn&#39;t matter that much</span>
+<span class="p_add">+	 * MMF_OOM_SKIP is set by exit_mmap when the OOM reaper can&#39;t</span>
+<span class="p_add">+	 * work on the mm anymore. The check for MMF_OOM_SKIP must run</span>
+<span class="p_add">+	 * under mmap_sem for reading because it serializes against the</span>
+<span class="p_add">+	 * down_write();up_write() cycle in exit_mmap().</span>
+ 	 */
+<span class="p_del">-	if (!mmget_not_zero(mm)) {</span>
+<span class="p_add">+	if (test_bit(MMF_OOM_SKIP, &amp;mm-&gt;flags)) {</span>
+ 		up_read(&amp;mm-&gt;mmap_sem);
+ 		trace_skip_task_reaping(tsk-&gt;pid);
+ 		goto unlock_oom;
+<span class="p_chunk">@@ -542,12 +543,6 @@</span> <span class="p_context"> static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+ 			K(get_mm_counter(mm, MM_SHMEMPAGES)));
+ 	up_read(&amp;mm-&gt;mmap_sem);
+ 
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * Drop our reference but make sure the mmput slow path is called from a</span>
+<span class="p_del">-	 * different context because we shouldn&#39;t risk we get stuck there and</span>
+<span class="p_del">-	 * put the oom_reaper out of the way.</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	mmput_async(mm);</span>
+ 	trace_finish_task_reaping(tsk-&gt;pid);
+ unlock_oom:
+ 	mutex_unlock(&amp;oom_lock);
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

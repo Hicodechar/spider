@@ -1,0 +1,289 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[4/4] powerpc/mm/radix: Implement tlb mmu gather flush efficiently - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [4/4] powerpc/mm/radix: Implement tlb mmu gather flush efficiently</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=1141">Aneesh Kumar K.V</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>June 2, 2016, 9:39 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1464860389-29019-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9149643/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9149643/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9149643/">/patch/9149643/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	125CC60751 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  2 Jun 2016 09:40:45 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 017F0271FD
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  2 Jun 2016 09:40:45 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id EA6842823A; Thu,  2 Jun 2016 09:40:44 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 9166D2665D
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  2 Jun 2016 09:40:44 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S932631AbcFBJkW (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 2 Jun 2016 05:40:22 -0400
+Received: from e33.co.us.ibm.com ([32.97.110.151]:49778 &quot;EHLO
+	e33.co.us.ibm.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S932166AbcFBJkS (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 2 Jun 2016 05:40:18 -0400
+Received: from localhost
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use
+	Only! Violators will be prosecuted
+	for &lt;linux-kernel@vger.kernel.org&gt; from
+	&lt;aneesh.kumar@linux.vnet.ibm.com&gt;; Thu, 2 Jun 2016 03:40:17 -0600
+Received: from d03dlp03.boulder.ibm.com (9.17.202.179)
+	by e33.co.us.ibm.com (192.168.1.133) with IBM ESMTP SMTP Gateway:
+	Authorized Use Only! Violators will be prosecuted; 
+	Thu, 2 Jun 2016 03:40:15 -0600
+X-IBM-Helo: d03dlp03.boulder.ibm.com
+X-IBM-MailFrom: aneesh.kumar@linux.vnet.ibm.com
+X-IBM-RcptTo: mpe@ellerman.id.au; linux-mm@kvack.org;
+	akpm@linux-foundation.org; linux-kernel@vger.kernel.org
+Received: from b01cxnp22034.gho.pok.ibm.com (b01cxnp22034.gho.pok.ibm.com
+	[9.57.198.24])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id A889B19D804A;
+	Thu,  2 Jun 2016 03:39:55 -0600 (MDT)
+Received: from b01ledav001.gho.pok.ibm.com (b01ledav001.gho.pok.ibm.com
+	[9.57.199.106])
+	by b01cxnp22034.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP
+	id u529eEAF53542912; Thu, 2 Jun 2016 09:40:14 GMT
+Received: from b01ledav001.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 4DB4D2803F;
+	Thu,  2 Jun 2016 05:40:14 -0400 (EDT)
+Received: from skywalker.in.ibm.com (unknown [9.124.35.108])
+	by b01ledav001.gho.pok.ibm.com (Postfix) with ESMTP id DFAE528041;
+	Thu,  2 Jun 2016 05:40:12 -0400 (EDT)
+From: &quot;Aneesh Kumar K.V&quot; &lt;aneesh.kumar@linux.vnet.ibm.com&gt;
+To: akpm@linux-foundation.org, mpe@ellerman.id.au
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	&quot;Aneesh Kumar K.V&quot; &lt;aneesh.kumar@linux.vnet.ibm.com&gt;
+Subject: [PATCH 4/4] powerpc/mm/radix: Implement tlb mmu gather flush
+	efficiently
+Date: Thu,  2 Jun 2016 15:09:49 +0530
+Message-Id: &lt;1464860389-29019-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com&gt;
+X-Mailer: git-send-email 2.7.4
+In-Reply-To: &lt;1464860389-29019-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com&gt;
+References: &lt;1464860389-29019-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com&gt;
+X-TM-AS-GCONF: 00
+X-Content-Scanned: Fidelis XPS MAILER
+x-cbid: 16060209-0009-0000-0000-000037F6550C
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=1141">Aneesh Kumar K.V</a> - June 2, 2016, 9:39 a.m.</div>
+<pre class="content">
+Now that we track page size in mmu_gather, we can use address based
+tlbie format when doing a tlb_flush(). We don&#39;t do this if we are
+invalidating the full address space.
+<span class="signed-off-by">
+Signed-off-by: Aneesh Kumar K.V &lt;aneesh.kumar@linux.vnet.ibm.com&gt;</span>
+---
+ arch/powerpc/mm/tlb-radix.c | 28 +++++++++++++++++++++++++++-
+ 1 file changed, 27 insertions(+), 1 deletion(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/powerpc/mm/tlb-radix.c b/arch/powerpc/mm/tlb-radix.c</span>
+<span class="p_header">index 6f06b0b04d71..e581a521a87e 100644</span>
+<span class="p_header">--- a/arch/powerpc/mm/tlb-radix.c</span>
+<span class="p_header">+++ b/arch/powerpc/mm/tlb-radix.c</span>
+<span class="p_chunk">@@ -261,11 +261,37 @@</span> <span class="p_context"> void radix__flush_tlb_range(struct vm_area_struct *vma, unsigned long start,</span>
+ }
+ EXPORT_SYMBOL(radix__flush_tlb_range);
+ 
+<span class="p_add">+static int radix_get_mmu_psize(int page_size)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	int psize;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (page_size == (1UL &lt;&lt; mmu_psize_defs[mmu_virtual_psize].shift))</span>
+<span class="p_add">+		psize = mmu_virtual_psize;</span>
+<span class="p_add">+	else if (page_size == (1UL &lt;&lt; mmu_psize_defs[MMU_PAGE_2M].shift))</span>
+<span class="p_add">+		psize = MMU_PAGE_2M;</span>
+<span class="p_add">+	else if (page_size == (1UL &lt;&lt; mmu_psize_defs[MMU_PAGE_1G].shift))</span>
+<span class="p_add">+		psize = MMU_PAGE_1G;</span>
+<span class="p_add">+	else</span>
+<span class="p_add">+		return -1;</span>
+<span class="p_add">+	return psize;</span>
+<span class="p_add">+}</span>
+ 
+ void radix__tlb_flush(struct mmu_gather *tlb)
+ {
+<span class="p_add">+	int psize = 0;</span>
+ 	struct mm_struct *mm = tlb-&gt;mm;
+<span class="p_del">-	radix__flush_tlb_mm(mm);</span>
+<span class="p_add">+	int page_size = tlb-&gt;page_size;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	psize = radix_get_mmu_psize(page_size);</span>
+<span class="p_add">+	if (psize == -1)</span>
+<span class="p_add">+		/* unknown page size */</span>
+<span class="p_add">+		goto flush_mm;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!tlb-&gt;fullmm &amp;&amp; !tlb-&gt;need_flush_all)</span>
+<span class="p_add">+		radix__flush_tlb_range_psize(mm, tlb-&gt;start, tlb-&gt;end, psize);</span>
+<span class="p_add">+	else</span>
+<span class="p_add">+flush_mm:</span>
+<span class="p_add">+		radix__flush_tlb_mm(mm);</span>
+ }
+ /*
+  * flush the page walk cache for the address
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

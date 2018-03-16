@@ -1,0 +1,769 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>hugetlbfs: change put_page/unlock_page order in hugetlbfs_fallocate() - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    hugetlbfs: change put_page/unlock_page order in hugetlbfs_fallocate()</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=159401">Nadav Amit</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Aug. 26, 2017, 7:11 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170826191124.51642-1-namit@vmware.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9923647/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9923647/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9923647/">/patch/9923647/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	6A7C160380 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sun, 27 Aug 2017 02:21:29 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 4845D285F0
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sun, 27 Aug 2017 02:21:29 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 3CD24285F2; Sun, 27 Aug 2017 02:21:29 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-5.4 required=2.0 tests=BAYES_00, DATE_IN_PAST_06_12,
+	RCVD_IN_DNSWL_HI autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id B49A5285F0
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sun, 27 Aug 2017 02:21:28 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751183AbdH0CVU (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Sat, 26 Aug 2017 22:21:20 -0400
+Received: from ex13-edg-ou-002.vmware.com ([208.91.0.190]:52098 &quot;EHLO
+	EX13-EDG-OU-002.vmware.com&quot; rhost-flags-OK-OK-OK-OK)
+	by vger.kernel.org with ESMTP id S1751131AbdH0CVT (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Sat, 26 Aug 2017 22:21:19 -0400
+Received: from sc9-mailhost1.vmware.com (10.113.161.71) by
+	EX13-EDG-OU-002.vmware.com (10.113.208.156) with Microsoft SMTP
+	Server id 15.0.1156.6; Sat, 26 Aug 2017 19:21:17 -0700
+Received: from sc2-haas01-esx0118.eng.vmware.com
+	(sc2-haas01-esx0118.eng.vmware.com [10.172.44.118])
+	by sc9-mailhost1.vmware.com (Postfix) with ESMTP id 10B011833C;
+	Sat, 26 Aug 2017 19:21:19 -0700 (PDT)
+From: Nadav Amit &lt;namit@vmware.com&gt;
+To: Nadia Yvette Chambers &lt;nyc@holomorphy.com&gt;
+CC: &lt;linux-kernel@vger.kernel.org&gt;, Nadav Amit &lt;nadav.amit@gmail.com&gt;,
+	Nadav Amit &lt;namit@vmware.com&gt;, Eric Biggers &lt;ebiggers3@gmail.com&gt;,
+	Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+Subject: [PATCH] hugetlbfs: change put_page/unlock_page order in
+	hugetlbfs_fallocate()
+Date: Sat, 26 Aug 2017 12:11:24 -0700
+Message-ID: &lt;20170826191124.51642-1-namit@vmware.com&gt;
+X-Mailer: git-send-email 2.11.0
+In-Reply-To: &lt;20170826210905.GA21712@zzz.localdomain&gt;
+References: &lt;20170826210905.GA21712@zzz.localdomain&gt;
+MIME-Version: 1.0
+Content-Type: text/plain
+Received-SPF: None (EX13-EDG-OU-002.vmware.com: namit@vmware.com does not
+	designate permitted sender hosts)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=159401">Nadav Amit</a> - Aug. 26, 2017, 7:11 p.m.</div>
+<pre class="content">
+hugetlfs_fallocate() currently performs put_page() before unlock_page().
+This scenario opens a small time window, from the time the page is added
+to the page cache, until it is unlocked, in which the page might be
+removed from the page-cache by another core. If the page is removed
+during this time windows, it might cause a memory corruption, as the
+wrong page will be unlocked.
+
+It is arguable whether this scenario can happen in a real system, and
+there are several mitigating factors. The issue was found by code
+inspection (actually grep), and not by actually triggering the flow.
+Yet, since putting the page before unlocking is incorrect it should be
+fixed, if only to prevent future breakage or someone copy-pasting this
+code.
+
+Fixes: 70c3547e36f5c (&quot;hugetlbfs: add hugetlbfs_fallocate()&quot;)
+
+cc: Eric Biggers &lt;ebiggers3@gmail.com&gt;
+cc: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;
+<span class="signed-off-by">
+Signed-off-by: Nadav Amit &lt;namit@vmware.com&gt;</span>
+---
+ fs/hugetlbfs/inode.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Aug. 27, 2017, 5:15 p.m.</div>
+<pre class="content">
+On 08/26/2017 12:11 PM, Nadav Amit wrote:
+<span class="quote">&gt; hugetlfs_fallocate() currently performs put_page() before unlock_page().</span>
+<span class="quote">&gt; This scenario opens a small time window, from the time the page is added</span>
+<span class="quote">&gt; to the page cache, until it is unlocked, in which the page might be</span>
+<span class="quote">&gt; removed from the page-cache by another core. If the page is removed</span>
+<span class="quote">&gt; during this time windows, it might cause a memory corruption, as the</span>
+<span class="quote">&gt; wrong page will be unlocked.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It is arguable whether this scenario can happen in a real system, and</span>
+<span class="quote">&gt; there are several mitigating factors. The issue was found by code</span>
+<span class="quote">&gt; inspection (actually grep), and not by actually triggering the flow.</span>
+<span class="quote">&gt; Yet, since putting the page before unlocking is incorrect it should be</span>
+<span class="quote">&gt; fixed, if only to prevent future breakage or someone copy-pasting this</span>
+<span class="quote">&gt; code.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Fixes: 70c3547e36f5c (&quot;hugetlbfs: add hugetlbfs_fallocate()&quot;)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; cc: Eric Biggers &lt;ebiggers3@gmail.com&gt;</span>
+<span class="quote">&gt; cc: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Nadav Amit &lt;namit@vmware.com&gt;</span>
+
+Thank you Nadav.
+<span class="reviewed-by">
+Reviewed-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+
+Since hugetlbfs is an in memory filesystem, the only way one &#39;should&#39; be
+able to remove a page (file content) is through an inode operation such as
+truncate, hole punch, or unlink.  That was the basis for my response that
+the inode lock would be required for page freeing.
+
+Eric&#39;s question about sys_fadvise64(POSIX_FADV_DONTNEED) is interesting.
+I was expecting to see a check for hugetlbfs pages and exit (without
+modification) if encountered.  A quick review of the code did not find
+any such checks.
+
+I&#39;ll take a closer look to determine exactly how hugetlbfs files are
+handled.  IMO, there should be something similar to the DAX check where
+the routine quickly exits.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=159401">Nadav Amit</a> - Aug. 27, 2017, 8:08 p.m.</div>
+<pre class="content">
+Mike Kravetz &lt;mike.kravetz@oracle.com&gt; wrote:
+<span class="quote">
+&gt; On 08/26/2017 12:11 PM, Nadav Amit wrote:</span>
+<span class="quote">&gt;&gt; hugetlfs_fallocate() currently performs put_page() before unlock_page().</span>
+<span class="quote">&gt;&gt; This scenario opens a small time window, from the time the page is added</span>
+<span class="quote">&gt;&gt; to the page cache, until it is unlocked, in which the page might be</span>
+<span class="quote">&gt;&gt; removed from the page-cache by another core. If the page is removed</span>
+<span class="quote">&gt;&gt; during this time windows, it might cause a memory corruption, as the</span>
+<span class="quote">&gt;&gt; wrong page will be unlocked.</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; It is arguable whether this scenario can happen in a real system, and</span>
+<span class="quote">&gt;&gt; there are several mitigating factors. The issue was found by code</span>
+<span class="quote">&gt;&gt; inspection (actually grep), and not by actually triggering the flow.</span>
+<span class="quote">&gt;&gt; Yet, since putting the page before unlocking is incorrect it should be</span>
+<span class="quote">&gt;&gt; fixed, if only to prevent future breakage or someone copy-pasting this</span>
+<span class="quote">&gt;&gt; code.</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; Fixes: 70c3547e36f5c (&quot;hugetlbfs: add hugetlbfs_fallocate()&quot;)</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; cc: Eric Biggers &lt;ebiggers3@gmail.com&gt;</span>
+<span class="quote">&gt;&gt; cc: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt;&gt; </span>
+<span class="quote">&gt;&gt; Signed-off-by: Nadav Amit &lt;namit@vmware.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Thank you Nadav.</span>
+
+No problem.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; Reviewed-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Since hugetlbfs is an in memory filesystem, the only way one &#39;should&#39; be</span>
+<span class="quote">&gt; able to remove a page (file content) is through an inode operation such as</span>
+<span class="quote">&gt; truncate, hole punch, or unlink.  That was the basis for my response that</span>
+<span class="quote">&gt; the inode lock would be required for page freeing.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Eric&#39;s question about sys_fadvise64(POSIX_FADV_DONTNEED) is interesting.</span>
+<span class="quote">&gt; I was expecting to see a check for hugetlbfs pages and exit (without</span>
+<span class="quote">&gt; modification) if encountered.  A quick review of the code did not find</span>
+<span class="quote">&gt; any such checks.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I&#39;ll take a closer look to determine exactly how hugetlbfs files are</span>
+<span class="quote">&gt; handled.  IMO, there should be something similar to the DAX check where</span>
+<span class="quote">&gt; the routine quickly exits.</span>
+
+I did not cc stable when submitting the patch, based on your previous
+response. Let me know if you want me to send v2 which does so.
+
+Thanks,
+Nadav
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Aug. 28, 2017, 1:46 p.m.</div>
+<pre class="content">
+[CC Andrew]
+
+On Sat 26-08-17 12:11:24, Nadav Amit wrote:
+<span class="quote">&gt; hugetlfs_fallocate() currently performs put_page() before unlock_page().</span>
+<span class="quote">&gt; This scenario opens a small time window, from the time the page is added</span>
+<span class="quote">&gt; to the page cache, until it is unlocked, in which the page might be</span>
+<span class="quote">&gt; removed from the page-cache by another core. If the page is removed</span>
+<span class="quote">&gt; during this time windows, it might cause a memory corruption, as the</span>
+<span class="quote">&gt; wrong page will be unlocked.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It is arguable whether this scenario can happen in a real system, and</span>
+<span class="quote">&gt; there are several mitigating factors. The issue was found by code</span>
+<span class="quote">&gt; inspection (actually grep), and not by actually triggering the flow.</span>
+<span class="quote">&gt; Yet, since putting the page before unlocking is incorrect it should be</span>
+<span class="quote">&gt; fixed, if only to prevent future breakage or someone copy-pasting this</span>
+<span class="quote">&gt; code.</span>
+
+Even if this a theoretical problem it is definitely worth fixing because
+it is a anti-pattern of how the reference counted object should be treated.
+<span class="quote"> 
+&gt; Fixes: 70c3547e36f5c (&quot;hugetlbfs: add hugetlbfs_fallocate()&quot;)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; cc: Eric Biggers &lt;ebiggers3@gmail.com&gt;</span>
+<span class="quote">&gt; cc: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Nadav Amit &lt;namit@vmware.com&gt;</span>
+<span class="acked-by">
+Acked-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+
+Thanks!
+<span class="quote">
+&gt; ---</span>
+<span class="quote">&gt;  fs/hugetlbfs/inode.c | 4 ++--</span>
+<span class="quote">&gt;  1 file changed, 2 insertions(+), 2 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; index 28d2753be094..9475fee79cee 100644</span>
+<span class="quote">&gt; --- a/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; +++ b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; @@ -655,11 +655,11 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,</span>
+<span class="quote">&gt;  		mutex_unlock(&amp;hugetlb_fault_mutex_table[hash]);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  		/*</span>
+<span class="quote">&gt; -		 * page_put due to reference from alloc_huge_page()</span>
+<span class="quote">&gt;  		 * unlock_page because locked by add_to_page_cache()</span>
+<span class="quote">&gt; +		 * page_put due to reference from alloc_huge_page()</span>
+<span class="quote">&gt;  		 */</span>
+<span class="quote">&gt; -		put_page(page);</span>
+<span class="quote">&gt;  		unlock_page(page);</span>
+<span class="quote">&gt; +		put_page(page);</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	if (!(mode &amp; FALLOC_FL_KEEP_SIZE) &amp;&amp; offset + len &gt; inode-&gt;i_size)</span>
+<span class="quote">&gt; -- </span>
+<span class="quote">&gt; 2.11.0</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Aug. 28, 2017, 5:45 p.m.</div>
+<pre class="content">
+Adding Andrew, Michal on CC
+
+On 08/27/2017 01:08 PM, Nadav Amit wrote:
+<span class="quote">&gt; Mike Kravetz &lt;mike.kravetz@oracle.com&gt; wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; On 08/26/2017 12:11 PM, Nadav Amit wrote:</span>
+<span class="quote">&gt;&gt;&gt; hugetlfs_fallocate() currently performs put_page() before unlock_page().</span>
+<span class="quote">&gt;&gt;&gt; This scenario opens a small time window, from the time the page is added</span>
+<span class="quote">&gt;&gt;&gt; to the page cache, until it is unlocked, in which the page might be</span>
+<span class="quote">&gt;&gt;&gt; removed from the page-cache by another core. If the page is removed</span>
+<span class="quote">&gt;&gt;&gt; during this time windows, it might cause a memory corruption, as the</span>
+<span class="quote">&gt;&gt;&gt; wrong page will be unlocked.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; It is arguable whether this scenario can happen in a real system, and</span>
+<span class="quote">&gt;&gt;&gt; there are several mitigating factors. The issue was found by code</span>
+<span class="quote">&gt;&gt;&gt; inspection (actually grep), and not by actually triggering the flow.</span>
+<span class="quote">&gt;&gt;&gt; Yet, since putting the page before unlocking is incorrect it should be</span>
+<span class="quote">&gt;&gt;&gt; fixed, if only to prevent future breakage or someone copy-pasting this</span>
+<span class="quote">&gt;&gt;&gt; code.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; Fixes: 70c3547e36f5c (&quot;hugetlbfs: add hugetlbfs_fallocate()&quot;)</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; cc: Eric Biggers &lt;ebiggers3@gmail.com&gt;</span>
+<span class="quote">&gt;&gt;&gt; cc: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; Signed-off-by: Nadav Amit &lt;namit@vmware.com&gt;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Thank you Nadav.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; No problem.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Reviewed-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Since hugetlbfs is an in memory filesystem, the only way one &#39;should&#39; be</span>
+<span class="quote">&gt;&gt; able to remove a page (file content) is through an inode operation such as</span>
+<span class="quote">&gt;&gt; truncate, hole punch, or unlink.  That was the basis for my response that</span>
+<span class="quote">&gt;&gt; the inode lock would be required for page freeing.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Eric&#39;s question about sys_fadvise64(POSIX_FADV_DONTNEED) is interesting.</span>
+<span class="quote">&gt;&gt; I was expecting to see a check for hugetlbfs pages and exit (without</span>
+<span class="quote">&gt;&gt; modification) if encountered.  A quick review of the code did not find</span>
+<span class="quote">&gt;&gt; any such checks.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; I&#39;ll take a closer look to determine exactly how hugetlbfs files are</span>
+<span class="quote">&gt;&gt; handled.  IMO, there should be something similar to the DAX check where</span>
+<span class="quote">&gt;&gt; the routine quickly exits.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I did not cc stable when submitting the patch, based on your previous</span>
+<span class="quote">&gt; response. Let me know if you want me to send v2 which does so.</span>
+
+I still do not believe there is a need to change this in stable.  Your patch
+should be sufficient to ensure we do the right thing going forward.
+
+Looking at and testing the sys_fadvise64(POSIX_FADV_DONTNEED) code with
+hugetlbfs does indeed show a more general problem.  One can use
+sys_fadvise64() to remove a huge page from a hugetlbfs file. :(  This does
+not go through the special hugetlbfs page handling code, but rather the
+normal mm paths.  As a result hugetlbfs accounting (like reserve counts)
+gets out of sync and the hugetlbfs filesystem may become unusable.  Sigh!!!
+
+I will address this issue in a separate patch.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Aug. 28, 2017, 6:09 p.m.</div>
+<pre class="content">
+On Mon 28-08-17 10:45:58, Mike Kravetz wrote:
+<span class="quote">&gt; Adding Andrew, Michal on CC</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; On 08/27/2017 01:08 PM, Nadav Amit wrote:</span>
+<span class="quote">&gt; &gt; Mike Kravetz &lt;mike.kravetz@oracle.com&gt; wrote:</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;&gt; On 08/26/2017 12:11 PM, Nadav Amit wrote:</span>
+<span class="quote">&gt; &gt;&gt;&gt; hugetlfs_fallocate() currently performs put_page() before unlock_page().</span>
+<span class="quote">&gt; &gt;&gt;&gt; This scenario opens a small time window, from the time the page is added</span>
+<span class="quote">&gt; &gt;&gt;&gt; to the page cache, until it is unlocked, in which the page might be</span>
+<span class="quote">&gt; &gt;&gt;&gt; removed from the page-cache by another core. If the page is removed</span>
+<span class="quote">&gt; &gt;&gt;&gt; during this time windows, it might cause a memory corruption, as the</span>
+<span class="quote">&gt; &gt;&gt;&gt; wrong page will be unlocked.</span>
+<span class="quote">&gt; &gt;&gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt;&gt; It is arguable whether this scenario can happen in a real system, and</span>
+<span class="quote">&gt; &gt;&gt;&gt; there are several mitigating factors. The issue was found by code</span>
+<span class="quote">&gt; &gt;&gt;&gt; inspection (actually grep), and not by actually triggering the flow.</span>
+<span class="quote">&gt; &gt;&gt;&gt; Yet, since putting the page before unlocking is incorrect it should be</span>
+<span class="quote">&gt; &gt;&gt;&gt; fixed, if only to prevent future breakage or someone copy-pasting this</span>
+<span class="quote">&gt; &gt;&gt;&gt; code.</span>
+<span class="quote">&gt; &gt;&gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt;&gt; Fixes: 70c3547e36f5c (&quot;hugetlbfs: add hugetlbfs_fallocate()&quot;)</span>
+<span class="quote">&gt; &gt;&gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt;&gt; cc: Eric Biggers &lt;ebiggers3@gmail.com&gt;</span>
+<span class="quote">&gt; &gt;&gt;&gt; cc: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt; &gt;&gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt;&gt; Signed-off-by: Nadav Amit &lt;namit@vmware.com&gt;</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; Thank you Nadav.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; No problem.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; Reviewed-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; Since hugetlbfs is an in memory filesystem, the only way one &#39;should&#39; be</span>
+<span class="quote">&gt; &gt;&gt; able to remove a page (file content) is through an inode operation such as</span>
+<span class="quote">&gt; &gt;&gt; truncate, hole punch, or unlink.  That was the basis for my response that</span>
+<span class="quote">&gt; &gt;&gt; the inode lock would be required for page freeing.</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; Eric&#39;s question about sys_fadvise64(POSIX_FADV_DONTNEED) is interesting.</span>
+<span class="quote">&gt; &gt;&gt; I was expecting to see a check for hugetlbfs pages and exit (without</span>
+<span class="quote">&gt; &gt;&gt; modification) if encountered.  A quick review of the code did not find</span>
+<span class="quote">&gt; &gt;&gt; any such checks.</span>
+<span class="quote">&gt; &gt;&gt;</span>
+<span class="quote">&gt; &gt;&gt; I&#39;ll take a closer look to determine exactly how hugetlbfs files are</span>
+<span class="quote">&gt; &gt;&gt; handled.  IMO, there should be something similar to the DAX check where</span>
+<span class="quote">&gt; &gt;&gt; the routine quickly exits.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I did not cc stable when submitting the patch, based on your previous</span>
+<span class="quote">&gt; &gt; response. Let me know if you want me to send v2 which does so.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I still do not believe there is a need to change this in stable.  Your patch</span>
+<span class="quote">&gt; should be sufficient to ensure we do the right thing going forward.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Looking at and testing the sys_fadvise64(POSIX_FADV_DONTNEED) code with</span>
+<span class="quote">&gt; hugetlbfs does indeed show a more general problem.  One can use</span>
+<span class="quote">&gt; sys_fadvise64() to remove a huge page from a hugetlbfs file. :(  This does</span>
+<span class="quote">&gt; not go through the special hugetlbfs page handling code, but rather the</span>
+<span class="quote">&gt; normal mm paths.  As a result hugetlbfs accounting (like reserve counts)</span>
+<span class="quote">&gt; gets out of sync and the hugetlbfs filesystem may become unusable.  Sigh!!!</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I will address this issue in a separate patch.</span>
+
+I didn&#39;t check very carefully but it seems that
+http://ozlabs.org/~akpm/mmotm/broken-out/mm-fadvise-avoid-fadvise-for-fs-without-backing-device.patch
+should help here, right?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Aug. 28, 2017, 6:51 p.m.</div>
+<pre class="content">
+On 08/28/2017 11:09 AM, Michal Hocko wrote:
+<span class="quote">&gt; On Mon 28-08-17 10:45:58, Mike Kravetz wrote:</span>
+<span class="quote">&gt;&gt; Adding Andrew, Michal on CC</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; On 08/27/2017 01:08 PM, Nadav Amit wrote:</span>
+<span class="quote">&gt;&gt;&gt; Mike Kravetz &lt;mike.kravetz@oracle.com&gt; wrote:</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; On 08/26/2017 12:11 PM, Nadav Amit wrote:</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; hugetlfs_fallocate() currently performs put_page() before unlock_page().</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; This scenario opens a small time window, from the time the page is added</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; to the page cache, until it is unlocked, in which the page might be</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; removed from the page-cache by another core. If the page is removed</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; during this time windows, it might cause a memory corruption, as the</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; wrong page will be unlocked.</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; It is arguable whether this scenario can happen in a real system, and</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; there are several mitigating factors. The issue was found by code</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; inspection (actually grep), and not by actually triggering the flow.</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; Yet, since putting the page before unlocking is incorrect it should be</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; fixed, if only to prevent future breakage or someone copy-pasting this</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; code.</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; Fixes: 70c3547e36f5c (&quot;hugetlbfs: add hugetlbfs_fallocate()&quot;)</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; cc: Eric Biggers &lt;ebiggers3@gmail.com&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; cc: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; Signed-off-by: Nadav Amit &lt;namit@vmware.com&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; Thank you Nadav.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; No problem.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; Reviewed-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; Since hugetlbfs is an in memory filesystem, the only way one &#39;should&#39; be</span>
+<span class="quote">&gt;&gt;&gt;&gt; able to remove a page (file content) is through an inode operation such as</span>
+<span class="quote">&gt;&gt;&gt;&gt; truncate, hole punch, or unlink.  That was the basis for my response that</span>
+<span class="quote">&gt;&gt;&gt;&gt; the inode lock would be required for page freeing.</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; Eric&#39;s question about sys_fadvise64(POSIX_FADV_DONTNEED) is interesting.</span>
+<span class="quote">&gt;&gt;&gt;&gt; I was expecting to see a check for hugetlbfs pages and exit (without</span>
+<span class="quote">&gt;&gt;&gt;&gt; modification) if encountered.  A quick review of the code did not find</span>
+<span class="quote">&gt;&gt;&gt;&gt; any such checks.</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; I&#39;ll take a closer look to determine exactly how hugetlbfs files are</span>
+<span class="quote">&gt;&gt;&gt;&gt; handled.  IMO, there should be something similar to the DAX check where</span>
+<span class="quote">&gt;&gt;&gt;&gt; the routine quickly exits.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; I did not cc stable when submitting the patch, based on your previous</span>
+<span class="quote">&gt;&gt;&gt; response. Let me know if you want me to send v2 which does so.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; I still do not believe there is a need to change this in stable.  Your patch</span>
+<span class="quote">&gt;&gt; should be sufficient to ensure we do the right thing going forward.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Looking at and testing the sys_fadvise64(POSIX_FADV_DONTNEED) code with</span>
+<span class="quote">&gt;&gt; hugetlbfs does indeed show a more general problem.  One can use</span>
+<span class="quote">&gt;&gt; sys_fadvise64() to remove a huge page from a hugetlbfs file. :(  This does</span>
+<span class="quote">&gt;&gt; not go through the special hugetlbfs page handling code, but rather the</span>
+<span class="quote">&gt;&gt; normal mm paths.  As a result hugetlbfs accounting (like reserve counts)</span>
+<span class="quote">&gt;&gt; gets out of sync and the hugetlbfs filesystem may become unusable.  Sigh!!!</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; I will address this issue in a separate patch.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I didn&#39;t check very carefully but it seems that</span>
+<span class="quote">&gt; http://ozlabs.org/~akpm/mmotm/broken-out/mm-fadvise-avoid-fadvise-for-fs-without-backing-device.patch</span>
+<span class="quote">&gt; should help here, right?</span>
+
+Thanks Michal.
+
+Yes, that patch addresses the above issue with hugetlbfs.  I was also
+wondering if there were similar issues with other in memory filesystems.
+Looks like there are.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=90951">Eric Biggers</a> - Nov. 29, 2017, 2:37 a.m.</div>
+<pre class="content">
+On Sat, Aug 26, 2017 at 12:11:24PM -0700, Nadav Amit wrote:
+<span class="quote">&gt; hugetlfs_fallocate() currently performs put_page() before unlock_page().</span>
+<span class="quote">&gt; This scenario opens a small time window, from the time the page is added</span>
+<span class="quote">&gt; to the page cache, until it is unlocked, in which the page might be</span>
+<span class="quote">&gt; removed from the page-cache by another core. If the page is removed</span>
+<span class="quote">&gt; during this time windows, it might cause a memory corruption, as the</span>
+<span class="quote">&gt; wrong page will be unlocked.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; It is arguable whether this scenario can happen in a real system, and</span>
+<span class="quote">&gt; there are several mitigating factors. The issue was found by code</span>
+<span class="quote">&gt; inspection (actually grep), and not by actually triggering the flow.</span>
+<span class="quote">&gt; Yet, since putting the page before unlocking is incorrect it should be</span>
+<span class="quote">&gt; fixed, if only to prevent future breakage or someone copy-pasting this</span>
+<span class="quote">&gt; code.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Fixes: 70c3547e36f5c (&quot;hugetlbfs: add hugetlbfs_fallocate()&quot;)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; cc: Eric Biggers &lt;ebiggers3@gmail.com&gt;</span>
+<span class="quote">&gt; cc: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Nadav Amit &lt;namit@vmware.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  fs/hugetlbfs/inode.c | 4 ++--</span>
+<span class="quote">&gt;  1 file changed, 2 insertions(+), 2 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; index 28d2753be094..9475fee79cee 100644</span>
+<span class="quote">&gt; --- a/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; +++ b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt; @@ -655,11 +655,11 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,</span>
+<span class="quote">&gt;  		mutex_unlock(&amp;hugetlb_fault_mutex_table[hash]);</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  		/*</span>
+<span class="quote">&gt; -		 * page_put due to reference from alloc_huge_page()</span>
+<span class="quote">&gt;  		 * unlock_page because locked by add_to_page_cache()</span>
+<span class="quote">&gt; +		 * page_put due to reference from alloc_huge_page()</span>
+<span class="quote">&gt;  		 */</span>
+<span class="quote">&gt; -		put_page(page);</span>
+<span class="quote">&gt;  		unlock_page(page);</span>
+<span class="quote">&gt; +		put_page(page);</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	if (!(mode &amp; FALLOC_FL_KEEP_SIZE) &amp;&amp; offset + len &gt; inode-&gt;i_size)</span>
+<span class="quote">&gt; -- </span>
+
+This patch wasn&#39;t ever applied.  Nadia, do you take patches for hugetlbfs, or
+does this need to go through Andrew Morton?
+
+Eric
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=124511">Mike Kravetz</a> - Nov. 29, 2017, 3:22 a.m.</div>
+<pre class="content">
+[CC Andrew, Michal]
+
+On 11/28/2017 06:37 PM, Eric Biggers wrote:
+<span class="quote">&gt; On Sat, Aug 26, 2017 at 12:11:24PM -0700, Nadav Amit wrote:</span>
+<span class="quote">&gt;&gt; hugetlfs_fallocate() currently performs put_page() before unlock_page().</span>
+<span class="quote">&gt;&gt; This scenario opens a small time window, from the time the page is added</span>
+<span class="quote">&gt;&gt; to the page cache, until it is unlocked, in which the page might be</span>
+<span class="quote">&gt;&gt; removed from the page-cache by another core. If the page is removed</span>
+<span class="quote">&gt;&gt; during this time windows, it might cause a memory corruption, as the</span>
+<span class="quote">&gt;&gt; wrong page will be unlocked.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; It is arguable whether this scenario can happen in a real system, and</span>
+<span class="quote">&gt;&gt; there are several mitigating factors. The issue was found by code</span>
+<span class="quote">&gt;&gt; inspection (actually grep), and not by actually triggering the flow.</span>
+<span class="quote">&gt;&gt; Yet, since putting the page before unlocking is incorrect it should be</span>
+<span class="quote">&gt;&gt; fixed, if only to prevent future breakage or someone copy-pasting this</span>
+<span class="quote">&gt;&gt; code.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Fixes: 70c3547e36f5c (&quot;hugetlbfs: add hugetlbfs_fallocate()&quot;)</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; cc: Eric Biggers &lt;ebiggers3@gmail.com&gt;</span>
+<span class="quote">&gt;&gt; cc: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Signed-off-by: Nadav Amit &lt;namit@vmware.com&gt;</span>
+<span class="quote">&gt;&gt; ---</span>
+<span class="quote">&gt;&gt;  fs/hugetlbfs/inode.c | 4 ++--</span>
+<span class="quote">&gt;&gt;  1 file changed, 2 insertions(+), 2 deletions(-)</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt; index 28d2753be094..9475fee79cee 100644</span>
+<span class="quote">&gt;&gt; --- a/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt; +++ b/fs/hugetlbfs/inode.c</span>
+<span class="quote">&gt;&gt; @@ -655,11 +655,11 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,</span>
+<span class="quote">&gt;&gt;  		mutex_unlock(&amp;hugetlb_fault_mutex_table[hash]);</span>
+<span class="quote">&gt;&gt;  </span>
+<span class="quote">&gt;&gt;  		/*</span>
+<span class="quote">&gt;&gt; -		 * page_put due to reference from alloc_huge_page()</span>
+<span class="quote">&gt;&gt;  		 * unlock_page because locked by add_to_page_cache()</span>
+<span class="quote">&gt;&gt; +		 * page_put due to reference from alloc_huge_page()</span>
+<span class="quote">&gt;&gt;  		 */</span>
+<span class="quote">&gt;&gt; -		put_page(page);</span>
+<span class="quote">&gt;&gt;  		unlock_page(page);</span>
+<span class="quote">&gt;&gt; +		put_page(page);</span>
+<span class="quote">&gt;&gt;  	}</span>
+<span class="quote">&gt;&gt;  </span>
+<span class="quote">&gt;&gt;  	if (!(mode &amp; FALLOC_FL_KEEP_SIZE) &amp;&amp; offset + len &gt; inode-&gt;i_size)</span>
+<span class="quote">&gt;&gt; -- </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This patch wasn&#39;t ever applied.  Nadia, do you take patches for hugetlbfs, or</span>
+<span class="quote">&gt; does this need to go through Andrew Morton?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Eric</span>
+
+Nadia has not been active for some time on hugetlbfs, so best to go through
+Andrew.  Added Andrew and Michal on CC.
+
+This patch has a:
+<span class="reviewed-by">Reviewed-by: Mike Kravetz &lt;mike.kravetz@oracle.com&gt;</span>
+<span class="acked-by">Acked-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+
+I am still of the opinion that this does not need to be sent to stable.
+Although the ordering is current code is incorrect, there is no way for
+this to be a problem with current locking.   In addition, I verified
+that the perhaps bigger issue with sys_fadvise64(POSIX_FADV_DONTNEED)
+for hugetlbfs and other filesystems is addressed in commit 3a77d214807c.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c</span>
+<span class="p_header">index 28d2753be094..9475fee79cee 100644</span>
+<span class="p_header">--- a/fs/hugetlbfs/inode.c</span>
+<span class="p_header">+++ b/fs/hugetlbfs/inode.c</span>
+<span class="p_chunk">@@ -655,11 +655,11 @@</span> <span class="p_context"> static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,</span>
+ 		mutex_unlock(&amp;hugetlb_fault_mutex_table[hash]);
+ 
+ 		/*
+<span class="p_del">-		 * page_put due to reference from alloc_huge_page()</span>
+ 		 * unlock_page because locked by add_to_page_cache()
+<span class="p_add">+		 * page_put due to reference from alloc_huge_page()</span>
+ 		 */
+<span class="p_del">-		put_page(page);</span>
+ 		unlock_page(page);
+<span class="p_add">+		put_page(page);</span>
+ 	}
+ 
+ 	if (!(mode &amp; FALLOC_FL_KEEP_SIZE) &amp;&amp; offset + len &gt; inode-&gt;i_size)
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

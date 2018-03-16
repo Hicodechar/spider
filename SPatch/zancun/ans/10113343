@@ -1,0 +1,394 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v2,2/2] mm, oom: avoid reaping only for mm&#39;s with blockable invalidate callbacks - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v2,2/2] mm, oom: avoid reaping only for mm&#39;s with blockable invalidate callbacks</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=579">David Rientjes</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Dec. 14, 2017, 9:31 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;alpine.DEB.2.10.1712141330120.74052@chino.kir.corp.google.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10113343/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10113343/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10113343/">/patch/10113343/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	CDE1060327 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 14 Dec 2017 21:31:13 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id BC8A529D04
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 14 Dec 2017 21:31:13 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id B128329D0A; Thu, 14 Dec 2017 21:31:13 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-7.0 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	DKIM_VALID, DKIM_VALID_AU,
+	RCVD_IN_DNSWL_HI autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 5AFDB29D04
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 14 Dec 2017 21:31:13 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753848AbdLNVbK (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 14 Dec 2017 16:31:10 -0500
+Received: from mail-it0-f65.google.com ([209.85.214.65]:45429 &quot;EHLO
+	mail-it0-f65.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1753775AbdLNVbD (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 14 Dec 2017 16:31:03 -0500
+Received: by mail-it0-f65.google.com with SMTP id z6so14716191iti.4
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Thu, 14 Dec 2017 13:31:03 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=google.com; s=20161025;
+	h=date:from:to:cc:subject:in-reply-to:message-id:references
+	:user-agent:mime-version;
+	bh=lYHvB9iEHFoc2Pqtcd2VLgl+RRM2aFmt0XAyCmRVLis=;
+	b=nNujYHs59wNdnCU9Lanh3pyze0yS2z28Q6qV6Pg9A/bvKlHH3Hb5FMGMPVsBTzmjzd
+	gWqdbmNEwMlrFZGn3GjI+fhJ82F22Of+mHsfiILloZb0lOrKCJIIZj2PVw6qHiW0X/p6
+	IKJwO4MQAOsoJZtNo+4OIfTcbmuJ2RSxtMng8lUgg3/W02wcDxmycYA4NuqqIgyE2o+c
+	GZxm63+WjJxPcjG6mNUNRY/03E5jz2AvosO5CWrq1df9lmOqglHZhK6xsyLHtvQvobHA
+	mW79NN5lh8LoWkUccyubgVb9JfqynmGD7/1gkrkwsoUGAqkKzal6uTBZ6Ja5vXg8WFEr
+	JWDA==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:date:from:to:cc:subject:in-reply-to:message-id
+	:references:user-agent:mime-version;
+	bh=lYHvB9iEHFoc2Pqtcd2VLgl+RRM2aFmt0XAyCmRVLis=;
+	b=sNxacBuGJVbxvskS/rKMMrIhOp/IVmWhWUdrRmmLVTzrZ/BzRoFxerzzXfLiQ4UuZB
+	R2JClOfSn7aXTttxOBFfsNBsUCpqDAWNPvZQ2vTveRa1Hsy/GF6wuDywo66DK1BnDMsd
+	uC/U/8+SyHLOAau0Hi/qKG9pirufx2OejgYzMLz1L4igu6+O+/QNtgcPnsDZ+hieq1xj
+	x0PS4Ma1+B7FR7kxXwiBoPVNJrP01L+jHGYQeoKvY9p0x+UDhzppQjRUAmuJ82IlyN1q
+	NbOD4TFjozXWFszywlSyrX0LTElBu9TC2mM70iATR1zpj2kTyGpezWKWHEvf8Z43ocLh
+	yOoA==
+X-Gm-Message-State: AKGB3mLBQz7HvNEtrRHPxg/q6s75JzmWhGNQze0ZT7NOSxUMjJovVjze
+	DGtJ4APQ+XW/TKPgv9c3Lxp7mQ==
+X-Google-Smtp-Source: ACJfBouu795hpI7qAV5hyp749uXiOTmFmtMtC6kTJr55vdg1+dyQopkKG2arfLPDqpIlaIR44AbNig==
+X-Received: by 10.36.54.81 with SMTP id l78mr5236823itl.0.1513287062380;
+	Thu, 14 Dec 2017 13:31:02 -0800 (PST)
+Received: from [2620:15c:17:3:f830:b8b2:443a:5ee0]
+	([2620:15c:17:3:f830:b8b2:443a:5ee0])
+	by smtp.gmail.com with ESMTPSA id
+	j24sm2698894iod.44.2017.12.14.13.31.00
+	(version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+	Thu, 14 Dec 2017 13:31:01 -0800 (PST)
+Date: Thu, 14 Dec 2017 13:31:00 -0800 (PST)
+From: David Rientjes &lt;rientjes@google.com&gt;
+X-X-Sender: rientjes@chino.kir.corp.google.com
+To: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+cc: Michal Hocko &lt;mhocko@suse.com&gt;, Andrea Arcangeli &lt;aarcange@redhat.com&gt;,
+	Benjamin Herrenschmidt &lt;benh@kernel.crashing.org&gt;,
+	Paul Mackerras &lt;paulus@samba.org&gt;, Oded Gabbay &lt;oded.gabbay@gmail.com&gt;,
+	Alex Deucher &lt;alexander.deucher@amd.com&gt;,
+	=?UTF-8?Q?Christian_K=C3=B6nig?= &lt;christian.koenig@amd.com&gt;,
+	David Airlie &lt;airlied@linux.ie&gt;, Joerg Roedel &lt;joro@8bytes.org&gt;,
+	Doug Ledford &lt;dledford@redhat.com&gt;,
+	Jani Nikula &lt;jani.nikula@linux.intel.com&gt;,
+	Mike Marciniszyn &lt;mike.marciniszyn@intel.com&gt;,
+	Sean Hefty &lt;sean.hefty@intel.com&gt;, Dimitri Sivanich &lt;sivanich@sgi.com&gt;,
+	Boris Ostrovsky &lt;boris.ostrovsky@oracle.com&gt;,
+	=?UTF-8?Q?J=C3=A9r=C3=B4me_Glisse?= &lt;jglisse@redhat.com&gt;,
+	Paolo Bonzini &lt;pbonzini@redhat.com&gt;,
+	=?UTF-8?Q?Radim_Kr=C4=8Dm=C3=A1=C5=99?= &lt;rkrcmar@redhat.com&gt;,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: [patch v2 2/2] mm, oom: avoid reaping only for mm&#39;s with blockable
+	invalidate callbacks
+In-Reply-To: &lt;alpine.DEB.2.10.1712141329500.74052@chino.kir.corp.google.com&gt;
+Message-ID: &lt;alpine.DEB.2.10.1712141330120.74052@chino.kir.corp.google.com&gt;
+References: &lt;alpine.DEB.2.10.1712111409090.196232@chino.kir.corp.google.com&gt;
+	&lt;alpine.DEB.2.10.1712141329500.74052@chino.kir.corp.google.com&gt;
+User-Agent: Alpine 2.10 (DEB 1266 2009-07-14)
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=579">David Rientjes</a> - Dec. 14, 2017, 9:31 p.m.</div>
+<pre class="content">
+This uses the new annotation to determine if an mm has mmu notifiers with
+blockable invalidate range callbacks to avoid oom reaping.  Otherwise, the
+callbacks are used around unmap_page_range().
+<span class="signed-off-by">
+Signed-off-by: David Rientjes &lt;rientjes@google.com&gt;</span>
+---
+ mm/oom_kill.c | 21 +++++++++++----------
+ 1 file changed, 11 insertions(+), 10 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Dec. 15, 2017, 4:35 p.m.</div>
+<pre class="content">
+On Thu 14-12-17 13:31:00, David Rientjes wrote:
+<span class="quote">&gt; This uses the new annotation to determine if an mm has mmu notifiers with</span>
+<span class="quote">&gt; blockable invalidate range callbacks to avoid oom reaping.  Otherwise, the</span>
+<span class="quote">&gt; callbacks are used around unmap_page_range().</span>
+
+Do you have any example where this helped? KVM guest oom killed I guess?
+<span class="quote">
+&gt; Signed-off-by: David Rientjes &lt;rientjes@google.com&gt;</span>
+<span class="acked-by">
+Acked-by: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">
+&gt; ---</span>
+<span class="quote">&gt;  mm/oom_kill.c | 21 +++++++++++----------</span>
+<span class="quote">&gt;  1 file changed, 11 insertions(+), 10 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="quote">&gt; --- a/mm/oom_kill.c</span>
+<span class="quote">&gt; +++ b/mm/oom_kill.c</span>
+<span class="quote">&gt; @@ -514,15 +514,12 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	/*</span>
+<span class="quote">&gt; -	 * If the mm has notifiers then we would need to invalidate them around</span>
+<span class="quote">&gt; -	 * unmap_page_range and that is risky because notifiers can sleep and</span>
+<span class="quote">&gt; -	 * what they do is basically undeterministic.  So let&#39;s have a short</span>
+<span class="quote">&gt; +	 * If the mm has invalidate_{start,end}() notifiers that could block,</span>
+<span class="quote">&gt;  	 * sleep to give the oom victim some more time.</span>
+<span class="quote">&gt;  	 * TODO: we really want to get rid of this ugly hack and make sure that</span>
+<span class="quote">&gt; -	 * notifiers cannot block for unbounded amount of time and add</span>
+<span class="quote">&gt; -	 * mmu_notifier_invalidate_range_{start,end} around unmap_page_range</span>
+<span class="quote">&gt; +	 * notifiers cannot block for unbounded amount of time</span>
+<span class="quote">&gt;  	 */</span>
+<span class="quote">&gt; -	if (mm_has_notifiers(mm)) {</span>
+<span class="quote">&gt; +	if (mm_has_blockable_invalidate_notifiers(mm)) {</span>
+<span class="quote">&gt;  		up_read(&amp;mm-&gt;mmap_sem);</span>
+<span class="quote">&gt;  		schedule_timeout_idle(HZ);</span>
+<span class="quote">&gt;  		goto unlock_oom;</span>
+<span class="quote">&gt; @@ -565,10 +562,14 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt;  		 * count elevated without a good reason.</span>
+<span class="quote">&gt;  		 */</span>
+<span class="quote">&gt;  		if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED)) {</span>
+<span class="quote">&gt; -			tlb_gather_mmu(&amp;tlb, mm, vma-&gt;vm_start, vma-&gt;vm_end);</span>
+<span class="quote">&gt; -			unmap_page_range(&amp;tlb, vma, vma-&gt;vm_start, vma-&gt;vm_end,</span>
+<span class="quote">&gt; -					 NULL);</span>
+<span class="quote">&gt; -			tlb_finish_mmu(&amp;tlb, vma-&gt;vm_start, vma-&gt;vm_end);</span>
+<span class="quote">&gt; +			const unsigned long start = vma-&gt;vm_start;</span>
+<span class="quote">&gt; +			const unsigned long end = vma-&gt;vm_end;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +			tlb_gather_mmu(&amp;tlb, mm, start, end);</span>
+<span class="quote">&gt; +			mmu_notifier_invalidate_range_start(mm, start, end);</span>
+<span class="quote">&gt; +			unmap_page_range(&amp;tlb, vma, start, end, NULL);</span>
+<span class="quote">&gt; +			mmu_notifier_invalidate_range_end(mm, start, end);</span>
+<span class="quote">&gt; +			tlb_finish_mmu(&amp;tlb, start, end);</span>
+<span class="quote">&gt;  		}</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  	pr_info(&quot;oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n&quot;,</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=579">David Rientjes</a> - Dec. 15, 2017, 9:46 p.m.</div>
+<pre class="content">
+On Fri, 15 Dec 2017, Michal Hocko wrote:
+<span class="quote">
+&gt; &gt; This uses the new annotation to determine if an mm has mmu notifiers with</span>
+<span class="quote">&gt; &gt; blockable invalidate range callbacks to avoid oom reaping.  Otherwise, the</span>
+<span class="quote">&gt; &gt; callbacks are used around unmap_page_range().</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Do you have any example where this helped? KVM guest oom killed I guess?</span>
+<span class="quote">&gt; </span>
+
+KVM is the most significant one that we are interested in, but haven&#39;t had 
+sufficient time to quantify how much of an impact this has other than to 
+say it will certainly be non-zero.
+
+The motivation was more to exclude mmu notifiers that have a reason to be 
+excluded rather than a blanket exemption to make the oom reaper more 
+robust.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="p_header">--- a/mm/oom_kill.c</span>
+<span class="p_header">+++ b/mm/oom_kill.c</span>
+<span class="p_chunk">@@ -514,15 +514,12 @@</span> <span class="p_context"> static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+ 	}
+ 
+ 	/*
+<span class="p_del">-	 * If the mm has notifiers then we would need to invalidate them around</span>
+<span class="p_del">-	 * unmap_page_range and that is risky because notifiers can sleep and</span>
+<span class="p_del">-	 * what they do is basically undeterministic.  So let&#39;s have a short</span>
+<span class="p_add">+	 * If the mm has invalidate_{start,end}() notifiers that could block,</span>
+ 	 * sleep to give the oom victim some more time.
+ 	 * TODO: we really want to get rid of this ugly hack and make sure that
+<span class="p_del">-	 * notifiers cannot block for unbounded amount of time and add</span>
+<span class="p_del">-	 * mmu_notifier_invalidate_range_{start,end} around unmap_page_range</span>
+<span class="p_add">+	 * notifiers cannot block for unbounded amount of time</span>
+ 	 */
+<span class="p_del">-	if (mm_has_notifiers(mm)) {</span>
+<span class="p_add">+	if (mm_has_blockable_invalidate_notifiers(mm)) {</span>
+ 		up_read(&amp;mm-&gt;mmap_sem);
+ 		schedule_timeout_idle(HZ);
+ 		goto unlock_oom;
+<span class="p_chunk">@@ -565,10 +562,14 @@</span> <span class="p_context"> static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+ 		 * count elevated without a good reason.
+ 		 */
+ 		if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED)) {
+<span class="p_del">-			tlb_gather_mmu(&amp;tlb, mm, vma-&gt;vm_start, vma-&gt;vm_end);</span>
+<span class="p_del">-			unmap_page_range(&amp;tlb, vma, vma-&gt;vm_start, vma-&gt;vm_end,</span>
+<span class="p_del">-					 NULL);</span>
+<span class="p_del">-			tlb_finish_mmu(&amp;tlb, vma-&gt;vm_start, vma-&gt;vm_end);</span>
+<span class="p_add">+			const unsigned long start = vma-&gt;vm_start;</span>
+<span class="p_add">+			const unsigned long end = vma-&gt;vm_end;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			tlb_gather_mmu(&amp;tlb, mm, start, end);</span>
+<span class="p_add">+			mmu_notifier_invalidate_range_start(mm, start, end);</span>
+<span class="p_add">+			unmap_page_range(&amp;tlb, vma, start, end, NULL);</span>
+<span class="p_add">+			mmu_notifier_invalidate_range_end(mm, start, end);</span>
+<span class="p_add">+			tlb_finish_mmu(&amp;tlb, start, end);</span>
+ 		}
+ 	}
+ 	pr_info(&quot;oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n&quot;,
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+
