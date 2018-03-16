@@ -1,0 +1,583 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>mm/rmap: try_to_unmap_one() do not call mmu_notifier under ptl - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    mm/rmap: try_to_unmap_one() do not call mmu_notifier under ptl</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=2554">Jerome Glisse</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Aug. 9, 2017, 4:17 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170809161709.9278-1-jglisse@redhat.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9890955/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9890955/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9890955/">/patch/9890955/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	2D493601EB for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  9 Aug 2017 16:17:29 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 155FD28989
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  9 Aug 2017 16:17:29 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 074BB289B8; Wed,  9 Aug 2017 16:17:29 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 5EEFC28989
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  9 Aug 2017 16:17:28 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753815AbdHIQRP (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 9 Aug 2017 12:17:15 -0400
+Received: from mx1.redhat.com ([209.132.183.28]:58042 &quot;EHLO mx1.redhat.com&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1751904AbdHIQRN (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 9 Aug 2017 12:17:13 -0400
+Received: from smtp.corp.redhat.com
+	(int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 26761C09944A;
+	Wed,  9 Aug 2017 16:17:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mx1.redhat.com 26761C09944A
+Authentication-Results: ext-mx07.extmail.prod.ext.phx2.redhat.com;
+	dmarc=none (p=none dis=none) header.from=redhat.com
+Authentication-Results: ext-mx07.extmail.prod.ext.phx2.redhat.com;
+	spf=fail smtp.mailfrom=jglisse@redhat.com
+Received: from localhost.localdomain.com (ovpn-123-241.rdu2.redhat.com
+	[10.10.123.241])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id CD03778C20;
+	Wed,  9 Aug 2017 16:17:11 +0000 (UTC)
+From: jglisse@redhat.com
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= &lt;jglisse@redhat.com&gt;,
+	&quot;Kirill A . Shutemov&quot; &lt;kirill.shutemov@linux.intel.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Subject: [PATCH] mm/rmap: try_to_unmap_one() do not call mmu_notifier under
+	ptl
+Date: Wed,  9 Aug 2017 12:17:09 -0400
+Message-Id: &lt;20170809161709.9278-1-jglisse@redhat.com&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16
+	(mx1.redhat.com [10.5.110.31]);
+	Wed, 09 Aug 2017 16:17:13 +0000 (UTC)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=2554">Jerome Glisse</a> - Aug. 9, 2017, 4:17 p.m.</div>
+<pre class="content">
+<span class="from">From: Jérôme Glisse &lt;jglisse@redhat.com&gt;</span>
+
+MMU notifiers can sleep, but in try_to_unmap_one() we call
+mmu_notifier_invalidate_page() under page table lock.
+
+Let&#39;s instead use mmu_notifier_invalidate_range() outside
+page_vma_mapped_walk() loop.
+<span class="signed-off-by">
+Signed-off-by: Jérôme Glisse &lt;jglisse@redhat.com&gt;</span>
+Cc: Kirill A. Shutemov &lt;kirill.shutemov@linux.intel.com&gt;
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Fixes: c7ab0d2fdc84 (&quot;mm: convert try_to_unmap_one() to use page_vma_mapped_walk()&quot;)
+---
+ mm/rmap.c | 36 +++++++++++++++++++++---------------
+ 1 file changed, 21 insertions(+), 15 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=874">Kirill A. Shutemov</a> - Aug. 9, 2017, 4:34 p.m.</div>
+<pre class="content">
+On Wed, Aug 09, 2017 at 12:17:09PM -0400, jglisse@redhat.com wrote:
+<span class="quote">&gt; From: Jérôme Glisse &lt;jglisse@redhat.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; MMU notifiers can sleep, but in try_to_unmap_one() we call</span>
+<span class="quote">&gt; mmu_notifier_invalidate_page() under page table lock.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Let&#39;s instead use mmu_notifier_invalidate_range() outside</span>
+<span class="quote">&gt; page_vma_mapped_walk() loop.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Jérôme Glisse &lt;jglisse@redhat.com&gt;</span>
+<span class="quote">&gt; Cc: Kirill A. Shutemov &lt;kirill.shutemov@linux.intel.com&gt;</span>
+<span class="quote">&gt; Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;</span>
+<span class="quote">&gt; Fixes: c7ab0d2fdc84 (&quot;mm: convert try_to_unmap_one() to use page_vma_mapped_walk()&quot;)</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  mm/rmap.c | 36 +++++++++++++++++++++---------------</span>
+<span class="quote">&gt;  1 file changed, 21 insertions(+), 15 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/mm/rmap.c b/mm/rmap.c</span>
+<span class="quote">&gt; index aff607d5f7d2..d60e887f1cda 100644</span>
+<span class="quote">&gt; --- a/mm/rmap.c</span>
+<span class="quote">&gt; +++ b/mm/rmap.c</span>
+<span class="quote">&gt; @@ -1329,7 +1329,8 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+<span class="quote">&gt;  	};</span>
+<span class="quote">&gt;  	pte_t pteval;</span>
+<span class="quote">&gt;  	struct page *subpage;</span>
+<span class="quote">&gt; -	bool ret = true;</span>
+<span class="quote">&gt; +	bool ret = true, invalidation_needed = false;</span>
+<span class="quote">&gt; +	unsigned long end = address + PAGE_SIZE;</span>
+
+I think it should be &#39;address + (1UL &lt;&lt; compound_order(page))&#39;.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=2554">Jerome Glisse</a> - Aug. 9, 2017, 4:52 p.m.</div>
+<pre class="content">
+<span class="quote">&gt; On Wed, Aug 09, 2017 at 12:17:09PM -0400, jglisse@redhat.com wrote:</span>
+<span class="quote">&gt; &gt; From: Jérôme Glisse &lt;jglisse@redhat.com&gt;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; MMU notifiers can sleep, but in try_to_unmap_one() we call</span>
+<span class="quote">&gt; &gt; mmu_notifier_invalidate_page() under page table lock.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Let&#39;s instead use mmu_notifier_invalidate_range() outside</span>
+<span class="quote">&gt; &gt; page_vma_mapped_walk() loop.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Signed-off-by: Jérôme Glisse &lt;jglisse@redhat.com&gt;</span>
+<span class="quote">&gt; &gt; Cc: Kirill A. Shutemov &lt;kirill.shutemov@linux.intel.com&gt;</span>
+<span class="quote">&gt; &gt; Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;</span>
+<span class="quote">&gt; &gt; Fixes: c7ab0d2fdc84 (&quot;mm: convert try_to_unmap_one() to use</span>
+<span class="quote">&gt; &gt; page_vma_mapped_walk()&quot;)</span>
+<span class="quote">&gt; &gt; ---</span>
+<span class="quote">&gt; &gt;  mm/rmap.c | 36 +++++++++++++++++++++---------------</span>
+<span class="quote">&gt; &gt;  1 file changed, 21 insertions(+), 15 deletions(-)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; diff --git a/mm/rmap.c b/mm/rmap.c</span>
+<span class="quote">&gt; &gt; index aff607d5f7d2..d60e887f1cda 100644</span>
+<span class="quote">&gt; &gt; --- a/mm/rmap.c</span>
+<span class="quote">&gt; &gt; +++ b/mm/rmap.c</span>
+<span class="quote">&gt; &gt; @@ -1329,7 +1329,8 @@ static bool try_to_unmap_one(struct page *page,</span>
+<span class="quote">&gt; &gt; struct vm_area_struct *vma,</span>
+<span class="quote">&gt; &gt;  	};</span>
+<span class="quote">&gt; &gt;  	pte_t pteval;</span>
+<span class="quote">&gt; &gt;  	struct page *subpage;</span>
+<span class="quote">&gt; &gt; -	bool ret = true;</span>
+<span class="quote">&gt; &gt; +	bool ret = true, invalidation_needed = false;</span>
+<span class="quote">&gt; &gt; +	unsigned long end = address + PAGE_SIZE;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I think it should be &#39;address + (1UL &lt;&lt; compound_order(page))&#39;.</span>
+
+Can&#39;t address point to something else than first page in huge page ?
+Also i did use end as an optimization ie maybe not all the pte in the
+range are valid and thus they not all need to be invalidated hence by
+tracking the last one that needs invalidation i am limiting the range.
+
+But it is a small optimization so i am not attach to it.
+
+Jérôme
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41">Andrew Morton</a> - Aug. 9, 2017, 8:17 p.m.</div>
+<pre class="content">
+On Wed, 9 Aug 2017 12:52:46 -0400 (EDT) Jerome Glisse &lt;jglisse@redhat.com&gt; wrote:
+<span class="quote">
+&gt; &gt; On Wed, Aug 09, 2017 at 12:17:09PM -0400, jglisse@redhat.com wrote:</span>
+<span class="quote">&gt; &gt; &gt; From: J__r__me Glisse &lt;jglisse@redhat.com&gt;</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; MMU notifiers can sleep, but in try_to_unmap_one() we call</span>
+<span class="quote">&gt; &gt; &gt; mmu_notifier_invalidate_page() under page table lock.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Let&#39;s instead use mmu_notifier_invalidate_range() outside</span>
+<span class="quote">&gt; &gt; &gt; page_vma_mapped_walk() loop.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Signed-off-by: J__r__me Glisse &lt;jglisse@redhat.com&gt;</span>
+<span class="quote">&gt; &gt; &gt; Cc: Kirill A. Shutemov &lt;kirill.shutemov@linux.intel.com&gt;</span>
+<span class="quote">&gt; &gt; &gt; Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;</span>
+<span class="quote">&gt; &gt; &gt; Fixes: c7ab0d2fdc84 (&quot;mm: convert try_to_unmap_one() to use</span>
+<span class="quote">&gt; &gt; &gt; page_vma_mapped_walk()&quot;)</span>
+<span class="quote">&gt; &gt; &gt; ---</span>
+<span class="quote">&gt; &gt; &gt;  mm/rmap.c | 36 +++++++++++++++++++++---------------</span>
+<span class="quote">&gt; &gt; &gt;  1 file changed, 21 insertions(+), 15 deletions(-)</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; diff --git a/mm/rmap.c b/mm/rmap.c</span>
+<span class="quote">&gt; &gt; &gt; index aff607d5f7d2..d60e887f1cda 100644</span>
+<span class="quote">&gt; &gt; &gt; --- a/mm/rmap.c</span>
+<span class="quote">&gt; &gt; &gt; +++ b/mm/rmap.c</span>
+<span class="quote">&gt; &gt; &gt; @@ -1329,7 +1329,8 @@ static bool try_to_unmap_one(struct page *page,</span>
+<span class="quote">&gt; &gt; &gt; struct vm_area_struct *vma,</span>
+<span class="quote">&gt; &gt; &gt;  	};</span>
+<span class="quote">&gt; &gt; &gt;  	pte_t pteval;</span>
+<span class="quote">&gt; &gt; &gt;  	struct page *subpage;</span>
+<span class="quote">&gt; &gt; &gt; -	bool ret = true;</span>
+<span class="quote">&gt; &gt; &gt; +	bool ret = true, invalidation_needed = false;</span>
+<span class="quote">&gt; &gt; &gt; +	unsigned long end = address + PAGE_SIZE;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I think it should be &#39;address + (1UL &lt;&lt; compound_order(page))&#39;.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Can&#39;t address point to something else than first page in huge page ?</span>
+<span class="quote">&gt; Also i did use end as an optimization ie maybe not all the pte in the</span>
+<span class="quote">&gt; range are valid and thus they not all need to be invalidated hence by</span>
+<span class="quote">&gt; tracking the last one that needs invalidation i am limiting the range.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; But it is a small optimization so i am not attach to it.</span>
+<span class="quote">&gt; </span>
+
+So we need this patch in addition to Kirrill&#39;s &quot;rmap: do not call
+mmu_notifier_invalidate_page() under ptl&quot;. 
+
+Jerome, I&#39;m seeing a bunch of rejects applying this patch to current
+mainline.  It&#39;s unclear which kernel you&#39;re patching but we&#39;ll need
+something which can go into Linus soon and which is backportable (with
+mimimal fixups) into -stable kernels, please.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=2554">Jerome Glisse</a> - Aug. 9, 2017, 8:43 p.m.</div>
+<pre class="content">
+On Wed, Aug 09, 2017 at 01:17:42PM -0700, Andrew Morton wrote:
+<span class="quote">&gt; On Wed, 9 Aug 2017 12:52:46 -0400 (EDT) Jerome Glisse &lt;jglisse@redhat.com&gt; wrote:</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; &gt; On Wed, Aug 09, 2017 at 12:17:09PM -0400, jglisse@redhat.com wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; From: J__r__me Glisse &lt;jglisse@redhat.com&gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; MMU notifiers can sleep, but in try_to_unmap_one() we call</span>
+<span class="quote">&gt; &gt; &gt; &gt; mmu_notifier_invalidate_page() under page table lock.</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; Let&#39;s instead use mmu_notifier_invalidate_range() outside</span>
+<span class="quote">&gt; &gt; &gt; &gt; page_vma_mapped_walk() loop.</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; Signed-off-by: J__r__me Glisse &lt;jglisse@redhat.com&gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; Cc: Kirill A. Shutemov &lt;kirill.shutemov@linux.intel.com&gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; Fixes: c7ab0d2fdc84 (&quot;mm: convert try_to_unmap_one() to use</span>
+<span class="quote">&gt; &gt; &gt; &gt; page_vma_mapped_walk()&quot;)</span>
+<span class="quote">&gt; &gt; &gt; &gt; ---</span>
+<span class="quote">&gt; &gt; &gt; &gt;  mm/rmap.c | 36 +++++++++++++++++++++---------------</span>
+<span class="quote">&gt; &gt; &gt; &gt;  1 file changed, 21 insertions(+), 15 deletions(-)</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; diff --git a/mm/rmap.c b/mm/rmap.c</span>
+<span class="quote">&gt; &gt; &gt; &gt; index aff607d5f7d2..d60e887f1cda 100644</span>
+<span class="quote">&gt; &gt; &gt; &gt; --- a/mm/rmap.c</span>
+<span class="quote">&gt; &gt; &gt; &gt; +++ b/mm/rmap.c</span>
+<span class="quote">&gt; &gt; &gt; &gt; @@ -1329,7 +1329,8 @@ static bool try_to_unmap_one(struct page *page,</span>
+<span class="quote">&gt; &gt; &gt; &gt; struct vm_area_struct *vma,</span>
+<span class="quote">&gt; &gt; &gt; &gt;  	};</span>
+<span class="quote">&gt; &gt; &gt; &gt;  	pte_t pteval;</span>
+<span class="quote">&gt; &gt; &gt; &gt;  	struct page *subpage;</span>
+<span class="quote">&gt; &gt; &gt; &gt; -	bool ret = true;</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	bool ret = true, invalidation_needed = false;</span>
+<span class="quote">&gt; &gt; &gt; &gt; +	unsigned long end = address + PAGE_SIZE;</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; I think it should be &#39;address + (1UL &lt;&lt; compound_order(page))&#39;.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Can&#39;t address point to something else than first page in huge page ?</span>
+<span class="quote">&gt; &gt; Also i did use end as an optimization ie maybe not all the pte in the</span>
+<span class="quote">&gt; &gt; range are valid and thus they not all need to be invalidated hence by</span>
+<span class="quote">&gt; &gt; tracking the last one that needs invalidation i am limiting the range.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; But it is a small optimization so i am not attach to it.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So we need this patch in addition to Kirrill&#39;s &quot;rmap: do not call</span>
+<span class="quote">&gt; mmu_notifier_invalidate_page() under ptl&quot;. </span>
+
+Yes we need both to restore mmu_notifier.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; Jerome, I&#39;m seeing a bunch of rejects applying this patch to current</span>
+<span class="quote">&gt; mainline.  It&#39;s unclear which kernel you&#39;re patching but we&#39;ll need</span>
+<span class="quote">&gt; something which can go into Linus soon and which is backportable (with</span>
+<span class="quote">&gt; mimimal fixups) into -stable kernels, please.</span>
+<span class="quote">&gt; </span>
+
+Sorry this was on top of one of my HMM branches. I am reposting with
+Kirill end address computation as it is not a big optimization if pte
+are already invalid then invalidating them once more should not trigger
+any more work.
+
+Jérôme
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/rmap.c b/mm/rmap.c</span>
+<span class="p_header">index aff607d5f7d2..d60e887f1cda 100644</span>
+<span class="p_header">--- a/mm/rmap.c</span>
+<span class="p_header">+++ b/mm/rmap.c</span>
+<span class="p_chunk">@@ -1329,7 +1329,8 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 	};
+ 	pte_t pteval;
+ 	struct page *subpage;
+<span class="p_del">-	bool ret = true;</span>
+<span class="p_add">+	bool ret = true, invalidation_needed = false;</span>
+<span class="p_add">+	unsigned long end = address + PAGE_SIZE;</span>
+ 	enum ttu_flags flags = (enum ttu_flags)arg;
+ 
+ 	/* munlock has nothing to gain from examining un-locked vmas */
+<span class="p_chunk">@@ -1386,7 +1387,6 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 		VM_BUG_ON_PAGE(!pvmw.pte, page);
+ 
+ 		subpage = page - page_to_pfn(page) + pte_pfn(*pvmw.pte);
+<span class="p_del">-		address = pvmw.address;</span>
+ 
+ 		if (IS_ENABLED(CONFIG_MIGRATION) &amp;&amp;
+ 		    (flags &amp; TTU_MIGRATION) &amp;&amp;
+<span class="p_chunk">@@ -1394,7 +1394,8 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 			swp_entry_t entry;
+ 			pte_t swp_pte;
+ 
+<span class="p_del">-			pteval = ptep_get_and_clear(mm, address, pvmw.pte);</span>
+<span class="p_add">+			pteval = ptep_get_and_clear(mm, pvmw.address,</span>
+<span class="p_add">+						    pvmw.pte);</span>
+ 
+ 			/*
+ 			 * Store the pfn of the page in a special migration
+<span class="p_chunk">@@ -1405,12 +1406,12 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 			swp_pte = swp_entry_to_pte(entry);
+ 			if (pte_soft_dirty(pteval))
+ 				swp_pte = pte_swp_mksoft_dirty(swp_pte);
+<span class="p_del">-			set_pte_at(mm, address, pvmw.pte, swp_pte);</span>
+<span class="p_add">+			set_pte_at(mm, pvmw.address, pvmw.pte, swp_pte);</span>
+ 			goto discard;
+ 		}
+ 
+ 		if (!(flags &amp; TTU_IGNORE_ACCESS)) {
+<span class="p_del">-			if (ptep_clear_flush_young_notify(vma, address,</span>
+<span class="p_add">+			if (ptep_clear_flush_young_notify(vma, pvmw.address,</span>
+ 						pvmw.pte)) {
+ 				ret = false;
+ 				page_vma_mapped_walk_done(&amp;pvmw);
+<span class="p_chunk">@@ -1419,7 +1420,7 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 		}
+ 
+ 		/* Nuke the page table entry. */
+<span class="p_del">-		flush_cache_page(vma, address, pte_pfn(*pvmw.pte));</span>
+<span class="p_add">+		flush_cache_page(vma, pvmw.address, pte_pfn(*pvmw.pte));</span>
+ 		if (should_defer_flush(mm, flags)) {
+ 			/*
+ 			 * We clear the PTE but do not flush so potentially
+<span class="p_chunk">@@ -1429,11 +1430,12 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 			 * transition on a cached TLB entry is written through
+ 			 * and traps if the PTE is unmapped.
+ 			 */
+<span class="p_del">-			pteval = ptep_get_and_clear(mm, address, pvmw.pte);</span>
+<span class="p_add">+			pteval = ptep_get_and_clear(mm, pvmw.address,</span>
+<span class="p_add">+						    pvmw.pte);</span>
+ 
+ 			set_tlb_ubc_flush_pending(mm, pte_dirty(pteval));
+ 		} else {
+<span class="p_del">-			pteval = ptep_clear_flush(vma, address, pvmw.pte);</span>
+<span class="p_add">+			pteval = ptep_clear_flush(vma, pvmw.address, pvmw.pte);</span>
+ 		}
+ 
+ 		/* Move the dirty bit to the page. Now the pte is gone. */
+<span class="p_chunk">@@ -1448,12 +1450,12 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 			if (PageHuge(page)) {
+ 				int nr = 1 &lt;&lt; compound_order(page);
+ 				hugetlb_count_sub(nr, mm);
+<span class="p_del">-				set_huge_swap_pte_at(mm, address,</span>
+<span class="p_add">+				set_huge_swap_pte_at(mm, pvmw.address,</span>
+ 						     pvmw.pte, pteval,
+ 						     vma_mmu_pagesize(vma));
+ 			} else {
+ 				dec_mm_counter(mm, mm_counter(page));
+<span class="p_del">-				set_pte_at(mm, address, pvmw.pte, pteval);</span>
+<span class="p_add">+				set_pte_at(mm, pvmw.address, pvmw.pte, pteval);</span>
+ 			}
+ 
+ 		} else if (pte_unused(pteval)) {
+<span class="p_chunk">@@ -1477,7 +1479,7 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 			swp_pte = swp_entry_to_pte(entry);
+ 			if (pte_soft_dirty(pteval))
+ 				swp_pte = pte_swp_mksoft_dirty(swp_pte);
+<span class="p_del">-			set_pte_at(mm, address, pvmw.pte, swp_pte);</span>
+<span class="p_add">+			set_pte_at(mm, pvmw.address, pvmw.pte, swp_pte);</span>
+ 		} else if (PageAnon(page)) {
+ 			swp_entry_t entry = { .val = page_private(subpage) };
+ 			pte_t swp_pte;
+<span class="p_chunk">@@ -1503,7 +1505,7 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 				 * If the page was redirtied, it cannot be
+ 				 * discarded. Remap the page to page table.
+ 				 */
+<span class="p_del">-				set_pte_at(mm, address, pvmw.pte, pteval);</span>
+<span class="p_add">+				set_pte_at(mm, pvmw.address, pvmw.pte, pteval);</span>
+ 				SetPageSwapBacked(page);
+ 				ret = false;
+ 				page_vma_mapped_walk_done(&amp;pvmw);
+<span class="p_chunk">@@ -1511,7 +1513,7 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 			}
+ 
+ 			if (swap_duplicate(entry) &lt; 0) {
+<span class="p_del">-				set_pte_at(mm, address, pvmw.pte, pteval);</span>
+<span class="p_add">+				set_pte_at(mm, pvmw.address, pvmw.pte, pteval);</span>
+ 				ret = false;
+ 				page_vma_mapped_walk_done(&amp;pvmw);
+ 				break;
+<span class="p_chunk">@@ -1527,14 +1529,18 @@</span> <span class="p_context"> static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,</span>
+ 			swp_pte = swp_entry_to_pte(entry);
+ 			if (pte_soft_dirty(pteval))
+ 				swp_pte = pte_swp_mksoft_dirty(swp_pte);
+<span class="p_del">-			set_pte_at(mm, address, pvmw.pte, swp_pte);</span>
+<span class="p_add">+			set_pte_at(mm, pvmw.address, pvmw.pte, swp_pte);</span>
+ 		} else
+ 			dec_mm_counter(mm, mm_counter_file(page));
+ discard:
+ 		page_remove_rmap(subpage, PageHuge(page));
+ 		put_page(page);
+<span class="p_del">-		mmu_notifier_invalidate_page(mm, address);</span>
+<span class="p_add">+		end = pvmw.address + PAGE_SIZE;</span>
+<span class="p_add">+		invalidation_needed = true;</span>
+ 	}
+<span class="p_add">+</span>
+<span class="p_add">+	if (invalidation_needed)</span>
+<span class="p_add">+		mmu_notifier_invalidate_range(mm, address, end);</span>
+ 	return ret;
+ }
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

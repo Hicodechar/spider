@@ -1,0 +1,916 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,1/2] x86/ibpb: Skip IBPB when we switch back to same user process - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,1/2] x86/ibpb: Skip IBPB when we switch back to same user process</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Jan. 25, 2018, 4:41 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20180125164139.GM2269@hirez.programming.kicks-ass.net&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10184349/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10184349/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10184349/">/patch/10184349/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	6988A60383 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 25 Jan 2018 16:42:40 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 524192871F
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 25 Jan 2018 16:42:40 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 5096A289C2; Thu, 25 Jan 2018 16:42:40 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.8 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	RCVD_IN_DNSWL_HI,T_DKIM_INVALID autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 60909289F4
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu, 25 Jan 2018 16:42:05 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751340AbeAYQmC (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 25 Jan 2018 11:42:02 -0500
+Received: from merlin.infradead.org ([205.233.59.134]:35424 &quot;EHLO
+	merlin.infradead.org&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1750992AbeAYQmA (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Thu, 25 Jan 2018 11:42:00 -0500
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209;
+	h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=1YBsiFvhe98mJ7O1rSvjFFCM19vts7A0rICoLoJruv0=;
+	b=O6ta1t1uj3cUcng08t7GPj5Ui
+	d7sreVMWuJQO8It6XhBHiF82eGPrB2mCr7k0ITaXa1r55LiQg64u8ypzN0/Vz+O6l1bEb1TaRuG6X
+	TxWLASQtCs1jW9Amy11idh3Pue2tweJ4YBt78ISffan/52wWwMf92H5+jFNchC9eKlqghnmkGHMO6
+	K7twOLJy4FuOASgMPskXLnwZNmb3PAQ7Z9q5H6LsQbRqM5ZHAMMcXauImFKBWVirAgC8pmJCOM/20
+	aHOI/JNeWj4gzijZ/Dg683m8qYk53N5pmiWhQeriuKmtESaQWDBuCPC53f7gn4niKY0j4ar+cchos
+	DfCzrSbnw==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100]
+	helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.89 #1 (Red Hat Linux))
+	id 1eekas-0007oZ-GX; Thu, 25 Jan 2018 16:41:42 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id D7F872029B0FD; Thu, 25 Jan 2018 17:41:39 +0100 (CET)
+Date: Thu, 25 Jan 2018 17:41:39 +0100
+From: Peter Zijlstra &lt;peterz@infradead.org&gt;
+To: Arjan van de Ven &lt;arjan@linux.intel.com&gt;
+Cc: Tim Chen &lt;tim.c.chen@linux.intel.com&gt;, linux-kernel@vger.kernel.org,
+	KarimAllah Ahmed &lt;karahmed@amazon.de&gt;, Andi Kleen &lt;ak@linux.intel.com&gt;,
+	Andrea Arcangeli &lt;aarcange@redhat.com&gt;,
+	Andy Lutomirski &lt;luto@kernel.org&gt;, Ashok Raj &lt;ashok.raj@intel.com&gt;,
+	Asit Mallick &lt;asit.k.mallick@intel.com&gt;, Borislav Petkov &lt;bp@suse.de&gt;,
+	Dan Williams &lt;dan.j.williams@intel.com&gt;,
+	Dave Hansen &lt;dave.hansen@intel.com&gt;, David Woodhouse &lt;dwmw@amazon.co.uk&gt;,
+	Greg Kroah-Hartman &lt;gregkh@linuxfoundation.org&gt;,
+	&quot;H . Peter Anvin&quot; &lt;hpa@zytor.com&gt;, Ingo Molnar &lt;mingo@redhat.com&gt;,
+	Janakarajan Natarajan &lt;Janakarajan.Natarajan@amd.com&gt;,
+	Joerg Roedel &lt;joro@8bytes.org&gt;, Jun Nakajima &lt;jun.nakajima@intel.com&gt;,
+	Laura Abbott &lt;labbott@redhat.com&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Masami Hiramatsu &lt;mhiramat@kernel.org&gt;,
+	Paolo Bonzini &lt;pbonzini@redhat.com&gt;, rkrcmar@redhat.com,
+	Thomas Gleixner &lt;tglx@linutronix.de&gt;,
+	Tom Lendacky &lt;thomas.lendacky@amd.com&gt;, x86@kernel.org
+Subject: Re: [RFC PATCH 1/2] x86/ibpb: Skip IBPB when we switch back to same
+	user process
+Message-ID: &lt;20180125164139.GM2269@hirez.programming.kicks-ass.net&gt;
+References: &lt;c5cc429013c2248ddebe0a8480b172ae70b29733.1516840211.git.tim.c.chen@linux.intel.com&gt;
+	&lt;20180125085820.GV2228@hirez.programming.kicks-ass.net&gt;
+	&lt;20180125092233.GE2295@hirez.programming.kicks-ass.net&gt;
+	&lt;86541aca-8de7-163d-b620-083dddf29184@linux.intel.com&gt;
+	&lt;20180125135055.GK2249@hirez.programming.kicks-ass.net&gt;
+	&lt;aeef4a08-7dd3-3d3a-02f4-9b8b4a1461bf@linux.intel.com&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: &lt;aeef4a08-7dd3-3d3a-02f4-9b8b4a1461bf@linux.intel.com&gt;
+User-Agent: Mutt/1.9.2 (2017-12-15)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Jan. 25, 2018, 4:41 p.m.</div>
+<pre class="content">
+On Thu, Jan 25, 2018 at 06:07:07AM -0800, Arjan van de Ven wrote:
+<span class="quote">&gt; On 1/25/2018 5:50 AM, Peter Zijlstra wrote:</span>
+<span class="quote">&gt; &gt; On Thu, Jan 25, 2018 at 05:21:30AM -0800, Arjan van de Ven wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; This means that &#39;A -&gt; idle -&gt; A&#39; should never pass through switch_mm to</span>
+<span class="quote">&gt; &gt; &gt; &gt; begin with.</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; Please clarify how you think it does.</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; the idle code does leave_mm() to avoid having to IPI CPUs in deep sleep states</span>
+<span class="quote">&gt; &gt; &gt; for a tlb flush.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; The intel_idle code does, not the idle code. This is squirreled away in</span>
+<span class="quote">&gt; &gt; some driver :/</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; afaik (but haven&#39;t looked in a while) acpi drivers did too</span>
+
+Only makes it worse.. drivers shouldn&#39;t be frobbing with things like
+this.
+<span class="quote">
+&gt; &gt; &gt; (trust me, that you really want, sequentially IPI&#39;s a pile of cores in a deep sleep</span>
+<span class="quote">&gt; &gt; &gt; state to just flush a tlb that&#39;s empty, the performance of that is horrific)</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; Hurmph. I&#39;d rather fix that some other way than leave_mm(), this is</span>
+<span class="quote">&gt; &gt; piling special on special.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; the problem was tricky. but of course if something better is possible lets figure this out</span>
+
+How about something like the below? It boots with &quot;nopcid&quot; appended to
+the cmdline.
+
+Andy, could you pretty please have a look at this? This is fickle code
+at best and I&#39;m sure I messed _something_ up.
+
+The idea is simple, do what we do for virt. Don&#39;t send IPI&#39;s to CPUs
+that don&#39;t need them (in virt&#39;s case because the vCPU isn&#39;t running, in
+our case because we&#39;re not in fact running a user process), but mark the
+CPU as having needed a TLB flush.
+
+Then when we leave the special mode (switching back to a user task),
+check our flag and invalidate TLBs if required.
+
+All of this is conditional on tlb_defer_switch_to_init_mm() (aka !PCID)
+because otherwise we already switch to init_mm under the hood (we retain
+active_mm) unconditionally.
+
+This way active_mm is preserved and we can use something like:
+
+  if (prev != next)
+    ibpb();
+
+in switch_mm_irqs_off().
+
+
+---
+ arch/x86/include/asm/acpi.h        |  2 --
+ arch/x86/include/asm/mmu_context.h |  1 +
+ arch/x86/include/asm/tlbflush.h    |  4 +++-
+ arch/x86/mm/tlb.c                  | 38 +++++++++++++++++++++++++++++++++++---
+ drivers/acpi/processor_idle.c      |  2 --
+ drivers/idle/intel_idle.c          |  8 --------
+ kernel/sched/core.c                | 28 +++++++++++++++-------------
+ 7 files changed, 54 insertions(+), 29 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - Jan. 25, 2018, 5:04 p.m.</div>
+<pre class="content">
+On Thu, Jan 25, 2018 at 8:41 AM, Peter Zijlstra &lt;peterz@infradead.org&gt; wrote:
+<span class="quote">&gt; On Thu, Jan 25, 2018 at 06:07:07AM -0800, Arjan van de Ven wrote:</span>
+<span class="quote">&gt;&gt; On 1/25/2018 5:50 AM, Peter Zijlstra wrote:</span>
+<span class="quote">&gt;&gt; &gt; On Thu, Jan 25, 2018 at 05:21:30AM -0800, Arjan van de Ven wrote:</span>
+<span class="quote">&gt;&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; &gt; &gt; This means that &#39;A -&gt; idle -&gt; A&#39; should never pass through switch_mm to</span>
+<span class="quote">&gt;&gt; &gt; &gt; &gt; begin with.</span>
+<span class="quote">&gt;&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; &gt; &gt; Please clarify how you think it does.</span>
+<span class="quote">&gt;&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; &gt; the idle code does leave_mm() to avoid having to IPI CPUs in deep sleep states</span>
+<span class="quote">&gt;&gt; &gt; &gt; for a tlb flush.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; The intel_idle code does, not the idle code. This is squirreled away in</span>
+<span class="quote">&gt;&gt; &gt; some driver :/</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; afaik (but haven&#39;t looked in a while) acpi drivers did too</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Only makes it worse.. drivers shouldn&#39;t be frobbing with things like</span>
+<span class="quote">&gt; this.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; &gt; &gt; (trust me, that you really want, sequentially IPI&#39;s a pile of cores in a deep sleep</span>
+<span class="quote">&gt;&gt; &gt; &gt; state to just flush a tlb that&#39;s empty, the performance of that is horrific)</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; &gt; Hurmph. I&#39;d rather fix that some other way than leave_mm(), this is</span>
+<span class="quote">&gt;&gt; &gt; piling special on special.</span>
+<span class="quote">&gt;&gt; &gt;</span>
+<span class="quote">&gt;&gt; the problem was tricky. but of course if something better is possible lets figure this out</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; How about something like the below? It boots with &quot;nopcid&quot; appended to</span>
+<span class="quote">&gt; the cmdline.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Andy, could you pretty please have a look at this? This is fickle code</span>
+<span class="quote">&gt; at best and I&#39;m sure I messed _something_ up.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; The idea is simple, do what we do for virt. Don&#39;t send IPI&#39;s to CPUs</span>
+<span class="quote">&gt; that don&#39;t need them (in virt&#39;s case because the vCPU isn&#39;t running, in</span>
+<span class="quote">&gt; our case because we&#39;re not in fact running a user process), but mark the</span>
+<span class="quote">&gt; CPU as having needed a TLB flush.</span>
+
+I haven&#39;t tried to fully decipher the patch, but I think the idea is
+wrong.  (I think it&#39;s the same wrong idea that Rik and I both had and
+that I got into Linus&#39; tree for a while...)  The problem is that it&#39;s
+not actually correct to run indefinitely in kernel mode using stale
+cached page table data.  The stale PTEs themselves are fine, but the
+stale intermediate translations can cause the CPU to speculatively
+load complete garbage into the TLB, and that&#39;s bad (and causes MCEs on
+AMD CPUs).
+
+I think we only really have two choices: tlb_defer_switch_to_init_mm()
+== true and tlb_defer_switch_to_init_mm() == false.  The current
+heuristic is to not defer if we have PCID, because loading CR3 is
+reasonably fast.
+<span class="quote">
+
+
+&gt;  void native_flush_tlb_others(const struct cpumask *cpumask,</span>
+<span class="quote">&gt;                              const struct flush_tlb_info *info)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt; +       struct cpumask *flushmask = this_cpu_cpumask_var_ptr(__tlb_mask);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;         count_vm_tlb_event(NR_TLB_REMOTE_FLUSH);</span>
+<span class="quote">&gt;         if (info-&gt;end == TLB_FLUSH_ALL)</span>
+<span class="quote">&gt;                 trace_tlb_flush(TLB_REMOTE_SEND_IPI, TLB_FLUSH_ALL);</span>
+<span class="quote">&gt; @@ -531,6 +543,19 @@ void native_flush_tlb_others(const struct cpumask *cpumask,</span>
+<span class="quote">&gt;                                                (void *)info, 1);</span>
+<span class="quote">&gt;                 return;</span>
+<span class="quote">&gt;         }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +       if (tlb_defer_switch_to_init_mm() &amp;&amp; flushmask) {</span>
+<span class="quote">&gt; +               int cpu;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +               cpumask_copy(flushmask, cpumask);</span>
+<span class="quote">&gt; +               for_each_cpu(cpu, flushmask) {</span>
+<span class="quote">&gt; +                       if (cmpxchg(per_cpu_ptr(&amp;cpu_tlbstate.is_lazy, cpu), 1, 2) &gt;= 1)</span>
+<span class="quote">&gt; +                               __cpumask_clear_cpu(cpu, flushmask);</span>
+
+If this code path here executes and we&#39;re flushing because we just
+removed a reference to a page table and we&#39;re about to free the page
+table, then the CPU that we didn&#39;t notify by IPI can start using
+whatever gets written to the pagetable after it&#39;s freed, and that&#39;s
+bad :(
+<span class="quote">
+&gt; +               }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +               cpumask = flushmask;</span>
+<span class="quote">&gt; +       }</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;         smp_call_function_many(cpumask, flush_tlb_func_remote,</span>
+<span class="quote">&gt;                                (void *)info, 1);</span>
+<span class="quote">&gt;  }</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=467">Arjan van de Ven</a> - Jan. 25, 2018, 5:24 p.m.</div>
+<pre class="content">
+<span class="quote">&gt; The idea is simple, do what we do for virt. Don&#39;t send IPI&#39;s to CPUs</span>
+<span class="quote">&gt; that don&#39;t need them (in virt&#39;s case because the vCPU isn&#39;t running, in</span>
+<span class="quote">&gt; our case because we&#39;re not in fact running a user process), but mark the</span>
+<span class="quote">&gt; CPU as having needed a TLB flush.</span>
+
+I am really uncomfortable with that idea.
+You really can&#39;t run code safely on a cpu where the TLBs in the CPU are invalid
+or where a CPU that does (partial) page walks would install invalid PTEs either
+through actual or through speculative execution.
+
+(in the virt case there&#39;s a cheat, since the code is not actually running
+there isn&#39;t a cpu with TLBs live. You can&#39;t do that same cheat for this case)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Jan. 25, 2018, 6:18 p.m.</div>
+<pre class="content">
+On Thu, Jan 25, 2018 at 09:04:21AM -0800, Andy Lutomirski wrote:
+<span class="quote">&gt; I haven&#39;t tried to fully decipher the patch, but I think the idea is</span>
+<span class="quote">&gt; wrong.  (I think it&#39;s the same wrong idea that Rik and I both had and</span>
+<span class="quote">&gt; that I got into Linus&#39; tree for a while...)  The problem is that it&#39;s</span>
+<span class="quote">&gt; not actually correct to run indefinitely in kernel mode using stale</span>
+<span class="quote">&gt; cached page table data.  The stale PTEs themselves are fine, but the</span>
+<span class="quote">&gt; stale intermediate translations can cause the CPU to speculatively</span>
+<span class="quote">&gt; load complete garbage into the TLB, and that&#39;s bad (and causes MCEs on</span>
+<span class="quote">&gt; AMD CPUs).</span>
+
+Urggh.. indeed :/
+<span class="quote">
+&gt; I think we only really have two choices: tlb_defer_switch_to_init_mm()</span>
+<span class="quote">&gt; == true and tlb_defer_switch_to_init_mm() == false.  The current</span>
+<span class="quote">&gt; heuristic is to not defer if we have PCID, because loading CR3 is</span>
+<span class="quote">&gt; reasonably fast.</span>
+
+I just _really_ _really_ hate idle drivers doing leave_mm(). I don&#39;t
+suppose limiting the !IPI case to just the idle case would be correct
+either, because between waking from idle and testing our &#39;should I have
+invalidated&#39; bit it can (however unlikely) speculate into stale TLB
+entries too..
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7886">tim</a> - Jan. 25, 2018, 7:32 p.m.</div>
+<pre class="content">
+On 01/25/2018 10:18 AM, Peter Zijlstra wrote:
+<span class="quote">&gt; On Thu, Jan 25, 2018 at 09:04:21AM -0800, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; I haven&#39;t tried to fully decipher the patch, but I think the idea is</span>
+<span class="quote">&gt;&gt; wrong.  (I think it&#39;s the same wrong idea that Rik and I both had and</span>
+<span class="quote">&gt;&gt; that I got into Linus&#39; tree for a while...)  The problem is that it&#39;s</span>
+<span class="quote">&gt;&gt; not actually correct to run indefinitely in kernel mode using stale</span>
+<span class="quote">&gt;&gt; cached page table data.  The stale PTEs themselves are fine, but the</span>
+<span class="quote">&gt;&gt; stale intermediate translations can cause the CPU to speculatively</span>
+<span class="quote">&gt;&gt; load complete garbage into the TLB, and that&#39;s bad (and causes MCEs on</span>
+<span class="quote">&gt;&gt; AMD CPUs).</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Urggh.. indeed :/</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;&gt; I think we only really have two choices: tlb_defer_switch_to_init_mm()</span>
+<span class="quote">&gt;&gt; == true and tlb_defer_switch_to_init_mm() == false.  The current</span>
+<span class="quote">&gt;&gt; heuristic is to not defer if we have PCID, because loading CR3 is</span>
+<span class="quote">&gt;&gt; reasonably fast.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I just _really_ _really_ hate idle drivers doing leave_mm(). I don&#39;t</span>
+<span class="quote">&gt; suppose limiting the !IPI case to just the idle case would be correct</span>
+<span class="quote">&gt; either, because between waking from idle and testing our &#39;should I have</span>
+<span class="quote">&gt; invalidated&#39; bit it can (however unlikely) speculate into stale TLB</span>
+<span class="quote">&gt; entries too..</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+
+Peter, 
+
+This patch is not ideal as it comes with the caveats that
+patch 2 tries to close.  I put it out here to see if it can prompt
+people to come up with a better solution. Keeping active_mm around would
+have been cleaner but it looks like there are issues that Andy mentioned.
+
+The &quot;A -&gt; idle -&gt; A&quot; case would not trigger IBPB if tlb_defer_switch_to_init_mm()
+is true (non pcid) as we does not change the mm.
+
+This patch tries to address the case when we do switch to init_mm and back.
+Do you still have objections to the approach in this patch
+to save the last active mm before switching to init_mm?
+
+Tim
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=467">Arjan van de Ven</a> - Jan. 25, 2018, 7:34 p.m.</div>
+<pre class="content">
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This patch tries to address the case when we do switch to init_mm and back.</span>
+<span class="quote">&gt; Do you still have objections to the approach in this patch</span>
+<span class="quote">&gt; to save the last active mm before switching to init_mm?</span>
+
+how do you know the last active mm did not go away and started a new process with new content?
+(other than taking a reference which has other side effects)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=65121">Dave Hansen</a> - Jan. 25, 2018, 7:45 p.m.</div>
+<pre class="content">
+On 01/25/2018 11:34 AM, Arjan van de Ven wrote:
+<span class="quote">&gt;&gt; This patch tries to address the case when we do switch to init_mm</span>
+<span class="quote">&gt;&gt; and back. Do you still have objections to the approach in this</span>
+<span class="quote">&gt;&gt; patch to save the last active mm before switching to init_mm?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; how do you know the last active mm did not go away and started a new</span>
+<span class="quote">&gt; process with new content?</span>
+<span class="quote">&gt; (other than taking a reference which has other side effects)</span>
+
+We couldn&#39;t think of an easy way to prevent mm reuse other than taking a
+reference.  Think of it this way: the mm getting run poisons a CPU.  We
+can either go at exit() time and do IBPB on every CPU that might have
+poison from the mm.  Or, we do IBPB once on each CPU the first time the
+mm runs there to make sure that no old poison is still around.
+
+Both of those require per-cpu state in the mm, kinda like the TLB
+tracking.  That will not be fun to get right.  It also adds overhead to
+the common-case exit() or fork() paths.  Also not fun.
+
+The refcount just eats a little memory for the mm *itself* but none of
+the actual expensive stuff: VMAs or page tables that hang off the mm.
+It&#39;s also zero-cost at fork/exit.  The going-to-idle cost is manageable
+and *certainly* outweighs the cost of even one extra IBPB that we would
+otherwise have to do.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Jan. 25, 2018, 8:46 p.m.</div>
+<pre class="content">
+On Thu, Jan 25, 2018 at 11:32:46AM -0800, Tim Chen wrote:
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This patch is not ideal as it comes with the caveats that</span>
+<span class="quote">&gt; patch 2 tries to close.  I put it out here to see if it can prompt</span>
+<span class="quote">&gt; people to come up with a better solution. Keeping active_mm around would</span>
+<span class="quote">&gt; have been cleaner but it looks like there are issues that Andy mentioned.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; The &quot;A -&gt; idle -&gt; A&quot; case would not trigger IBPB if tlb_defer_switch_to_init_mm()</span>
+<span class="quote">&gt; is true (non pcid) as we does not change the mm.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This patch tries to address the case when we do switch to init_mm and back.</span>
+<span class="quote">&gt; Do you still have objections to the approach in this patch</span>
+<span class="quote">&gt; to save the last active mm before switching to init_mm?</span>
+
+I still think the existing active_mm is sufficient. Something like:
+
+  switch_mm()
+  {
+	...
+	if (prev &amp;&amp; next != prev)
+		ibpb();
+	...
+  }
+
+should work. Because while the idle crud does leave_mm() and PCID does
+enter_lazy_tlb() and both end up doing: switch_mm(NULL, &amp;init_mm, NULL),
+nothing there affects tsk-&gt;active_mm.
+
+So over the &quot;A -&gt; idle -&gt; A&quot; transition, active_mm should actually track
+what you want.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - Jan. 25, 2018, 9:04 p.m.</div>
+<pre class="content">
+On Thu, Jan 25, 2018 at 12:46 PM, Peter Zijlstra &lt;peterz@infradead.org&gt; wrote:
+<span class="quote">&gt; On Thu, Jan 25, 2018 at 11:32:46AM -0800, Tim Chen wrote:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; This patch is not ideal as it comes with the caveats that</span>
+<span class="quote">&gt;&gt; patch 2 tries to close.  I put it out here to see if it can prompt</span>
+<span class="quote">&gt;&gt; people to come up with a better solution. Keeping active_mm around would</span>
+<span class="quote">&gt;&gt; have been cleaner but it looks like there are issues that Andy mentioned.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; The &quot;A -&gt; idle -&gt; A&quot; case would not trigger IBPB if tlb_defer_switch_to_init_mm()</span>
+<span class="quote">&gt;&gt; is true (non pcid) as we does not change the mm.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; This patch tries to address the case when we do switch to init_mm and back.</span>
+<span class="quote">&gt;&gt; Do you still have objections to the approach in this patch</span>
+<span class="quote">&gt;&gt; to save the last active mm before switching to init_mm?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I still think the existing active_mm is sufficient. Something like:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;   switch_mm()</span>
+<span class="quote">&gt;   {</span>
+<span class="quote">&gt;         ...</span>
+<span class="quote">&gt;         if (prev &amp;&amp; next != prev)</span>
+<span class="quote">&gt;                 ibpb();</span>
+<span class="quote">&gt;         ...</span>
+<span class="quote">&gt;   }</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; should work. Because while the idle crud does leave_mm() and PCID does</span>
+<span class="quote">&gt; enter_lazy_tlb() and both end up doing: switch_mm(NULL, &amp;init_mm, NULL),</span>
+<span class="quote">&gt; nothing there affects tsk-&gt;active_mm.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; So over the &quot;A -&gt; idle -&gt; A&quot; transition, active_mm should actually track</span>
+<span class="quote">&gt; what you want.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;</span>
+
+Can we please not rely on any of the active_mm shit?  That thing has
+really weird semantics and should just die.
+
+That being said, just stashing last_user_mm without any refcounting
+should be fine.  After all, the only thing anyone does with it is
+comparing to next, and next is always alive.  Or we could use
+last_user_ctx_id, since we already have a never-reused ctx_id for each
+mm on x86.
+
+--Andy
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=123">Andi Kleen</a> - Jan. 25, 2018, 9:57 p.m.</div>
+<pre class="content">
+Andy Lutomirski &lt;luto@kernel.org&gt; writes:
+<span class="quote">&gt;</span>
+<span class="quote">&gt; That being said, just stashing last_user_mm without any refcounting</span>
+<span class="quote">&gt; should be fine.</span>
+
+If last_user_mm is freed and reallocated by a different process,
+then that would miss the IPBP incorrectly.
+
+-Andi
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - Jan. 25, 2018, 10:01 p.m.</div>
+<pre class="content">
+On Thu, Jan 25, 2018 at 1:57 PM, Andi Kleen &lt;ak@linux.intel.com&gt; wrote:
+<span class="quote">&gt; Andy Lutomirski &lt;luto@kernel.org&gt; writes:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; That being said, just stashing last_user_mm without any refcounting</span>
+<span class="quote">&gt;&gt; should be fine.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; If last_user_mm is freed and reallocated by a different process,</span>
+<span class="quote">&gt; then that would miss the IPBP incorrectly.</span>
+<span class="quote">&gt;</span>
+
+Hmm, right.  So ctx_id it is.
+
+--Andy
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7886">tim</a> - Jan. 25, 2018, 11:07 p.m.</div>
+<pre class="content">
+On 01/25/2018 02:01 PM, Andy Lutomirski wrote:
+<span class="quote">&gt; On Thu, Jan 25, 2018 at 1:57 PM, Andi Kleen &lt;ak@linux.intel.com&gt; wrote:</span>
+<span class="quote">&gt;&gt; Andy Lutomirski &lt;luto@kernel.org&gt; writes:</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; That being said, just stashing last_user_mm without any refcounting</span>
+<span class="quote">&gt;&gt;&gt; should be fine.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; If last_user_mm is freed and reallocated by a different process,</span>
+<span class="quote">&gt;&gt; then that would miss the IPBP incorrectly.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Hmm, right.  So ctx_id it is.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; --Andy</span>
+<span class="quote">&gt; </span>
+Thanks.  Using ctx_id is a pretty clean approach.  I will refresh
+this patch and drop the second patch.
+
+Tim
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137">Peter Zijlstra</a> - Jan. 26, 2018, 12:01 a.m.</div>
+<pre class="content">
+On Thu, Jan 25, 2018 at 01:04:23PM -0800, Andy Lutomirski wrote:
+<span class="quote">&gt; Can we please not rely on any of the active_mm shit?  That thing has</span>
+<span class="quote">&gt; really weird semantics and should just die.</span>
+
+I don&#39;t agree on the weird semantics. Its simply the last user mm.
+
+I won&#39;t mind seeing it go as it would reduce the number of atomics on
+the schedule path, but its really not terribly.
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/include/asm/acpi.h b/arch/x86/include/asm/acpi.h</span>
+<span class="p_header">index 8d0ec9df1cbe..72d867f6b518 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/acpi.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/acpi.h</span>
+<span class="p_chunk">@@ -150,8 +150,6 @@</span> <span class="p_context"> static inline void disable_acpi(void) { }</span>
+ extern int x86_acpi_numa_init(void);
+ #endif /* CONFIG_ACPI_NUMA */
+ 
+<span class="p_del">-#define acpi_unlazy_tlb(x)	leave_mm(x)</span>
+<span class="p_del">-</span>
+ #ifdef CONFIG_ACPI_APEI
+ static inline pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr)
+ {
+<span class="p_header">diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_header">index c931b88982a0..009c6a450e70 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_chunk">@@ -180,6 +180,7 @@</span> <span class="p_context"> static inline void switch_ldt(struct mm_struct *prev, struct mm_struct *next)</span>
+ }
+ 
+ void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk);
+<span class="p_add">+void leave_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk);</span>
+ 
+ static inline int init_new_context(struct task_struct *tsk,
+ 				   struct mm_struct *mm)
+<span class="p_header">diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">index 3effd3c994af..948c0997e6ab 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -189,8 +189,10 @@</span> <span class="p_context"> struct tlb_state {</span>
+ 	 *    We&#39;re heuristically guessing that the CR3 load we
+ 	 *    skipped more than makes up for the overhead added by
+ 	 *    lazy mode.
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 *    XXX</span>
+ 	 */
+<span class="p_del">-	bool is_lazy;</span>
+<span class="p_add">+	u8 is_lazy;</span>
+ 
+ 	/*
+ 	 * If set we changed the page tables in such a way that we
+<span class="p_header">diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c</span>
+<span class="p_header">index a1561957dccb..f94767d16b24 100644</span>
+<span class="p_header">--- a/arch/x86/mm/tlb.c</span>
+<span class="p_header">+++ b/arch/x86/mm/tlb.c</span>
+<span class="p_chunk">@@ -139,7 +139,6 @@</span> <span class="p_context"> void leave_mm(int cpu)</span>
+ 
+ 	switch_mm(NULL, &amp;init_mm, NULL);
+ }
+<span class="p_del">-EXPORT_SYMBOL_GPL(leave_mm);</span>
+ 
+ void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+ 	       struct task_struct *tsk)
+<span class="p_chunk">@@ -304,12 +303,21 @@</span> <span class="p_context"> void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)</span>
+ 		 * old mm loaded and only switch to init_mm when
+ 		 * tlb_remove_page() happens.
+ 		 */
+<span class="p_del">-		this_cpu_write(cpu_tlbstate.is_lazy, true);</span>
+<span class="p_add">+		this_cpu_write(cpu_tlbstate.is_lazy, 1);</span>
+ 	} else {
+<span class="p_del">-		switch_mm(NULL, &amp;init_mm, NULL);</span>
+<span class="p_add">+		switch_mm_irqs_off(NULL, &amp;init_mm, NULL);</span>
+ 	}
+ }
+ 
+<span class="p_add">+void leave_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (!tlb_defer_switch_to_init_mm())</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (xchg(this_cpu_ptr(&amp;cpu_tlbstate.is_lazy), 0) == 2)</span>
+<span class="p_add">+		switch_mm_irqs_off(NULL, &amp;init_mm, NULL);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ /*
+  * Call this when reinitializing a CPU.  It fixes the following potential
+  * problems:
+<span class="p_chunk">@@ -496,9 +504,13 @@</span> <span class="p_context"> static void flush_tlb_func_remote(void *info)</span>
+ 	flush_tlb_func_common(f, false, TLB_REMOTE_SHOOTDOWN);
+ }
+ 
+<span class="p_add">+static DEFINE_PER_CPU(cpumask_var_t, __tlb_mask);</span>
+<span class="p_add">+</span>
+ void native_flush_tlb_others(const struct cpumask *cpumask,
+ 			     const struct flush_tlb_info *info)
+ {
+<span class="p_add">+	struct cpumask *flushmask = this_cpu_cpumask_var_ptr(__tlb_mask);</span>
+<span class="p_add">+</span>
+ 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH);
+ 	if (info-&gt;end == TLB_FLUSH_ALL)
+ 		trace_tlb_flush(TLB_REMOTE_SEND_IPI, TLB_FLUSH_ALL);
+<span class="p_chunk">@@ -531,6 +543,19 @@</span> <span class="p_context"> void native_flush_tlb_others(const struct cpumask *cpumask,</span>
+ 					       (void *)info, 1);
+ 		return;
+ 	}
+<span class="p_add">+</span>
+<span class="p_add">+	if (tlb_defer_switch_to_init_mm() &amp;&amp; flushmask) {</span>
+<span class="p_add">+		int cpu;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		cpumask_copy(flushmask, cpumask);</span>
+<span class="p_add">+		for_each_cpu(cpu, flushmask) {</span>
+<span class="p_add">+			if (cmpxchg(per_cpu_ptr(&amp;cpu_tlbstate.is_lazy, cpu), 1, 2) &gt;= 1)</span>
+<span class="p_add">+				__cpumask_clear_cpu(cpu, flushmask);</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+</span>
+<span class="p_add">+		cpumask = flushmask;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+ 	smp_call_function_many(cpumask, flush_tlb_func_remote,
+ 			       (void *)info, 1);
+ }
+<span class="p_chunk">@@ -688,6 +713,13 @@</span> <span class="p_context"> static const struct file_operations fops_tlbflush = {</span>
+ 
+ static int __init create_tlb_single_page_flush_ceiling(void)
+ {
+<span class="p_add">+	int cpu;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for_each_possible_cpu(cpu) {</span>
+<span class="p_add">+		zalloc_cpumask_var_node(per_cpu_ptr(&amp;__tlb_mask, cpu),</span>
+<span class="p_add">+					GFP_KERNEL, cpu_to_node(cpu));</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+ 	debugfs_create_file(&quot;tlb_single_page_flush_ceiling&quot;, S_IRUSR | S_IWUSR,
+ 			    arch_debugfs_dir, NULL, &amp;fops_tlbflush);
+ 	return 0;
+<span class="p_header">diff --git a/drivers/acpi/processor_idle.c b/drivers/acpi/processor_idle.c</span>
+<span class="p_header">index d50a7b6ccddd..2736e25e9dc6 100644</span>
+<span class="p_header">--- a/drivers/acpi/processor_idle.c</span>
+<span class="p_header">+++ b/drivers/acpi/processor_idle.c</span>
+<span class="p_chunk">@@ -710,8 +710,6 @@</span> <span class="p_context"> static DEFINE_RAW_SPINLOCK(c3_lock);</span>
+ static void acpi_idle_enter_bm(struct acpi_processor *pr,
+ 			       struct acpi_processor_cx *cx, bool timer_bc)
+ {
+<span class="p_del">-	acpi_unlazy_tlb(smp_processor_id());</span>
+<span class="p_del">-</span>
+ 	/*
+ 	 * Must be done before busmaster disable as we might need to
+ 	 * access HPET !
+<span class="p_header">diff --git a/drivers/idle/intel_idle.c b/drivers/idle/intel_idle.c</span>
+<span class="p_header">index f0b06b14e782..920e719156db 100644</span>
+<span class="p_header">--- a/drivers/idle/intel_idle.c</span>
+<span class="p_header">+++ b/drivers/idle/intel_idle.c</span>
+<span class="p_chunk">@@ -913,17 +913,9 @@</span> <span class="p_context"> static __cpuidle int intel_idle(struct cpuidle_device *dev,</span>
+ 	struct cpuidle_state *state = &amp;drv-&gt;states[index];
+ 	unsigned long eax = flg2MWAIT(state-&gt;flags);
+ 	unsigned int cstate;
+<span class="p_del">-	int cpu = smp_processor_id();</span>
+ 
+ 	cstate = (((eax) &gt;&gt; MWAIT_SUBSTATE_SIZE) &amp; MWAIT_CSTATE_MASK) + 1;
+ 
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * leave_mm() to avoid costly and often unnecessary wakeups</span>
+<span class="p_del">-	 * for flushing the user TLB&#39;s associated with the active mm.</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	if (state-&gt;flags &amp; CPUIDLE_FLAG_TLB_FLUSHED)</span>
+<span class="p_del">-		leave_mm(cpu);</span>
+<span class="p_del">-</span>
+ 	if (!(lapic_timer_reliable_states &amp; (1 &lt;&lt; (cstate))))
+ 		tick_broadcast_enter();
+ 
+<span class="p_header">diff --git a/kernel/sched/core.c b/kernel/sched/core.c</span>
+<span class="p_header">index d17c5da523a0..74c51da7301a 100644</span>
+<span class="p_header">--- a/kernel/sched/core.c</span>
+<span class="p_header">+++ b/kernel/sched/core.c</span>
+<span class="p_chunk">@@ -2750,12 +2750,8 @@</span> <span class="p_context"> static __always_inline struct rq *</span>
+ context_switch(struct rq *rq, struct task_struct *prev,
+ 	       struct task_struct *next, struct rq_flags *rf)
+ {
+<span class="p_del">-	struct mm_struct *mm, *oldmm;</span>
+<span class="p_del">-</span>
+ 	prepare_task_switch(rq, prev, next);
+ 
+<span class="p_del">-	mm = next-&gt;mm;</span>
+<span class="p_del">-	oldmm = prev-&gt;active_mm;</span>
+ 	/*
+ 	 * For paravirt, this is coupled with an exit in switch_to to
+ 	 * combine the page table reload and the switch backend into
+<span class="p_chunk">@@ -2763,16 +2759,22 @@</span> <span class="p_context"> context_switch(struct rq *rq, struct task_struct *prev,</span>
+ 	 */
+ 	arch_start_context_switch(prev);
+ 
+<span class="p_del">-	if (!mm) {</span>
+<span class="p_del">-		next-&gt;active_mm = oldmm;</span>
+<span class="p_del">-		mmgrab(oldmm);</span>
+<span class="p_del">-		enter_lazy_tlb(oldmm, next);</span>
+<span class="p_del">-	} else</span>
+<span class="p_del">-		switch_mm_irqs_off(oldmm, mm, next);</span>
+<span class="p_add">+	if (!next-&gt;mm) {	/* to kernel */</span>
+<span class="p_add">+		next-&gt;active_mm = prev-&gt;active_mm;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		if (prev-&gt;mm) {	/* from user */</span>
+<span class="p_add">+			enter_lazy_tlb(prev-&gt;active_mm, next);</span>
+<span class="p_add">+			mmgrab(prev-&gt;active_mm);</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	} else {		/* to user */</span>
+<span class="p_add">+		if (!prev-&gt;mm) { /* from kernel */</span>
+<span class="p_add">+			/* will mmdrop() in finish_task_switch(). */</span>
+<span class="p_add">+			leave_lazy_tlb(prev-&gt;active_mm, NULL);</span>
+<span class="p_add">+			rq-&gt;prev_mm = prev-&gt;active_mm;</span>
+<span class="p_add">+			prev-&gt;active_mm = NULL;</span>
+<span class="p_add">+		}</span>
+ 
+<span class="p_del">-	if (!prev-&gt;mm) {</span>
+<span class="p_del">-		prev-&gt;active_mm = NULL;</span>
+<span class="p_del">-		rq-&gt;prev_mm = oldmm;</span>
+<span class="p_add">+		switch_mm_irqs_off(prev-&gt;active_mm, next-&gt;mm, next);</span>
+ 	}
+ 
+ 	rq-&gt;clock_update_flags &amp;= ~(RQCF_ACT_SKIP|RQCF_REQ_SKIP);
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,469 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[2/4] arm64: Implement IPI based TLB invalidation - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [2/4] arm64: Implement IPI based TLB invalidation</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=151041">Matthias Brugger</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Aug. 4, 2016, 9:15 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1470302117-32296-3-git-send-email-mbrugger@suse.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9263085/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9263085/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9263085/">/patch/9263085/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	D1B736048F for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  4 Aug 2016 09:18:03 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id C048728333
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  4 Aug 2016 09:18:03 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id B20AC28384; Thu,  4 Aug 2016 09:18:03 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id F11CC28333
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Thu,  4 Aug 2016 09:18:02 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S933353AbcHDJRl (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Thu, 4 Aug 2016 05:17:41 -0400
+Received: from smtp.nue.novell.com ([195.135.221.5]:53516 &quot;EHLO
+	smtp.nue.novell.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1758121AbcHDJQB (ORCPT
+	&lt;rfc822;groupwise-linux-kernel@vger.kernel.org:0:0&gt;);
+	Thu, 4 Aug 2016 05:16:01 -0400
+Received: from nwb-ext-pat.microfocus.com ([10.120.13.103])
+	by smtp.nue.novell.com with ESMTP (TLS encrypted);
+	Thu, 04 Aug 2016 11:15:58 +0200
+Received: from linux-gy6r.site (nwb-a10-snat.microfocus.com [10.120.13.201])
+	by nwb-ext-pat.microfocus.com with ESMTP (TLS encrypted);
+	Thu, 04 Aug 2016 10:15:34 +0100
+From: Matthias Brugger &lt;mbrugger@suse.com&gt;
+To: pbonzini@redhat.com, rkrcmar@redhat.com,
+	christoffer.dall@linaro.org, marc.zyngier@arm.com,
+	linux@armlinux.org.uk, catalin.marinas@arm.com, will.deacon@arm.com
+Cc: suzuki.poulose@arm.com, james.morse@arm.com,
+	david.daney@cavium.com, rrichter@cavium.com, agraf@suse.de,
+	mbrugger@suse.com, mark.rutland@arm.com, lorenzo.pieralisi@arm.com,
+	dave.long@linaro.org, ard.biesheuvel@linaro.org,
+	zlim.lnx@gmail.com, kvm@vger.kernel.org,
+	linux-arm-kernel@lists.infradead.org, kvmarm@lists.cs.columbia.edu,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH 2/4] arm64: Implement IPI based TLB invalidation
+Date: Thu,  4 Aug 2016 11:15:15 +0200
+Message-Id: &lt;1470302117-32296-3-git-send-email-mbrugger@suse.com&gt;
+X-Mailer: git-send-email 2.6.6
+In-Reply-To: &lt;1470302117-32296-1-git-send-email-mbrugger@suse.com&gt;
+References: &lt;1470302117-32296-1-git-send-email-mbrugger@suse.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=151041">Matthias Brugger</a> - Aug. 4, 2016, 9:15 a.m.</div>
+<pre class="content">
+Hardware may lack a sane implementation of TLB invalidation
+using broadcast TLBI command. Add a capability to enable TLB
+invalidation using IPI.
+<span class="signed-off-by">
+Signed-off-by: David Daney &lt;david.daney@cavium.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Robert Richter &lt;rrichter@cavium.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Alexander Graf &lt;agraf@suse.de&gt;</span>
+<span class="signed-off-by">Signed-off-by: Matthias Brugger &lt;mbrugger@suse.com&gt;</span>
+---
+ arch/arm64/include/asm/cpufeature.h |  3 +-
+ arch/arm64/include/asm/tlbflush.h   | 94 ++++++++++++++++++++++++++++++++-----
+ arch/arm64/mm/flush.c               | 46 ++++++++++++++++++
+ 3 files changed, 129 insertions(+), 14 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/arm64/include/asm/cpufeature.h b/arch/arm64/include/asm/cpufeature.h</span>
+<span class="p_header">index 49dd1bd..c4bf72b 100644</span>
+<span class="p_header">--- a/arch/arm64/include/asm/cpufeature.h</span>
+<span class="p_header">+++ b/arch/arm64/include/asm/cpufeature.h</span>
+<span class="p_chunk">@@ -36,8 +36,9 @@</span> <span class="p_context"></span>
+ #define ARM64_HAS_VIRT_HOST_EXTN		11
+ #define ARM64_WORKAROUND_CAVIUM_27456		12
+ #define ARM64_HAS_32BIT_EL0			13
+<span class="p_add">+#define ARM64_HAS_NO_BCAST_TLBI			14</span>
+ 
+<span class="p_del">-#define ARM64_NCAPS				14</span>
+<span class="p_add">+#define ARM64_NCAPS				15</span>
+ 
+ #ifndef __ASSEMBLY__
+ 
+<span class="p_header">diff --git a/arch/arm64/include/asm/tlbflush.h b/arch/arm64/include/asm/tlbflush.h</span>
+<span class="p_header">index b460ae2..edc5495 100644</span>
+<span class="p_header">--- a/arch/arm64/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/arm64/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -71,7 +71,10 @@</span> <span class="p_context"> static inline void local_flush_tlb_all(void)</span>
+ 	isb();
+ }
+ 
+<span class="p_del">-static inline void flush_tlb_all(void)</span>
+<span class="p_add">+void __flush_tlb_all_ipi(void);</span>
+<span class="p_add">+void __flush_tlb_mm_ipi(struct mm_struct *mm);</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void __flush_tlb_all_tlbi(void)</span>
+ {
+ 	dsb(ishst);
+ 	asm(&quot;tlbi	vmalle1is&quot;);
+<span class="p_chunk">@@ -79,7 +82,17 @@</span> <span class="p_context"> static inline void flush_tlb_all(void)</span>
+ 	isb();
+ }
+ 
+<span class="p_del">-static inline void flush_tlb_mm(struct mm_struct *mm)</span>
+<span class="p_add">+static inline void flush_tlb_all(void)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (cpus_have_cap(ARM64_HAS_NO_BCAST_TLBI)) {</span>
+<span class="p_add">+		__flush_tlb_all_ipi();</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	__flush_tlb_all_tlbi();</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void __flush_tlb_mm_tlbi(struct mm_struct *mm)</span>
+ {
+ 	unsigned long asid = ASID(mm) &lt;&lt; 48;
+ 
+<span class="p_chunk">@@ -88,8 +101,18 @@</span> <span class="p_context"> static inline void flush_tlb_mm(struct mm_struct *mm)</span>
+ 	dsb(ish);
+ }
+ 
+<span class="p_del">-static inline void flush_tlb_page(struct vm_area_struct *vma,</span>
+<span class="p_del">-				  unsigned long uaddr)</span>
+<span class="p_add">+static inline void flush_tlb_mm(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (cpus_have_cap(ARM64_HAS_NO_BCAST_TLBI)) {</span>
+<span class="p_add">+		__flush_tlb_mm_ipi(mm);</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	__flush_tlb_mm_tlbi(mm);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void __flush_tlb_page_tlbi(struct vm_area_struct *vma,</span>
+<span class="p_add">+		unsigned long uaddr)</span>
+ {
+ 	unsigned long addr = uaddr &gt;&gt; 12 | (ASID(vma-&gt;vm_mm) &lt;&lt; 48);
+ 
+<span class="p_chunk">@@ -98,15 +121,26 @@</span> <span class="p_context"> static inline void flush_tlb_page(struct vm_area_struct *vma,</span>
+ 	dsb(ish);
+ }
+ 
+<span class="p_add">+static inline void flush_tlb_page(struct vm_area_struct *vma,</span>
+<span class="p_add">+		unsigned long uaddr)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (cpus_have_cap(ARM64_HAS_NO_BCAST_TLBI)) {</span>
+<span class="p_add">+		__flush_tlb_mm_ipi(vma-&gt;vm_mm);</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	__flush_tlb_page_tlbi(vma, uaddr);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ /*
+  * This is meant to avoid soft lock-ups on large TLB flushing ranges and not
+  * necessarily a performance improvement.
+  */
+ #define MAX_TLB_RANGE	(1024UL &lt;&lt; PAGE_SHIFT)
+ 
+<span class="p_del">-static inline void __flush_tlb_range(struct vm_area_struct *vma,</span>
+<span class="p_del">-				     unsigned long start, unsigned long end,</span>
+<span class="p_del">-				     bool last_level)</span>
+<span class="p_add">+static inline void __flush_tlb_range_tlbi(struct vm_area_struct *vma,</span>
+<span class="p_add">+		unsigned long start, unsigned long end,</span>
+<span class="p_add">+		bool last_level)</span>
+ {
+ 	unsigned long asid = ASID(vma-&gt;vm_mm) &lt;&lt; 48;
+ 	unsigned long addr;
+<span class="p_chunk">@@ -129,13 +163,26 @@</span> <span class="p_context"> static inline void __flush_tlb_range(struct vm_area_struct *vma,</span>
+ 	dsb(ish);
+ }
+ 
+<span class="p_add">+static inline void __flush_tlb_range(struct vm_area_struct *vma,</span>
+<span class="p_add">+		unsigned long start, unsigned long end,</span>
+<span class="p_add">+		bool last_level)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (cpus_have_cap(ARM64_HAS_NO_BCAST_TLBI)) {</span>
+<span class="p_add">+		__flush_tlb_mm_ipi(vma-&gt;vm_mm);</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	__flush_tlb_range_tlbi(vma, start, end, last_level);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ static inline void flush_tlb_range(struct vm_area_struct *vma,
+<span class="p_del">-				   unsigned long start, unsigned long end)</span>
+<span class="p_add">+		unsigned long start, unsigned long end)</span>
+ {
+ 	__flush_tlb_range(vma, start, end, false);
+ }
+ 
+<span class="p_del">-static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end)</span>
+<span class="p_add">+static inline void __flush_tlb_kernel_range_tlbi(unsigned long start,</span>
+<span class="p_add">+		unsigned long end)</span>
+ {
+ 	unsigned long addr;
+ 
+<span class="p_chunk">@@ -154,17 +201,38 @@</span> <span class="p_context"> static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end</span>
+ 	isb();
+ }
+ 
+<span class="p_add">+static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (cpus_have_cap(ARM64_HAS_NO_BCAST_TLBI)) {</span>
+<span class="p_add">+		__flush_tlb_all_ipi();</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	__flush_tlb_kernel_range_tlbi(start, end);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void __flush_tlb_pgtable_tlbi(struct mm_struct *mm,</span>
+<span class="p_add">+		unsigned long uaddr)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long addr = uaddr &gt;&gt; 12 | (ASID(mm) &lt;&lt; 48);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	asm(&quot;tlbi	vae1is, %0&quot; : : &quot;r&quot; (addr));</span>
+<span class="p_add">+	dsb(ish);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ /*
+  * Used to invalidate the TLB (walk caches) corresponding to intermediate page
+  * table levels (pgd/pud/pmd).
+  */
+ static inline void __flush_tlb_pgtable(struct mm_struct *mm,
+<span class="p_del">-				       unsigned long uaddr)</span>
+<span class="p_add">+		unsigned long uaddr)</span>
+ {
+<span class="p_del">-	unsigned long addr = uaddr &gt;&gt; 12 | (ASID(mm) &lt;&lt; 48);</span>
+<span class="p_add">+	if (cpus_have_cap(ARM64_HAS_NO_BCAST_TLBI)) {</span>
+<span class="p_add">+		__flush_tlb_mm_ipi(mm);</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	}</span>
+ 
+<span class="p_del">-	asm(&quot;tlbi	vae1is, %0&quot; : : &quot;r&quot; (addr));</span>
+<span class="p_del">-	dsb(ish);</span>
+<span class="p_add">+	__flush_tlb_pgtable_tlbi(mm, uaddr);</span>
+ }
+ 
+ #endif
+<span class="p_header">diff --git a/arch/arm64/mm/flush.c b/arch/arm64/mm/flush.c</span>
+<span class="p_header">index 43a76b0..402036a 100644</span>
+<span class="p_header">--- a/arch/arm64/mm/flush.c</span>
+<span class="p_header">+++ b/arch/arm64/mm/flush.c</span>
+<span class="p_chunk">@@ -27,6 +27,24 @@</span> <span class="p_context"></span>
+ 
+ #include &quot;mm.h&quot;
+ 
+<span class="p_add">+static void flush_tlb_local(void *info)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	local_flush_tlb_all();</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void flush_tlb_mm_local(void *info)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long asid = (unsigned long)info;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	asm volatile(&quot;\n&quot;</span>
+<span class="p_add">+	&quot;  dsb     nshst\n&quot;</span>
+<span class="p_add">+	&quot;  tlbi    aside1, %0\n&quot;</span>
+<span class="p_add">+	&quot;  dsb     nsh\n&quot;</span>
+<span class="p_add">+	&quot;  isb     sy&quot;</span>
+<span class="p_add">+	: : &quot;r&quot; (asid)</span>
+<span class="p_add">+	);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
+ 		       unsigned long end)
+ {
+<span class="p_chunk">@@ -90,6 +108,34 @@</span> <span class="p_context"> void flush_dcache_page(struct page *page)</span>
+ }
+ EXPORT_SYMBOL(flush_dcache_page);
+ 
+<span class="p_add">+void __flush_tlb_mm_ipi(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long asid;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!mm) {</span>
+<span class="p_add">+		flush_tlb_all();</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		asid = ASID(mm) &lt;&lt; 48;</span>
+<span class="p_add">+		/* Make sure page table modifications are visible. */</span>
+<span class="p_add">+		dsb(ishst);</span>
+<span class="p_add">+		/* IPI to all CPUs to do local flush. */</span>
+<span class="p_add">+		on_each_cpu(flush_tlb_mm_local, (void *)asid, 1);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL(__flush_tlb_mm_ipi);</span>
+<span class="p_add">+</span>
+<span class="p_add">+void __flush_tlb_all_ipi(void)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	/* Make sure page table modifications are visible. */</span>
+<span class="p_add">+	dsb(ishst);</span>
+<span class="p_add">+	if (num_online_cpus() &lt;= 1)</span>
+<span class="p_add">+		local_flush_tlb_all();</span>
+<span class="p_add">+	else</span>
+<span class="p_add">+		/* IPI to all CPUs to do local flush. */</span>
+<span class="p_add">+		on_each_cpu(flush_tlb_local, NULL, 1);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL(__flush_tlb_all_ipi);</span>
+<span class="p_add">+</span>
+ /*
+  * Additional functions defined in assembly.
+  */
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

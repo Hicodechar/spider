@@ -1,0 +1,601 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[3/3] arm64, mm: Use IPIs for TLB invalidation. - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [3/3] arm64, mm: Use IPIs for TLB invalidation.</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=25151">David Daney</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>July 11, 2015, 8:25 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1436646323-10527-4-git-send-email-ddaney.cavm@gmail.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/6771321/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/6771321/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/6771321/">/patch/6771321/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id 19F91C05AC
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 11 Jul 2015 20:25:40 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 201812066B
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 11 Jul 2015 20:25:39 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id CDB8B2067A
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Sat, 11 Jul 2015 20:25:37 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751737AbbGKUZd (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Sat, 11 Jul 2015 16:25:33 -0400
+Received: from mail-ie0-f177.google.com ([209.85.223.177]:33390 &quot;EHLO
+	mail-ie0-f177.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751518AbbGKUZa (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Sat, 11 Jul 2015 16:25:30 -0400
+Received: by ietj16 with SMTP id j16so41595796iet.0
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Sat, 11 Jul 2015 13:25:30 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=gmail.com; s=20120113;
+	h=from:to:cc:subject:date:message-id:in-reply-to:references;
+	bh=t/OKWGWybTn7/if7kdOnzZWndww7N//80zdTd7CD3R0=;
+	b=E5R01EXUdDInj313AANWuawFUN+BLI01DDARlKMCL+UV7q2O4FmPZc3tngJDYEldTr
+	dIO8YmXcxchdc+HZUKhy37DcSHWz5QcGUpqzfd4lyTZL1IcZhPd3AwglPfPB1jd8QEcJ
+	BN7/WFBbn+rdhu2vwgkyfF3OX+ptk7Law/S3sYkiveyG2h0024yzD8a8I7PwfbZxBkCc
+	2VQ1w6D5r7mdDYQB3+YqC2wB1aKkBLzSHnZgac6rpyOGdPzPe3K3XEDAhym7r5+x+WLh
+	PwDRCpgmNeGnejVGxqCfRjXKZkmidhhWmoSA0RydCqdWWGlXs7xAb9pfqKJUv/Dooysf
+	i8Gg==
+X-Received: by 10.107.14.81 with SMTP id 78mr12057532ioo.147.1436646330246; 
+	Sat, 11 Jul 2015 13:25:30 -0700 (PDT)
+Received: from dl.caveonetworks.com (64.2.3.194.ptr.us.xo.net. [64.2.3.194])
+	by smtp.gmail.com with ESMTPSA id
+	j3sm2294897igx.21.2015.07.11.13.25.27
+	(version=TLSv1 cipher=RC4-SHA bits=128/128);
+	Sat, 11 Jul 2015 13:25:28 -0700 (PDT)
+Received: from dl.caveonetworks.com (localhost.localdomain [127.0.0.1])
+	by dl.caveonetworks.com (8.14.5/8.14.5) with ESMTP id t6BKPQHY010575; 
+	Sat, 11 Jul 2015 13:25:26 -0700
+Received: (from ddaney@localhost)
+	by dl.caveonetworks.com (8.14.5/8.14.5/Submit) id t6BKPQx3010574;
+	Sat, 11 Jul 2015 13:25:26 -0700
+From: David Daney &lt;ddaney.cavm@gmail.com&gt;
+To: linux-arm-kernel@lists.infradead.org,
+	Catalin Marinas &lt;catalin.marinas@arm.com&gt;,
+	Will Deacon &lt;will.deacon@arm.com&gt;
+Cc: linux-kernel@vger.kernel.org, Robert Richter &lt;rrichter@cavium.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	David Daney &lt;david.daney@cavium.com&gt;
+Subject: [PATCH 3/3] arm64, mm: Use IPIs for TLB invalidation.
+Date: Sat, 11 Jul 2015 13:25:23 -0700
+Message-Id: &lt;1436646323-10527-4-git-send-email-ddaney.cavm@gmail.com&gt;
+X-Mailer: git-send-email 1.7.11.7
+In-Reply-To: &lt;1436646323-10527-1-git-send-email-ddaney.cavm@gmail.com&gt;
+References: &lt;1436646323-10527-1-git-send-email-ddaney.cavm@gmail.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Spam-Status: No, score=-7.3 required=5.0 tests=BAYES_00,
+	DKIM_ADSP_CUSTOM_MED, 
+	DKIM_SIGNED, FREEMAIL_FROM, RCVD_IN_DNSWL_HI, RP_MATCHES_RCVD,
+	T_DKIM_INVALID, 
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=25151">David Daney</a> - July 11, 2015, 8:25 p.m.</div>
+<pre class="content">
+<span class="from">From: David Daney &lt;david.daney@cavium.com&gt;</span>
+
+Most broadcast TLB invalidations are unnecessary.  So when
+invalidating for a given mm/vma target the only the needed CPUs via
+and IPI.
+
+For global TLB invalidations, also use IPI.
+
+Tested on Cavium ThunderX.
+
+This change reduces &#39;time make -j48&#39; on kernel from 139s to 116s (83%
+as long).
+
+The patch is needed because of a ThunderX Pass1 erratum: Exclusive
+store operations unreliable in the presence of broadcast TLB
+invalidations.  The performance improvements shown make it compelling
+even without the erratum workaround need.
+<span class="signed-off-by">
+Signed-off-by: David Daney &lt;david.daney@cavium.com&gt;</span>
+---
+ arch/arm64/include/asm/tlbflush.h | 67 ++++++---------------------------------
+ arch/arm64/mm/flush.c             | 46 +++++++++++++++++++++++++++
+ 2 files changed, 56 insertions(+), 57 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=59911">Sergei Shtylyov</a> - July 11, 2015, 10:06 p.m.</div>
+<pre class="content">
+Hello.
+
+On 07/11/2015 11:25 PM, David Daney wrote:
+<span class="quote">
+&gt; From: David Daney &lt;david.daney@cavium.com&gt;</span>
+<span class="quote">
+&gt; Most broadcast TLB invalidations are unnecessary.  So when</span>
+<span class="quote">&gt; invalidating for a given mm/vma target the only the needed CPUs via</span>
+
+    The only the needed?
+<span class="quote">
+&gt; and IPI.</span>
+<span class="quote">
+&gt; For global TLB invalidations, also use IPI.</span>
+<span class="quote">
+&gt; Tested on Cavium ThunderX.</span>
+<span class="quote">
+&gt; This change reduces &#39;time make -j48&#39; on kernel from 139s to 116s (83%</span>
+<span class="quote">&gt; as long).</span>
+<span class="quote">
+&gt; The patch is needed because of a ThunderX Pass1 erratum: Exclusive</span>
+<span class="quote">&gt; store operations unreliable in the presence of broadcast TLB</span>
+<span class="quote">&gt; invalidations.  The performance improvements shown make it compelling</span>
+<span class="quote">&gt; even without the erratum workaround need.</span>
+<span class="quote">
+&gt; Signed-off-by: David Daney &lt;david.daney@cavium.com&gt;</span>
+
+WBR, Sergei
+
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=352">Catalin Marinas</a> - July 12, 2015, 9:58 p.m.</div>
+<pre class="content">
+On Sat, Jul 11, 2015 at 01:25:23PM -0700, David Daney wrote:
+<span class="quote">&gt; From: David Daney &lt;david.daney@cavium.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Most broadcast TLB invalidations are unnecessary.  So when</span>
+<span class="quote">&gt; invalidating for a given mm/vma target the only the needed CPUs via</span>
+<span class="quote">&gt; and IPI.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; For global TLB invalidations, also use IPI.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Tested on Cavium ThunderX.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This change reduces &#39;time make -j48&#39; on kernel from 139s to 116s (83%</span>
+<span class="quote">&gt; as long).</span>
+
+Have you tried something like kernbench? It tends to be more consistent
+than a simple &quot;time make&quot;.
+
+However, the main question is how&#39;s the performance on systems with a
+lot less CPUs (like 4 to 8)? The results are highly dependent on the
+type of application, CPU and SoC implementation (I&#39;ve done similar
+benchmarks in the past). So, I don&#39;t think it&#39;s a simple answer here.
+<span class="quote">
+&gt; The patch is needed because of a ThunderX Pass1 erratum: Exclusive</span>
+<span class="quote">&gt; store operations unreliable in the presence of broadcast TLB</span>
+<span class="quote">&gt; invalidations. The performance improvements shown make it compelling</span>
+<span class="quote">&gt; even without the erratum workaround need.</span>
+
+This performance argument is debatable, I need more data and not just
+for the Cavium boards and kernel building. In the meantime, it&#39;s an
+erratum workaround and it needs to follow the other workarounds we have
+in the kernel with a proper Kconfig option and alternatives that can be
+patched in our out at run-time (I wonder whether jump labels would be
+better suited here).
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - July 13, 2015, 6:17 p.m.</div>
+<pre class="content">
+On Sat, Jul 11, 2015 at 09:25:23PM +0100, David Daney wrote:
+<span class="quote">&gt; From: David Daney &lt;david.daney@cavium.com&gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Most broadcast TLB invalidations are unnecessary.  So when</span>
+<span class="quote">&gt; invalidating for a given mm/vma target the only the needed CPUs via</span>
+<span class="quote">&gt; and IPI.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; For global TLB invalidations, also use IPI.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Tested on Cavium ThunderX.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This change reduces &#39;time make -j48&#39; on kernel from 139s to 116s (83%</span>
+<span class="quote">&gt; as long).</span>
+
+Any idea *why* you&#39;re seeing such an improvement? Some older kernels had
+a bug where we&#39;d try to flush a negative (i.e. huge) range by page, so it
+would be nice to rule that out. I assume these measurements are using
+mainline?
+
+Having TLBI responsible for that amount of a kernel build doesn&#39;t feel
+right to me and doesn&#39;t line-up with the profiles I&#39;m used to seeing.
+
+You have 16-bit ASIDs, right?
+
+Will
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=462">David Daney</a> - July 13, 2015, 6:58 p.m.</div>
+<pre class="content">
+On 07/13/2015 11:17 AM, Will Deacon wrote:
+<span class="quote">&gt; On Sat, Jul 11, 2015 at 09:25:23PM +0100, David Daney wrote:</span>
+<span class="quote">&gt;&gt; From: David Daney &lt;david.daney@cavium.com&gt;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Most broadcast TLB invalidations are unnecessary.  So when</span>
+<span class="quote">&gt;&gt; invalidating for a given mm/vma target the only the needed CPUs via</span>
+<span class="quote">&gt;&gt; and IPI.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; For global TLB invalidations, also use IPI.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Tested on Cavium ThunderX.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; This change reduces &#39;time make -j48&#39; on kernel from 139s to 116s (83%</span>
+<span class="quote">&gt;&gt; as long).</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Any idea *why* you&#39;re seeing such an improvement? Some older kernels had</span>
+<span class="quote">&gt; a bug where we&#39;d try to flush a negative (i.e. huge) range by page, so it</span>
+<span class="quote">&gt; would be nice to rule that out. I assume these measurements are using</span>
+<span class="quote">&gt; mainline?</span>
+
+I have an untested multi-part theory:
+
+1) Most of the invalidations in the kernel build will be for a mm that 
+was only used on a single CPU (the current CPU), so IPIs are for the 
+most part not needed.  We win by not having to synchronize across all 
+CPUs waiting for the DSB to complete.  I think most of it occurs at 
+process exit.  Q: why do anything at process exit?  The use of ASIDs 
+should make TLB invalidations at process death unnecessary.
+
+2) By simplifying the VA range invalidations to just a single ASID based 
+invalidation, we are issuing many fewer TLBI broadcasts.  The overhead 
+of refilling the local TLB with still needed mappings may be lower than 
+the overhead of all those TLBI operations.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt; Having TLBI responsible for that amount of a kernel build doesn&#39;t feel</span>
+<span class="quote">&gt; right to me and doesn&#39;t line-up with the profiles I&#39;m used to seeing.</span>
+
+I don&#39;t have enough information to comment on this at the moment.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt; You have 16-bit ASIDs, right?</span>
+
+Correct.  This means we aren&#39;t doing the rollover work very often, and 
+that it is therefore not a significant source of system overhead.
+<span class="quote">
+
+&gt;</span>
+<span class="quote">&gt; Will</span>
+<span class="quote">&gt;</span>
+
+--
+To unsubscribe from this list: send the line &quot;unsubscribe linux-kernel&quot; in
+the body of a message to majordomo@vger.kernel.org
+More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Please read the FAQ at  http://www.tux.org/lkml/
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/arm64/include/asm/tlbflush.h b/arch/arm64/include/asm/tlbflush.h</span>
+<span class="p_header">index 42c09ec..2c132b0 100644</span>
+<span class="p_header">--- a/arch/arm64/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/arm64/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -63,46 +63,22 @@</span> <span class="p_context"></span>
+  *		only require the D-TLB to be invalidated.
+  *		- kaddr - Kernel virtual memory address
+  */
+<span class="p_del">-static inline void flush_tlb_all(void)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	dsb(ishst);</span>
+<span class="p_del">-	asm(&quot;tlbi	vmalle1is&quot;);</span>
+<span class="p_del">-	dsb(ish);</span>
+<span class="p_del">-	isb();</span>
+<span class="p_del">-}</span>
+<span class="p_del">-</span>
+<span class="p_del">-static inline void flush_tlb_mm(struct mm_struct *mm)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	unsigned long asid = (unsigned long)ASID(mm) &lt;&lt; 48;</span>
+<span class="p_add">+void flush_tlb_all(void);</span>
+ 
+<span class="p_del">-	dsb(ishst);</span>
+<span class="p_del">-	asm(&quot;tlbi	aside1is, %0&quot; : : &quot;r&quot; (asid));</span>
+<span class="p_del">-	dsb(ish);</span>
+<span class="p_del">-}</span>
+<span class="p_add">+void flush_tlb_mm(struct mm_struct *mm);</span>
+ 
+ static inline void flush_tlb_page(struct vm_area_struct *vma,
+ 				  unsigned long uaddr)
+ {
+<span class="p_del">-	unsigned long addr = uaddr &gt;&gt; 12 |</span>
+<span class="p_del">-		((unsigned long)ASID(vma-&gt;vm_mm) &lt;&lt; 48);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	dsb(ishst);</span>
+<span class="p_del">-	asm(&quot;tlbi	vae1is, %0&quot; : : &quot;r&quot; (addr));</span>
+<span class="p_del">-	dsb(ish);</span>
+<span class="p_add">+	/* Simplify to entire mm. */</span>
+<span class="p_add">+	flush_tlb_mm(vma-&gt;vm_mm);</span>
+ }
+ 
+ static inline void __flush_tlb_range(struct vm_area_struct *vma,
+ 				     unsigned long start, unsigned long end)
+ {
+<span class="p_del">-	unsigned long asid = (unsigned long)ASID(vma-&gt;vm_mm) &lt;&lt; 48;</span>
+<span class="p_del">-	unsigned long addr;</span>
+<span class="p_del">-	start = asid | (start &gt;&gt; 12);</span>
+<span class="p_del">-	end = asid | (end &gt;&gt; 12);</span>
+<span class="p_del">-</span>
+<span class="p_del">-	dsb(ishst);</span>
+<span class="p_del">-	for (addr = start; addr &lt; end; addr += 1 &lt;&lt; (PAGE_SHIFT - 12))</span>
+<span class="p_del">-		asm(&quot;tlbi vae1is, %0&quot; : : &quot;r&quot;(addr));</span>
+<span class="p_del">-	dsb(ish);</span>
+<span class="p_add">+	/* Simplify to entire mm. */</span>
+<span class="p_add">+	flush_tlb_mm(vma-&gt;vm_mm);</span>
+ }
+ 
+ static inline void flush_tlb_all_local(void)
+<span class="p_chunk">@@ -112,40 +88,17 @@</span> <span class="p_context"> static inline void flush_tlb_all_local(void)</span>
+ 	isb();
+ }
+ 
+<span class="p_del">-static inline void __flush_tlb_kernel_range(unsigned long start, unsigned long end)</span>
+<span class="p_del">-{</span>
+<span class="p_del">-	unsigned long addr;</span>
+<span class="p_del">-	start &gt;&gt;= 12;</span>
+<span class="p_del">-	end &gt;&gt;= 12;</span>
+<span class="p_del">-</span>
+<span class="p_del">-	dsb(ishst);</span>
+<span class="p_del">-	for (addr = start; addr &lt; end; addr += 1 &lt;&lt; (PAGE_SHIFT - 12))</span>
+<span class="p_del">-		asm(&quot;tlbi vaae1is, %0&quot; : : &quot;r&quot;(addr));</span>
+<span class="p_del">-	dsb(ish);</span>
+<span class="p_del">-	isb();</span>
+<span class="p_del">-}</span>
+<span class="p_del">-</span>
+<span class="p_del">-/*</span>
+<span class="p_del">- * This is meant to avoid soft lock-ups on large TLB flushing ranges and not</span>
+<span class="p_del">- * necessarily a performance improvement.</span>
+<span class="p_del">- */</span>
+<span class="p_del">-#define MAX_TLB_RANGE	(1024UL &lt;&lt; PAGE_SHIFT)</span>
+<span class="p_del">-</span>
+ static inline void flush_tlb_range(struct vm_area_struct *vma,
+ 				   unsigned long start, unsigned long end)
+ {
+<span class="p_del">-	if ((end - start) &lt;= MAX_TLB_RANGE)</span>
+<span class="p_del">-		__flush_tlb_range(vma, start, end);</span>
+<span class="p_del">-	else</span>
+<span class="p_del">-		flush_tlb_mm(vma-&gt;vm_mm);</span>
+<span class="p_add">+	/* Simplify to entire mm. */</span>
+<span class="p_add">+	flush_tlb_mm(vma-&gt;vm_mm);</span>
+ }
+ 
+ static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+ {
+<span class="p_del">-	if ((end - start) &lt;= MAX_TLB_RANGE)</span>
+<span class="p_del">-		__flush_tlb_kernel_range(start, end);</span>
+<span class="p_del">-	else</span>
+<span class="p_del">-		flush_tlb_all();</span>
+<span class="p_add">+	/* Simplify to all. */</span>
+<span class="p_add">+	flush_tlb_all();</span>
+ }
+ 
+ /*
+<span class="p_header">diff --git a/arch/arm64/mm/flush.c b/arch/arm64/mm/flush.c</span>
+<span class="p_header">index 4dfa397..45f24d3 100644</span>
+<span class="p_header">--- a/arch/arm64/mm/flush.c</span>
+<span class="p_header">+++ b/arch/arm64/mm/flush.c</span>
+<span class="p_chunk">@@ -20,6 +20,7 @@</span> <span class="p_context"></span>
+ #include &lt;linux/export.h&gt;
+ #include &lt;linux/mm.h&gt;
+ #include &lt;linux/pagemap.h&gt;
+<span class="p_add">+#include &lt;linux/smp.h&gt;</span>
+ 
+ #include &lt;asm/cacheflush.h&gt;
+ #include &lt;asm/cachetype.h&gt;
+<span class="p_chunk">@@ -27,6 +28,51 @@</span> <span class="p_context"></span>
+ 
+ #include &quot;mm.h&quot;
+ 
+<span class="p_add">+static void flush_tlb_local(void *info)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	asm volatile(&quot;\n&quot;</span>
+<span class="p_add">+		     &quot;	tlbi	vmalle1\n&quot;</span>
+<span class="p_add">+		     &quot;	isb	sy&quot;</span>
+<span class="p_add">+		);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void flush_tlb_mm_local(void *info)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long asid = (unsigned long)info;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	asm volatile(&quot;\n&quot;</span>
+<span class="p_add">+		     &quot;	tlbi	aside1, %0\n&quot;</span>
+<span class="p_add">+		     &quot;	isb	sy&quot;</span>
+<span class="p_add">+		     : : &quot;r&quot; (asid)</span>
+<span class="p_add">+		);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+void flush_tlb_all(void)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	/* Make sure page table modifications are visible. */</span>
+<span class="p_add">+	dsb(ishst);</span>
+<span class="p_add">+	/* IPI to all CPUs to do local flush. */</span>
+<span class="p_add">+	on_each_cpu(flush_tlb_local, NULL, 1);</span>
+<span class="p_add">+</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL(flush_tlb_all);</span>
+<span class="p_add">+</span>
+<span class="p_add">+void flush_tlb_mm(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	if (!mm) {</span>
+<span class="p_add">+		flush_tlb_all();</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		unsigned long asid = (unsigned long)ASID(mm) &lt;&lt; 48;</span>
+<span class="p_add">+		/* Make sure page table modifications are visible. */</span>
+<span class="p_add">+		dsb(ishst);</span>
+<span class="p_add">+		/* IPI to all CPUs to do local flush. */</span>
+<span class="p_add">+		on_each_cpu_mask(mm_cpumask(mm),</span>
+<span class="p_add">+				 flush_tlb_mm_local, (void *)asid, 1);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL(flush_tlb_mm);</span>
+<span class="p_add">+</span>
+ void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
+ 		       unsigned long end)
+ {
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

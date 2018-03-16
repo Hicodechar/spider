@@ -1,0 +1,731 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC,13/13] x86/mm: Try to preserve old TLB entries using PCID - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC,13/13] x86/mm: Try to preserve old TLB entries using PCID</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Jan. 8, 2016, 11:15 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;c4125ff6333c97d3ce00e5886b809b7c20594585.1452294700.git.luto@kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/7990971/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/7990971/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/7990971/">/patch/7990971/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+X-Original-To: patchwork-LKML@patchwork.kernel.org
+Delivered-To: patchwork-parsemail@patchwork2.web.kernel.org
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.136])
+	by patchwork2.web.kernel.org (Postfix) with ESMTP id 53E31BEEE5
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  8 Jan 2016 23:16:15 +0000 (UTC)
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 2393020204
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  8 Jan 2016 23:16:14 +0000 (UTC)
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.kernel.org (Postfix) with ESMTP id AA97B201F2
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri,  8 Jan 2016 23:16:12 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1756484AbcAHXQH (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Fri, 8 Jan 2016 18:16:07 -0500
+Received: from mail.kernel.org ([198.145.29.136]:49893 &quot;EHLO mail.kernel.org&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1756237AbcAHXP4 (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Fri, 8 Jan 2016 18:15:56 -0500
+Received: from mail.kernel.org (localhost [127.0.0.1])
+	by mail.kernel.org (Postfix) with ESMTP id 52BC92014A;
+	Fri,  8 Jan 2016 23:15:54 +0000 (UTC)
+Received: from localhost (50-76-60-73-ip-static.hfc.comcastbusiness.net
+	[50.76.60.73])
+	(using TLSv1.2 with cipher AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 85F8520204;
+	Fri,  8 Jan 2016 23:15:52 +0000 (UTC)
+From: Andy Lutomirski &lt;luto@kernel.org&gt;
+To: x86@kernel.org, linux-kernel@vger.kernel.org
+Cc: Borislav Petkov &lt;bp@alien8.de&gt;, Brian Gerst &lt;brgerst@gmail.com&gt;,
+	Dave Hansen &lt;dave.hansen@linux.intel.com&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Oleg Nesterov &lt;oleg@redhat.com&gt;,
+	&quot;linux-mm@kvack.org&quot; &lt;linux-mm@kvack.org&gt;,
+	Andy Lutomirski &lt;luto@kernel.org&gt;
+Subject: [RFC 13/13] x86/mm: Try to preserve old TLB entries using PCID
+Date: Fri,  8 Jan 2016 15:15:31 -0800
+Message-Id: &lt;c4125ff6333c97d3ce00e5886b809b7c20594585.1452294700.git.luto@kernel.org&gt;
+X-Mailer: git-send-email 2.5.0
+In-Reply-To: &lt;cover.1452294700.git.luto@kernel.org&gt;
+References: &lt;cover.1452294700.git.luto@kernel.org&gt;
+In-Reply-To: &lt;cover.1452294700.git.luto@kernel.org&gt;
+References: &lt;cover.1452294700.git.luto@kernel.org&gt;
+X-Spam-Status: No, score=-6.9 required=5.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RP_MATCHES_RCVD,
+	UNPARSEABLE_RELAY autolearn=unavailable version=3.3.1
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on mail.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - Jan. 8, 2016, 11:15 p.m.</div>
+<pre class="content">
+PCID is a &quot;process context ID&quot; -- it&#39;s what other architectures call
+an address space ID.  Every non-global TLB entry is tagged with a
+PCID, only TLB entries that match the currently selected PCID are
+used, and we can switch PGDs without flushing the TLB.  x86&#39;s
+PCID is 12 bits.
+
+This is an unorthodox approach to using PCID.  x86&#39;s PCID is far too
+short to uniquely identify a process, and we can&#39;t even really
+uniquely identify a running process because there are monster
+systems with over 4096 CPUs.  To make matters worse, past attempts
+to use all 12 PCID bits have resulted in slowdowns instead of
+speedups.
+
+This patch uses PCID differently.  We use a PCID to identify a
+recently-used mm on a per-cpu basis.  An mm has no fixed PCID
+binding at all; instead, we give it a fresh PCID each time it&#39;s
+loaded except in cases where we want to preserve the TLB, in which
+case we reuse a recent value.
+
+In particular, we use PCIDs 1-7 for recently-used mms and we reserve
+PCID 0 for swapper_pg_dir and for PCID-unaware CR3 users (e.g. EFI).
+Nothing ever switches to PCID 0 without flushing PCID 0 non-global
+pages, so PCID 0 conflicts won&#39;t cause problems.
+
+This also leaves the door open for UDEREF-style address space
+switching: the kernel will use PCID 0, and exits could simply switch
+back.  (As a practical matter, an in-tree implementation of that
+feature would probably forego the full syscall fast path and just
+invoke some or all of switch_mm in prepare_exit_to_usermode.)
+
+This seems to save about 100ns on context switches between mms.
+<span class="signed-off-by">
+Signed-off-by: Andy Lutomirski &lt;luto@kernel.org&gt;</span>
+---
+ arch/x86/include/asm/mmu.h      |   7 +-
+ arch/x86/include/asm/tlbflush.h |  18 ++++
+ arch/x86/kernel/cpu/common.c    |   4 +
+ arch/x86/kernel/ldt.c           |   2 +
+ arch/x86/kernel/process_64.c    |   2 +
+ arch/x86/mm/tlb.c               | 195 +++++++++++++++++++++++++++++++++++++---
+ 6 files changed, 213 insertions(+), 15 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=64071">Dave Hansen</a> - Jan. 9, 2016, 12:27 a.m.</div>
+<pre class="content">
+On 01/08/2016 03:15 PM, Andy Lutomirski wrote:
+<span class="quote">&gt; + * The guiding principle of this code is that TLB entries that have</span>
+<span class="quote">&gt; + * survived more than a small number of context switches are mostly</span>
+<span class="quote">&gt; + * useless, so we don&#39;t try very hard not to evict them.</span>
+
+Big ack on that.  The original approach tried to keep track of the full
+4k worth of possible PCIDs, it also needed an additional cpumask (which
+it dynamically allocated) for where the PCID was active in addition to
+the normal &quot;where has this mm been&quot; mask.
+
+That&#39;s a lot of extra data to mangle, and I can definitely see your
+approach as being nicer, *IF* the hardware isn&#39;t doing something useful
+with the other 9 bits of PCID that you&#39;re throwing away. ;)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=41531">Andy Lutomirski</a> - Jan. 9, 2016, 2:19 a.m.</div>
+<pre class="content">
+On Fri, Jan 8, 2016 at 4:27 PM, Dave Hansen &lt;dave.hansen@linux.intel.com&gt; wrote:
+<span class="quote">&gt; On 01/08/2016 03:15 PM, Andy Lutomirski wrote:</span>
+<span class="quote">&gt;&gt; + * The guiding principle of this code is that TLB entries that have</span>
+<span class="quote">&gt;&gt; + * survived more than a small number of context switches are mostly</span>
+<span class="quote">&gt;&gt; + * useless, so we don&#39;t try very hard not to evict them.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Big ack on that.  The original approach tried to keep track of the full</span>
+<span class="quote">&gt; 4k worth of possible PCIDs, it also needed an additional cpumask (which</span>
+<span class="quote">&gt; it dynamically allocated) for where the PCID was active in addition to</span>
+<span class="quote">&gt; the normal &quot;where has this mm been&quot; mask.</span>
+
+My patch has a similar extra cpumask, but at least I didn&#39;t
+dynamically allocate it.  I did it because I need a 100% reliable way
+to tell whether a given mm has a valid PCID in a cpu&#39;s PCID LRU list,
+as opposed to just matching due to struct mm reuse or similar.  I also
+need the ability to blow away old mappings, which I can do by clearing
+the cpumask.  This happens in init_new_context and in
+propagate_tlb_flush.
+
+The other way to do it would be to store some kind of generation
+counter in the per-cpu list.  I could use a global 64-bit atomic
+counter to allocate never-reused mm ids (it&#39;s highly unlikely that a
+system will run long enough for such a counter to overflow -- it could
+only ever be incremented every few ns, giving hundreds of years of
+safety), but that&#39;s kind of expensive.  I could use a per-cpu
+allocator, but 54 bits per cpu is uncomfortably small unless we have
+wraparound handling.  We could do 64 bits per cpu for very cheap
+counter allocation, but then the &quot;zap the pcid&quot; logic gets much
+nastier in that neither the percpu entries nor the per-mm generation
+counter entries don&#39;t fit in a word any more.  Maybe that&#39;s fine.
+
+What we can&#39;t do easily is have a per-mm generation counter, because
+freeing an mm and reallocating it in the same place needs to reliably
+zap the pcid on all CPUs.
+
+Anyway, this problem is clearly solvable, but I haven&#39;t thought of a
+straightforward solution that doesn&#39;t involve rarely-executed code
+paths, and that makes me a bit nervous.
+
+--Andy
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/include/asm/mmu.h b/arch/x86/include/asm/mmu.h</span>
+<span class="p_header">index 55234d5e7160..adb958d41bde 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/mmu.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/mmu.h</span>
+<span class="p_chunk">@@ -5,10 +5,13 @@</span> <span class="p_context"></span>
+ #include &lt;linux/mutex.h&gt;
+ 
+ /*
+<span class="p_del">- * The x86 doesn&#39;t have a mmu context, but</span>
+<span class="p_del">- * we put the segment information here.</span>
+<span class="p_add">+ * x86 has an MMU context if PCID is enabled, and x86 also has arch-specific</span>
+<span class="p_add">+ * MMU state beyond what lives in mm_struct.</span>
+  */
+ typedef struct {
+<span class="p_add">+	/* See arch/x86/mm/tlb.c for details. */</span>
+<span class="p_add">+	struct cpumask pcid_live_cpus;</span>
+<span class="p_add">+</span>
+ #ifdef CONFIG_MODIFY_LDT_SYSCALL
+ 	struct ldt_struct *ldt;
+ #endif
+<span class="p_header">diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">index 32e3d8769a22..407c6f5dd4a6 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -56,6 +56,13 @@</span> <span class="p_context"> static inline void invpcid_flush_all_nonglobals(void)</span>
+ #define CR3_PCID_MASK 0ull
+ #endif
+ 
+<span class="p_add">+#ifdef CONFIG_SMP</span>
+<span class="p_add">+extern void zap_old_pcids(void);</span>
+<span class="p_add">+#else</span>
+<span class="p_add">+/* Until PCID is implemented for !SMP, there&#39;s nothing to do. */</span>
+<span class="p_add">+static inline void zap_old_pcids(void) {}</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ #ifdef CONFIG_PARAVIRT
+ #include &lt;asm/paravirt.h&gt;
+ #else
+<span class="p_chunk">@@ -195,6 +202,8 @@</span> <span class="p_context"> static inline void __flush_tlb_all(void)</span>
+ 		__flush_tlb_global();
+ 	else
+ 		__flush_tlb();
+<span class="p_add">+</span>
+<span class="p_add">+	zap_old_pcids();</span>
+ }
+ 
+ static inline void __flush_tlb_one(unsigned long addr)
+<span class="p_chunk">@@ -238,6 +247,7 @@</span> <span class="p_context"> static inline void flush_tlb_all(void)</span>
+ {
+ 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+ 	__flush_tlb_all();
+<span class="p_add">+	zap_old_pcids();</span>
+ }
+ 
+ static inline void flush_tlb(void)
+<span class="p_chunk">@@ -254,6 +264,8 @@</span> <span class="p_context"> static inline void flush_tlb_mm(struct mm_struct *mm)</span>
+ {
+ 	if (mm == current-&gt;active_mm)
+ 		__flush_tlb_up();
+<span class="p_add">+	else</span>
+<span class="p_add">+		zap_old_pcids();</span>
+ }
+ 
+ static inline void flush_tlb_page(struct vm_area_struct *vma,
+<span class="p_chunk">@@ -261,6 +273,8 @@</span> <span class="p_context"> static inline void flush_tlb_page(struct vm_area_struct *vma,</span>
+ {
+ 	if (vma-&gt;vm_mm == current-&gt;active_mm)
+ 		__flush_tlb_one(addr);
+<span class="p_add">+	else</span>
+<span class="p_add">+		zap_old_pcids();</span>
+ }
+ 
+ static inline void flush_tlb_range(struct vm_area_struct *vma,
+<span class="p_chunk">@@ -268,6 +282,8 @@</span> <span class="p_context"> static inline void flush_tlb_range(struct vm_area_struct *vma,</span>
+ {
+ 	if (vma-&gt;vm_mm == current-&gt;active_mm)
+ 		__flush_tlb_up();
+<span class="p_add">+	else</span>
+<span class="p_add">+		zap_old_pcids();</span>
+ }
+ 
+ static inline void flush_tlb_mm_range(struct mm_struct *mm,
+<span class="p_chunk">@@ -275,6 +291,8 @@</span> <span class="p_context"> static inline void flush_tlb_mm_range(struct mm_struct *mm,</span>
+ {
+ 	if (mm == current-&gt;active_mm)
+ 		__flush_tlb_up();
+<span class="p_add">+	else</span>
+<span class="p_add">+		zap_old_pcids();</span>
+ }
+ 
+ static inline void native_flush_tlb_others(const struct cpumask *cpumask,
+<span class="p_header">diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c</span>
+<span class="p_header">index 7e1fc53a4ba5..00bdf5806566 100644</span>
+<span class="p_header">--- a/arch/x86/kernel/cpu/common.c</span>
+<span class="p_header">+++ b/arch/x86/kernel/cpu/common.c</span>
+<span class="p_chunk">@@ -953,6 +953,10 @@</span> <span class="p_context"> static void identify_cpu(struct cpuinfo_x86 *c)</span>
+ 	setup_smep(c);
+ 	setup_smap(c);
+ 
+<span class="p_add">+	/* Enable PCID if available. */</span>
+<span class="p_add">+	if (cpu_has(c, X86_FEATURE_PCID))</span>
+<span class="p_add">+		cr4_set_bits(X86_CR4_PCIDE);</span>
+<span class="p_add">+</span>
+ 	/*
+ 	 * The vendor-specific functions might have changed features.
+ 	 * Now we do &quot;generic changes.&quot;
+<span class="p_header">diff --git a/arch/x86/kernel/ldt.c b/arch/x86/kernel/ldt.c</span>
+<span class="p_header">index 6acc9dd91f36..3d73c0ddc773 100644</span>
+<span class="p_header">--- a/arch/x86/kernel/ldt.c</span>
+<span class="p_header">+++ b/arch/x86/kernel/ldt.c</span>
+<span class="p_chunk">@@ -109,6 +109,8 @@</span> <span class="p_context"> int init_new_context(struct task_struct *tsk, struct mm_struct *mm)</span>
+ 	struct mm_struct *old_mm;
+ 	int retval = 0;
+ 
+<span class="p_add">+	cpumask_clear(&amp;mm-&gt;context.pcid_live_cpus);</span>
+<span class="p_add">+</span>
+ 	mutex_init(&amp;mm-&gt;context.lock);
+ 	old_mm = current-&gt;mm;
+ 	if (!old_mm) {
+<span class="p_header">diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c</span>
+<span class="p_header">index e835d263a33b..2cdb3ba715e6 100644</span>
+<span class="p_header">--- a/arch/x86/kernel/process_64.c</span>
+<span class="p_header">+++ b/arch/x86/kernel/process_64.c</span>
+<span class="p_chunk">@@ -578,6 +578,8 @@</span> <span class="p_context"> long do_arch_prctl(struct task_struct *task, int code, unsigned long addr)</span>
+ 		break;
+ 	}
+ 
+<span class="p_add">+		__flush_tlb();</span>
+<span class="p_add">+		invpcid_flush_all_nonglobals();</span>
+ 	default:
+ 		ret = -EINVAL;
+ 		break;
+<span class="p_header">diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c</span>
+<span class="p_header">index 9790c9338e52..eb84240b8c92 100644</span>
+<span class="p_header">--- a/arch/x86/mm/tlb.c</span>
+<span class="p_header">+++ b/arch/x86/mm/tlb.c</span>
+<span class="p_chunk">@@ -28,6 +28,92 @@</span> <span class="p_context"></span>
+  *	Implement flush IPI by CALL_FUNCTION_VECTOR, Alex Shi
+  */
+ 
+<span class="p_add">+/*</span>
+<span class="p_add">+ * An x86 PCID is what everyone else calls an ASID.  TLB entries on each</span>
+<span class="p_add">+ * CPU are tagged with a PCID, and the current CR3 value stores a PCID.</span>
+<span class="p_add">+ * Switching CR3 can change the PCID and can optionally flush all TLB</span>
+<span class="p_add">+ * entries associated with the new PCID.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * The PCID is 12 bits, but we don&#39;t use anywhere near that many.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * The guiding principle of this code is that TLB entries that have</span>
+<span class="p_add">+ * survived more than a small number of context switches are mostly</span>
+<span class="p_add">+ * useless, so we don&#39;t try very hard not to evict them.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * PCID 0 is used for swapper_pg_dir and for any other special PGDs that</span>
+<span class="p_add">+ * are loaded directly by PCID-naive users of load_cr3.  (This includes</span>
+<span class="p_add">+ * UEFI runtime services, etc.)  Note that we never switch to PCID 0 with</span>
+<span class="p_add">+ * the preserve flag set -- the only TLB entries with PCID == 0 that are</span>
+<span class="p_add">+ * worth preserving have the global flag set.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * PCIDs 1 through NR_PCIDS are used for real user mms.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+</span>
+<span class="p_add">+#define NR_DYNAMIC_PCIDS 7</span>
+<span class="p_add">+</span>
+<span class="p_add">+struct pcid_cpu_entry {</span>
+<span class="p_add">+	const struct mm_struct *mm;</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+<span class="p_add">+struct pcid_cpu_state {</span>
+<span class="p_add">+	/* This entire data structure fits in one cache line. */</span>
+<span class="p_add">+	struct pcid_cpu_entry pcids[NR_DYNAMIC_PCIDS];	/* starts with PCID 1 */</span>
+<span class="p_add">+	unsigned long next_pcid_minus_two;</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+<span class="p_add">+static DEFINE_PER_CPU_ALIGNED(struct pcid_cpu_state, pcid_cpu_state);</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Allocate and return a fresh PCID for mm on this CPU.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static unsigned long allocate_pcid(const struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long pcid;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	pcid = this_cpu_add_return(pcid_cpu_state.next_pcid_minus_two, 1) + 1;</span>
+<span class="p_add">+	if (pcid &gt; NR_DYNAMIC_PCIDS) {</span>
+<span class="p_add">+		pcid = 1;</span>
+<span class="p_add">+		this_cpu_write(pcid_cpu_state.next_pcid_minus_two, 0);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	this_cpu_write(pcid_cpu_state.pcids[pcid-1].mm, mm);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * We don&#39;t bother setting our cpu&#39;s bit on pcid_live_cpus.  Any</span>
+<span class="p_add">+	 * remote CPU that needs to shoot down one of our TLB entries will</span>
+<span class="p_add">+	 * do it via IPI because we&#39;re all the way live.  We&#39;ll take care</span>
+<span class="p_add">+	 * of pcid_live_cpus when we remove ourselves from mm_cpumask.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	return pcid;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Finds the PCID for the given pgd on this cpu.  If that PCID was last</span>
+<span class="p_add">+ * used by this mm, the high bit will be set in the return value.  Otherwise</span>
+<span class="p_add">+ * we claim ownership of the PCID and return the PCID with the high bit</span>
+<span class="p_add">+ * clear.</span>
+<span class="p_add">+ *</span>
+<span class="p_add">+ * This function must not be called if pgd has never been loaded on this</span>
+<span class="p_add">+ * CPU.  Otherwise we might return a PCID allocated to a dead mm whose pgd</span>
+<span class="p_add">+ * page has been reused.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static unsigned long choose_pcid(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long pcid;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!static_cpu_has(X86_FEATURE_PCID))</span>
+<span class="p_add">+		return 0;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (cpumask_test_cpu(smp_processor_id(), &amp;mm-&gt;context.pcid_live_cpus)) {</span>
+<span class="p_add">+		for (pcid = 0; pcid &lt; NR_DYNAMIC_PCIDS; pcid++) {</span>
+<span class="p_add">+			if (this_cpu_read(pcid_cpu_state.pcids[pcid].mm) == mm)</span>
+<span class="p_add">+				return (pcid + 1) | (1UL &lt;&lt; 63);</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return allocate_pcid(mm);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ #ifdef CONFIG_SMP
+ 
+ struct flush_tlb_info {
+<span class="p_chunk">@@ -37,6 +123,55 @@</span> <span class="p_context"> struct flush_tlb_info {</span>
+ };
+ 
+ /*
+<span class="p_add">+ * This effectively invalidates non-global mappings belonging to non-current</span>
+<span class="p_add">+ * PCIDs on the calling CPU.  Rather than doing NR_DYNAMIC_PCIDS-1 INVPCIDs,</span>
+<span class="p_add">+ * it invalidates the mm-to-PCID mappings.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+void zap_old_pcids(void)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	struct mm_struct *active_mm;</span>
+<span class="p_add">+	int i;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!static_cpu_has(X86_FEATURE_PCID))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	active_mm = this_cpu_read(cpu_tlbstate.active_mm);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for (i = 0; i &lt; NR_DYNAMIC_PCIDS; i++)</span>
+<span class="p_add">+		if (this_cpu_read(pcid_cpu_state.pcids[i].mm) != active_mm)</span>
+<span class="p_add">+			this_cpu_write(pcid_cpu_state.pcids[i].mm, NULL);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+EXPORT_SYMBOL(zap_old_pcids);</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void zap_local_inactive_mm(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	int i;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!static_cpu_has(X86_FEATURE_PCID))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for (i = 0; i &lt; NR_DYNAMIC_PCIDS; i++) {</span>
+<span class="p_add">+		if (this_cpu_read(pcid_cpu_state.pcids[i].mm) == mm) {</span>
+<span class="p_add">+			this_cpu_write(pcid_cpu_state.pcids[i].mm, NULL);</span>
+<span class="p_add">+			return;</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void stop_tlbflush_ipis(int cpu, struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Stop flush ipis for the previous mm.  First mark us live in</span>
+<span class="p_add">+	 * the PCID cache.  We need our store to pcid_live_cpus to</span>
+<span class="p_add">+	 * happen before remote CPUs stop sending us IPIs; the barrier</span>
+<span class="p_add">+	 * here synchronizes with the barrier in flush_tlb_remote.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	cpumask_set_cpu(cpu, &amp;mm-&gt;context.pcid_live_cpus);</span>
+<span class="p_add">+	smp_mb__before_atomic();</span>
+<span class="p_add">+	cpumask_clear_cpu(cpu, mm_cpumask(mm));</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+/*</span>
+  * We cannot call mmdrop() because we are in interrupt context,
+  * instead update mm-&gt;cpu_vm_mask.
+  */
+<span class="p_chunk">@@ -46,7 +181,7 @@</span> <span class="p_context"> void leave_mm(int cpu)</span>
+ 	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK)
+ 		BUG();
+ 	if (cpumask_test_cpu(cpu, mm_cpumask(active_mm))) {
+<span class="p_del">-		cpumask_clear_cpu(cpu, mm_cpumask(active_mm));</span>
+<span class="p_add">+		stop_tlbflush_ipis(cpu, active_mm);</span>
+ 		load_cr3(swapper_pg_dir);
+ 		/*
+ 		 * This gets called in the idle path where RCU
+<span class="p_chunk">@@ -63,6 +198,7 @@</span> <span class="p_context"> void switch_mm(struct mm_struct *prev, struct mm_struct *next,</span>
+ 	       struct task_struct *tsk)
+ {
+ 	unsigned cpu = smp_processor_id();
+<span class="p_add">+	unsigned long pcid;</span>
+ 
+ 	if (likely(prev != next)) {
+ #ifdef CONFIG_SMP
+<span class="p_chunk">@@ -76,9 +212,6 @@</span> <span class="p_context"> void switch_mm(struct mm_struct *prev, struct mm_struct *next,</span>
+ 		 *
+ 		 * This logic has an ordering constraint:
+ 		 *
+<span class="p_del">-		 *  CPU 0: Write to a PTE for &#39;next&#39;</span>
+<span class="p_del">-		 *  CPU 0: load bit 1 in mm_cpumask.  if nonzero, send IPI.</span>
+<span class="p_del">-		 *  CPU 1: set bit 1 in next&#39;s mm_cpumask</span>
+ 		 *  CPU 1: load from the PTE that CPU 0 writes (implicit)
+ 		 *
+ 		 * We need to prevent an outcome in which CPU 1 observes
+<span class="p_chunk">@@ -97,12 +230,14 @@</span> <span class="p_context"> void switch_mm(struct mm_struct *prev, struct mm_struct *next,</span>
+ 		 * serializing and thus acts as a full barrier.
+ 		 *
+ 		 */
+<span class="p_del">-		load_cr3(next-&gt;pgd);</span>
+ 
+<span class="p_del">-		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);</span>
+<span class="p_add">+		pcid = choose_pcid(next);</span>
+<span class="p_add">+		write_cr3(__pa(next-&gt;pgd) | pcid);</span>
+ 
+<span class="p_del">-		/* Stop flush ipis for the previous mm */</span>
+<span class="p_del">-		cpumask_clear_cpu(cpu, mm_cpumask(prev));</span>
+<span class="p_add">+		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,</span>
+<span class="p_add">+				(pcid &amp; (1ULL &lt;&lt; 63)) ? 0 : TLB_FLUSH_ALL);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		stop_tlbflush_ipis(cpu, prev);</span>
+ 
+ 		/* Load per-mm CR4 state */
+ 		load_mm_cr4(next);
+<span class="p_chunk">@@ -146,9 +281,18 @@</span> <span class="p_context"> void switch_mm(struct mm_struct *prev, struct mm_struct *next,</span>
+ 			 * As above, this is a barrier that forces
+ 			 * TLB repopulation to be ordered after the
+ 			 * store to mm_cpumask.
+<span class="p_add">+</span>
+<span class="p_add">+			 *</span>
+<span class="p_add">+			 * XXX: speedup possibility: if we end up preserving</span>
+<span class="p_add">+			 * PCID data, then the write_cr3 is a no-op.</span>
+ 			 */
+<span class="p_del">-			load_cr3(next-&gt;pgd);</span>
+<span class="p_del">-			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);</span>
+<span class="p_add">+			pcid = choose_pcid(next);</span>
+<span class="p_add">+			write_cr3(__pa(next-&gt;pgd) | pcid);</span>
+<span class="p_add">+</span>
+<span class="p_add">+			trace_tlb_flush(</span>
+<span class="p_add">+				TLB_FLUSH_ON_TASK_SWITCH,</span>
+<span class="p_add">+				(pcid &amp; (1ULL &lt;&lt; 63)) ? 0 : TLB_FLUSH_ALL);</span>
+<span class="p_add">+;</span>
+ 			load_mm_cr4(next);
+ 			load_mm_ldt(next);
+ 		}
+<span class="p_chunk">@@ -203,8 +347,24 @@</span> <span class="p_context"> static void flush_tlb_func(void *info)</span>
+ 
+ 	inc_irq_stat(irq_tlb_count);
+ 
+<span class="p_del">-	if (f-&gt;flush_mm != this_cpu_read(cpu_tlbstate.active_mm))</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * After all relevant CPUs call flush_tlb_func, pcid_live_cpus</span>
+<span class="p_add">+	 * will be clear.  That&#39;s not enough, though: if the mm we&#39;re</span>
+<span class="p_add">+	 * targeting isn&#39;t active, we won&#39;t directly flush the TLB, but</span>
+<span class="p_add">+	 * we need to guarantee that the mm won&#39;t be reactivated and</span>
+<span class="p_add">+	 * therefore reinstate stale entries prior to cpumask_clear.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Solve this problem by brute force: if we don&#39;t flush the TLB</span>
+<span class="p_add">+	 * directly, zap the PCID mapping.  (We zap it using</span>
+<span class="p_add">+	 * pcid_cpu_state instead of pcid_live_cpus to avoid excessive</span>
+<span class="p_add">+	 * cacheline bounding.)</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (f-&gt;flush_mm != this_cpu_read(cpu_tlbstate.active_mm)) {</span>
+<span class="p_add">+		zap_local_inactive_mm(f-&gt;flush_mm);</span>
+ 		return;
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+ 	if (!f-&gt;flush_end)
+ 		f-&gt;flush_end = f-&gt;flush_start + PAGE_SIZE;
+ 
+<span class="p_chunk">@@ -224,9 +384,10 @@</span> <span class="p_context"> static void flush_tlb_func(void *info)</span>
+ 			}
+ 			trace_tlb_flush(TLB_REMOTE_SHOOTDOWN, nr_pages);
+ 		}
+<span class="p_del">-	} else</span>
+<span class="p_add">+	} else {</span>
+ 		leave_mm(smp_processor_id());
+<span class="p_del">-</span>
+<span class="p_add">+		zap_local_inactive_mm(f-&gt;flush_mm);</span>
+<span class="p_add">+	}</span>
+ }
+ 
+ void native_flush_tlb_others(const struct cpumask *cpumask,
+<span class="p_chunk">@@ -259,6 +420,14 @@</span> <span class="p_context"> static void propagate_tlb_flush(unsigned int this_cpu,</span>
+ {
+ 	if (cpumask_any_but(mm_cpumask(mm), this_cpu) &lt; nr_cpu_ids)
+ 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Synchronize with barrier in stop_tlbflush_ipis; cpumask_clear</span>
+<span class="p_add">+	 * must not be overridden by the pcid_live_cpus write in</span>
+<span class="p_add">+	 * stop_tlbflush_ipis unless we sent an IPI.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	smp_wmb();</span>
+<span class="p_add">+</span>
+<span class="p_add">+	cpumask_clear(&amp;mm-&gt;context.pcid_live_cpus);</span>
+ }
+ 
+ void flush_tlb_current_task(void)
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

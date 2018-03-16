@@ -1,0 +1,314 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v6,6/7] mm: fix MADV_[FREE|DONTNEED] TLB flush miss problem - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v6,6/7] mm: fix MADV_[FREE|DONTNEED] TLB flush miss problem</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=36811">Minchan Kim</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Aug. 14, 2017, 1:26 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20170814012617.GB25427@bbox&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9898059/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9898059/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9898059/">/patch/9898059/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	7DBF760351 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 14 Aug 2017 01:27:11 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 6FE5B28535
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 14 Aug 2017 01:27:11 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 6318B285A7; Mon, 14 Aug 2017 01:27:11 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id C136D28535
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon, 14 Aug 2017 01:27:10 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752150AbdHNB0V (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Sun, 13 Aug 2017 21:26:21 -0400
+Received: from LGEAMRELO13.lge.com ([156.147.23.53]:58481 &quot;EHLO
+	lgeamrelo13.lge.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751540AbdHNB0T (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Sun, 13 Aug 2017 21:26:19 -0400
+Received: from unknown (HELO lgemrelse6q.lge.com) (156.147.1.121)
+	by 156.147.23.53 with ESMTP; 14 Aug 2017 10:26:17 +0900
+X-Original-SENDERIP: 156.147.1.121
+X-Original-MAILFROM: minchan@kernel.org
+Received: from unknown (HELO bbox) (10.177.220.163)
+	by 156.147.1.121 with ESMTP; 14 Aug 2017 10:26:17 +0900
+X-Original-SENDERIP: 10.177.220.163
+X-Original-MAILFROM: minchan@kernel.org
+Date: Mon, 14 Aug 2017 10:26:17 +0900
+From: Minchan Kim &lt;minchan@kernel.org&gt;
+To: Peter Zijlstra &lt;peterz@infradead.org&gt;
+Cc: Nadav Amit &lt;namit@vmware.com&gt;, linux-mm@kvack.org,
+	nadav.amit@gmail.com, linux-kernel@vger.kernel.org,
+	akpm@linux-foundation.org, Ingo Molnar &lt;mingo@redhat.com&gt;,
+	Russell King &lt;linux@armlinux.org.uk&gt;, Tony Luck &lt;tony.luck@intel.com&gt;,
+	Martin Schwidefsky &lt;schwidefsky@de.ibm.com&gt;,
+	&quot;David S. Miller&quot; &lt;davem@davemloft.net&gt;,
+	Heiko Carstens &lt;heiko.carstens@de.ibm.com&gt;,
+	Yoshinori Sato &lt;ysato@users.sourceforge.jp&gt;,
+	Jeff Dike &lt;jdike@addtoit.com&gt;, linux-arch@vger.kernel.org
+Subject: Re: [PATCH v6 6/7] mm: fix MADV_[FREE|DONTNEED] TLB flush miss
+	problem
+Message-ID: &lt;20170814012617.GB25427@bbox&gt;
+References: &lt;20170802000818.4760-1-namit@vmware.com&gt;
+	&lt;20170802000818.4760-7-namit@vmware.com&gt;
+	&lt;20170811133020.zozuuhbw72lzolj5@hirez.programming.kicks-ass.net&gt;
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: &lt;20170811133020.zozuuhbw72lzolj5@hirez.programming.kicks-ass.net&gt;
+User-Agent: Mutt/1.5.24 (2015-08-30)
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=36811">Minchan Kim</a> - Aug. 14, 2017, 1:26 a.m.</div>
+<pre class="content">
+Hi Peter,
+
+On Fri, Aug 11, 2017 at 03:30:20PM +0200, Peter Zijlstra wrote:
+<span class="quote">&gt; On Tue, Aug 01, 2017 at 05:08:17PM -0700, Nadav Amit wrote:</span>
+<span class="quote">&gt; &gt;  void tlb_finish_mmu(struct mmu_gather *tlb,</span>
+<span class="quote">&gt; &gt;  		unsigned long start, unsigned long end)</span>
+<span class="quote">&gt; &gt;  {</span>
+<span class="quote">&gt; &gt; -	arch_tlb_finish_mmu(tlb, start, end);</span>
+<span class="quote">&gt; &gt; +	/*</span>
+<span class="quote">&gt; &gt; +	 * If there are parallel threads are doing PTE changes on same range</span>
+<span class="quote">&gt; &gt; +	 * under non-exclusive lock(e.g., mmap_sem read-side) but defer TLB</span>
+<span class="quote">&gt; &gt; +	 * flush by batching, a thread has stable TLB entry can fail to flush</span>
+<span class="quote">&gt; &gt; +	 * the TLB by observing pte_none|!pte_dirty, for example so flush TLB</span>
+<span class="quote">&gt; &gt; +	 * forcefully if we detect parallel PTE batching threads.</span>
+<span class="quote">&gt; &gt; +	 */</span>
+<span class="quote">&gt; &gt; +	bool force = mm_tlb_flush_nested(tlb-&gt;mm);</span>
+<span class="quote">&gt; &gt; +</span>
+<span class="quote">&gt; &gt; +	arch_tlb_finish_mmu(tlb, start, end, force);</span>
+<span class="quote">&gt; &gt;  }</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I don&#39;t understand the comment nor the ordering. What guarantees we see</span>
+<span class="quote">&gt; the increment if we need to?</span>
+
+How about this about commenting part?
+
+From 05f06fd6aba14447a9ca2df8b810fbcf9a58e14b Mon Sep 17 00:00:00 2001
+<span class="from">From: Minchan Kim &lt;minchan@kernel.org&gt;</span>
+Date: Mon, 14 Aug 2017 10:16:56 +0900
+Subject: [PATCH] mm: add describable comment for TLB batch race
+
+[1] is a rather subtle/complicated bug so that it&#39;s hard to
+understand it with limited code comment.
+
+This patch adds a sequence diagaram to explain the problem
+more easily, I hope.
+
+[1] 99baac21e458, mm: fix MADV_[FREE|DONTNEED] TLB flush miss problem
+
+Cc: Peter Zijlstra &lt;peterz@infradead.org&gt;
+Cc: Nadav Amit &lt;namit@vmware.com&gt;
+Cc: Mel Gorman &lt;mgorman@techsingularity.net&gt;
+<span class="signed-off-by">Signed-off-by: Minchan Kim &lt;minchan@kernel.org&gt;</span>
+---
+ mm/memory.c | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/memory.c b/mm/memory.c</span>
+<span class="p_header">index bcbe56f52163..f571b0eb9816 100644</span>
+<span class="p_header">--- a/mm/memory.c</span>
+<span class="p_header">+++ b/mm/memory.c</span>
+<span class="p_chunk">@@ -413,12 +413,37 @@</span> <span class="p_context"> void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,</span>
+ void tlb_finish_mmu(struct mmu_gather *tlb,
+ 		unsigned long start, unsigned long end)
+ {
+<span class="p_add">+</span>
+<span class="p_add">+</span>
+ 	/*
+ 	 * If there are parallel threads are doing PTE changes on same range
+ 	 * under non-exclusive lock(e.g., mmap_sem read-side) but defer TLB
+ 	 * flush by batching, a thread has stable TLB entry can fail to flush
+ 	 * the TLB by observing pte_none|!pte_dirty, for example so flush TLB
+ 	 * forcefully if we detect parallel PTE batching threads.
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Example: MADV_DONTNEED stale TLB problem on same range</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * CPU 0				CPU 1</span>
+<span class="p_add">+	 * *a = 1;</span>
+<span class="p_add">+	 *					MADV_DONTNEED</span>
+<span class="p_add">+	 * MADV_DONTNEED			tlb_gather_mmu</span>
+<span class="p_add">+	 * tlb_gather_mmu</span>
+<span class="p_add">+	 * down_read(mmap_sem)			down_read(mmap_sem)</span>
+<span class="p_add">+	 *					pte_lock</span>
+<span class="p_add">+	 *					pte_get_and_clear</span>
+<span class="p_add">+	 *					tlb_remove_tlb_entry</span>
+<span class="p_add">+	 *					pte_unlock</span>
+<span class="p_add">+	 * pte_lock</span>
+<span class="p_add">+	 * found out the pte is none</span>
+<span class="p_add">+	 * pte_unlock</span>
+<span class="p_add">+	 * tlb_finish_mmu doesn&#39;t flush</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Access the address with stale TLB</span>
+<span class="p_add">+	 * *a = 2;ie, success without segfault</span>
+<span class="p_add">+	 *					tlb_finish_mmu flush on range</span>
+<span class="p_add">+	 *					but it is too late.</span>
+<span class="p_add">+	 *</span>
+ 	 */
+ 	bool force = mm_tlb_flush_nested(tlb-&gt;mm);
+ 
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

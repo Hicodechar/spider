@@ -1,0 +1,947 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[RFC] mm, oom_reaper: gather each vma to prevent leaking TLB entry - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [RFC] mm, oom_reaper: gather each vma to prevent leaking TLB entry</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=84111">Wang Nan</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Nov. 6, 2017, 3:36 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20171106033651.172368-1-wangnan0@huawei.com&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10042579/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10042579/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10042579/">/patch/10042579/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	CBC4E603FF for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  6 Nov 2017 03:38:00 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id B06D228FA4
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  6 Nov 2017 03:38:00 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id A295C29533; Mon,  6 Nov 2017 03:38:00 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 8976C28FA4
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Mon,  6 Nov 2017 03:37:59 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1751603AbdKFDh5 (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Sun, 5 Nov 2017 22:37:57 -0500
+Received: from szxga06-in.huawei.com ([45.249.212.32]:46566 &quot;EHLO huawei.com&quot;
+	rhost-flags-OK-FAIL-OK-FAIL) by vger.kernel.org with ESMTP
+	id S1750817AbdKFDh4 (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Sun, 5 Nov 2017 22:37:56 -0500
+Received: from DGGEMS413-HUB.china.huawei.com (unknown [172.30.72.58])
+	by Forcepoint Email with ESMTP id AD30FC483D693;
+	Mon,  6 Nov 2017 11:37:43 +0800 (CST)
+Received: from linux-4hy3.site (10.107.193.248) by
+	DGGEMS413-HUB.china.huawei.com (10.3.19.213) with Microsoft SMTP
+	Server id 14.3.361.1; Mon, 6 Nov 2017 11:37:30 +0800
+From: Wang Nan &lt;wangnan0@huawei.com&gt;
+To: &lt;linux-mm@kvack.org&gt;, &lt;linux-kernel@vger.kernel.org&gt;
+CC: Wang Nan &lt;wangnan0@huawei.com&gt;, Bob Liu &lt;liubo95@huawei.com&gt;,
+	Michal Hocko &lt;mhocko@suse.com&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;,
+	David Rientjes &lt;rientjes@google.com&gt;,
+	Ingo Molnar &lt;mingo@kernel.org&gt;, Roman Gushchin &lt;guro@fb.com&gt;,
+	Konstantin Khlebnikov &lt;khlebnikov@yandex-team.ru&gt;,
+	&quot;Andrea Arcangeli&quot; &lt;aarcange@redhat.com&gt;
+Subject: [RFC PATCH] mm,
+	oom_reaper: gather each vma to prevent leaking TLB entry
+Date: Mon, 6 Nov 2017 03:36:51 +0000
+Message-ID: &lt;20171106033651.172368-1-wangnan0@huawei.com&gt;
+X-Mailer: git-send-email 2.10.1
+MIME-Version: 1.0
+Content-Type: text/plain
+X-Originating-IP: [10.107.193.248]
+X-CFilter-Loop: Reflected
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=84111">Wang Nan</a> - Nov. 6, 2017, 3:36 a.m.</div>
+<pre class="content">
+tlb_gather_mmu(&amp;tlb, mm, 0, -1) means gathering all virtual memory space.
+In this case, tlb-&gt;fullmm is true. Some archs like arm64 doesn&#39;t flush
+TLB when tlb-&gt;fullmm is true:
+
+  commit 5a7862e83000 (&quot;arm64: tlbflush: avoid flushing when fullmm == 1&quot;).
+
+Which makes leaking of tlb entries. For example, when oom_reaper
+selects a task and reaps its virtual memory space, another thread
+in this task group may still running on another core and access
+these already freed memory through tlb entries.
+
+This patch gather each vma instead of gathering full vm space,
+tlb-&gt;fullmm is not true. The behavior of oom reaper become similar
+to munmapping before do_exit, which should be safe for all archs.
+<span class="signed-off-by">
+Signed-off-by: Wang Nan &lt;wangnan0@huawei.com&gt;</span>
+Cc: Bob Liu &lt;liubo95@huawei.com&gt;
+Cc: Michal Hocko &lt;mhocko@suse.com&gt;
+Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;
+Cc: Michal Hocko &lt;mhocko@suse.com&gt;
+Cc: David Rientjes &lt;rientjes@google.com&gt;
+Cc: Ingo Molnar &lt;mingo@kernel.org&gt;
+Cc: Roman Gushchin &lt;guro@fb.com&gt;
+Cc: Konstantin Khlebnikov &lt;khlebnikov@yandex-team.ru&gt;
+Cc: Andrea Arcangeli &lt;aarcange@redhat.com&gt;
+---
+ mm/oom_kill.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7409">Bob Liu</a> - Nov. 6, 2017, 7:04 a.m.</div>
+<pre class="content">
+On Mon, Nov 6, 2017 at 11:36 AM, Wang Nan &lt;wangnan0@huawei.com&gt; wrote:
+<span class="quote">&gt; tlb_gather_mmu(&amp;tlb, mm, 0, -1) means gathering all virtual memory space.</span>
+<span class="quote">&gt; In this case, tlb-&gt;fullmm is true. Some archs like arm64 doesn&#39;t flush</span>
+<span class="quote">&gt; TLB when tlb-&gt;fullmm is true:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;   commit 5a7862e83000 (&quot;arm64: tlbflush: avoid flushing when fullmm == 1&quot;).</span>
+<span class="quote">&gt;</span>
+
+CC&#39;ed Will Deacon.
+<span class="quote">
+&gt; Which makes leaking of tlb entries. For example, when oom_reaper</span>
+<span class="quote">&gt; selects a task and reaps its virtual memory space, another thread</span>
+<span class="quote">&gt; in this task group may still running on another core and access</span>
+<span class="quote">&gt; these already freed memory through tlb entries.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; This patch gather each vma instead of gathering full vm space,</span>
+<span class="quote">&gt; tlb-&gt;fullmm is not true. The behavior of oom reaper become similar</span>
+<span class="quote">&gt; to munmapping before do_exit, which should be safe for all archs.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Signed-off-by: Wang Nan &lt;wangnan0@huawei.com&gt;</span>
+<span class="quote">&gt; Cc: Bob Liu &lt;liubo95@huawei.com&gt;</span>
+<span class="quote">&gt; Cc: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;</span>
+<span class="quote">&gt; Cc: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; Cc: David Rientjes &lt;rientjes@google.com&gt;</span>
+<span class="quote">&gt; Cc: Ingo Molnar &lt;mingo@kernel.org&gt;</span>
+<span class="quote">&gt; Cc: Roman Gushchin &lt;guro@fb.com&gt;</span>
+<span class="quote">&gt; Cc: Konstantin Khlebnikov &lt;khlebnikov@yandex-team.ru&gt;</span>
+<span class="quote">&gt; Cc: Andrea Arcangeli &lt;aarcange@redhat.com&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  mm/oom_kill.c | 7 ++++---</span>
+<span class="quote">&gt;  1 file changed, 4 insertions(+), 3 deletions(-)</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="quote">&gt; index dee0f75..18c5b35 100644</span>
+<span class="quote">&gt; --- a/mm/oom_kill.c</span>
+<span class="quote">&gt; +++ b/mm/oom_kill.c</span>
+<span class="quote">&gt; @@ -532,7 +532,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt;          */</span>
+<span class="quote">&gt;         set_bit(MMF_UNSTABLE, &amp;mm-&gt;flags);</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; -       tlb_gather_mmu(&amp;tlb, mm, 0, -1);</span>
+<span class="quote">&gt;         for (vma = mm-&gt;mmap ; vma; vma = vma-&gt;vm_next) {</span>
+<span class="quote">&gt;                 if (!can_madv_dontneed_vma(vma))</span>
+<span class="quote">&gt;                         continue;</span>
+<span class="quote">&gt; @@ -547,11 +546,13 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt;                  * we do not want to block exit_mmap by keeping mm ref</span>
+<span class="quote">&gt;                  * count elevated without a good reason.</span>
+<span class="quote">&gt;                  */</span>
+<span class="quote">&gt; -               if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED))</span>
+<span class="quote">&gt; +               if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED)) {</span>
+<span class="quote">&gt; +                       tlb_gather_mmu(&amp;tlb, mm, vma-&gt;vm_start, vma-&gt;vm_end);</span>
+<span class="quote">&gt;                         unmap_page_range(&amp;tlb, vma, vma-&gt;vm_start, vma-&gt;vm_end,</span>
+<span class="quote">&gt;                                          NULL);</span>
+<span class="quote">&gt; +                       tlb_finish_mmu(&amp;tlb, vma-&gt;vm_start, vma-&gt;vm_end);</span>
+<span class="quote">&gt; +               }</span>
+<span class="quote">&gt;         }</span>
+<span class="quote">&gt; -       tlb_finish_mmu(&amp;tlb, 0, -1);</span>
+<span class="quote">&gt;         pr_info(&quot;oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n&quot;,</span>
+<span class="quote">&gt;                         task_pid_nr(tsk), tsk-&gt;comm,</span>
+<span class="quote">&gt;                         K(get_mm_counter(mm, MM_ANONPAGES)),</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Nov. 6, 2017, 8:52 a.m.</div>
+<pre class="content">
+On Mon 06-11-17 15:04:40, Bob Liu wrote:
+<span class="quote">&gt; On Mon, Nov 6, 2017 at 11:36 AM, Wang Nan &lt;wangnan0@huawei.com&gt; wrote:</span>
+<span class="quote">&gt; &gt; tlb_gather_mmu(&amp;tlb, mm, 0, -1) means gathering all virtual memory space.</span>
+<span class="quote">&gt; &gt; In this case, tlb-&gt;fullmm is true. Some archs like arm64 doesn&#39;t flush</span>
+<span class="quote">&gt; &gt; TLB when tlb-&gt;fullmm is true:</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt;   commit 5a7862e83000 (&quot;arm64: tlbflush: avoid flushing when fullmm == 1&quot;).</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; CC&#39;ed Will Deacon.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; &gt; Which makes leaking of tlb entries. For example, when oom_reaper</span>
+<span class="quote">&gt; &gt; selects a task and reaps its virtual memory space, another thread</span>
+<span class="quote">&gt; &gt; in this task group may still running on another core and access</span>
+<span class="quote">&gt; &gt; these already freed memory through tlb entries.</span>
+
+No threads should be running in userspace by the time the reaper gets to
+unmap their address space. So the only potential case is they are
+accessing the user memory from the kernel when we should fault and we
+have MMF_UNSTABLE to cause a SIGBUS. So is the race you are describing
+real?
+<span class="quote">
+&gt; &gt; This patch gather each vma instead of gathering full vm space,</span>
+<span class="quote">&gt; &gt; tlb-&gt;fullmm is not true. The behavior of oom reaper become similar</span>
+<span class="quote">&gt; &gt; to munmapping before do_exit, which should be safe for all archs.</span>
+
+I do not have any objections to do per vma tlb flushing because it would
+free gathered pages sooner but I am not sure I see any real problem
+here. Have you seen any real issues or this is more of a review driven
+fix?
+<span class="quote">
+&gt; &gt; Signed-off-by: Wang Nan &lt;wangnan0@huawei.com&gt;</span>
+<span class="quote">&gt; &gt; Cc: Bob Liu &lt;liubo95@huawei.com&gt;</span>
+<span class="quote">&gt; &gt; Cc: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; &gt; Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;</span>
+<span class="quote">&gt; &gt; Cc: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt; &gt; Cc: David Rientjes &lt;rientjes@google.com&gt;</span>
+<span class="quote">&gt; &gt; Cc: Ingo Molnar &lt;mingo@kernel.org&gt;</span>
+<span class="quote">&gt; &gt; Cc: Roman Gushchin &lt;guro@fb.com&gt;</span>
+<span class="quote">&gt; &gt; Cc: Konstantin Khlebnikov &lt;khlebnikov@yandex-team.ru&gt;</span>
+<span class="quote">&gt; &gt; Cc: Andrea Arcangeli &lt;aarcange@redhat.com&gt;</span>
+<span class="quote">&gt; &gt; ---</span>
+<span class="quote">&gt; &gt;  mm/oom_kill.c | 7 ++++---</span>
+<span class="quote">&gt; &gt;  1 file changed, 4 insertions(+), 3 deletions(-)</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="quote">&gt; &gt; index dee0f75..18c5b35 100644</span>
+<span class="quote">&gt; &gt; --- a/mm/oom_kill.c</span>
+<span class="quote">&gt; &gt; +++ b/mm/oom_kill.c</span>
+<span class="quote">&gt; &gt; @@ -532,7 +532,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt;          */</span>
+<span class="quote">&gt; &gt;         set_bit(MMF_UNSTABLE, &amp;mm-&gt;flags);</span>
+<span class="quote">&gt; &gt;</span>
+<span class="quote">&gt; &gt; -       tlb_gather_mmu(&amp;tlb, mm, 0, -1);</span>
+<span class="quote">&gt; &gt;         for (vma = mm-&gt;mmap ; vma; vma = vma-&gt;vm_next) {</span>
+<span class="quote">&gt; &gt;                 if (!can_madv_dontneed_vma(vma))</span>
+<span class="quote">&gt; &gt;                         continue;</span>
+<span class="quote">&gt; &gt; @@ -547,11 +546,13 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt; &gt;                  * we do not want to block exit_mmap by keeping mm ref</span>
+<span class="quote">&gt; &gt;                  * count elevated without a good reason.</span>
+<span class="quote">&gt; &gt;                  */</span>
+<span class="quote">&gt; &gt; -               if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED))</span>
+<span class="quote">&gt; &gt; +               if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED)) {</span>
+<span class="quote">&gt; &gt; +                       tlb_gather_mmu(&amp;tlb, mm, vma-&gt;vm_start, vma-&gt;vm_end);</span>
+<span class="quote">&gt; &gt;                         unmap_page_range(&amp;tlb, vma, vma-&gt;vm_start, vma-&gt;vm_end,</span>
+<span class="quote">&gt; &gt;                                          NULL);</span>
+<span class="quote">&gt; &gt; +                       tlb_finish_mmu(&amp;tlb, vma-&gt;vm_start, vma-&gt;vm_end);</span>
+<span class="quote">&gt; &gt; +               }</span>
+<span class="quote">&gt; &gt;         }</span>
+<span class="quote">&gt; &gt; -       tlb_finish_mmu(&amp;tlb, 0, -1);</span>
+<span class="quote">&gt; &gt;         pr_info(&quot;oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n&quot;,</span>
+<span class="quote">&gt; &gt;                         task_pid_nr(tsk), tsk-&gt;comm,</span>
+<span class="quote">&gt; &gt;                         K(get_mm_counter(mm, MM_ANONPAGES)),</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; --</span>
+<span class="quote">&gt; To unsubscribe, send a message with &#39;unsubscribe linux-mm&#39; in</span>
+<span class="quote">&gt; the body to majordomo@kvack.org.  For more info on Linux MM,</span>
+<span class="quote">&gt; see: http://www.linux-mm.org/ .</span>
+<span class="quote">&gt; Don&#39;t email: &lt;a href=mailto:&quot;dont@kvack.org&quot;&gt; email@kvack.org &lt;/a&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=84111">Wang Nan</a> - Nov. 6, 2017, 9:59 a.m.</div>
+<pre class="content">
+On 2017/11/6 16:52, Michal Hocko wrote:
+<span class="quote">&gt; On Mon 06-11-17 15:04:40, Bob Liu wrote:</span>
+<span class="quote">&gt;&gt; On Mon, Nov 6, 2017 at 11:36 AM, Wang Nan &lt;wangnan0@huawei.com&gt; wrote:</span>
+<span class="quote">&gt;&gt;&gt; tlb_gather_mmu(&amp;tlb, mm, 0, -1) means gathering all virtual memory space.</span>
+<span class="quote">&gt;&gt;&gt; In this case, tlb-&gt;fullmm is true. Some archs like arm64 doesn&#39;t flush</span>
+<span class="quote">&gt;&gt;&gt; TLB when tlb-&gt;fullmm is true:</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;    commit 5a7862e83000 (&quot;arm64: tlbflush: avoid flushing when fullmm == 1&quot;).</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt; CC&#39;ed Will Deacon.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; Which makes leaking of tlb entries. For example, when oom_reaper</span>
+<span class="quote">&gt;&gt;&gt; selects a task and reaps its virtual memory space, another thread</span>
+<span class="quote">&gt;&gt;&gt; in this task group may still running on another core and access</span>
+<span class="quote">&gt;&gt;&gt; these already freed memory through tlb entries.</span>
+<span class="quote">&gt; No threads should be running in userspace by the time the reaper gets to</span>
+<span class="quote">&gt; unmap their address space. So the only potential case is they are</span>
+<span class="quote">&gt; accessing the user memory from the kernel when we should fault and we</span>
+<span class="quote">&gt; have MMF_UNSTABLE to cause a SIGBUS. So is the race you are describing</span>
+<span class="quote">&gt; real?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt;&gt; This patch gather each vma instead of gathering full vm space,</span>
+<span class="quote">&gt;&gt;&gt; tlb-&gt;fullmm is not true. The behavior of oom reaper become similar</span>
+<span class="quote">&gt;&gt;&gt; to munmapping before do_exit, which should be safe for all archs.</span>
+<span class="quote">&gt; I do not have any objections to do per vma tlb flushing because it would</span>
+<span class="quote">&gt; free gathered pages sooner but I am not sure I see any real problem</span>
+<span class="quote">&gt; here. Have you seen any real issues or this is more of a review driven</span>
+<span class="quote">&gt; fix?</span>
+
+We saw the problem when we try to reuse oom reaper&#39;s code in
+another situation. In our situation, we allow reaping a task
+before all other tasks in its task group finish their exiting
+procedure.
+
+I&#39;d like to know what ensures &quot;No threads should be running in
+userspace by the time the reaper&quot;?
+
+Thank you.
+<span class="quote">
+&gt;&gt;&gt; Signed-off-by: Wang Nan &lt;wangnan0@huawei.com&gt;</span>
+<span class="quote">&gt;&gt;&gt; Cc: Bob Liu &lt;liubo95@huawei.com&gt;</span>
+<span class="quote">&gt;&gt;&gt; Cc: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt;&gt;&gt; Cc: Andrew Morton &lt;akpm@linux-foundation.org&gt;</span>
+<span class="quote">&gt;&gt;&gt; Cc: Michal Hocko &lt;mhocko@suse.com&gt;</span>
+<span class="quote">&gt;&gt;&gt; Cc: David Rientjes &lt;rientjes@google.com&gt;</span>
+<span class="quote">&gt;&gt;&gt; Cc: Ingo Molnar &lt;mingo@kernel.org&gt;</span>
+<span class="quote">&gt;&gt;&gt; Cc: Roman Gushchin &lt;guro@fb.com&gt;</span>
+<span class="quote">&gt;&gt;&gt; Cc: Konstantin Khlebnikov &lt;khlebnikov@yandex-team.ru&gt;</span>
+<span class="quote">&gt;&gt;&gt; Cc: Andrea Arcangeli &lt;aarcange@redhat.com&gt;</span>
+<span class="quote">&gt;&gt;&gt; ---</span>
+<span class="quote">&gt;&gt;&gt;   mm/oom_kill.c | 7 ++++---</span>
+<span class="quote">&gt;&gt;&gt;   1 file changed, 4 insertions(+), 3 deletions(-)</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="quote">&gt;&gt;&gt; index dee0f75..18c5b35 100644</span>
+<span class="quote">&gt;&gt;&gt; --- a/mm/oom_kill.c</span>
+<span class="quote">&gt;&gt;&gt; +++ b/mm/oom_kill.c</span>
+<span class="quote">&gt;&gt;&gt; @@ -532,7 +532,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt;&gt;&gt;           */</span>
+<span class="quote">&gt;&gt;&gt;          set_bit(MMF_UNSTABLE, &amp;mm-&gt;flags);</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; -       tlb_gather_mmu(&amp;tlb, mm, 0, -1);</span>
+<span class="quote">&gt;&gt;&gt;          for (vma = mm-&gt;mmap ; vma; vma = vma-&gt;vm_next) {</span>
+<span class="quote">&gt;&gt;&gt;                  if (!can_madv_dontneed_vma(vma))</span>
+<span class="quote">&gt;&gt;&gt;                          continue;</span>
+<span class="quote">&gt;&gt;&gt; @@ -547,11 +546,13 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+<span class="quote">&gt;&gt;&gt;                   * we do not want to block exit_mmap by keeping mm ref</span>
+<span class="quote">&gt;&gt;&gt;                   * count elevated without a good reason.</span>
+<span class="quote">&gt;&gt;&gt;                   */</span>
+<span class="quote">&gt;&gt;&gt; -               if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED))</span>
+<span class="quote">&gt;&gt;&gt; +               if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED)) {</span>
+<span class="quote">&gt;&gt;&gt; +                       tlb_gather_mmu(&amp;tlb, mm, vma-&gt;vm_start, vma-&gt;vm_end);</span>
+<span class="quote">&gt;&gt;&gt;                          unmap_page_range(&amp;tlb, vma, vma-&gt;vm_start, vma-&gt;vm_end,</span>
+<span class="quote">&gt;&gt;&gt;                                           NULL);</span>
+<span class="quote">&gt;&gt;&gt; +                       tlb_finish_mmu(&amp;tlb, vma-&gt;vm_start, vma-&gt;vm_end);</span>
+<span class="quote">&gt;&gt;&gt; +               }</span>
+<span class="quote">&gt;&gt;&gt;          }</span>
+<span class="quote">&gt;&gt;&gt; -       tlb_finish_mmu(&amp;tlb, 0, -1);</span>
+<span class="quote">&gt;&gt;&gt;          pr_info(&quot;oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n&quot;,</span>
+<span class="quote">&gt;&gt;&gt;                          task_pid_nr(tsk), tsk-&gt;comm,</span>
+<span class="quote">&gt;&gt;&gt;                          K(get_mm_counter(mm, MM_ANONPAGES)),</span>
+<span class="quote">&gt;&gt; --</span>
+<span class="quote">&gt;&gt; To unsubscribe, send a message with &#39;unsubscribe linux-mm&#39; in</span>
+<span class="quote">&gt;&gt; the body to majordomo@kvack.org.  For more info on Linux MM,</span>
+<span class="quote">&gt;&gt; see: http://www.linux-mm.org/ .</span>
+<span class="quote">&gt;&gt; Don&#39;t email: &lt;a href=mailto:&quot;dont@kvack.org&quot;&gt; email@kvack.org &lt;/a&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Nov. 6, 2017, 10:40 a.m.</div>
+<pre class="content">
+On Mon 06-11-17 17:59:54, Wangnan (F) wrote:
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; On 2017/11/6 16:52, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; On Mon 06-11-17 15:04:40, Bob Liu wrote:</span>
+<span class="quote">&gt; &gt; &gt; On Mon, Nov 6, 2017 at 11:36 AM, Wang Nan &lt;wangnan0@huawei.com&gt; wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; tlb_gather_mmu(&amp;tlb, mm, 0, -1) means gathering all virtual memory space.</span>
+<span class="quote">&gt; &gt; &gt; &gt; In this case, tlb-&gt;fullmm is true. Some archs like arm64 doesn&#39;t flush</span>
+<span class="quote">&gt; &gt; &gt; &gt; TLB when tlb-&gt;fullmm is true:</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt;    commit 5a7862e83000 (&quot;arm64: tlbflush: avoid flushing when fullmm == 1&quot;).</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; CC&#39;ed Will Deacon.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; Which makes leaking of tlb entries. For example, when oom_reaper</span>
+<span class="quote">&gt; &gt; &gt; &gt; selects a task and reaps its virtual memory space, another thread</span>
+<span class="quote">&gt; &gt; &gt; &gt; in this task group may still running on another core and access</span>
+<span class="quote">&gt; &gt; &gt; &gt; these already freed memory through tlb entries.</span>
+<span class="quote">&gt; &gt; No threads should be running in userspace by the time the reaper gets to</span>
+<span class="quote">&gt; &gt; unmap their address space. So the only potential case is they are</span>
+<span class="quote">&gt; &gt; accessing the user memory from the kernel when we should fault and we</span>
+<span class="quote">&gt; &gt; have MMF_UNSTABLE to cause a SIGBUS. So is the race you are describing</span>
+<span class="quote">&gt; &gt; real?</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; This patch gather each vma instead of gathering full vm space,</span>
+<span class="quote">&gt; &gt; &gt; &gt; tlb-&gt;fullmm is not true. The behavior of oom reaper become similar</span>
+<span class="quote">&gt; &gt; &gt; &gt; to munmapping before do_exit, which should be safe for all archs.</span>
+<span class="quote">&gt; &gt; I do not have any objections to do per vma tlb flushing because it would</span>
+<span class="quote">&gt; &gt; free gathered pages sooner but I am not sure I see any real problem</span>
+<span class="quote">&gt; &gt; here. Have you seen any real issues or this is more of a review driven</span>
+<span class="quote">&gt; &gt; fix?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; We saw the problem when we try to reuse oom reaper&#39;s code in</span>
+<span class="quote">&gt; another situation. In our situation, we allow reaping a task</span>
+<span class="quote">&gt; before all other tasks in its task group finish their exiting</span>
+<span class="quote">&gt; procedure.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I&#39;d like to know what ensures &quot;No threads should be running in</span>
+<span class="quote">&gt; userspace by the time the reaper&quot;?</span>
+
+All tasks are killed by the time. So they should be taken out to the
+kernel.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=84111">Wang Nan</a> - Nov. 6, 2017, 11:03 a.m.</div>
+<pre class="content">
+On 2017/11/6 18:40, Michal Hocko wrote:
+<span class="quote">&gt; On Mon 06-11-17 17:59:54, Wangnan (F) wrote:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; On 2017/11/6 16:52, Michal Hocko wrote:</span>
+<span class="quote">&gt;&gt;&gt; On Mon 06-11-17 15:04:40, Bob Liu wrote:</span>
+<span class="quote">&gt;&gt;&gt;&gt; On Mon, Nov 6, 2017 at 11:36 AM, Wang Nan &lt;wangnan0@huawei.com&gt; wrote:</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; tlb_gather_mmu(&amp;tlb, mm, 0, -1) means gathering all virtual memory space.</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; In this case, tlb-&gt;fullmm is true. Some archs like arm64 doesn&#39;t flush</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; TLB when tlb-&gt;fullmm is true:</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;     commit 5a7862e83000 (&quot;arm64: tlbflush: avoid flushing when fullmm == 1&quot;).</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; CC&#39;ed Will Deacon.</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; Which makes leaking of tlb entries. For example, when oom_reaper</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; selects a task and reaps its virtual memory space, another thread</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; in this task group may still running on another core and access</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; these already freed memory through tlb entries.</span>
+<span class="quote">&gt;&gt;&gt; No threads should be running in userspace by the time the reaper gets to</span>
+<span class="quote">&gt;&gt;&gt; unmap their address space. So the only potential case is they are</span>
+<span class="quote">&gt;&gt;&gt; accessing the user memory from the kernel when we should fault and we</span>
+<span class="quote">&gt;&gt;&gt; have MMF_UNSTABLE to cause a SIGBUS. So is the race you are describing</span>
+<span class="quote">&gt;&gt;&gt; real?</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; This patch gather each vma instead of gathering full vm space,</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; tlb-&gt;fullmm is not true. The behavior of oom reaper become similar</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; to munmapping before do_exit, which should be safe for all archs.</span>
+<span class="quote">&gt;&gt;&gt; I do not have any objections to do per vma tlb flushing because it would</span>
+<span class="quote">&gt;&gt;&gt; free gathered pages sooner but I am not sure I see any real problem</span>
+<span class="quote">&gt;&gt;&gt; here. Have you seen any real issues or this is more of a review driven</span>
+<span class="quote">&gt;&gt;&gt; fix?</span>
+<span class="quote">&gt;&gt; We saw the problem when we try to reuse oom reaper&#39;s code in</span>
+<span class="quote">&gt;&gt; another situation. In our situation, we allow reaping a task</span>
+<span class="quote">&gt;&gt; before all other tasks in its task group finish their exiting</span>
+<span class="quote">&gt;&gt; procedure.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; I&#39;d like to know what ensures &quot;No threads should be running in</span>
+<span class="quote">&gt;&gt; userspace by the time the reaper&quot;?</span>
+<span class="quote">&gt; All tasks are killed by the time. So they should be taken out to the</span>
+<span class="quote">&gt; kernel.</span>
+
+Sorry. I read oom_kill_process() but still unable to understand
+why all tasks are killed.
+
+oom_kill_process() kill victim by sending SIGKILL. It will be
+broadcast to all tasks in its task group, but it is asynchronized.
+In the following case, race can happen (Thread1 in Task1&#39;s task group):
+
+core 1                core 2
+Thread1 running       oom_kill_process() selects Task1 as victim
+                       oom_kill_process() sends SIGKILL to Task1
+                       oom_kill_process() sends SIGKILL to Thread1
+                       oom_kill_process() wakes up oom reaper
+                       switch to oom_reaper
+                       __oom_reap_task_mm
+                       tlb_gather_mmu
+                       unmap_page_range, reap Task1
+                       tlb_finish_mmu
+Write page
+be kicked off from core
+Receives SIGKILL
+
+So what makes Thread1 being kicked off from core 1 before core 2
+starting unmapping?
+
+Thank you.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Nov. 6, 2017, 11:57 a.m.</div>
+<pre class="content">
+On Mon 06-11-17 19:03:34, Wangnan (F) wrote:
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; On 2017/11/6 18:40, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; On Mon 06-11-17 17:59:54, Wangnan (F) wrote:</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; On 2017/11/6 16:52, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; On Mon 06-11-17 15:04:40, Bob Liu wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; On Mon, Nov 6, 2017 at 11:36 AM, Wang Nan &lt;wangnan0@huawei.com&gt; wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; &gt; tlb_gather_mmu(&amp;tlb, mm, 0, -1) means gathering all virtual memory space.</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; &gt; In this case, tlb-&gt;fullmm is true. Some archs like arm64 doesn&#39;t flush</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; &gt; TLB when tlb-&gt;fullmm is true:</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; &gt;     commit 5a7862e83000 (&quot;arm64: tlbflush: avoid flushing when fullmm == 1&quot;).</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; CC&#39;ed Will Deacon.</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; &gt; Which makes leaking of tlb entries. For example, when oom_reaper</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; &gt; selects a task and reaps its virtual memory space, another thread</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; &gt; in this task group may still running on another core and access</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; &gt; these already freed memory through tlb entries.</span>
+<span class="quote">&gt; &gt; &gt; &gt; No threads should be running in userspace by the time the reaper gets to</span>
+<span class="quote">&gt; &gt; &gt; &gt; unmap their address space. So the only potential case is they are</span>
+<span class="quote">&gt; &gt; &gt; &gt; accessing the user memory from the kernel when we should fault and we</span>
+<span class="quote">&gt; &gt; &gt; &gt; have MMF_UNSTABLE to cause a SIGBUS. So is the race you are describing</span>
+<span class="quote">&gt; &gt; &gt; &gt; real?</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; &gt; This patch gather each vma instead of gathering full vm space,</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; &gt; tlb-&gt;fullmm is not true. The behavior of oom reaper become similar</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; &gt; to munmapping before do_exit, which should be safe for all archs.</span>
+<span class="quote">&gt; &gt; &gt; &gt; I do not have any objections to do per vma tlb flushing because it would</span>
+<span class="quote">&gt; &gt; &gt; &gt; free gathered pages sooner but I am not sure I see any real problem</span>
+<span class="quote">&gt; &gt; &gt; &gt; here. Have you seen any real issues or this is more of a review driven</span>
+<span class="quote">&gt; &gt; &gt; &gt; fix?</span>
+<span class="quote">&gt; &gt; &gt; We saw the problem when we try to reuse oom reaper&#39;s code in</span>
+<span class="quote">&gt; &gt; &gt; another situation. In our situation, we allow reaping a task</span>
+<span class="quote">&gt; &gt; &gt; before all other tasks in its task group finish their exiting</span>
+<span class="quote">&gt; &gt; &gt; procedure.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; I&#39;d like to know what ensures &quot;No threads should be running in</span>
+<span class="quote">&gt; &gt; &gt; userspace by the time the reaper&quot;?</span>
+<span class="quote">&gt; &gt; All tasks are killed by the time. So they should be taken out to the</span>
+<span class="quote">&gt; &gt; kernel.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Sorry. I read oom_kill_process() but still unable to understand</span>
+<span class="quote">&gt; why all tasks are killed.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; oom_kill_process() kill victim by sending SIGKILL. It will be</span>
+<span class="quote">&gt; broadcast to all tasks in its task group, but it is asynchronized.</span>
+<span class="quote">&gt; In the following case, race can happen (Thread1 in Task1&#39;s task group):</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; core 1                core 2</span>
+<span class="quote">&gt; Thread1 running       oom_kill_process() selects Task1 as victim</span>
+<span class="quote">&gt;                       oom_kill_process() sends SIGKILL to Task1</span>
+<span class="quote">&gt;                       oom_kill_process() sends SIGKILL to Thread1</span>
+<span class="quote">&gt;                       oom_kill_process() wakes up oom reaper</span>
+<span class="quote">&gt;                       switch to oom_reaper</span>
+<span class="quote">&gt;                       __oom_reap_task_mm</span>
+<span class="quote">&gt;                       tlb_gather_mmu</span>
+<span class="quote">&gt;                       unmap_page_range, reap Task1</span>
+<span class="quote">&gt;                       tlb_finish_mmu</span>
+<span class="quote">&gt; Write page</span>
+<span class="quote">&gt; be kicked off from core</span>
+<span class="quote">&gt; Receives SIGKILL</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; So what makes Thread1 being kicked off from core 1 before core 2</span>
+<span class="quote">&gt; starting unmapping?</span>
+
+complete_signal should call signal_wake_up on all threads because this
+is a group fatal signal and that should send an IPI to all of the cpus
+they run on to. Even if we do not wait for IPI to complete the race
+window should be few instructions only while it takes quite some time to
+hand over to the oom reaper.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Nov. 6, 2017, 12:27 p.m.</div>
+<pre class="content">
+On Mon 06-11-17 09:52:51, Michal Hocko wrote:
+<span class="quote">&gt; On Mon 06-11-17 15:04:40, Bob Liu wrote:</span>
+<span class="quote">&gt; &gt; On Mon, Nov 6, 2017 at 11:36 AM, Wang Nan &lt;wangnan0@huawei.com&gt; wrote:</span>
+<span class="quote">&gt; &gt; &gt; tlb_gather_mmu(&amp;tlb, mm, 0, -1) means gathering all virtual memory space.</span>
+<span class="quote">&gt; &gt; &gt; In this case, tlb-&gt;fullmm is true. Some archs like arm64 doesn&#39;t flush</span>
+<span class="quote">&gt; &gt; &gt; TLB when tlb-&gt;fullmm is true:</span>
+<span class="quote">&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt;   commit 5a7862e83000 (&quot;arm64: tlbflush: avoid flushing when fullmm == 1&quot;).</span>
+<span class="quote">&gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; CC&#39;ed Will Deacon.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; Which makes leaking of tlb entries. For example, when oom_reaper</span>
+<span class="quote">&gt; &gt; &gt; selects a task and reaps its virtual memory space, another thread</span>
+<span class="quote">&gt; &gt; &gt; in this task group may still running on another core and access</span>
+<span class="quote">&gt; &gt; &gt; these already freed memory through tlb entries.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; No threads should be running in userspace by the time the reaper gets to</span>
+<span class="quote">&gt; unmap their address space. So the only potential case is they are</span>
+<span class="quote">&gt; accessing the user memory from the kernel when we should fault and we</span>
+<span class="quote">&gt; have MMF_UNSTABLE to cause a SIGBUS.</span>
+
+I hope we have clarified that the tasks are not running in userspace at
+the time of reaping. I am still wondering whether this is real from the
+kernel space via copy_{from,to}_user. Is it possible we won&#39;t fault?
+I am not sure I understand what &quot;Given that the ASID allocator will
+never re-allocate a dirty ASID&quot; means exactly. Will, could you clarify
+please?
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7096">Will Deacon</a> - Nov. 7, 2017, 12:54 a.m.</div>
+<pre class="content">
+On Mon, Nov 06, 2017 at 01:27:26PM +0100, Michal Hocko wrote:
+<span class="quote">&gt; On Mon 06-11-17 09:52:51, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; On Mon 06-11-17 15:04:40, Bob Liu wrote:</span>
+<span class="quote">&gt; &gt; &gt; On Mon, Nov 6, 2017 at 11:36 AM, Wang Nan &lt;wangnan0@huawei.com&gt; wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; tlb_gather_mmu(&amp;tlb, mm, 0, -1) means gathering all virtual memory space.</span>
+<span class="quote">&gt; &gt; &gt; &gt; In this case, tlb-&gt;fullmm is true. Some archs like arm64 doesn&#39;t flush</span>
+<span class="quote">&gt; &gt; &gt; &gt; TLB when tlb-&gt;fullmm is true:</span>
+<span class="quote">&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt;   commit 5a7862e83000 (&quot;arm64: tlbflush: avoid flushing when fullmm == 1&quot;).</span>
+<span class="quote">&gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; CC&#39;ed Will Deacon.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; Which makes leaking of tlb entries. For example, when oom_reaper</span>
+<span class="quote">&gt; &gt; &gt; &gt; selects a task and reaps its virtual memory space, another thread</span>
+<span class="quote">&gt; &gt; &gt; &gt; in this task group may still running on another core and access</span>
+<span class="quote">&gt; &gt; &gt; &gt; these already freed memory through tlb entries.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; No threads should be running in userspace by the time the reaper gets to</span>
+<span class="quote">&gt; &gt; unmap their address space. So the only potential case is they are</span>
+<span class="quote">&gt; &gt; accessing the user memory from the kernel when we should fault and we</span>
+<span class="quote">&gt; &gt; have MMF_UNSTABLE to cause a SIGBUS.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; I hope we have clarified that the tasks are not running in userspace at</span>
+<span class="quote">&gt; the time of reaping. I am still wondering whether this is real from the</span>
+<span class="quote">&gt; kernel space via copy_{from,to}_user. Is it possible we won&#39;t fault?</span>
+<span class="quote">&gt; I am not sure I understand what &quot;Given that the ASID allocator will</span>
+<span class="quote">&gt; never re-allocate a dirty ASID&quot; means exactly. Will, could you clarify</span>
+<span class="quote">&gt; please?</span>
+
+Sure. Basically, we tag each address space with an ASID (PCID on x86) which
+is resident in the TLB. This means we can elide TLB invalidation when
+pulling down a full mm because we won&#39;t ever assign that ASID to another mm
+without doing TLB invalidation elsewhere (which actually just nukes the
+whole TLB).
+
+I think that means that we could potentially not fault on a kernel uaccess,
+because we could hit in the TLB. Perhaps a fix would be to set the force
+variable in tlb_finish_mmu if MMF_UNSTABLE is set on the mm?
+
+Will
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=84111">Wang Nan</a> - Nov. 7, 2017, 3:51 a.m.</div>
+<pre class="content">
+On 2017/11/6 19:57, Michal Hocko wrote:
+<span class="quote">&gt; On Mon 06-11-17 19:03:34, Wangnan (F) wrote:</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; On 2017/11/6 18:40, Michal Hocko wrote:</span>
+<span class="quote">&gt;&gt;&gt; On Mon 06-11-17 17:59:54, Wangnan (F) wrote:</span>
+<span class="quote">&gt;&gt;&gt;&gt; On 2017/11/6 16:52, Michal Hocko wrote:</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; On Mon 06-11-17 15:04:40, Bob Liu wrote:</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; On Mon, Nov 6, 2017 at 11:36 AM, Wang Nan &lt;wangnan0@huawei.com&gt; wrote:</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;&gt; tlb_gather_mmu(&amp;tlb, mm, 0, -1) means gathering all virtual memory space.</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;&gt; In this case, tlb-&gt;fullmm is true. Some archs like arm64 doesn&#39;t flush</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;&gt; TLB when tlb-&gt;fullmm is true:</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;&gt;      commit 5a7862e83000 (&quot;arm64: tlbflush: avoid flushing when fullmm == 1&quot;).</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt; CC&#39;ed Will Deacon.</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;&gt; Which makes leaking of tlb entries. For example, when oom_reaper</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;&gt; selects a task and reaps its virtual memory space, another thread</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;&gt; in this task group may still running on another core and access</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;&gt; these already freed memory through tlb entries.</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; No threads should be running in userspace by the time the reaper gets to</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; unmap their address space. So the only potential case is they are</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; accessing the user memory from the kernel when we should fault and we</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; have MMF_UNSTABLE to cause a SIGBUS. So is the race you are describing</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; real?</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;&gt; This patch gather each vma instead of gathering full vm space,</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;&gt; tlb-&gt;fullmm is not true. The behavior of oom reaper become similar</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt;&gt;&gt; to munmapping before do_exit, which should be safe for all archs.</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; I do not have any objections to do per vma tlb flushing because it would</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; free gathered pages sooner but I am not sure I see any real problem</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; here. Have you seen any real issues or this is more of a review driven</span>
+<span class="quote">&gt;&gt;&gt;&gt;&gt; fix?</span>
+<span class="quote">&gt;&gt;&gt;&gt; We saw the problem when we try to reuse oom reaper&#39;s code in</span>
+<span class="quote">&gt;&gt;&gt;&gt; another situation. In our situation, we allow reaping a task</span>
+<span class="quote">&gt;&gt;&gt;&gt; before all other tasks in its task group finish their exiting</span>
+<span class="quote">&gt;&gt;&gt;&gt; procedure.</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; I&#39;d like to know what ensures &quot;No threads should be running in</span>
+<span class="quote">&gt;&gt;&gt;&gt; userspace by the time the reaper&quot;?</span>
+<span class="quote">&gt;&gt;&gt; All tasks are killed by the time. So they should be taken out to the</span>
+<span class="quote">&gt;&gt;&gt; kernel.</span>
+<span class="quote">&gt;&gt; Sorry. I read oom_kill_process() but still unable to understand</span>
+<span class="quote">&gt;&gt; why all tasks are killed.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; oom_kill_process() kill victim by sending SIGKILL. It will be</span>
+<span class="quote">&gt;&gt; broadcast to all tasks in its task group, but it is asynchronized.</span>
+<span class="quote">&gt;&gt; In the following case, race can happen (Thread1 in Task1&#39;s task group):</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; core 1                core 2</span>
+<span class="quote">&gt;&gt; Thread1 running       oom_kill_process() selects Task1 as victim</span>
+<span class="quote">&gt;&gt;                        oom_kill_process() sends SIGKILL to Task1</span>
+<span class="quote">&gt;&gt;                        oom_kill_process() sends SIGKILL to Thread1</span>
+<span class="quote">&gt;&gt;                        oom_kill_process() wakes up oom reaper</span>
+<span class="quote">&gt;&gt;                        switch to oom_reaper</span>
+<span class="quote">&gt;&gt;                        __oom_reap_task_mm</span>
+<span class="quote">&gt;&gt;                        tlb_gather_mmu</span>
+<span class="quote">&gt;&gt;                        unmap_page_range, reap Task1</span>
+<span class="quote">&gt;&gt;                        tlb_finish_mmu</span>
+<span class="quote">&gt;&gt; Write page</span>
+<span class="quote">&gt;&gt; be kicked off from core</span>
+<span class="quote">&gt;&gt; Receives SIGKILL</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; So what makes Thread1 being kicked off from core 1 before core 2</span>
+<span class="quote">&gt;&gt; starting unmapping?</span>
+<span class="quote">&gt; complete_signal should call signal_wake_up on all threads because this</span>
+<span class="quote">&gt; is a group fatal signal and that should send an IPI to all of the cpus</span>
+<span class="quote">&gt; they run on to. Even if we do not wait for IPI to complete the race</span>
+<span class="quote">&gt; window should be few instructions only while it takes quite some time to</span>
+<span class="quote">&gt; hand over to the oom reaper.</span>
+
+If the complete_signal is the mechanism we rely on to ensure
+all threads are exited, then I&#39;m sure it is not enough. As
+you said, we still have a small race window. In some platform,
+an IPI from one core to another core takes a little bit longer
+than you may expect, and the core who receive the IPI may in
+a very low frequency.
+
+In our situation, we put the reaper code in do_exit after receiving
+SIGKILL, and observe TLB entry leaking. Since this is a SIGKILL,
+complete_signal should have been executed. So I think oom_reaper
+have similar problem.
+
+Thank you.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=137061">Michal Hocko</a> - Nov. 7, 2017, 7:54 a.m.</div>
+<pre class="content">
+On Tue 07-11-17 00:54:32, Will Deacon wrote:
+<span class="quote">&gt; On Mon, Nov 06, 2017 at 01:27:26PM +0100, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; On Mon 06-11-17 09:52:51, Michal Hocko wrote:</span>
+<span class="quote">&gt; &gt; &gt; On Mon 06-11-17 15:04:40, Bob Liu wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; On Mon, Nov 6, 2017 at 11:36 AM, Wang Nan &lt;wangnan0@huawei.com&gt; wrote:</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; tlb_gather_mmu(&amp;tlb, mm, 0, -1) means gathering all virtual memory space.</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; In this case, tlb-&gt;fullmm is true. Some archs like arm64 doesn&#39;t flush</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; TLB when tlb-&gt;fullmm is true:</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt;   commit 5a7862e83000 (&quot;arm64: tlbflush: avoid flushing when fullmm == 1&quot;).</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt;</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; CC&#39;ed Will Deacon.</span>
+<span class="quote">&gt; &gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; Which makes leaking of tlb entries. For example, when oom_reaper</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; selects a task and reaps its virtual memory space, another thread</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; in this task group may still running on another core and access</span>
+<span class="quote">&gt; &gt; &gt; &gt; &gt; these already freed memory through tlb entries.</span>
+<span class="quote">&gt; &gt; &gt; </span>
+<span class="quote">&gt; &gt; &gt; No threads should be running in userspace by the time the reaper gets to</span>
+<span class="quote">&gt; &gt; &gt; unmap their address space. So the only potential case is they are</span>
+<span class="quote">&gt; &gt; &gt; accessing the user memory from the kernel when we should fault and we</span>
+<span class="quote">&gt; &gt; &gt; have MMF_UNSTABLE to cause a SIGBUS.</span>
+<span class="quote">&gt; &gt; </span>
+<span class="quote">&gt; &gt; I hope we have clarified that the tasks are not running in userspace at</span>
+<span class="quote">&gt; &gt; the time of reaping. I am still wondering whether this is real from the</span>
+<span class="quote">&gt; &gt; kernel space via copy_{from,to}_user. Is it possible we won&#39;t fault?</span>
+<span class="quote">&gt; &gt; I am not sure I understand what &quot;Given that the ASID allocator will</span>
+<span class="quote">&gt; &gt; never re-allocate a dirty ASID&quot; means exactly. Will, could you clarify</span>
+<span class="quote">&gt; &gt; please?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Sure. Basically, we tag each address space with an ASID (PCID on x86) which</span>
+<span class="quote">&gt; is resident in the TLB. This means we can elide TLB invalidation when</span>
+<span class="quote">&gt; pulling down a full mm because we won&#39;t ever assign that ASID to another mm</span>
+<span class="quote">&gt; without doing TLB invalidation elsewhere (which actually just nukes the</span>
+<span class="quote">&gt; whole TLB).</span>
+
+Thanks for the clarification!
+<span class="quote">
+&gt; I think that means that we could potentially not fault on a kernel uaccess,</span>
+<span class="quote">&gt; because we could hit in the TLB. Perhaps a fix would be to set the force</span>
+<span class="quote">&gt; variable in tlb_finish_mmu if MMF_UNSTABLE is set on the mm?</span>
+
+OK, I suspect this is a more likely scenario than a race with the
+reschedule IPI discussed elsewhere in the email thread. Even though I
+have to admit I have never checked how are IPIs implemented on arm64, so
+my perception might be off.
+
+I think it would be best to simply do per VMA tlb gather like the
+original patch does. It would be great if the changelog absorbed the
+above two paragraphs. Wangnan could you resend with those clarifications
+please?
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/mm/oom_kill.c b/mm/oom_kill.c</span>
+<span class="p_header">index dee0f75..18c5b35 100644</span>
+<span class="p_header">--- a/mm/oom_kill.c</span>
+<span class="p_header">+++ b/mm/oom_kill.c</span>
+<span class="p_chunk">@@ -532,7 +532,6 @@</span> <span class="p_context"> static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+ 	 */
+ 	set_bit(MMF_UNSTABLE, &amp;mm-&gt;flags);
+ 
+<span class="p_del">-	tlb_gather_mmu(&amp;tlb, mm, 0, -1);</span>
+ 	for (vma = mm-&gt;mmap ; vma; vma = vma-&gt;vm_next) {
+ 		if (!can_madv_dontneed_vma(vma))
+ 			continue;
+<span class="p_chunk">@@ -547,11 +546,13 @@</span> <span class="p_context"> static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)</span>
+ 		 * we do not want to block exit_mmap by keeping mm ref
+ 		 * count elevated without a good reason.
+ 		 */
+<span class="p_del">-		if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED))</span>
+<span class="p_add">+		if (vma_is_anonymous(vma) || !(vma-&gt;vm_flags &amp; VM_SHARED)) {</span>
+<span class="p_add">+			tlb_gather_mmu(&amp;tlb, mm, vma-&gt;vm_start, vma-&gt;vm_end);</span>
+ 			unmap_page_range(&amp;tlb, vma, vma-&gt;vm_start, vma-&gt;vm_end,
+ 					 NULL);
+<span class="p_add">+			tlb_finish_mmu(&amp;tlb, vma-&gt;vm_start, vma-&gt;vm_end);</span>
+<span class="p_add">+		}</span>
+ 	}
+<span class="p_del">-	tlb_finish_mmu(&amp;tlb, 0, -1);</span>
+ 	pr_info(&quot;oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n&quot;,
+ 			task_pid_nr(tsk), tsk-&gt;comm,
+ 			K(get_mm_counter(mm, MM_ANONPAGES)),
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

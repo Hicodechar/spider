@@ -1,0 +1,854 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[37/43] x86/mm/kaiser: Use PCID feature to make user and kernel switches faster - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [37/43] x86/mm/kaiser: Use PCID feature to make user and kernel switches faster</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=35552">Ingo Molnar</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Nov. 24, 2017, 5:24 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;20171124172411.19476-38-mingo@kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10074473/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10074473/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10074473/">/patch/10074473/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	1CA70602DC for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri, 24 Nov 2017 17:27:37 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 00CD32A224
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri, 24 Nov 2017 17:27:37 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id E9D2E2A288; Fri, 24 Nov 2017 17:27:36 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.8 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	RCVD_IN_DNSWL_HI,T_DKIM_INVALID autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 820EF2A224
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Fri, 24 Nov 2017 17:27:35 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1754209AbdKXR1e (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Fri, 24 Nov 2017 12:27:34 -0500
+Received: from mail-wm0-f65.google.com ([74.125.82.65]:46546 &quot;EHLO
+	mail-wm0-f65.google.com&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1754050AbdKXRZd (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Fri, 24 Nov 2017 12:25:33 -0500
+Received: by mail-wm0-f65.google.com with SMTP id u83so23811537wmb.5
+	for &lt;linux-kernel@vger.kernel.org&gt;;
+	Fri, 24 Nov 2017 09:25:32 -0800 (PST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=gmail.com; s=20161025;
+	h=sender:from:to:cc:subject:date:message-id:in-reply-to:references;
+	bh=gk1HLmKKroxdZW4CcgM/wmxsQhqIO98ApontmOoLCgw=;
+	b=ONsBiN/LbbuvmBw5OMJrM80Y+Xy6CKsN2lUU2fWUqMzwUD0zCiiRFRcr1dFH52T+YB
+	txRDjAFl4EZuB2DMRZDVNlhatzAtbi7rwY4LUfrKQ+XKUTGGe6XPydOv4RlMcpVOajZ+
+	bFALg7+Qk1QQD/WoQ+fuuP0Lx6GcBwskLxpGIcGPLZ3obuJD40HQiaTQiizoKLntPpa5
+	UpgLyje0+vpGxXCCW5WB8rRWQO88acc51oy/UBLwxWZfwTHr35IMVUV2UpGQb4Z9T5PT
+	EEsqNfHesGMVnhPODdKnJmaLMhWlnVFVETTJIw+XBVy59/0vCvu+FFcIdcIFMP3ZAqne
+	0d5Q==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+	d=1e100.net; s=20161025;
+	h=x-gm-message-state:sender:from:to:cc:subject:date:message-id
+	:in-reply-to:references;
+	bh=gk1HLmKKroxdZW4CcgM/wmxsQhqIO98ApontmOoLCgw=;
+	b=hhOjj+L0nmfBOIDEkQ3hwQGVw2gXWhPLrNtO61WlSVo4ZgyTu7kQq4RzqQoMGzFfUe
+	nzB1gVyXy9W7vG9RGdNMGDUv0+t942vtX+y1EDYi94wJ/gpGZGHEHt0qN3nO+KBfw42A
+	DwIOBTyPbAP+fWlOzOxoNhxx0iW3Wn4uaKpwhu49O55D4Rpbp1nngYnOX4wc52POdwRZ
+	4cYO4KPUtLSZ8pHEWo28fj2mdvP5uTQ6wx0/bnZPUavUl+lRLT4vJQ2bPA9x5LQqXoEo
+	tlZSTmo8EjkPzO+2YOZum3TtsFi3Blc9lj+fm03kw1W313ooUleAGgq+sFwDtvZB0xz/
+	lZtA==
+X-Gm-Message-State: AJaThX7bK0mZ0YtR3RPUXUfZvcsMbf2766n+RscVzxU7I8JxaY3uBO/S
+	Czahz2uaFE8DVVUdbJbsih224A==
+X-Google-Smtp-Source: AGs4zMaNQvamtwDLTYuwQhDipV3Wfg9TP+Eh1xKa3Khd0KW/LWieUzor/aGio2ihVu9KmZ0Y3OeaZw==
+X-Received: by 10.28.94.144 with SMTP id s138mr9962756wmb.0.1511544331426;
+	Fri, 24 Nov 2017 09:25:31 -0800 (PST)
+Received: from localhost.localdomain (2E8B0CD5.catv.pool.telekom.hu.
+	[46.139.12.213]) by smtp.gmail.com with ESMTPSA id
+	y145sm4603992wmd.40.2017.11.24.09.25.29
+	(version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+	Fri, 24 Nov 2017 09:25:30 -0800 (PST)
+From: Ingo Molnar &lt;mingo@kernel.org&gt;
+To: linux-kernel@vger.kernel.org
+Cc: Dave Hansen &lt;dave.hansen@linux.intel.com&gt;,
+	Andy Lutomirski &lt;luto@amacapital.net&gt;,
+	Thomas Gleixner &lt;tglx@linutronix.de&gt;, &quot;H . Peter Anvin&quot; &lt;hpa@zytor.com&gt;,
+	Peter Zijlstra &lt;peterz@infradead.org&gt;, Borislav Petkov &lt;bp@alien8.de&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+Subject: [PATCH 37/43] x86/mm/kaiser: Use PCID feature to make user and
+	kernel switches faster
+Date: Fri, 24 Nov 2017 18:24:05 +0100
+Message-Id: &lt;20171124172411.19476-38-mingo@kernel.org&gt;
+X-Mailer: git-send-email 2.14.1
+In-Reply-To: &lt;20171124172411.19476-1-mingo@kernel.org&gt;
+References: &lt;20171124172411.19476-1-mingo@kernel.org&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=35552">Ingo Molnar</a> - Nov. 24, 2017, 5:24 p.m.</div>
+<pre class="content">
+<span class="from">From: Dave Hansen &lt;dave.hansen@linux.intel.com&gt;</span>
+
+Short summary: Use x86 PCID feature to avoid flushing the TLB at all
+interrupts and syscalls.  Speed them up.  Makes context switches
+and TLB flushing slower.
+
+Background:
+
+KAISER keeps two copies of the page tables.  Switches between the
+copies are performed by writing to the CR3 register.  But, CR3
+was really designed for context switches and writes to it also
+flush the entire TLB (modulo global pages).  This TLB flush
+increases the cost of interrupts and context switches.  For
+syscall-heavy microbenchmarks it can cut the rate of syscalls by
+2/3.
+
+The kernel recently gained support for and Intel CPU feature
+called Process Context IDentifiers (PCID) thanks to Andy
+Lutomirski.  This feature is intended to allow you to switch
+between contexts without flushing the TLB.
+
+Implementation:
+
+PCIDs can be used to avoid flushing the TLB at kernel entry/exit.
+This is speeds up both interrupts and syscalls.
+
+First, the kernel and userspace must be assigned different ASIDs.
+On entry from userspace, move over to the kernel page tables
+*and* ASID.  On exit, restore the user page tables and ASID.
+Fortunately, the ASID is programmed via CR3, which is already
+being used to switch between the user and kernel page tables.
+This gives us convenient, one-stop shopping.
+
+The CR3 write which is used to switch between processes provides
+all the TLB flushing normally required at context switch time.
+But, with KAISER, that CR3 write only flushes the current
+(kernel) ASID.  An extra TLB flush operation is now required in
+order to flush the user ASID.  This new instruction (INVPCID) is
+probably ~100 cycles, but this is done with the assumption that
+the time lost in context switches is more than made up for by
+lower cost of interrupts and syscalls.
+
+Support:
+
+PCIDs are generally available on Sandybridge and newer CPUs.  However,
+the accompanying INVPCID instruction did not become available until
+Haswell (the ones with &quot;v4&quot;, or called fourth-generation Core).  This
+instruction allows non-current-PCID TLB entries to be flushed without
+switching CR3 and global pages to be flushed without a double
+MOV-to-CR4.
+
+Without INVPCID, PCIDs are much harder to use.  TLB invalidation gets
+much more onerous:
+
+1. Every kernel TLB flush (even for a single page) requires an
+   interrupts-off MOV-to-CR4 which is very expensive.  This is because
+   there is no way to flush a kernel address that might be loaded
+   in *EVERY* PCID.  Right now, there are &quot;only&quot; ~12 of these per-cpu,
+   but that&#39;s too painful to use the MOV-to-CR3 to flush them.  That
+   leaves only the MOV-to-CR4.
+2. Every userspace flush (even for a single page requires one of the
+   following:
+   a. A pair of flushing (bit 63 clear) CR3 writes: one for
+      the kernel ASID and another for userspace.
+   b. A pair of non-flushing CR3 writes (bit 63 set) with the
+      flush done for each.  For instance, what is currently a
+      single instruction without KAISER:
+
+		invpcid_flush_one(current_pcid, addr);
+
+      becomes this with KAISER:
+
+      		invpcid_flush_one(current_kern_pcid, addr);
+		invpcid_flush_one(current_user_pcid, addr);
+
+      and this without INVPCID:
+
+      		__native_flush_tlb_single(addr);
+		write_cr3(mm-&gt;pgd | current_user_pcid | NOFLUSH);
+      		__native_flush_tlb_single(addr);
+		write_cr3(mm-&gt;pgd | current_kern_pcid | NOFLUSH);
+
+So, for now, fully disable PCIDs with KAISER when INVPCID is not
+available.  This is fixable, but it&#39;s an optimization that can be
+performed later.
+
+Hugh Dickins also points out that PCIDs really have two distinct
+use-cases in the context of KAISER.  The first way they can be used
+is as &quot;TLB preservation across context-switch&quot;, which is what
+Andy Lutomirksi&#39;s 4.14 PCID code does.  They can also be used as
+a &quot;KAISER syscall/interrupt accelerator&quot;.  If we just use them to
+speed up syscall/interrupts (and ignore the context-switch TLB
+preservation), then the deficiency of not having INVPCID
+becomes much less onerous.
+<span class="signed-off-by">
+Signed-off-by: Dave Hansen &lt;dave.hansen@linux.intel.com&gt;</span>
+<span class="signed-off-by">Signed-off-by: Thomas Gleixner &lt;tglx@linutronix.de&gt;</span>
+Cc: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;
+Cc: Peter Zijlstra &lt;peterz@infradead.org&gt;
+Cc: daniel.gruss@iaik.tugraz.at
+Cc: hughd@google.com
+Cc: keescook@google.com
+Cc: linux-mm@kvack.org
+Cc: luto@kernel.org
+Cc: michael.schwarz@iaik.tugraz.at
+Cc: moritz.lipp@iaik.tugraz.at
+Cc: richard.fellner@student.tugraz.at
+Link: https://lkml.kernel.org/r/20171123003509.EC42DD15@viggo.jf.intel.com
+<span class="signed-off-by">Signed-off-by: Ingo Molnar &lt;mingo@kernel.org&gt;</span>
+---
+ arch/x86/entry/calling.h                    |  25 +++--
+ arch/x86/include/asm/cpufeatures.h          |   1 +
+ arch/x86/include/asm/pgtable_types.h        |  11 +++
+ arch/x86/include/asm/tlbflush.h             | 137 +++++++++++++++++++++++-----
+ arch/x86/include/uapi/asm/processor-flags.h |   3 +-
+ arch/x86/kvm/x86.c                          |   3 +-
+ arch/x86/mm/init.c                          |  75 ++++++++++-----
+ arch/x86/mm/tlb.c                           |  66 +++++++++++++-
+ 8 files changed, 261 insertions(+), 60 deletions(-)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/entry/calling.h b/arch/x86/entry/calling.h</span>
+<span class="p_header">index d087c3aa0514..66af80514197 100644</span>
+<span class="p_header">--- a/arch/x86/entry/calling.h</span>
+<span class="p_header">+++ b/arch/x86/entry/calling.h</span>
+<span class="p_chunk">@@ -3,6 +3,7 @@</span> <span class="p_context"></span>
+ #include &lt;asm/unwind_hints.h&gt;
+ #include &lt;asm/cpufeatures.h&gt;
+ #include &lt;asm/page_types.h&gt;
+<span class="p_add">+#include &lt;asm/pgtable_types.h&gt;</span>
+ 
+ /*
+ 
+<span class="p_chunk">@@ -192,16 +193,20 @@</span> <span class="p_context"> For 32-bit we have the following conventions - kernel is built with</span>
+ #ifdef CONFIG_KAISER
+ 
+ /* KAISER PGDs are 8k.  Flip bit 12 to switch between the two halves: */
+<span class="p_del">-#define KAISER_SWITCH_MASK (1&lt;&lt;PAGE_SHIFT)</span>
+<span class="p_add">+#define KAISER_SWITCH_PGTABLES_MASK (1&lt;&lt;PAGE_SHIFT)</span>
+<span class="p_add">+#define KAISER_SWITCH_MASK     (KAISER_SWITCH_PGTABLES_MASK|\</span>
+<span class="p_add">+				(1&lt;&lt;X86_CR3_KAISER_SWITCH_BIT))</span>
+ 
+ .macro ADJUST_KERNEL_CR3 reg:req
+<span class="p_del">-	/* Clear &quot;KAISER bit&quot;, point CR3 at kernel pagetables: */</span>
+<span class="p_del">-	andq	$(~KAISER_SWITCH_MASK), \reg</span>
+<span class="p_add">+	ALTERNATIVE &quot;&quot;, &quot;bts $63, \reg&quot;, X86_FEATURE_PCID</span>
+<span class="p_add">+	/* Clear PCID and &quot;KAISER bit&quot;, point CR3 at kernel pagetables: */</span>
+<span class="p_add">+	andq    $(~KAISER_SWITCH_MASK), \reg</span>
+ .endm
+ 
+ .macro ADJUST_USER_CR3 reg:req
+<span class="p_del">-	/* Move CR3 up a page to the user page tables: */</span>
+<span class="p_del">-	orq	$(KAISER_SWITCH_MASK), \reg</span>
+<span class="p_add">+	ALTERNATIVE &quot;&quot;, &quot;bts $63, \reg&quot;, X86_FEATURE_PCID</span>
+<span class="p_add">+	/* Set user PCID bit, and move CR3 up a page to the user page tables: */</span>
+<span class="p_add">+	orq     $(KAISER_SWITCH_MASK), \reg</span>
+ .endm
+ 
+ .macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
+<span class="p_chunk">@@ -220,8 +225,14 @@</span> <span class="p_context"> For 32-bit we have the following conventions - kernel is built with</span>
+ 	movq	%cr3, %r\scratch_reg
+ 	movq	%r\scratch_reg, \save_reg
+ 	/*
+<span class="p_del">-	 * Is the switch bit zero?  This means the address is</span>
+<span class="p_del">-	 * up in real KAISER patches in a moment.</span>
+<span class="p_add">+	 * Is the &quot;switch mask&quot; all zero?  That means that both of</span>
+<span class="p_add">+	 * these are zero:</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 *	1. The user/kernel PCID bit, and</span>
+<span class="p_add">+	 *	2. The user/kernel &quot;bit&quot; that points CR3 to the</span>
+<span class="p_add">+	 *	   bottom half of the 8k PGD</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * That indicates a kernel CR3 value, not user/shadow.</span>
+ 	 */
+ 	testq	$(KAISER_SWITCH_MASK), %r\scratch_reg
+ 	jz	.Ldone_\@
+<span class="p_header">diff --git a/arch/x86/include/asm/cpufeatures.h b/arch/x86/include/asm/cpufeatures.h</span>
+<span class="p_header">index c0b0e9e8aa66..ea51d4a28d96 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/cpufeatures.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/cpufeatures.h</span>
+<span class="p_chunk">@@ -197,6 +197,7 @@</span> <span class="p_context"></span>
+ #define X86_FEATURE_CAT_L3		( 7*32+ 4) /* Cache Allocation Technology L3 */
+ #define X86_FEATURE_CAT_L2		( 7*32+ 5) /* Cache Allocation Technology L2 */
+ #define X86_FEATURE_CDP_L3		( 7*32+ 6) /* Code and Data Prioritization L3 */
+<span class="p_add">+#define X86_FEATURE_INVPCID_SINGLE ( 7*32+ 7) /* Effectively INVPCID &amp;&amp; CR4.PCIDE=1 */</span>
+ 
+ #define X86_FEATURE_HW_PSTATE		( 7*32+ 8) /* AMD HW-PState */
+ #define X86_FEATURE_PROC_FEEDBACK	( 7*32+ 9) /* AMD ProcFeedbackInterface */
+<span class="p_header">diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h</span>
+<span class="p_header">index 1fc2f22b9002..8bc825a5b125 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/pgtable_types.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/pgtable_types.h</span>
+<span class="p_chunk">@@ -140,6 +140,17 @@</span> <span class="p_context"></span>
+ 			 _PAGE_SOFT_DIRTY)
+ #define _HPAGE_CHG_MASK (_PAGE_CHG_MASK | _PAGE_PSE)
+ 
+<span class="p_add">+/* The ASID is the lower 12 bits of CR3 */</span>
+<span class="p_add">+#define X86_CR3_PCID_ASID_MASK  (_AC((1&lt;&lt;12)-1, UL))</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* Mask for all the PCID-related bits in CR3: */</span>
+<span class="p_add">+#define X86_CR3_PCID_MASK       (X86_CR3_PCID_NOFLUSH | X86_CR3_PCID_ASID_MASK)</span>
+<span class="p_add">+</span>
+<span class="p_add">+/* Make sure this is only usable in KAISER #ifdef&#39;d code: */</span>
+<span class="p_add">+#ifdef CONFIG_KAISER</span>
+<span class="p_add">+#define X86_CR3_KAISER_SWITCH_BIT 11</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+</span>
+ /*
+  * The cache modes defined here are used to translate between pure SW usage
+  * and the HW defined cache mode bits and/or PAT entries.
+<span class="p_header">diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">index bb5ba71038ee..ea1a3dce91c2 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -78,7 +78,12 @@</span> <span class="p_context"> static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)</span>
+ /* There are 12 bits of space for ASIDS in CR3 */
+ #define CR3_HW_ASID_BITS 12
+ /* When enabled, KAISER consumes a single bit for user/kernel switches */
+<span class="p_add">+#ifdef CONFIG_KAISER</span>
+<span class="p_add">+#define X86_CR3_KAISER_SWITCH_BIT 11</span>
+<span class="p_add">+#define KAISER_CONSUMED_ASID_BITS 1</span>
+<span class="p_add">+#else</span>
+ #define KAISER_CONSUMED_ASID_BITS 0
+<span class="p_add">+#endif</span>
+ 
+ #define CR3_AVAIL_ASID_BITS (CR3_HW_ASID_BITS - KAISER_CONSUMED_ASID_BITS)
+ /*
+<span class="p_chunk">@@ -88,21 +93,62 @@</span> <span class="p_context"> static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)</span>
+  */
+ #define MAX_ASID_AVAILABLE ((1&lt;&lt;CR3_AVAIL_ASID_BITS) - 2)
+ 
+<span class="p_add">+/*</span>
+<span class="p_add">+ * 6 because 6 should be plenty and struct tlb_state will fit in</span>
+<span class="p_add">+ * two cache lines.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+#define TLB_NR_DYN_ASIDS 6</span>
+<span class="p_add">+</span>
+ static inline u16 kern_asid(u16 asid)
+ {
+ 	VM_WARN_ON_ONCE(asid &gt; MAX_ASID_AVAILABLE);
+<span class="p_add">+</span>
+<span class="p_add">+#ifdef CONFIG_KAISER</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Make sure that the dynamic ASID space does not confict</span>
+<span class="p_add">+	 * with the bit we are using to switch between user and</span>
+<span class="p_add">+	 * kernel ASIDs.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	BUILD_BUG_ON(TLB_NR_DYN_ASIDS &gt;= (1&lt;&lt;X86_CR3_KAISER_SWITCH_BIT));</span>
+<span class="p_add">+</span>
+ 	/*
+<span class="p_del">-	 * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID</span>
+<span class="p_del">-	 * bits.  This serves two purposes.  It prevents a nasty situation in</span>
+<span class="p_del">-	 * which PCID-unaware code saves CR3, loads some other value (with PCID</span>
+<span class="p_del">-	 * == 0), and then restores CR3, thus corrupting the TLB for ASID 0 if</span>
+<span class="p_del">-	 * the saved ASID was nonzero.  It also means that any bugs involving</span>
+<span class="p_del">-	 * loading a PCID-enabled CR3 with CR4.PCIDE off will trigger</span>
+<span class="p_del">-	 * deterministically.</span>
+<span class="p_add">+	 * The ASID being passed in here should have respected</span>
+<span class="p_add">+	 * the MAX_ASID_AVAILABLE and thus never have the switch</span>
+<span class="p_add">+	 * bit set.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	VM_WARN_ON_ONCE(asid &amp; (1&lt;&lt;X86_CR3_KAISER_SWITCH_BIT));</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * The dynamically-assigned ASIDs that get passed in  are</span>
+<span class="p_add">+	 * small (&lt;TLB_NR_DYN_ASIDS).  They never have the high</span>
+<span class="p_add">+	 * switch bit set, so do not bother to clear it.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * If PCID is on, ASID-aware code paths put the ASID+1</span>
+<span class="p_add">+	 * into the PCID bits.  This serves two purposes.  It</span>
+<span class="p_add">+	 * prevents a nasty situation in which PCID-unaware code</span>
+<span class="p_add">+	 * saves CR3, loads some other value (with PCID == 0),</span>
+<span class="p_add">+	 * and then restores CR3, thus corrupting the TLB for</span>
+<span class="p_add">+	 * ASID 0 if the saved ASID was nonzero.  It also means</span>
+<span class="p_add">+	 * that any bugs involving loading a PCID-enabled CR3</span>
+<span class="p_add">+	 * with CR4.PCIDE off will trigger deterministically.</span>
+ 	 */
+ 	return asid + 1;
+ }
+ 
+<span class="p_add">+/*</span>
+<span class="p_add">+ * The user ASID is just the kernel one, plus the &quot;switch bit&quot;.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static inline u16 user_asid(u16 asid)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	u16 ret = kern_asid(asid);</span>
+<span class="p_add">+#ifdef CONFIG_KAISER</span>
+<span class="p_add">+	ret |= 1&lt;&lt;X86_CR3_KAISER_SWITCH_BIT;</span>
+<span class="p_add">+#endif</span>
+<span class="p_add">+	return ret;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ struct pgd_t;
+ static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
+ {
+<span class="p_chunk">@@ -145,12 +191,6 @@</span> <span class="p_context"> static inline bool tlb_defer_switch_to_init_mm(void)</span>
+ 	return !static_cpu_has(X86_FEATURE_PCID);
+ }
+ 
+<span class="p_del">-/*</span>
+<span class="p_del">- * 6 because 6 should be plenty and struct tlb_state will fit in</span>
+<span class="p_del">- * two cache lines.</span>
+<span class="p_del">- */</span>
+<span class="p_del">-#define TLB_NR_DYN_ASIDS 6</span>
+<span class="p_del">-</span>
+ struct tlb_context {
+ 	u64 ctx_id;
+ 	u64 tlb_gen;
+<span class="p_chunk">@@ -306,18 +346,42 @@</span> <span class="p_context"> extern void initialize_tlbstate_and_flush(void);</span>
+ 
+ static inline void __native_flush_tlb(void)
+ {
+<span class="p_add">+	if (!cpu_feature_enabled(X86_FEATURE_INVPCID)) {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * native_write_cr3() only clears the current PCID if</span>
+<span class="p_add">+		 * CR4 has X86_CR4_PCIDE set.  In other words, this does</span>
+<span class="p_add">+		 * not fully flush the TLB if PCIDs are in use.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * With KAISER and PCIDs, the means that we did not</span>
+<span class="p_add">+		 * flush the user PCID.  Warn if it gets called.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (IS_ENABLED(CONFIG_KAISER))</span>
+<span class="p_add">+			WARN_ON_ONCE(this_cpu_read(cpu_tlbstate.cr4) &amp;</span>
+<span class="p_add">+				     X86_CR4_PCIDE);</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * If current-&gt;mm == NULL then we borrow a mm</span>
+<span class="p_add">+		 * which may change during a task switch and</span>
+<span class="p_add">+		 * therefore we must not be preempted while we</span>
+<span class="p_add">+		 * write CR3 back:</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		preempt_disable();</span>
+<span class="p_add">+		native_write_cr3(__native_read_cr3());</span>
+<span class="p_add">+		preempt_enable();</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * Does not need tlb_flush_shared_nonglobals()</span>
+<span class="p_add">+		 * since the CR3 write without PCIDs flushes all</span>
+<span class="p_add">+		 * non-globals.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	}</span>
+ 	/*
+<span class="p_del">-	 * If current-&gt;mm == NULL then we borrow a mm which may change during a</span>
+<span class="p_del">-	 * task switch and therefore we must not be preempted while we write CR3</span>
+<span class="p_del">-	 * back:</span>
+<span class="p_del">-	 */</span>
+<span class="p_del">-	preempt_disable();</span>
+<span class="p_del">-	native_write_cr3(__native_read_cr3());</span>
+<span class="p_del">-	preempt_enable();</span>
+<span class="p_del">-	/*</span>
+<span class="p_del">-	 * Does not need tlb_flush_shared_nonglobals() since the CR3 write</span>
+<span class="p_del">-	 * without PCIDs flushes all non-globals.</span>
+<span class="p_add">+	 * We are no longer using globals with KAISER, so a</span>
+<span class="p_add">+	 * &quot;nonglobals&quot; flush would work too. But, this is more</span>
+<span class="p_add">+	 * conservative.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Note, this works with CR4.PCIDE=0 or 1.</span>
+ 	 */
+<span class="p_add">+	invpcid_flush_all();</span>
+ }
+ 
+ static inline void __native_flush_tlb_global_irq_disabled(void)
+<span class="p_chunk">@@ -339,6 +403,8 @@</span> <span class="p_context"> static inline void __native_flush_tlb_global(void)</span>
+ 		/*
+ 		 * Using INVPCID is considerably faster than a pair of writes
+ 		 * to CR4 sandwiched inside an IRQ flag save/restore.
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * Note, this works with CR4.PCIDE=0 or 1.</span>
+ 		 */
+ 		invpcid_flush_all();
+ 		return;
+<span class="p_chunk">@@ -358,7 +424,30 @@</span> <span class="p_context"> static inline void __native_flush_tlb_global(void)</span>
+ 
+ static inline void __native_flush_tlb_single(unsigned long addr)
+ {
+<span class="p_del">-	asm volatile(&quot;invlpg (%0)&quot; ::&quot;r&quot; (addr) : &quot;memory&quot;);</span>
+<span class="p_add">+	u32 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Some platforms #GP if we call invpcid(type=1/2) before</span>
+<span class="p_add">+	 * CR4.PCIDE=1.  Just call invpcid in the case we are called</span>
+<span class="p_add">+	 * early.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (!this_cpu_has(X86_FEATURE_INVPCID_SINGLE)) {</span>
+<span class="p_add">+		asm volatile(&quot;invlpg (%0)&quot; ::&quot;r&quot; (addr) : &quot;memory&quot;);</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	/* Flush the address out of both PCIDs. */</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * An optimization here might be to determine addresses</span>
+<span class="p_add">+	 * that are only kernel-mapped and only flush the kernel</span>
+<span class="p_add">+	 * ASID.  But, userspace flushes are probably much more</span>
+<span class="p_add">+	 * important performance-wise.</span>
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * Make sure to do only a single invpcid when KAISER is</span>
+<span class="p_add">+	 * disabled and we have only a single ASID.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (kern_asid(loaded_mm_asid) != user_asid(loaded_mm_asid))</span>
+<span class="p_add">+		invpcid_flush_one(user_asid(loaded_mm_asid), addr);</span>
+<span class="p_add">+	invpcid_flush_one(kern_asid(loaded_mm_asid), addr);</span>
+ }
+ 
+ static inline void __flush_tlb_all(void)
+<span class="p_header">diff --git a/arch/x86/include/uapi/asm/processor-flags.h b/arch/x86/include/uapi/asm/processor-flags.h</span>
+<span class="p_header">index 7e1e730396ae..7ef94b64dbb4 100644</span>
+<span class="p_header">--- a/arch/x86/include/uapi/asm/processor-flags.h</span>
+<span class="p_header">+++ b/arch/x86/include/uapi/asm/processor-flags.h</span>
+<span class="p_chunk">@@ -78,7 +78,8 @@</span> <span class="p_context"></span>
+ #define X86_CR3_PWT		_BITUL(X86_CR3_PWT_BIT)
+ #define X86_CR3_PCD_BIT		4 /* Page Cache Disable */
+ #define X86_CR3_PCD		_BITUL(X86_CR3_PCD_BIT)
+<span class="p_del">-#define X86_CR3_PCID_MASK	_AC(0x00000fff,UL) /* PCID Mask */</span>
+<span class="p_add">+#define X86_CR3_PCID_NOFLUSH_BIT 63 /* Preserve old PCID */</span>
+<span class="p_add">+#define X86_CR3_PCID_NOFLUSH    _BITULL(X86_CR3_PCID_NOFLUSH_BIT)</span>
+ 
+ /*
+  * Intel CPU features in CR4
+<span class="p_header">diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c</span>
+<span class="p_header">index 03869eb7fcd6..cd7ed7a874d1 100644</span>
+<span class="p_header">--- a/arch/x86/kvm/x86.c</span>
+<span class="p_header">+++ b/arch/x86/kvm/x86.c</span>
+<span class="p_chunk">@@ -805,7 +805,8 @@</span> <span class="p_context"> int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)</span>
+ 			return 1;
+ 
+ 		/* PCID can not be enabled when cr3[11:0]!=000H or EFER.LMA=0 */
+<span class="p_del">-		if ((kvm_read_cr3(vcpu) &amp; X86_CR3_PCID_MASK) || !is_long_mode(vcpu))</span>
+<span class="p_add">+		if ((kvm_read_cr3(vcpu) &amp; X86_CR3_PCID_ASID_MASK) ||</span>
+<span class="p_add">+		    !is_long_mode(vcpu))</span>
+ 			return 1;
+ 	}
+ 
+<span class="p_header">diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c</span>
+<span class="p_header">index a22c2b95e513..9618e57d46cf 100644</span>
+<span class="p_header">--- a/arch/x86/mm/init.c</span>
+<span class="p_header">+++ b/arch/x86/mm/init.c</span>
+<span class="p_chunk">@@ -196,34 +196,59 @@</span> <span class="p_context"> static void __init probe_page_size_mask(void)</span>
+ 
+ static void setup_pcid(void)
+ {
+<span class="p_del">-#ifdef CONFIG_X86_64</span>
+<span class="p_del">-	if (boot_cpu_has(X86_FEATURE_PCID)) {</span>
+<span class="p_del">-		if (boot_cpu_has(X86_FEATURE_PGE)) {</span>
+<span class="p_del">-			/*</span>
+<span class="p_del">-			 * This can&#39;t be cr4_set_bits_and_update_boot() --</span>
+<span class="p_del">-			 * the trampoline code can&#39;t handle CR4.PCIDE and</span>
+<span class="p_del">-			 * it wouldn&#39;t do any good anyway.  Despite the name,</span>
+<span class="p_del">-			 * cr4_set_bits_and_update_boot() doesn&#39;t actually</span>
+<span class="p_del">-			 * cause the bits in question to remain set all the</span>
+<span class="p_del">-			 * way through the secondary boot asm.</span>
+<span class="p_del">-			 *</span>
+<span class="p_del">-			 * Instead, we brute-force it and set CR4.PCIDE</span>
+<span class="p_del">-			 * manually in start_secondary().</span>
+<span class="p_del">-			 */</span>
+<span class="p_del">-			cr4_set_bits(X86_CR4_PCIDE);</span>
+<span class="p_del">-		} else {</span>
+<span class="p_del">-			/*</span>
+<span class="p_del">-			 * flush_tlb_all(), as currently implemented, won&#39;t</span>
+<span class="p_del">-			 * work if PCID is on but PGE is not.  Since that</span>
+<span class="p_del">-			 * combination doesn&#39;t exist on real hardware, there&#39;s</span>
+<span class="p_del">-			 * no reason to try to fully support it, but it&#39;s</span>
+<span class="p_del">-			 * polite to avoid corrupting data if we&#39;re on</span>
+<span class="p_del">-			 * an improperly configured VM.</span>
+<span class="p_del">-			 */</span>
+<span class="p_add">+	if (!IS_ENABLED(CONFIG_X86_64))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!boot_cpu_has(X86_FEATURE_PCID))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (boot_cpu_has(X86_FEATURE_PGE)) {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * KAISER uses a PCID for the kernel and another</span>
+<span class="p_add">+		 * for userspace.  Both PCIDs need to be flushed</span>
+<span class="p_add">+		 * when the TLB flush functions are called.  But,</span>
+<span class="p_add">+		 * flushing *another* PCID is insane without</span>
+<span class="p_add">+		 * INVPCID.  Just avoid using PCIDs at all if we</span>
+<span class="p_add">+		 * have KAISER and do not have INVPCID.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (!IS_ENABLED(CONFIG_X86_GLOBAL_PAGES) &amp;&amp;</span>
+<span class="p_add">+		    !boot_cpu_has(X86_FEATURE_INVPCID)) {</span>
+ 			setup_clear_cpu_cap(X86_FEATURE_PCID);
+<span class="p_add">+			return;</span>
+ 		}
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * This can&#39;t be cr4_set_bits_and_update_boot() --</span>
+<span class="p_add">+		 * the trampoline code can&#39;t handle CR4.PCIDE and</span>
+<span class="p_add">+		 * it wouldn&#39;t do any good anyway.  Despite the name,</span>
+<span class="p_add">+		 * cr4_set_bits_and_update_boot() doesn&#39;t actually</span>
+<span class="p_add">+		 * cause the bits in question to remain set all the</span>
+<span class="p_add">+		 * way through the secondary boot asm.</span>
+<span class="p_add">+		 *</span>
+<span class="p_add">+		 * Instead, we brute-force it and set CR4.PCIDE</span>
+<span class="p_add">+		 * manually in start_secondary().</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		cr4_set_bits(X86_CR4_PCIDE);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * INVPCID&#39;s single-context modes (2/3) only work</span>
+<span class="p_add">+		 * if we set X86_CR4_PCIDE, *and* we INVPCID</span>
+<span class="p_add">+		 * support.  It&#39;s unusable on systems that have</span>
+<span class="p_add">+		 * X86_CR4_PCIDE clear, or that have no INVPCID</span>
+<span class="p_add">+		 * support at all.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		if (boot_cpu_has(X86_FEATURE_INVPCID))</span>
+<span class="p_add">+			setup_force_cpu_cap(X86_FEATURE_INVPCID_SINGLE);</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * flush_tlb_all(), as currently implemented, won&#39;t</span>
+<span class="p_add">+		 * work if PCID is on but PGE is not.  Since that</span>
+<span class="p_add">+		 * combination doesn&#39;t exist on real hardware, there&#39;s</span>
+<span class="p_add">+		 * no reason to try to fully support it, but it&#39;s</span>
+<span class="p_add">+		 * polite to avoid corrupting data if we&#39;re on</span>
+<span class="p_add">+		 * an improperly configured VM.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		setup_clear_cpu_cap(X86_FEATURE_PCID);</span>
+ 	}
+<span class="p_del">-#endif</span>
+ }
+ 
+ #ifdef CONFIG_X86_32
+<span class="p_header">diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c</span>
+<span class="p_header">index 81941f1690fa..f75b6eb47a6d 100644</span>
+<span class="p_header">--- a/arch/x86/mm/tlb.c</span>
+<span class="p_header">+++ b/arch/x86/mm/tlb.c</span>
+<span class="p_chunk">@@ -100,6 +100,68 @@</span> <span class="p_context"> static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,</span>
+ 	*need_flush = true;
+ }
+ 
+<span class="p_add">+/*</span>
+<span class="p_add">+ * Given a kernel asid, flush the corresponding KAISER</span>
+<span class="p_add">+ * user ASID.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+static void flush_user_asid(pgd_t *pgd, u16 kern_asid)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	/* There is no user ASID if KAISER is off */</span>
+<span class="p_add">+	if (!IS_ENABLED(CONFIG_KAISER))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * We only have a single ASID if PCID is off and the CR3</span>
+<span class="p_add">+	 * write will have flushed it.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (!cpu_feature_enabled(X86_FEATURE_PCID))</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * With PCIDs enabled, write_cr3() only flushes TLB</span>
+<span class="p_add">+	 * entries for the current (kernel) ASID.  This leaves</span>
+<span class="p_add">+	 * old TLB entries for the user ASID in place and we must</span>
+<span class="p_add">+	 * flush that context separately.  We can theoretically</span>
+<span class="p_add">+	 * delay doing this until we actually load up the</span>
+<span class="p_add">+	 * userspace CR3, but do it here for simplicity.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	if (cpu_feature_enabled(X86_FEATURE_INVPCID)) {</span>
+<span class="p_add">+		invpcid_flush_single_context(user_asid(kern_asid));</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * On systems with PCIDs, but no INVPCID, the only</span>
+<span class="p_add">+		 * way to flush a PCID is a CR3 write.  Note that</span>
+<span class="p_add">+		 * we use the kernel page tables with the *user*</span>
+<span class="p_add">+		 * ASID here.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		unsigned long user_asid_flush_cr3;</span>
+<span class="p_add">+		user_asid_flush_cr3 = build_cr3(pgd, user_asid(kern_asid));</span>
+<span class="p_add">+		write_cr3(user_asid_flush_cr3);</span>
+<span class="p_add">+		/*</span>
+<span class="p_add">+		 * We do not use PCIDs with KAISER unless we also</span>
+<span class="p_add">+		 * have INVPCID.  Getting here is unexpected.</span>
+<span class="p_add">+		 */</span>
+<span class="p_add">+		WARN_ON_ONCE(1);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static void load_new_mm_cr3(pgd_t *pgdir, u16 new_asid, bool need_flush)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	unsigned long new_mm_cr3;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (need_flush) {</span>
+<span class="p_add">+		flush_user_asid(pgdir, new_asid);</span>
+<span class="p_add">+		new_mm_cr3 = build_cr3(pgdir, new_asid);</span>
+<span class="p_add">+	} else {</span>
+<span class="p_add">+		new_mm_cr3 = build_cr3_noflush(pgdir, new_asid);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * Caution: many callers of this function expect</span>
+<span class="p_add">+	 * that load_cr3() is serializing and orders TLB</span>
+<span class="p_add">+	 * fills with respect to the mm_cpumask writes.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	write_cr3(new_mm_cr3);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ void leave_mm(int cpu)
+ {
+ 	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
+<span class="p_chunk">@@ -230,7 +292,7 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ 		if (need_flush) {
+ 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].ctx_id, next-&gt;context.ctx_id);
+ 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].tlb_gen, next_tlb_gen);
+<span class="p_del">-			write_cr3(build_cr3(next-&gt;pgd, new_asid));</span>
+<span class="p_add">+			load_new_mm_cr3(next-&gt;pgd, new_asid, true);</span>
+ 
+ 			/*
+ 			 * NB: This gets called via leave_mm() in the idle path
+<span class="p_chunk">@@ -243,7 +305,7 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ 			trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
+ 		} else {
+ 			/* The new ASID is already up to date. */
+<span class="p_del">-			write_cr3(build_cr3_noflush(next-&gt;pgd, new_asid));</span>
+<span class="p_add">+			load_new_mm_cr3(next-&gt;pgd, new_asid, false);</span>
+ 
+ 			/* See above wrt _rcuidle. */
+ 			trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, 0);
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

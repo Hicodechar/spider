@@ -1,0 +1,641 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[v3,11/11] x86/mm: Try to preserve old TLB entries using PCID - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [v3,11/11] x86/mm: Try to preserve old TLB entries using PCID</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>June 21, 2017, 5:22 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;a8cdfbbb17785aed10980d24692745f68615a584.1498022414.git.luto@kernel.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9800733/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9800733/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9800733/">/patch/9800733/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	3FC766086C for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 21 Jun 2017 05:23:13 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 2F42E28510
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 21 Jun 2017 05:23:13 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id 240E72851A; Wed, 21 Jun 2017 05:23:13 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.9 required=2.0 tests=BAYES_00,RCVD_IN_DNSWL_HI
+	autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 4965728510
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed, 21 Jun 2017 05:23:12 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1753270AbdFUFWj (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 21 Jun 2017 01:22:39 -0400
+Received: from mail.kernel.org ([198.145.29.99]:55974 &quot;EHLO mail.kernel.org&quot;
+	rhost-flags-OK-OK-OK-OK) by vger.kernel.org with ESMTP
+	id S1752668AbdFUFWg (ORCPT &lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 21 Jun 2017 01:22:36 -0400
+Received: from localhost (c-71-202-137-17.hsd1.ca.comcast.net
+	[71.202.137.17])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256
+	bits)) (No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id B521E23A28;
+	Wed, 21 Jun 2017 05:22:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B521E23A28
+Authentication-Results: mail.kernel.org;
+	dmarc=none (p=none dis=none) header.from=kernel.org
+Authentication-Results: mail.kernel.org;
+	spf=none smtp.mailfrom=luto@kernel.org
+From: Andy Lutomirski &lt;luto@kernel.org&gt;
+To: x86@kernel.org
+Cc: linux-kernel@vger.kernel.org, Borislav Petkov &lt;bp@alien8.de&gt;,
+	Linus Torvalds &lt;torvalds@linux-foundation.org&gt;,
+	Andrew Morton &lt;akpm@linux-foundation.org&gt;, Mel Gorman &lt;mgorman@suse.de&gt;,
+	&quot;linux-mm@kvack.org&quot; &lt;linux-mm@kvack.org&gt;,
+	Nadav Amit &lt;nadav.amit@gmail.com&gt;, Rik van Riel &lt;riel@redhat.com&gt;,
+	Dave Hansen &lt;dave.hansen@intel.com&gt;,
+	Arjan van de Ven &lt;arjan@linux.intel.com&gt;,
+	Peter Zijlstra &lt;peterz@infradead.org&gt;, Andy Lutomirski &lt;luto@kernel.org&gt;
+Subject: [PATCH v3 11/11] x86/mm: Try to preserve old TLB entries using PCID
+Date: Tue, 20 Jun 2017 22:22:17 -0700
+Message-Id: &lt;a8cdfbbb17785aed10980d24692745f68615a584.1498022414.git.luto@kernel.org&gt;
+X-Mailer: git-send-email 2.9.4
+In-Reply-To: &lt;cover.1498022414.git.luto@kernel.org&gt;
+References: &lt;cover.1498022414.git.luto@kernel.org&gt;
+In-Reply-To: &lt;cover.1498022414.git.luto@kernel.org&gt;
+References: &lt;cover.1498022414.git.luto@kernel.org&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - June 21, 2017, 5:22 a.m.</div>
+<pre class="content">
+PCID is a &quot;process context ID&quot; -- it&#39;s what other architectures call
+an address space ID.  Every non-global TLB entry is tagged with a
+PCID, only TLB entries that match the currently selected PCID are
+used, and we can switch PGDs without flushing the TLB.  x86&#39;s
+PCID is 12 bits.
+
+This is an unorthodox approach to using PCID.  x86&#39;s PCID is far too
+short to uniquely identify a process, and we can&#39;t even really
+uniquely identify a running process because there are monster
+systems with over 4096 CPUs.  To make matters worse, past attempts
+to use all 12 PCID bits have resulted in slowdowns instead of
+speedups.
+
+This patch uses PCID differently.  We use a PCID to identify a
+recently-used mm on a per-cpu basis.  An mm has no fixed PCID
+binding at all; instead, we give it a fresh PCID each time it&#39;s
+loaded except in cases where we want to preserve the TLB, in which
+case we reuse a recent value.
+
+This seems to save about 100ns on context switches between mms.
+<span class="signed-off-by">
+Signed-off-by: Andy Lutomirski &lt;luto@kernel.org&gt;</span>
+---
+ arch/x86/include/asm/mmu_context.h     |  3 ++
+ arch/x86/include/asm/processor-flags.h |  2 +
+ arch/x86/include/asm/tlbflush.h        | 18 +++++++-
+ arch/x86/mm/init.c                     |  1 +
+ arch/x86/mm/tlb.c                      | 82 ++++++++++++++++++++++++++--------
+ 5 files changed, 86 insertions(+), 20 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=55071">Nadav Amit</a> - June 22, 2017, 4:09 p.m.</div>
+<pre class="content">
+Andy Lutomirski &lt;luto@kernel.org&gt; wrote:
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; --- a/arch/x86/mm/init.c</span>
+<span class="quote">&gt; +++ b/arch/x86/mm/init.c</span>
+<span class="quote">&gt; @@ -812,6 +812,7 @@ void __init zone_sizes_init(void)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate) = {</span>
+<span class="quote">&gt; 	.loaded_mm = &amp;init_mm,</span>
+<span class="quote">&gt; +	.next_asid = 1,</span>
+
+I think this is a remainder from previous version of the patches, no? It
+does not seem necessary and may be confusing (ctx_id 0 is reserved, but not
+asid 0).
+
+Other than that, if you want, you can put for the entire series:
+<span class="reviewed-by">
+Reviewed-by: Nadav Amit &lt;nadav.amit@gmail.com&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=125831">Andrew Lutomirski</a> - June 22, 2017, 6:10 p.m.</div>
+<pre class="content">
+On Thu, Jun 22, 2017 at 9:09 AM, Nadav Amit &lt;nadav.amit@gmail.com&gt; wrote:
+<span class="quote">&gt; Andy Lutomirski &lt;luto@kernel.org&gt; wrote:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; --- a/arch/x86/mm/init.c</span>
+<span class="quote">&gt;&gt; +++ b/arch/x86/mm/init.c</span>
+<span class="quote">&gt;&gt; @@ -812,6 +812,7 @@ void __init zone_sizes_init(void)</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate) = {</span>
+<span class="quote">&gt;&gt;       .loaded_mm = &amp;init_mm,</span>
+<span class="quote">&gt;&gt; +     .next_asid = 1,</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I think this is a remainder from previous version of the patches, no? It</span>
+<span class="quote">&gt; does not seem necessary and may be confusing (ctx_id 0 is reserved, but not</span>
+<span class="quote">&gt; asid 0).</span>
+
+Hmm.  It&#39;s no longer needed for correctness, but init_mm still lands
+in slot 0, and it seems friendly to avoid immediately stomping it.
+Admittedly, this won&#39;t make any practical difference since it&#39;ll only
+happen once per cpu.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt; Other than that, if you want, you can put for the entire series:</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Reviewed-by: Nadav Amit &lt;nadav.amit@gmail.com&gt;</span>
+<span class="quote">&gt;</span>
+
+Thanks!
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=7500">Borislav Petkov</a> - June 26, 2017, 3:58 p.m.</div>
+<pre class="content">
+On Tue, Jun 20, 2017 at 10:22:17PM -0700, Andy Lutomirski wrote:
+<span class="quote">&gt; PCID is a &quot;process context ID&quot; -- it&#39;s what other architectures call</span>
+<span class="quote">&gt; an address space ID.  Every non-global TLB entry is tagged with a</span>
+<span class="quote">&gt; PCID, only TLB entries that match the currently selected PCID are</span>
+<span class="quote">&gt; used, and we can switch PGDs without flushing the TLB.  x86&#39;s</span>
+<span class="quote">&gt; PCID is 12 bits.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This is an unorthodox approach to using PCID.  x86&#39;s PCID is far too</span>
+<span class="quote">&gt; short to uniquely identify a process, and we can&#39;t even really</span>
+<span class="quote">&gt; uniquely identify a running process because there are monster</span>
+<span class="quote">&gt; systems with over 4096 CPUs.  To make matters worse, past attempts</span>
+<span class="quote">&gt; to use all 12 PCID bits have resulted in slowdowns instead of</span>
+<span class="quote">&gt; speedups.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This patch uses PCID differently.  We use a PCID to identify a</span>
+<span class="quote">&gt; recently-used mm on a per-cpu basis.  An mm has no fixed PCID</span>
+<span class="quote">&gt; binding at all; instead, we give it a fresh PCID each time it&#39;s</span>
+<span class="quote">&gt; loaded except in cases where we want to preserve the TLB, in which</span>
+<span class="quote">&gt; case we reuse a recent value.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; This seems to save about 100ns on context switches between mms.</span>
+
+&quot;... with my microbenchmark of ping-ponging.&quot; :)
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; Signed-off-by: Andy Lutomirski &lt;luto@kernel.org&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt;  arch/x86/include/asm/mmu_context.h     |  3 ++</span>
+<span class="quote">&gt;  arch/x86/include/asm/processor-flags.h |  2 +</span>
+<span class="quote">&gt;  arch/x86/include/asm/tlbflush.h        | 18 +++++++-</span>
+<span class="quote">&gt;  arch/x86/mm/init.c                     |  1 +</span>
+<span class="quote">&gt;  arch/x86/mm/tlb.c                      | 82 ++++++++++++++++++++++++++--------</span>
+<span class="quote">&gt;  5 files changed, 86 insertions(+), 20 deletions(-)</span>
+
+...
+<span class="quote">
+&gt; diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h</span>
+<span class="quote">&gt; index 57b305e13c4c..a9a5aa6f45f7 100644</span>
+<span class="quote">&gt; --- a/arch/x86/include/asm/tlbflush.h</span>
+<span class="quote">&gt; +++ b/arch/x86/include/asm/tlbflush.h</span>
+<span class="quote">&gt; @@ -82,6 +82,12 @@ static inline u64 bump_mm_tlb_gen(struct mm_struct *mm)</span>
+<span class="quote">&gt;  #define __flush_tlb_single(addr) __native_flush_tlb_single(addr)</span>
+<span class="quote">&gt;  #endif</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +/*</span>
+<span class="quote">&gt; + * 6 because 6 should be plenty and struct tlb_state will fit in</span>
+<span class="quote">&gt; + * two cache lines.</span>
+<span class="quote">&gt; + */</span>
+<span class="quote">&gt; +#define NR_DYNAMIC_ASIDS 6</span>
+
+TLB_NR_DYN_ASIDS
+
+Properly prefixed, I guess.
+
+The rest later, when you&#39;re done experimenting. :)
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_header">index 69a4f1ee86ac..2537ec03c9b7 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/mmu_context.h</span>
+<span class="p_chunk">@@ -299,6 +299,9 @@</span> <span class="p_context"> static inline unsigned long __get_current_cr3_fast(void)</span>
+ {
+ 	unsigned long cr3 = __pa(this_cpu_read(cpu_tlbstate.loaded_mm)-&gt;pgd);
+ 
+<span class="p_add">+	if (static_cpu_has(X86_FEATURE_PCID))</span>
+<span class="p_add">+		cr3 |= this_cpu_read(cpu_tlbstate.loaded_mm_asid);</span>
+<span class="p_add">+</span>
+ 	/* For now, be very restrictive about when this can be called. */
+ 	VM_WARN_ON(in_nmi() || !in_atomic());
+ 
+<span class="p_header">diff --git a/arch/x86/include/asm/processor-flags.h b/arch/x86/include/asm/processor-flags.h</span>
+<span class="p_header">index 79aa2f98398d..791b60199aa4 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/processor-flags.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/processor-flags.h</span>
+<span class="p_chunk">@@ -35,6 +35,7 @@</span> <span class="p_context"></span>
+ /* Mask off the address space ID bits. */
+ #define CR3_ADDR_MASK 0x7FFFFFFFFFFFF000ull
+ #define CR3_PCID_MASK 0xFFFull
+<span class="p_add">+#define CR3_NOFLUSH (1UL &lt;&lt; 63)</span>
+ #else
+ /*
+  * CR3_ADDR_MASK needs at least bits 31:5 set on PAE systems, and we save
+<span class="p_chunk">@@ -42,6 +43,7 @@</span> <span class="p_context"></span>
+  */
+ #define CR3_ADDR_MASK 0xFFFFFFFFull
+ #define CR3_PCID_MASK 0ull
+<span class="p_add">+#define CR3_NOFLUSH 0</span>
+ #endif
+ 
+ #endif /* _ASM_X86_PROCESSOR_FLAGS_H */
+<span class="p_header">diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">index 57b305e13c4c..a9a5aa6f45f7 100644</span>
+<span class="p_header">--- a/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_header">+++ b/arch/x86/include/asm/tlbflush.h</span>
+<span class="p_chunk">@@ -82,6 +82,12 @@</span> <span class="p_context"> static inline u64 bump_mm_tlb_gen(struct mm_struct *mm)</span>
+ #define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
+ #endif
+ 
+<span class="p_add">+/*</span>
+<span class="p_add">+ * 6 because 6 should be plenty and struct tlb_state will fit in</span>
+<span class="p_add">+ * two cache lines.</span>
+<span class="p_add">+ */</span>
+<span class="p_add">+#define NR_DYNAMIC_ASIDS 6</span>
+<span class="p_add">+</span>
+ struct tlb_context {
+ 	u64 ctx_id;
+ 	u64 tlb_gen;
+<span class="p_chunk">@@ -95,6 +101,8 @@</span> <span class="p_context"> struct tlb_state {</span>
+ 	 * mode even if we&#39;ve already switched back to swapper_pg_dir.
+ 	 */
+ 	struct mm_struct *loaded_mm;
+<span class="p_add">+	u16 loaded_mm_asid;</span>
+<span class="p_add">+	u16 next_asid;</span>
+ 
+ 	/*
+ 	 * Access to this CR4 shadow and to H/W CR4 is protected by
+<span class="p_chunk">@@ -104,7 +112,8 @@</span> <span class="p_context"> struct tlb_state {</span>
+ 
+ 	/*
+ 	 * This is a list of all contexts that might exist in the TLB.
+<span class="p_del">-	 * Since we don&#39;t yet use PCID, there is only one context.</span>
+<span class="p_add">+	 * There is one per ASID that we use, and the ASID (what the</span>
+<span class="p_add">+	 * CPU calls PCID) is the index into ctxts.</span>
+ 	 *
+ 	 * For each context, ctx_id indicates which mm the TLB&#39;s user
+ 	 * entries came from.  As an invariant, the TLB will never
+<span class="p_chunk">@@ -114,8 +123,13 @@</span> <span class="p_context"> struct tlb_state {</span>
+ 	 * To be clear, this means that it&#39;s legal for the TLB code to
+ 	 * flush the TLB without updating tlb_gen.  This can happen
+ 	 * (for now, at least) due to paravirt remote flushes.
+<span class="p_add">+	 *</span>
+<span class="p_add">+	 * NB: context 0 is a bit special, since it&#39;s also used by</span>
+<span class="p_add">+	 * various bits of init code.  This is fine -- code that</span>
+<span class="p_add">+	 * isn&#39;t aware of PCID will end up harmlessly flushing</span>
+<span class="p_add">+	 * context 0.</span>
+ 	 */
+<span class="p_del">-	struct tlb_context ctxs[1];</span>
+<span class="p_add">+	struct tlb_context ctxs[NR_DYNAMIC_ASIDS];</span>
+ };
+ DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate);
+ 
+<span class="p_header">diff --git a/arch/x86/mm/init.c b/arch/x86/mm/init.c</span>
+<span class="p_header">index 7d6fa4676af9..9c9570d300ba 100644</span>
+<span class="p_header">--- a/arch/x86/mm/init.c</span>
+<span class="p_header">+++ b/arch/x86/mm/init.c</span>
+<span class="p_chunk">@@ -812,6 +812,7 @@</span> <span class="p_context"> void __init zone_sizes_init(void)</span>
+ 
+ DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate) = {
+ 	.loaded_mm = &amp;init_mm,
+<span class="p_add">+	.next_asid = 1,</span>
+ 	.cr4 = ~0UL,	/* fail hard if we screw up cr4 shadow initialization */
+ };
+ EXPORT_SYMBOL_GPL(cpu_tlbstate);
+<span class="p_header">diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c</span>
+<span class="p_header">index 5f932fd80881..cd7f604ee818 100644</span>
+<span class="p_header">--- a/arch/x86/mm/tlb.c</span>
+<span class="p_header">+++ b/arch/x86/mm/tlb.c</span>
+<span class="p_chunk">@@ -30,6 +30,40 @@</span> <span class="p_context"></span>
+ 
+ atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
+ 
+<span class="p_add">+static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,</span>
+<span class="p_add">+			    u16 *new_asid, bool *need_flush)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	u16 asid;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	if (!static_cpu_has(X86_FEATURE_PCID)) {</span>
+<span class="p_add">+		*new_asid = 0;</span>
+<span class="p_add">+		*need_flush = true;</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	for (asid = 0; asid &lt; NR_DYNAMIC_ASIDS; asid++) {</span>
+<span class="p_add">+		if (this_cpu_read(cpu_tlbstate.ctxs[asid].ctx_id) !=</span>
+<span class="p_add">+		    next-&gt;context.ctx_id)</span>
+<span class="p_add">+			continue;</span>
+<span class="p_add">+</span>
+<span class="p_add">+		*new_asid = asid;</span>
+<span class="p_add">+		*need_flush = (this_cpu_read(cpu_tlbstate.ctxs[asid].tlb_gen) &lt;</span>
+<span class="p_add">+			       next_tlb_gen);</span>
+<span class="p_add">+		return;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	/*</span>
+<span class="p_add">+	 * We don&#39;t currently own an ASID slot on this CPU.</span>
+<span class="p_add">+	 * Allocate a slot.</span>
+<span class="p_add">+	 */</span>
+<span class="p_add">+	*new_asid = this_cpu_add_return(cpu_tlbstate.next_asid, 1) - 1;</span>
+<span class="p_add">+	if (*new_asid &gt;= NR_DYNAMIC_ASIDS) {</span>
+<span class="p_add">+		*new_asid = 0;</span>
+<span class="p_add">+		this_cpu_write(cpu_tlbstate.next_asid, 1);</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+	*need_flush = true;</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+ void leave_mm(int cpu)
+ {
+ 	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
+<span class="p_chunk">@@ -66,6 +100,7 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ {
+ 	unsigned cpu = smp_processor_id();
+ 	struct mm_struct *real_prev = this_cpu_read(cpu_tlbstate.loaded_mm);
+<span class="p_add">+	u16 prev_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);</span>
+ 	u64 next_tlb_gen;
+ 
+ 	/*
+<span class="p_chunk">@@ -81,7 +116,7 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ 	if (IS_ENABLED(CONFIG_PROVE_LOCKING))
+ 		WARN_ON_ONCE(!irqs_disabled());
+ 
+<span class="p_del">-	VM_BUG_ON(read_cr3_pa() != __pa(real_prev-&gt;pgd));</span>
+<span class="p_add">+	VM_BUG_ON(__read_cr3() != (__pa(real_prev-&gt;pgd) | prev_asid));</span>
+ 
+ 	if (real_prev == next) {
+ 		if (cpumask_test_cpu(cpu, mm_cpumask(next))) {
+<span class="p_chunk">@@ -98,10 +133,10 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ 		cpumask_set_cpu(cpu, mm_cpumask(next));
+ 		next_tlb_gen = atomic64_read(&amp;next-&gt;context.tlb_gen);
+ 
+<span class="p_del">-		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=</span>
+<span class="p_add">+		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[prev_asid].ctx_id) !=</span>
+ 			  next-&gt;context.ctx_id);
+ 
+<span class="p_del">-		if (this_cpu_read(cpu_tlbstate.ctxs[0].tlb_gen) &lt;</span>
+<span class="p_add">+		if (this_cpu_read(cpu_tlbstate.ctxs[prev_asid].tlb_gen) &lt;</span>
+ 		    next_tlb_gen) {
+ 			/*
+ 			 * Ideally, we&#39;d have a flush_tlb() variant that
+<span class="p_chunk">@@ -109,9 +144,9 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ 			 * be faster on Xen PV and on hypothetical CPUs
+ 			 * on which INVPCID is fast.
+ 			 */
+<span class="p_del">-			this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen,</span>
+<span class="p_add">+			this_cpu_write(cpu_tlbstate.ctxs[prev_asid].tlb_gen,</span>
+ 				       next_tlb_gen);
+<span class="p_del">-			write_cr3(__pa(next-&gt;pgd));</span>
+<span class="p_add">+			write_cr3(__pa(next-&gt;pgd) | prev_asid);</span>
+ 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,
+ 					TLB_FLUSH_ALL);
+ 		}
+<span class="p_chunk">@@ -122,6 +157,9 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ 		 * are not reflected in tlb_gen.)
+ 		 */
+ 	} else {
+<span class="p_add">+		u16 new_asid;</span>
+<span class="p_add">+		bool need_flush;</span>
+<span class="p_add">+</span>
+ 		if (IS_ENABLED(CONFIG_VMAP_STACK)) {
+ 			/*
+ 			 * If our current stack is in vmalloc space and isn&#39;t
+<span class="p_chunk">@@ -141,7 +179,7 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ 		if (cpumask_test_cpu(cpu, mm_cpumask(real_prev)))
+ 			cpumask_clear_cpu(cpu, mm_cpumask(real_prev));
+ 
+<span class="p_del">-		WARN_ON_ONCE(cpumask_test_cpu(cpu, mm_cpumask(next)));</span>
+<span class="p_add">+		VM_WARN_ON_ONCE(cpumask_test_cpu(cpu, mm_cpumask(next)));</span>
+ 
+ 		/*
+ 		 * Start remote flushes and then read tlb_gen.
+<span class="p_chunk">@@ -149,17 +187,24 @@</span> <span class="p_context"> void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,</span>
+ 		cpumask_set_cpu(cpu, mm_cpumask(next));
+ 		next_tlb_gen = atomic64_read(&amp;next-&gt;context.tlb_gen);
+ 
+<span class="p_del">-		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) ==</span>
+<span class="p_del">-			  next-&gt;context.ctx_id);</span>
+<span class="p_add">+		choose_new_asid(next, next_tlb_gen, &amp;new_asid, &amp;need_flush);</span>
+ 
+<span class="p_del">-		this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id,</span>
+<span class="p_del">-			       next-&gt;context.ctx_id);</span>
+<span class="p_del">-		this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen,</span>
+<span class="p_del">-			       next_tlb_gen);</span>
+<span class="p_del">-		this_cpu_write(cpu_tlbstate.loaded_mm, next);</span>
+<span class="p_del">-		write_cr3(__pa(next-&gt;pgd));</span>
+<span class="p_add">+		if (need_flush) {</span>
+<span class="p_add">+			this_cpu_write(cpu_tlbstate.ctxs[new_asid].ctx_id,</span>
+<span class="p_add">+				       next-&gt;context.ctx_id);</span>
+<span class="p_add">+			this_cpu_write(cpu_tlbstate.ctxs[new_asid].tlb_gen,</span>
+<span class="p_add">+				       next_tlb_gen);</span>
+<span class="p_add">+			write_cr3(__pa(next-&gt;pgd) | new_asid);</span>
+<span class="p_add">+			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,</span>
+<span class="p_add">+					TLB_FLUSH_ALL);</span>
+<span class="p_add">+		} else {</span>
+<span class="p_add">+			/* The new ASID is already up to date. */</span>
+<span class="p_add">+			write_cr3(__pa(next-&gt;pgd) | new_asid | CR3_NOFLUSH);</span>
+<span class="p_add">+			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, 0);</span>
+<span class="p_add">+		}</span>
+ 
+<span class="p_del">-		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);</span>
+<span class="p_add">+		this_cpu_write(cpu_tlbstate.loaded_mm, next);</span>
+<span class="p_add">+		this_cpu_write(cpu_tlbstate.loaded_mm_asid, new_asid);</span>
+ 	}
+ 
+ 	load_mm_cr4(next);
+<span class="p_chunk">@@ -170,6 +215,7 @@</span> <span class="p_context"> static void flush_tlb_func_common(const struct flush_tlb_info *f,</span>
+ 				  bool local, enum tlb_flush_reason reason)
+ {
+ 	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
+<span class="p_add">+	u32 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);</span>
+ 
+ 	/*
+ 	 * Our memory ordering requirement is that any TLB fills that
+<span class="p_chunk">@@ -179,12 +225,12 @@</span> <span class="p_context"> static void flush_tlb_func_common(const struct flush_tlb_info *f,</span>
+ 	 * atomic64_read operation won&#39;t be reordered by the compiler.
+ 	 */
+ 	u64 mm_tlb_gen = atomic64_read(&amp;loaded_mm-&gt;context.tlb_gen);
+<span class="p_del">-	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[0].tlb_gen);</span>
+<span class="p_add">+	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].tlb_gen);</span>
+ 
+ 	/* This code cannot presently handle being reentered. */
+ 	VM_WARN_ON(!irqs_disabled());
+ 
+<span class="p_del">-	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=</span>
+<span class="p_add">+	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].ctx_id) !=</span>
+ 		   loaded_mm-&gt;context.ctx_id);
+ 
+ 	if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm))) {
+<span class="p_chunk">@@ -256,7 +302,7 @@</span> <span class="p_context"> static void flush_tlb_func_common(const struct flush_tlb_info *f,</span>
+ 	}
+ 
+ 	/* Both paths above update our state to mm_tlb_gen. */
+<span class="p_del">-	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, mm_tlb_gen);</span>
+<span class="p_add">+	this_cpu_write(cpu_tlbstate.ctxs[loaded_mm_asid].tlb_gen, mm_tlb_gen);</span>
+ }
+ 
+ static void flush_tlb_func_local(void *info, enum tlb_flush_reason reason)
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

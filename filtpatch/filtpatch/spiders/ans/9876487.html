@@ -1,0 +1,957 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>iommu/arm-smmu: Defer TLB flush in case of unmap op - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    iommu/arm-smmu: Defer TLB flush in case of unmap op</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=170013">Vivek Gautam</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Aug. 2, 2017, 9:53 a.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;1501667598-16404-1-git-send-email-vivek.gautam@codeaurora.org&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/9876487/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/9876487/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/9876487/">/patch/9876487/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	053F960390 for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  2 Aug 2017 09:53:53 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id DDCD12879B
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  2 Aug 2017 09:53:52 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id D2459287A3; Wed,  2 Aug 2017 09:53:52 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.8 required=2.0 tests=BAYES_00,DKIM_SIGNED,
+	RCVD_IN_DNSWL_HI,T_DKIM_INVALID autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id 4BA922879B
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Wed,  2 Aug 2017 09:53:52 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S1752819AbdHBJxi (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Wed, 2 Aug 2017 05:53:38 -0400
+Received: from smtp.codeaurora.org ([198.145.29.96]:45512 &quot;EHLO
+	smtp.codeaurora.org&quot; rhost-flags-OK-OK-OK-OK) by vger.kernel.org
+	with ESMTP id S1751174AbdHBJxg (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Wed, 2 Aug 2017 05:53:36 -0400
+Received: by smtp.codeaurora.org (Postfix, from userid 1000)
+	id D3143607E1; Wed,  2 Aug 2017 09:53:35 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=codeaurora.org;
+	s=default; t=1501667615;
+	bh=0e6hOif/hziWewYH0dG2B4fKoMcXFmPf12RG6cVh0nw=;
+	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
+	b=lhkL+E2DRtHLy4wNnuo4CWTIdZNzro1c3DhjYKXbdJ0TZv1xHtYsTjshH6xh2m0Bd
+	fKhRccX6/V4DqhWY3QtSDWTvZceAStIZrQ70pxaF+KMxXuu7OQ45HFg8Q4/mScMTWu
+	dCtI5QVz0SKR7MqHqI4frGDKlbO10j/SeiEpUbrw=
+Received: from blr-ubuntu-41.ap.qualcomm.com
+	(blr-bdr-fw-01_globalnat_allzones-outside.qualcomm.com
+	[103.229.18.19])
+	(using TLSv1.1 with cipher ECDHE-RSA-AES128-SHA (128/128 bits))
+	(No client certificate requested)
+	(Authenticated sender: vivek.gautam@smtp.codeaurora.org)
+	by smtp.codeaurora.org (Postfix) with ESMTPSA id 45275602BC;
+	Wed,  2 Aug 2017 09:53:30 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=codeaurora.org;
+	s=default; t=1501667614;
+	bh=0e6hOif/hziWewYH0dG2B4fKoMcXFmPf12RG6cVh0nw=;
+	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
+	b=GOtcVN2/16GMy3ZdmrsCPSrNjKE/AdsTdj3/HCUHMmShTe3BOZkY3AbxuJ+5LI9x0
+	hjlI+yUGRMdS5PB95bat2Yk3xIvjynTlL8QnRDhBYkP8UP63rNLosEwKnDLmcUuPpq
+	fuH3XeKwgdBU6Jsf3HV34kAYYB8mvtN+X8U+EKQw=
+DMARC-Filter: OpenDMARC Filter v1.3.2 smtp.codeaurora.org 45275602BC
+Authentication-Results: pdx-caf-mail.web.codeaurora.org;
+	dmarc=none (p=none dis=none)
+	header.from=codeaurora.org
+Authentication-Results: pdx-caf-mail.web.codeaurora.org;
+	spf=none smtp.mailfrom=vivek.gautam@codeaurora.org
+From: Vivek Gautam &lt;vivek.gautam@codeaurora.org&gt;
+To: iommu@lists.linux-foundation.org, linux-arm-msm@vger.kernel.org
+Cc: robdclark@gmail.com, will.deacon@arm.com, joro@8bytes.org,
+	robin.murphy@arm.com, robh+dt@kernel.org, mark.rutland@arm.com,
+	m.szyprowski@samsung.com, linux-kernel@vger.kernel.org,
+	stanimir.varbanov@linaro.org, sricharan@codeaurora.org,
+	sboyd@codeaurora.org, linux-arm-kernel@lists.infradead.org,
+	Vivek Gautam &lt;vivek.gautam@codeaurora.org&gt;
+Subject: [PATCH] iommu/arm-smmu: Defer TLB flush in case of unmap op
+Date: Wed,  2 Aug 2017 15:23:18 +0530
+Message-Id: &lt;1501667598-16404-1-git-send-email-vivek.gautam@codeaurora.org&gt;
+X-Mailer: git-send-email 1.9.1
+In-Reply-To: &lt;CAFp+6iFfu2-qrDDim7fzKKLqMcSVMmOr7esqBZ-xEeLTOOTNLA@mail.gmail.com&gt;
+References: &lt;CAFp+6iFfu2-qrDDim7fzKKLqMcSVMmOr7esqBZ-xEeLTOOTNLA@mail.gmail.com&gt;
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=170013">Vivek Gautam</a> - Aug. 2, 2017, 9:53 a.m.</div>
+<pre class="content">
+We don&#39;t want to touch the TLB when smmu is suspended.
+Defer it until resume.
+<span class="signed-off-by">
+Signed-off-by: Vivek Gautam &lt;vivek.gautam@codeaurora.org&gt;</span>
+---
+
+Hi all,
+
+Here&#39;s the small patch in response of suggestion to defer tlb operations
+when smmu is in suspend state.
+The patch stores the TLB requests in &#39;unmap&#39; when the smmu device is
+suspended. On resume, it checks all the pending TLB requests, and
+performs the unmap over those.
+
+Right now, I have applied the patch on top of the pm runtime series.
+Let me know what you think of the change. It will also be helpful if
+somebody can please test a valid use case with this.
+
+regards
+Vivek
+
+ drivers/iommu/arm-smmu.c | 59 +++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 53 insertions(+), 6 deletions(-)
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=77581">Robin Murphy</a> - Aug. 2, 2017, 12:17 p.m.</div>
+<pre class="content">
+On 02/08/17 10:53, Vivek Gautam wrote:
+<span class="quote">&gt; We don&#39;t want to touch the TLB when smmu is suspended.</span>
+<span class="quote">&gt; Defer it until resume.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Signed-off-by: Vivek Gautam &lt;vivek.gautam@codeaurora.org&gt;</span>
+<span class="quote">&gt; ---</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Hi all,</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Here&#39;s the small patch in response of suggestion to defer tlb operations</span>
+<span class="quote">&gt; when smmu is in suspend state.</span>
+<span class="quote">&gt; The patch stores the TLB requests in &#39;unmap&#39; when the smmu device is</span>
+<span class="quote">&gt; suspended. On resume, it checks all the pending TLB requests, and</span>
+<span class="quote">&gt; performs the unmap over those.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Right now, I have applied the patch on top of the pm runtime series.</span>
+<span class="quote">&gt; Let me know what you think of the change. It will also be helpful if</span>
+<span class="quote">&gt; somebody can please test a valid use case with this.</span>
+
+The patch itself doesn&#39;t make much sense to me, but more crucially it&#39;s
+definitely broken in concept. We can&#39;t return from arm_smmu_unmap()
+without having actually unmapped anything, because that leaves the page
+tables out of sync with what the caller expects - they may immmediately
+reuse that IOVA to map something else for a different device and hit an
+unexpected failure from io-pgtable when the PTE turns out to be non-empty.
+
+However, if in general suspend *might* power-gate any part of the SMMU,
+then I don&#39;t think we have any guarantee of what state any TLBs could be
+in upon resume. Therefore any individual invalidations we skip while
+suspended are probably moot, since resume would almost certainly have to
+invalidate everything to get back to a safe state anyway.
+
+Conversely though, the situation that still concerns me is whether this
+can work at all for a distributed SMMU if things *don&#39;t* lose state. Say
+the GPU and its local TBU are in the same clock domain - if the GPU has
+just gone idle and we&#39;ve clock-gated it, but &quot;the SMMU&quot; (i.e. the TCU)
+is still active servicing other devices, we will assume we can happily
+unmap GPU buffers and issue TLBIs, but what happens with entries held in
+the unclocked TBU&#39;s micro-TLB?
+
+Robin.
+<span class="quote">
+&gt; </span>
+<span class="quote">&gt; regards</span>
+<span class="quote">&gt; Vivek</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt;  drivers/iommu/arm-smmu.c | 59 +++++++++++++++++++++++++++++++++++++++++++-----</span>
+<span class="quote">&gt;  1 file changed, 53 insertions(+), 6 deletions(-)</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; diff --git a/drivers/iommu/arm-smmu.c b/drivers/iommu/arm-smmu.c</span>
+<span class="quote">&gt; index fe8e7fd61282..1f9c2b16aabb 100644</span>
+<span class="quote">&gt; --- a/drivers/iommu/arm-smmu.c</span>
+<span class="quote">&gt; +++ b/drivers/iommu/arm-smmu.c</span>
+<span class="quote">&gt; @@ -51,6 +51,7 @@</span>
+<span class="quote">&gt;  #include &lt;linux/pm_runtime.h&gt;</span>
+<span class="quote">&gt;  #include &lt;linux/slab.h&gt;</span>
+<span class="quote">&gt;  #include &lt;linux/spinlock.h&gt;</span>
+<span class="quote">&gt; +#include &lt;linux/list.h&gt;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  #include &lt;linux/amba/bus.h&gt;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; @@ -151,6 +152,14 @@ struct arm_smmu_master_cfg {</span>
+<span class="quote">&gt;  #define for_each_cfg_sme(fw, i, idx) \</span>
+<span class="quote">&gt;  	for (i = 0; idx = fwspec_smendx(fw, i), i &lt; fw-&gt;num_ids; ++i)</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +struct arm_smmu_tlb_req_info {</span>
+<span class="quote">&gt; +	struct iommu_domain *domain;</span>
+<span class="quote">&gt; +	unsigned long iova;</span>
+<span class="quote">&gt; +	size_t size;</span>
+<span class="quote">&gt; +	bool tlb_flush_pending;</span>
+<span class="quote">&gt; +	struct list_head list;</span>
+<span class="quote">&gt; +};</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  struct arm_smmu_device {</span>
+<span class="quote">&gt;  	struct device			*dev;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; @@ -182,6 +191,7 @@ struct arm_smmu_device {</span>
+<span class="quote">&gt;  	u32				num_s2_context_banks;</span>
+<span class="quote">&gt;  	DECLARE_BITMAP(context_map, ARM_SMMU_MAX_CBS);</span>
+<span class="quote">&gt;  	atomic_t			irptndx;</span>
+<span class="quote">&gt; +	struct list_head		domain_list;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	u32				num_mapping_groups;</span>
+<span class="quote">&gt;  	u16				streamid_mask;</span>
+<span class="quote">&gt; @@ -1239,17 +1249,32 @@ static size_t arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova,</span>
+<span class="quote">&gt;  			     size_t size)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);</span>
+<span class="quote">&gt; +	struct arm_smmu_device *smmu = smmu_domain-&gt;smmu;</span>
+<span class="quote">&gt;  	struct io_pgtable_ops *ops = smmu_domain-&gt;pgtbl_ops;</span>
+<span class="quote">&gt; -	size_t ret;</span>
+<span class="quote">&gt; +	struct arm_smmu_tlb_req_info *tlb_info;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  	if (!ops)</span>
+<span class="quote">&gt;  		return 0;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	pm_runtime_get_sync(smmu_domain-&gt;smmu-&gt;dev);</span>
+<span class="quote">&gt; -	ret = ops-&gt;unmap(ops, iova, size);</span>
+<span class="quote">&gt; -	pm_runtime_put_sync(smmu_domain-&gt;smmu-&gt;dev);</span>
+<span class="quote">&gt; +	/* if the device is suspended; we can&#39;t unmap, defer any tlb operations */</span>
+<span class="quote">&gt; +	if (pm_runtime_suspended(smmu-&gt;dev)) {</span>
+<span class="quote">&gt; +		tlb_info = devm_kzalloc(smmu-&gt;dev, sizeof(*tlb_info), GFP_ATOMIC);</span>
+<span class="quote">&gt; +		if (!tlb_info)</span>
+<span class="quote">&gt; +			return -ENOMEM;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	return ret;</span>
+<span class="quote">&gt; +		tlb_info-&gt;domain = domain;</span>
+<span class="quote">&gt; +		tlb_info-&gt;iova = iova;</span>
+<span class="quote">&gt; +		tlb_info-&gt;size = size;</span>
+<span class="quote">&gt; +		tlb_info-&gt;tlb_flush_pending = true;</span>
+<span class="quote">&gt; +		INIT_LIST_HEAD(&amp;tlb_info-&gt;list);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +		/* XXX: We need locks here, but that again introduce the slowpath ? */</span>
+<span class="quote">&gt; +		list_add_tail(&amp;tlb_info-&gt;list, &amp;smmu-&gt;domain_list);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +		return size;</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	return ops-&gt;unmap(ops, iova, size);</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static phys_addr_t arm_smmu_iova_to_phys_hard(struct iommu_domain *domain,</span>
+<span class="quote">&gt; @@ -2166,6 +2191,8 @@ static int arm_smmu_device_probe(struct platform_device *pdev)</span>
+<span class="quote">&gt;  		smmu-&gt;irqs[i] = irq;</span>
+<span class="quote">&gt;  	}</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; +	INIT_LIST_HEAD(&amp;smmu-&gt;domain_list);</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt;  	err = arm_smmu_init_clocks(smmu);</span>
+<span class="quote">&gt;  	if (err)</span>
+<span class="quote">&gt;  		return err;</span>
+<span class="quote">&gt; @@ -2268,8 +2295,28 @@ static int arm_smmu_device_remove(struct platform_device *pdev)</span>
+<span class="quote">&gt;  static int arm_smmu_resume(struct device *dev)</span>
+<span class="quote">&gt;  {</span>
+<span class="quote">&gt;  	struct arm_smmu_device *smmu = dev_get_drvdata(dev);</span>
+<span class="quote">&gt; +	struct arm_smmu_tlb_req_info  *tlb_info, *temp;</span>
+<span class="quote">&gt; +	int ret;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	ret = arm_smmu_enable_clocks(smmu);</span>
+<span class="quote">&gt; +	if (ret)</span>
+<span class="quote">&gt; +		return ret;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	list_for_each_entry_safe(tlb_info, temp, &amp;smmu-&gt;domain_list, list) {</span>
+<span class="quote">&gt; +		printk(&quot;\n\n %s %d :: iterating over pending tlb request\n\n&quot;, __func__, __LINE__);</span>
+<span class="quote">&gt; +		if (tlb_info-&gt;tlb_flush_pending) {</span>
+<span class="quote">&gt; +			ret = arm_smmu_unmap(tlb_info-&gt;domain, tlb_info-&gt;iova, tlb_info-&gt;size);</span>
+<span class="quote">&gt; +			if (!ret)</span>
+<span class="quote">&gt; +				return -EINVAL;</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt; -	return arm_smmu_enable_clocks(smmu);</span>
+<span class="quote">&gt; +			tlb_info-&gt;tlb_flush_pending = false;</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +			/* we are done with this request; delete it */</span>
+<span class="quote">&gt; +			list_del(&amp;tlb_info-&gt;list);</span>
+<span class="quote">&gt; +		}</span>
+<span class="quote">&gt; +	}</span>
+<span class="quote">&gt; +</span>
+<span class="quote">&gt; +	return 0;</span>
+<span class="quote">&gt;  }</span>
+<span class="quote">&gt;  </span>
+<span class="quote">&gt;  static int arm_smmu_suspend(struct device *dev)</span>
+<span class="quote">&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=170013">Vivek Gautam</a> - Aug. 3, 2017, 5:35 a.m.</div>
+<pre class="content">
+Hi Robin,
+
+
+
+On 08/02/2017 05:47 PM, Robin Murphy wrote:
+<span class="quote">&gt; On 02/08/17 10:53, Vivek Gautam wrote:</span>
+<span class="quote">&gt;&gt; We don&#39;t want to touch the TLB when smmu is suspended.</span>
+<span class="quote">&gt;&gt; Defer it until resume.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Signed-off-by: Vivek Gautam &lt;vivek.gautam@codeaurora.org&gt;</span>
+<span class="quote">&gt;&gt; ---</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Hi all,</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Here&#39;s the small patch in response of suggestion to defer tlb operations</span>
+<span class="quote">&gt;&gt; when smmu is in suspend state.</span>
+<span class="quote">&gt;&gt; The patch stores the TLB requests in &#39;unmap&#39; when the smmu device is</span>
+<span class="quote">&gt;&gt; suspended. On resume, it checks all the pending TLB requests, and</span>
+<span class="quote">&gt;&gt; performs the unmap over those.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Right now, I have applied the patch on top of the pm runtime series.</span>
+<span class="quote">&gt;&gt; Let me know what you think of the change. It will also be helpful if</span>
+<span class="quote">&gt;&gt; somebody can please test a valid use case with this.</span>
+<span class="quote">&gt; The patch itself doesn&#39;t make much sense to me, but more crucially it&#39;s</span>
+<span class="quote">&gt; definitely broken in concept. We can&#39;t return from arm_smmu_unmap()</span>
+<span class="quote">&gt; without having actually unmapped anything, because that leaves the page</span>
+<span class="quote">&gt; tables out of sync with what the caller expects - they may immmediately</span>
+<span class="quote">&gt; reuse that IOVA to map something else for a different device and hit an</span>
+<span class="quote">&gt; unexpected failure from io-pgtable when the PTE turns out to be non-empty.</span>
+
+To understand things bit more,
+once we don&#39;t *unmap* in arm_smmu_unmap(), and leave the TLBs as is,
+the next mapping can happen only with the *knowledge* of smmu, i.e.,
+smmu should be active at that time.
+If that&#39;s true then, the _runtime()_resume() method will take care of
+invalidating the TLBs when we call arm_smmu_unmap() from _runtime_resume().
+Is my understanding correct here?
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt; However, if in general suspend *might* power-gate any part of the SMMU,</span>
+<span class="quote">&gt; then I don&#39;t think we have any guarantee of what state any TLBs could be</span>
+<span class="quote">&gt; in upon resume. Therefore any individual invalidations we skip while</span>
+<span class="quote">&gt; suspended are probably moot, since resume would almost certainly have to</span>
+<span class="quote">&gt; invalidate everything to get back to a safe state anyway.</span>
+
+Right, in case when the suspend power-gates the SMMU, then
+the TLB context is lost anyways. So resume path can freshly start.
+This is something that exynos does at present.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt; Conversely though, the situation that still concerns me is whether this</span>
+<span class="quote">&gt; can work at all for a distributed SMMU if things *don&#39;t* lose state. Say</span>
+<span class="quote">&gt; the GPU and its local TBU are in the same clock domain - if the GPU has</span>
+<span class="quote">&gt; just gone idle and we&#39;ve clock-gated it, but &quot;the SMMU&quot; (i.e. the TCU)</span>
+<span class="quote">&gt; is still active servicing other devices, we will assume we can happily</span>
+<span class="quote">&gt; unmap GPU buffers and issue TLBIs, but what happens with entries held in</span>
+<span class="quote">&gt; the unclocked TBU&#39;s micro-TLB?</span>
+
+We know of platforms we have that have shared TCU and multiple TBUs.
+Each TBU is available in its own power domain, not in master&#39;s power domain.
+In such cases we may want to runtime_get() the TBUs, so that unmap() 
+call with
+master clock gated gets through.
+
+Can we have a situation where the TBU and master are in the same power
+domain, and the unmap is called when the master is not runtime active?
+How will such a situation be handled?
+
+Best regards
+Vivek
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt; Robin.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt;&gt; regards</span>
+<span class="quote">&gt;&gt; Vivek</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;   drivers/iommu/arm-smmu.c | 59 +++++++++++++++++++++++++++++++++++++++++++-----</span>
+<span class="quote">&gt;&gt;   1 file changed, 53 insertions(+), 6 deletions(-)</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; diff --git a/drivers/iommu/arm-smmu.c b/drivers/iommu/arm-smmu.c</span>
+<span class="quote">&gt;&gt; index fe8e7fd61282..1f9c2b16aabb 100644</span>
+<span class="quote">&gt;&gt; --- a/drivers/iommu/arm-smmu.c</span>
+<span class="quote">&gt;&gt; +++ b/drivers/iommu/arm-smmu.c</span>
+<span class="quote">&gt;&gt; @@ -51,6 +51,7 @@</span>
+<span class="quote">&gt;&gt;   #include &lt;linux/pm_runtime.h&gt;</span>
+<span class="quote">&gt;&gt;   #include &lt;linux/slab.h&gt;</span>
+<span class="quote">&gt;&gt;   #include &lt;linux/spinlock.h&gt;</span>
+<span class="quote">&gt;&gt; +#include &lt;linux/list.h&gt;</span>
+<span class="quote">&gt;&gt;   </span>
+<span class="quote">&gt;&gt;   #include &lt;linux/amba/bus.h&gt;</span>
+<span class="quote">&gt;&gt;   </span>
+<span class="quote">&gt;&gt; @@ -151,6 +152,14 @@ struct arm_smmu_master_cfg {</span>
+<span class="quote">&gt;&gt;   #define for_each_cfg_sme(fw, i, idx) \</span>
+<span class="quote">&gt;&gt;   	for (i = 0; idx = fwspec_smendx(fw, i), i &lt; fw-&gt;num_ids; ++i)</span>
+<span class="quote">&gt;&gt;   </span>
+<span class="quote">&gt;&gt; +struct arm_smmu_tlb_req_info {</span>
+<span class="quote">&gt;&gt; +	struct iommu_domain *domain;</span>
+<span class="quote">&gt;&gt; +	unsigned long iova;</span>
+<span class="quote">&gt;&gt; +	size_t size;</span>
+<span class="quote">&gt;&gt; +	bool tlb_flush_pending;</span>
+<span class="quote">&gt;&gt; +	struct list_head list;</span>
+<span class="quote">&gt;&gt; +};</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt;   struct arm_smmu_device {</span>
+<span class="quote">&gt;&gt;   	struct device			*dev;</span>
+<span class="quote">&gt;&gt;   </span>
+<span class="quote">&gt;&gt; @@ -182,6 +191,7 @@ struct arm_smmu_device {</span>
+<span class="quote">&gt;&gt;   	u32				num_s2_context_banks;</span>
+<span class="quote">&gt;&gt;   	DECLARE_BITMAP(context_map, ARM_SMMU_MAX_CBS);</span>
+<span class="quote">&gt;&gt;   	atomic_t			irptndx;</span>
+<span class="quote">&gt;&gt; +	struct list_head		domain_list;</span>
+<span class="quote">&gt;&gt;   </span>
+<span class="quote">&gt;&gt;   	u32				num_mapping_groups;</span>
+<span class="quote">&gt;&gt;   	u16				streamid_mask;</span>
+<span class="quote">&gt;&gt; @@ -1239,17 +1249,32 @@ static size_t arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova,</span>
+<span class="quote">&gt;&gt;   			     size_t size)</span>
+<span class="quote">&gt;&gt;   {</span>
+<span class="quote">&gt;&gt;   	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);</span>
+<span class="quote">&gt;&gt; +	struct arm_smmu_device *smmu = smmu_domain-&gt;smmu;</span>
+<span class="quote">&gt;&gt;   	struct io_pgtable_ops *ops = smmu_domain-&gt;pgtbl_ops;</span>
+<span class="quote">&gt;&gt; -	size_t ret;</span>
+<span class="quote">&gt;&gt; +	struct arm_smmu_tlb_req_info *tlb_info;</span>
+<span class="quote">&gt;&gt;   </span>
+<span class="quote">&gt;&gt;   	if (!ops)</span>
+<span class="quote">&gt;&gt;   		return 0;</span>
+<span class="quote">&gt;&gt;   </span>
+<span class="quote">&gt;&gt; -	pm_runtime_get_sync(smmu_domain-&gt;smmu-&gt;dev);</span>
+<span class="quote">&gt;&gt; -	ret = ops-&gt;unmap(ops, iova, size);</span>
+<span class="quote">&gt;&gt; -	pm_runtime_put_sync(smmu_domain-&gt;smmu-&gt;dev);</span>
+<span class="quote">&gt;&gt; +	/* if the device is suspended; we can&#39;t unmap, defer any tlb operations */</span>
+<span class="quote">&gt;&gt; +	if (pm_runtime_suspended(smmu-&gt;dev)) {</span>
+<span class="quote">&gt;&gt; +		tlb_info = devm_kzalloc(smmu-&gt;dev, sizeof(*tlb_info), GFP_ATOMIC);</span>
+<span class="quote">&gt;&gt; +		if (!tlb_info)</span>
+<span class="quote">&gt;&gt; +			return -ENOMEM;</span>
+<span class="quote">&gt;&gt;   </span>
+<span class="quote">&gt;&gt; -	return ret;</span>
+<span class="quote">&gt;&gt; +		tlb_info-&gt;domain = domain;</span>
+<span class="quote">&gt;&gt; +		tlb_info-&gt;iova = iova;</span>
+<span class="quote">&gt;&gt; +		tlb_info-&gt;size = size;</span>
+<span class="quote">&gt;&gt; +		tlb_info-&gt;tlb_flush_pending = true;</span>
+<span class="quote">&gt;&gt; +		INIT_LIST_HEAD(&amp;tlb_info-&gt;list);</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +		/* XXX: We need locks here, but that again introduce the slowpath ? */</span>
+<span class="quote">&gt;&gt; +		list_add_tail(&amp;tlb_info-&gt;list, &amp;smmu-&gt;domain_list);</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +		return size;</span>
+<span class="quote">&gt;&gt; +	}</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	return ops-&gt;unmap(ops, iova, size);</span>
+<span class="quote">&gt;&gt;   }</span>
+<span class="quote">&gt;&gt;   </span>
+<span class="quote">&gt;&gt;   static phys_addr_t arm_smmu_iova_to_phys_hard(struct iommu_domain *domain,</span>
+<span class="quote">&gt;&gt; @@ -2166,6 +2191,8 @@ static int arm_smmu_device_probe(struct platform_device *pdev)</span>
+<span class="quote">&gt;&gt;   		smmu-&gt;irqs[i] = irq;</span>
+<span class="quote">&gt;&gt;   	}</span>
+<span class="quote">&gt;&gt;   </span>
+<span class="quote">&gt;&gt; +	INIT_LIST_HEAD(&amp;smmu-&gt;domain_list);</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt;   	err = arm_smmu_init_clocks(smmu);</span>
+<span class="quote">&gt;&gt;   	if (err)</span>
+<span class="quote">&gt;&gt;   		return err;</span>
+<span class="quote">&gt;&gt; @@ -2268,8 +2295,28 @@ static int arm_smmu_device_remove(struct platform_device *pdev)</span>
+<span class="quote">&gt;&gt;   static int arm_smmu_resume(struct device *dev)</span>
+<span class="quote">&gt;&gt;   {</span>
+<span class="quote">&gt;&gt;   	struct arm_smmu_device *smmu = dev_get_drvdata(dev);</span>
+<span class="quote">&gt;&gt; +	struct arm_smmu_tlb_req_info  *tlb_info, *temp;</span>
+<span class="quote">&gt;&gt; +	int ret;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	ret = arm_smmu_enable_clocks(smmu);</span>
+<span class="quote">&gt;&gt; +	if (ret)</span>
+<span class="quote">&gt;&gt; +		return ret;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	list_for_each_entry_safe(tlb_info, temp, &amp;smmu-&gt;domain_list, list) {</span>
+<span class="quote">&gt;&gt; +		printk(&quot;\n\n %s %d :: iterating over pending tlb request\n\n&quot;, __func__, __LINE__);</span>
+<span class="quote">&gt;&gt; +		if (tlb_info-&gt;tlb_flush_pending) {</span>
+<span class="quote">&gt;&gt; +			ret = arm_smmu_unmap(tlb_info-&gt;domain, tlb_info-&gt;iova, tlb_info-&gt;size);</span>
+<span class="quote">&gt;&gt; +			if (!ret)</span>
+<span class="quote">&gt;&gt; +				return -EINVAL;</span>
+<span class="quote">&gt;&gt;   </span>
+<span class="quote">&gt;&gt; -	return arm_smmu_enable_clocks(smmu);</span>
+<span class="quote">&gt;&gt; +			tlb_info-&gt;tlb_flush_pending = false;</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +			/* we are done with this request; delete it */</span>
+<span class="quote">&gt;&gt; +			list_del(&amp;tlb_info-&gt;list);</span>
+<span class="quote">&gt;&gt; +		}</span>
+<span class="quote">&gt;&gt; +	}</span>
+<span class="quote">&gt;&gt; +</span>
+<span class="quote">&gt;&gt; +	return 0;</span>
+<span class="quote">&gt;&gt;   }</span>
+<span class="quote">&gt;&gt;   </span>
+<span class="quote">&gt;&gt;   static int arm_smmu_suspend(struct device *dev)</span>
+<span class="quote">&gt;&gt;</span>
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=77581">Robin Murphy</a> - Aug. 4, 2017, 5:04 p.m.</div>
+<pre class="content">
+On 03/08/17 06:35, Vivek Gautam wrote:
+<span class="quote">&gt; Hi Robin,</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; On 08/02/2017 05:47 PM, Robin Murphy wrote:</span>
+<span class="quote">&gt;&gt; On 02/08/17 10:53, Vivek Gautam wrote:</span>
+<span class="quote">&gt;&gt;&gt; We don&#39;t want to touch the TLB when smmu is suspended.</span>
+<span class="quote">&gt;&gt;&gt; Defer it until resume.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; Signed-off-by: Vivek Gautam &lt;vivek.gautam@codeaurora.org&gt;</span>
+<span class="quote">&gt;&gt;&gt; ---</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; Hi all,</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; Here&#39;s the small patch in response of suggestion to defer tlb operations</span>
+<span class="quote">&gt;&gt;&gt; when smmu is in suspend state.</span>
+<span class="quote">&gt;&gt;&gt; The patch stores the TLB requests in &#39;unmap&#39; when the smmu device is</span>
+<span class="quote">&gt;&gt;&gt; suspended. On resume, it checks all the pending TLB requests, and</span>
+<span class="quote">&gt;&gt;&gt; performs the unmap over those.</span>
+<span class="quote">&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt; Right now, I have applied the patch on top of the pm runtime series.</span>
+<span class="quote">&gt;&gt;&gt; Let me know what you think of the change. It will also be helpful if</span>
+<span class="quote">&gt;&gt;&gt; somebody can please test a valid use case with this.</span>
+<span class="quote">&gt;&gt; The patch itself doesn&#39;t make much sense to me, but more crucially it&#39;s</span>
+<span class="quote">&gt;&gt; definitely broken in concept. We can&#39;t return from arm_smmu_unmap()</span>
+<span class="quote">&gt;&gt; without having actually unmapped anything, because that leaves the page</span>
+<span class="quote">&gt;&gt; tables out of sync with what the caller expects - they may immmediately</span>
+<span class="quote">&gt;&gt; reuse that IOVA to map something else for a different device and hit an</span>
+<span class="quote">&gt;&gt; unexpected failure from io-pgtable when the PTE turns out to be</span>
+<span class="quote">&gt;&gt; non-empty.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; To understand things bit more,</span>
+<span class="quote">&gt; once we don&#39;t *unmap* in arm_smmu_unmap(), and leave the TLBs as is,</span>
+<span class="quote">&gt; the next mapping can happen only with the *knowledge* of smmu, i.e.,</span>
+<span class="quote">&gt; smmu should be active at that time.</span>
+<span class="quote">&gt; If that&#39;s true then, the _runtime()_resume() method will take care of</span>
+<span class="quote">&gt; invalidating the TLBs when we call arm_smmu_unmap() from _runtime_resume().</span>
+<span class="quote">&gt; Is my understanding correct here?</span>
+
+What I mean is that it&#39;s OK for arm_smmu_unmap() to defer the physical
+TLB maintenance for an unmap request if the SMMU is suspended, but it
+*must* still update the pagetable so that the given address is logically
+unmapped before returning. In other words, the place to make decisions
+based on the SMMU PM state would be in the .tlb_add_flush and .tlb_sync
+callbacks, rather than at the top level.
+<span class="quote">
+&gt;&gt; However, if in general suspend *might* power-gate any part of the SMMU,</span>
+<span class="quote">&gt;&gt; then I don&#39;t think we have any guarantee of what state any TLBs could be</span>
+<span class="quote">&gt;&gt; in upon resume. Therefore any individual invalidations we skip while</span>
+<span class="quote">&gt;&gt; suspended are probably moot, since resume would almost certainly have to</span>
+<span class="quote">&gt;&gt; invalidate everything to get back to a safe state anyway.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Right, in case when the suspend power-gates the SMMU, then</span>
+<span class="quote">&gt; the TLB context is lost anyways. So resume path can freshly start.</span>
+<span class="quote">&gt; This is something that exynos does at present.</span>
+
+Yes, in general I don&#39;t think we can assume any SMMU state is preserved,
+so the only safe option would be for .runtime_resume to do the same
+thing as .resume, which does at least make things nice and simple.
+<span class="quote">
+&gt;&gt; Conversely though, the situation that still concerns me is whether this</span>
+<span class="quote">&gt;&gt; can work at all for a distributed SMMU if things *don&#39;t* lose state. Say</span>
+<span class="quote">&gt;&gt; the GPU and its local TBU are in the same clock domain - if the GPU has</span>
+<span class="quote">&gt;&gt; just gone idle and we&#39;ve clock-gated it, but &quot;the SMMU&quot; (i.e. the TCU)</span>
+<span class="quote">&gt;&gt; is still active servicing other devices, we will assume we can happily</span>
+<span class="quote">&gt;&gt; unmap GPU buffers and issue TLBIs, but what happens with entries held in</span>
+<span class="quote">&gt;&gt; the unclocked TBU&#39;s micro-TLB?</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; We know of platforms we have that have shared TCU and multiple TBUs.</span>
+<span class="quote">&gt; Each TBU is available in its own power domain, not in master&#39;s power</span>
+<span class="quote">&gt; domain.</span>
+<span class="quote">&gt; In such cases we may want to runtime_get() the TBUs, so that unmap()</span>
+<span class="quote">&gt; call with</span>
+<span class="quote">&gt; master clock gated gets through.</span>
+<span class="quote">&gt; </span>
+<span class="quote">&gt; Can we have a situation where the TBU and master are in the same power</span>
+<span class="quote">&gt; domain, and the unmap is called when the master is not runtime active?</span>
+<span class="quote">&gt; How will such a situation be handled?</span>
+
+Having thought about it a bit more, I think the
+unmap-after-master-suspended case is only one facet of the problem - if
+we can power down individual TBUs/micro-TLBs without suspending the rest
+of the SMMU, do we also have any guarantee that such TLBs don&#39;t power
+back on full of valid-looking random junk?
+
+I&#39;m starting to think the only way to be generally safe would be to
+globally invalidate all TLBs after any *master* is resumed, and I&#39;m not
+even sure that&#39;s feasible :/
+
+Robin.
+</pre>
+</div>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=170013">Vivek Gautam</a> - Aug. 7, 2017, 7:44 a.m.</div>
+<pre class="content">
+Hi Robin,
+
+
+On Fri, Aug 4, 2017 at 10:34 PM, Robin Murphy &lt;robin.murphy@arm.com&gt; wrote:
+<span class="quote">&gt; On 03/08/17 06:35, Vivek Gautam wrote:</span>
+<span class="quote">&gt;&gt; Hi Robin,</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; On 08/02/2017 05:47 PM, Robin Murphy wrote:</span>
+<span class="quote">&gt;&gt;&gt; On 02/08/17 10:53, Vivek Gautam wrote:</span>
+<span class="quote">&gt;&gt;&gt;&gt; We don&#39;t want to touch the TLB when smmu is suspended.</span>
+<span class="quote">&gt;&gt;&gt;&gt; Defer it until resume.</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; Signed-off-by: Vivek Gautam &lt;vivek.gautam@codeaurora.org&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; ---</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; Hi all,</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; Here&#39;s the small patch in response of suggestion to defer tlb operations</span>
+<span class="quote">&gt;&gt;&gt;&gt; when smmu is in suspend state.</span>
+<span class="quote">&gt;&gt;&gt;&gt; The patch stores the TLB requests in &#39;unmap&#39; when the smmu device is</span>
+<span class="quote">&gt;&gt;&gt;&gt; suspended. On resume, it checks all the pending TLB requests, and</span>
+<span class="quote">&gt;&gt;&gt;&gt; performs the unmap over those.</span>
+<span class="quote">&gt;&gt;&gt;&gt;</span>
+<span class="quote">&gt;&gt;&gt;&gt; Right now, I have applied the patch on top of the pm runtime series.</span>
+<span class="quote">&gt;&gt;&gt;&gt; Let me know what you think of the change. It will also be helpful if</span>
+<span class="quote">&gt;&gt;&gt;&gt; somebody can please test a valid use case with this.</span>
+<span class="quote">&gt;&gt;&gt; The patch itself doesn&#39;t make much sense to me, but more crucially it&#39;s</span>
+<span class="quote">&gt;&gt;&gt; definitely broken in concept. We can&#39;t return from arm_smmu_unmap()</span>
+<span class="quote">&gt;&gt;&gt; without having actually unmapped anything, because that leaves the page</span>
+<span class="quote">&gt;&gt;&gt; tables out of sync with what the caller expects - they may immmediately</span>
+<span class="quote">&gt;&gt;&gt; reuse that IOVA to map something else for a different device and hit an</span>
+<span class="quote">&gt;&gt;&gt; unexpected failure from io-pgtable when the PTE turns out to be</span>
+<span class="quote">&gt;&gt;&gt; non-empty.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; To understand things bit more,</span>
+<span class="quote">&gt;&gt; once we don&#39;t *unmap* in arm_smmu_unmap(), and leave the TLBs as is,</span>
+<span class="quote">&gt;&gt; the next mapping can happen only with the *knowledge* of smmu, i.e.,</span>
+<span class="quote">&gt;&gt; smmu should be active at that time.</span>
+<span class="quote">&gt;&gt; If that&#39;s true then, the _runtime()_resume() method will take care of</span>
+<span class="quote">&gt;&gt; invalidating the TLBs when we call arm_smmu_unmap() from _runtime_resume().</span>
+<span class="quote">&gt;&gt; Is my understanding correct here?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; What I mean is that it&#39;s OK for arm_smmu_unmap() to defer the physical</span>
+<span class="quote">&gt; TLB maintenance for an unmap request if the SMMU is suspended, but it</span>
+<span class="quote">&gt; *must* still update the pagetable so that the given address is logically</span>
+<span class="quote">&gt; unmapped before returning. In other words, the place to make decisions</span>
+<span class="quote">&gt; based on the SMMU PM state would be in the .tlb_add_flush and .tlb_sync</span>
+<span class="quote">&gt; callbacks, rather than at the top level.</span>
+
+Okay, i understand it better now.
+.tlb_add_flush and .tlb_sync callbacks should be the right place.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt;&gt;&gt; However, if in general suspend *might* power-gate any part of the SMMU,</span>
+<span class="quote">&gt;&gt;&gt; then I don&#39;t think we have any guarantee of what state any TLBs could be</span>
+<span class="quote">&gt;&gt;&gt; in upon resume. Therefore any individual invalidations we skip while</span>
+<span class="quote">&gt;&gt;&gt; suspended are probably moot, since resume would almost certainly have to</span>
+<span class="quote">&gt;&gt;&gt; invalidate everything to get back to a safe state anyway.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Right, in case when the suspend power-gates the SMMU, then</span>
+<span class="quote">&gt;&gt; the TLB context is lost anyways. So resume path can freshly start.</span>
+<span class="quote">&gt;&gt; This is something that exynos does at present.</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Yes, in general I don&#39;t think we can assume any SMMU state is preserved,</span>
+<span class="quote">&gt; so the only safe option would be for .runtime_resume to do the same</span>
+<span class="quote">&gt; thing as .resume, which does at least make things nice and simple.</span>
+
+Let me try to find out more about the state of TLBs. As far as the
+programmable registers are concerned, qcom platforms have retention
+enabled for them. So they don&#39;t loose state after SMMU power down.
+<span class="quote">
+&gt;</span>
+<span class="quote">&gt;&gt;&gt; Conversely though, the situation that still concerns me is whether this</span>
+<span class="quote">&gt;&gt;&gt; can work at all for a distributed SMMU if things *don&#39;t* lose state. Say</span>
+<span class="quote">&gt;&gt;&gt; the GPU and its local TBU are in the same clock domain - if the GPU has</span>
+<span class="quote">&gt;&gt;&gt; just gone idle and we&#39;ve clock-gated it, but &quot;the SMMU&quot; (i.e. the TCU)</span>
+<span class="quote">&gt;&gt;&gt; is still active servicing other devices, we will assume we can happily</span>
+<span class="quote">&gt;&gt;&gt; unmap GPU buffers and issue TLBIs, but what happens with entries held in</span>
+<span class="quote">&gt;&gt;&gt; the unclocked TBU&#39;s micro-TLB?</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; We know of platforms we have that have shared TCU and multiple TBUs.</span>
+<span class="quote">&gt;&gt; Each TBU is available in its own power domain, not in master&#39;s power</span>
+<span class="quote">&gt;&gt; domain.</span>
+<span class="quote">&gt;&gt; In such cases we may want to runtime_get() the TBUs, so that unmap()</span>
+<span class="quote">&gt;&gt; call with</span>
+<span class="quote">&gt;&gt; master clock gated gets through.</span>
+<span class="quote">&gt;&gt;</span>
+<span class="quote">&gt;&gt; Can we have a situation where the TBU and master are in the same power</span>
+<span class="quote">&gt;&gt; domain, and the unmap is called when the master is not runtime active?</span>
+<span class="quote">&gt;&gt; How will such a situation be handled?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Having thought about it a bit more, I think the</span>
+<span class="quote">&gt; unmap-after-master-suspended case is only one facet of the problem - if</span>
+<span class="quote">&gt; we can power down individual TBUs/micro-TLBs without suspending the rest</span>
+<span class="quote">&gt; of the SMMU, do we also have any guarantee that such TLBs don&#39;t power</span>
+<span class="quote">&gt; back on full of valid-looking random junk?</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; I&#39;m starting to think the only way to be generally safe would be to</span>
+<span class="quote">&gt; globally invalidate all TLBs after any *master* is resumed, and I&#39;m not</span>
+<span class="quote">&gt; even sure that&#39;s feasible :/</span>
+<span class="quote">&gt;</span>
+<span class="quote">&gt; Robin.</span>
+<span class="quote">&gt; --</span>
+<span class="quote">&gt; To unsubscribe from this list: send the line &quot;unsubscribe linux-arm-msm&quot; in</span>
+<span class="quote">&gt; the body of a message to majordomo@vger.kernel.org</span>
+<span class="quote">&gt; More majordomo info at  http://vger.kernel.org/majordomo-info.html</span>
+
+
+regards
+Vivek
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">diff --git a/drivers/iommu/arm-smmu.c b/drivers/iommu/arm-smmu.c</span>
+<span class="p_header">index fe8e7fd61282..1f9c2b16aabb 100644</span>
+<span class="p_header">--- a/drivers/iommu/arm-smmu.c</span>
+<span class="p_header">+++ b/drivers/iommu/arm-smmu.c</span>
+<span class="p_chunk">@@ -51,6 +51,7 @@</span> <span class="p_context"></span>
+ #include &lt;linux/pm_runtime.h&gt;
+ #include &lt;linux/slab.h&gt;
+ #include &lt;linux/spinlock.h&gt;
+<span class="p_add">+#include &lt;linux/list.h&gt;</span>
+ 
+ #include &lt;linux/amba/bus.h&gt;
+ 
+<span class="p_chunk">@@ -151,6 +152,14 @@</span> <span class="p_context"> struct arm_smmu_master_cfg {</span>
+ #define for_each_cfg_sme(fw, i, idx) \
+ 	for (i = 0; idx = fwspec_smendx(fw, i), i &lt; fw-&gt;num_ids; ++i)
+ 
+<span class="p_add">+struct arm_smmu_tlb_req_info {</span>
+<span class="p_add">+	struct iommu_domain *domain;</span>
+<span class="p_add">+	unsigned long iova;</span>
+<span class="p_add">+	size_t size;</span>
+<span class="p_add">+	bool tlb_flush_pending;</span>
+<span class="p_add">+	struct list_head list;</span>
+<span class="p_add">+};</span>
+<span class="p_add">+</span>
+ struct arm_smmu_device {
+ 	struct device			*dev;
+ 
+<span class="p_chunk">@@ -182,6 +191,7 @@</span> <span class="p_context"> struct arm_smmu_device {</span>
+ 	u32				num_s2_context_banks;
+ 	DECLARE_BITMAP(context_map, ARM_SMMU_MAX_CBS);
+ 	atomic_t			irptndx;
+<span class="p_add">+	struct list_head		domain_list;</span>
+ 
+ 	u32				num_mapping_groups;
+ 	u16				streamid_mask;
+<span class="p_chunk">@@ -1239,17 +1249,32 @@</span> <span class="p_context"> static size_t arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova,</span>
+ 			     size_t size)
+ {
+ 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
+<span class="p_add">+	struct arm_smmu_device *smmu = smmu_domain-&gt;smmu;</span>
+ 	struct io_pgtable_ops *ops = smmu_domain-&gt;pgtbl_ops;
+<span class="p_del">-	size_t ret;</span>
+<span class="p_add">+	struct arm_smmu_tlb_req_info *tlb_info;</span>
+ 
+ 	if (!ops)
+ 		return 0;
+ 
+<span class="p_del">-	pm_runtime_get_sync(smmu_domain-&gt;smmu-&gt;dev);</span>
+<span class="p_del">-	ret = ops-&gt;unmap(ops, iova, size);</span>
+<span class="p_del">-	pm_runtime_put_sync(smmu_domain-&gt;smmu-&gt;dev);</span>
+<span class="p_add">+	/* if the device is suspended; we can&#39;t unmap, defer any tlb operations */</span>
+<span class="p_add">+	if (pm_runtime_suspended(smmu-&gt;dev)) {</span>
+<span class="p_add">+		tlb_info = devm_kzalloc(smmu-&gt;dev, sizeof(*tlb_info), GFP_ATOMIC);</span>
+<span class="p_add">+		if (!tlb_info)</span>
+<span class="p_add">+			return -ENOMEM;</span>
+ 
+<span class="p_del">-	return ret;</span>
+<span class="p_add">+		tlb_info-&gt;domain = domain;</span>
+<span class="p_add">+		tlb_info-&gt;iova = iova;</span>
+<span class="p_add">+		tlb_info-&gt;size = size;</span>
+<span class="p_add">+		tlb_info-&gt;tlb_flush_pending = true;</span>
+<span class="p_add">+		INIT_LIST_HEAD(&amp;tlb_info-&gt;list);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		/* XXX: We need locks here, but that again introduce the slowpath ? */</span>
+<span class="p_add">+		list_add_tail(&amp;tlb_info-&gt;list, &amp;smmu-&gt;domain_list);</span>
+<span class="p_add">+</span>
+<span class="p_add">+		return size;</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return ops-&gt;unmap(ops, iova, size);</span>
+ }
+ 
+ static phys_addr_t arm_smmu_iova_to_phys_hard(struct iommu_domain *domain,
+<span class="p_chunk">@@ -2166,6 +2191,8 @@</span> <span class="p_context"> static int arm_smmu_device_probe(struct platform_device *pdev)</span>
+ 		smmu-&gt;irqs[i] = irq;
+ 	}
+ 
+<span class="p_add">+	INIT_LIST_HEAD(&amp;smmu-&gt;domain_list);</span>
+<span class="p_add">+</span>
+ 	err = arm_smmu_init_clocks(smmu);
+ 	if (err)
+ 		return err;
+<span class="p_chunk">@@ -2268,8 +2295,28 @@</span> <span class="p_context"> static int arm_smmu_device_remove(struct platform_device *pdev)</span>
+ static int arm_smmu_resume(struct device *dev)
+ {
+ 	struct arm_smmu_device *smmu = dev_get_drvdata(dev);
+<span class="p_add">+	struct arm_smmu_tlb_req_info  *tlb_info, *temp;</span>
+<span class="p_add">+	int ret;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	ret = arm_smmu_enable_clocks(smmu);</span>
+<span class="p_add">+	if (ret)</span>
+<span class="p_add">+		return ret;</span>
+<span class="p_add">+</span>
+<span class="p_add">+	list_for_each_entry_safe(tlb_info, temp, &amp;smmu-&gt;domain_list, list) {</span>
+<span class="p_add">+		printk(&quot;\n\n %s %d :: iterating over pending tlb request\n\n&quot;, __func__, __LINE__);</span>
+<span class="p_add">+		if (tlb_info-&gt;tlb_flush_pending) {</span>
+<span class="p_add">+			ret = arm_smmu_unmap(tlb_info-&gt;domain, tlb_info-&gt;iova, tlb_info-&gt;size);</span>
+<span class="p_add">+			if (!ret)</span>
+<span class="p_add">+				return -EINVAL;</span>
+ 
+<span class="p_del">-	return arm_smmu_enable_clocks(smmu);</span>
+<span class="p_add">+			tlb_info-&gt;tlb_flush_pending = false;</span>
+<span class="p_add">+</span>
+<span class="p_add">+			/* we are done with this request; delete it */</span>
+<span class="p_add">+			list_del(&amp;tlb_info-&gt;list);</span>
+<span class="p_add">+		}</span>
+<span class="p_add">+	}</span>
+<span class="p_add">+</span>
+<span class="p_add">+	return 0;</span>
+ }
+ 
+ static int arm_smmu_suspend(struct device *dev)
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+

@@ -1,0 +1,406 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+ "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+ <head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <title>[3.16,110/294] mm: migrate: prevent racy access to tlb_flush_pending - Patchwork</title>
+  <link rel="stylesheet" type="text/css" href="/static/css/style.css"/>
+  <script type="text/javascript" src="/static/js/common.js"></script>
+  <script type="text/javascript" src="/static/js/jquery-1.10.1.min.js"></script>
+
+ </head>
+ <body>
+  <div id="title">
+  <h1 style="float: left;">
+     <a
+      href="/">Patchwork</a>
+    [3.16,110/294] mm: migrate: prevent racy access to tlb_flush_pending</h1>
+  <div id="auth">
+
+     <a href="/user/login/">login</a>
+     <br/>
+     <a href="/register/">register</a>
+     <br/>
+     <a href="/mail/">mail settings</a>
+
+   </div>
+   <div style="clear: both;"></div>
+  </div>
+  <div id="nav">
+   <div id="navleft">
+   
+    <strong>Project</strong>: LKML
+     :
+     <a href="/project/LKML/list/"
+      >patches</a>
+     :
+     <a href="/project/LKML/"
+      >project info</a>
+    
+     :
+     <a href="/"
+     >other projects</a>
+     
+    
+   </div>
+   <div id="navright">
+    <a href="/help/about/">about</a>
+   </div>
+   <div style="clear: both"></div>
+  </div>
+
+  <div id="content">
+
+<script language="JavaScript" type="text/javascript">
+function toggle_headers(link_id, headers_id)
+{
+    var link = document.getElementById(link_id)
+    var headers = document.getElementById(headers_id)
+
+    var hidden = headers.style['display'] == 'none';
+
+    if (hidden) {
+        link.innerHTML = 'hide';
+        headers.style['display'] = 'block';
+    } else {
+        link.innerHTML = 'show';
+        headers.style['display'] = 'none';
+    }
+
+}
+</script>
+
+<table class="patchmeta">
+ <tr>
+  <th>Submitter</th>
+  <td><a href="/project/LKML/list/?submitter=131">Ben Hutchings</a></td>
+ </tr>
+ <tr>
+  <th>Date</th>
+  <td>Nov. 6, 2017, 11:03 p.m.</td>
+ </tr>
+ <tr>
+  <th>Message ID</th>
+  <td>&lt;lsq.1510009382.628028246@decadent.org.uk&gt;</td>
+ </tr>
+ <tr>
+  <th>Download</th>
+  <td>
+   <a href="/patch/10045239/mbox/"
+   >mbox</a>
+|
+   <a href="/patch/10045239/raw/"
+   >patch</a>
+
+   </td>
+ </tr>
+ <tr>
+  <th>Permalink</th>
+  <td><a href="/patch/10045239/">/patch/10045239/</a>
+ </tr>
+  <tr>
+   <th>State</th>
+   <td>New</td>
+  </tr>
+
+
+ <tr>
+  <th>Headers</th>
+  <td><a id="togglepatchheaders"
+   href="javascript:toggle_headers('togglepatchheaders', 'patchheaders')"
+   >show</a>
+   <div id="patchheaders" class="patchheaders" style="display:none;">
+    <pre>Return-Path: &lt;linux-kernel-owner@kernel.org&gt;
+Received: from mail.wl.linuxfoundation.org (pdx-wl-mail.web.codeaurora.org
+	[172.30.200.125])
+	by pdx-korg-patchwork.web.codeaurora.org (Postfix) with ESMTP id
+	C3E236031B for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  7 Nov 2017 00:32:45 +0000 (UTC)
+Received: from mail.wl.linuxfoundation.org (localhost [127.0.0.1])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id B43782A0D0
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  7 Nov 2017 00:32:45 +0000 (UTC)
+Received: by mail.wl.linuxfoundation.org (Postfix, from userid 486)
+	id A8C222A0DE; Tue,  7 Nov 2017 00:32:45 +0000 (UTC)
+X-Spam-Checker-Version: SpamAssassin 3.3.1 (2010-03-16) on
+	pdx-wl-mail.web.codeaurora.org
+X-Spam-Level: 
+X-Spam-Status: No, score=-6.4 required=2.0 tests=BAYES_00, RCVD_IN_DNSWL_HI, 
+	RCVD_IN_SORBS_SPAM autolearn=ham version=3.3.1
+Received: from vger.kernel.org (vger.kernel.org [209.132.180.67])
+	by mail.wl.linuxfoundation.org (Postfix) with ESMTP id B45652A0D0
+	for &lt;patchwork-LKML@patchwork.kernel.org&gt;;
+	Tue,  7 Nov 2017 00:32:44 +0000 (UTC)
+Received: (majordomo@vger.kernel.org) by vger.kernel.org via listexpand
+	id S934444AbdKGAcm (ORCPT
+	&lt;rfc822;patchwork-LKML@patchwork.kernel.org&gt;);
+	Mon, 6 Nov 2017 19:32:42 -0500
+Received: from shadbolt.e.decadent.org.uk ([88.96.1.126]:54131 &quot;EHLO
+	shadbolt.e.decadent.org.uk&quot; rhost-flags-OK-OK-OK-OK)
+	by vger.kernel.org with ESMTP id S934098AbdKGAci (ORCPT
+	&lt;rfc822;linux-kernel@vger.kernel.org&gt;);
+	Mon, 6 Nov 2017 19:32:38 -0500
+Received: from [2a02:8011:400e:2:6f00:88c8:c921:d332] (helo=deadeye)
+	by shadbolt.decadent.org.uk with esmtps
+	(TLS1.2:ECDHE_RSA_AES_256_GCM_SHA384:256) (Exim 4.84_2)
+	(envelope-from &lt;ben@decadent.org.uk&gt;)
+	id 1eBrDf-0008Tw-UW; Mon, 06 Nov 2017 23:54:20 +0000
+Received: from ben by deadeye with local (Exim 4.89)
+	(envelope-from &lt;ben@decadent.org.uk&gt;)
+	id 1eBrDO-0000ja-84; Mon, 06 Nov 2017 23:54:02 +0000
+Content-Type: text/plain; charset=&quot;UTF-8&quot;
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+MIME-Version: 1.0
+From: Ben Hutchings &lt;ben@decadent.org.uk&gt;
+To: linux-kernel@vger.kernel.org, stable@vger.kernel.org
+CC: akpm@linux-foundation.org, &quot;Russell King&quot; &lt;linux@armlinux.org.uk&gt;,
+	&quot;Jeff Dike&quot; &lt;jdike@addtoit.com&gt;, &quot;Minchan Kim&quot; &lt;minchan@kernel.org&gt;,
+	&quot;Martin Schwidefsky&quot; &lt;schwidefsky@de.ibm.com&gt;,
+	&quot;Andrea Arcangeli&quot; &lt;aarcange@redhat.com&gt;,
+	&quot;Sergey Senozhatsky&quot; &lt;sergey.senozhatsky@gmail.com&gt;,
+	&quot;Heiko Carstens&quot; &lt;heiko.carstens@de.ibm.com&gt;,
+	&quot;Linus Torvalds&quot; &lt;torvalds@linux-foundation.org&gt;,
+	&quot;Mel Gorman&quot; &lt;mgorman@suse.de&gt;, &quot;Tony Luck&quot; &lt;tony.luck@intel.com&gt;,
+	&quot;Hugh Dickins&quot; &lt;hughd@google.com&gt;,
+	&quot;Yoshinori Sato&quot; &lt;ysato@users.sourceforge.jp&gt;,
+	&quot;Nadav Amit&quot; &lt;nadav.amit@gmail.com&gt;, &quot;Nadav Amit&quot; &lt;namit@vmware.com&gt;,
+	&quot;David S. Miller&quot; &lt;davem@davemloft.net&gt;,
+	&quot;Rik van Riel&quot; &lt;riel@redhat.com&gt;, &quot;Andy Lutomirski&quot; &lt;luto@kernel.org&gt;,
+	&quot;Ingo Molnar&quot; &lt;mingo@redhat.com&gt;,
+	&quot;Mel Gorman&quot; &lt;mgorman@techsingularity.net&gt;
+Date: Mon, 06 Nov 2017 23:03:02 +0000
+Message-ID: &lt;lsq.1510009382.628028246@decadent.org.uk&gt;
+X-Mailer: LinuxStableQueue (scripts by bwh)
+Subject: [PATCH 3.16 110/294] mm: migrate: prevent racy access to
+	tlb_flush_pending
+In-Reply-To: &lt;lsq.1510009377.526284287@decadent.org.uk&gt;
+X-SA-Exim-Connect-IP: 2a02:8011:400e:2:6f00:88c8:c921:d332
+X-SA-Exim-Mail-From: ben@decadent.org.uk
+X-SA-Exim-Scanned: No (on shadbolt.decadent.org.uk);
+	SAEximRunCond expanded to false
+Sender: linux-kernel-owner@vger.kernel.org
+Precedence: bulk
+List-ID: &lt;linux-kernel.vger.kernel.org&gt;
+X-Mailing-List: linux-kernel@vger.kernel.org
+X-Virus-Scanned: ClamAV using ClamSMTP
+</pre>
+   </div>
+  </td>
+ </tr>
+</table>
+
+<div class="patchforms">
+
+
+
+
+
+ <div style="clear: both;">
+ </div>
+</div>
+
+
+
+<h2>Comments</h2>
+
+<div class="comment">
+<div class="meta"><a href="/project/LKML/list/?submitter=131">Ben Hutchings</a> - Nov. 6, 2017, 11:03 p.m.</div>
+<pre class="content">
+3.16.50-rc1 review patch.  If anyone has any objections, please let me know.
+
+------------------
+<span class="from">
+From: Nadav Amit &lt;nadav.amit@gmail.com&gt;</span>
+
+commit 16af97dc5a8975371a83d9e30a64038b48f40a2d upstream.
+
+Patch series &quot;fixes of TLB batching races&quot;, v6.
+
+It turns out that Linux TLB batching mechanism suffers from various
+races.  Races that are caused due to batching during reclamation were
+recently handled by Mel and this patch-set deals with others.  The more
+fundamental issue is that concurrent updates of the page-tables allow
+for TLB flushes to be batched on one core, while another core changes
+the page-tables.  This other core may assume a PTE change does not
+require a flush based on the updated PTE value, while it is unaware that
+TLB flushes are still pending.
+
+This behavior affects KSM (which may result in memory corruption) and
+MADV_FREE and MADV_DONTNEED (which may result in incorrect behavior).  A
+proof-of-concept can easily produce the wrong behavior of MADV_DONTNEED.
+Memory corruption in KSM is harder to produce in practice, but was
+observed by hacking the kernel and adding a delay before flushing and
+replacing the KSM page.
+
+Finally, there is also one memory barrier missing, which may affect
+architectures with weak memory model.
+
+This patch (of 7):
+
+Setting and clearing mm-&gt;tlb_flush_pending can be performed by multiple
+threads, since mmap_sem may only be acquired for read in
+task_numa_work().  If this happens, tlb_flush_pending might be cleared
+while one of the threads still changes PTEs and batches TLB flushes.
+
+This can lead to the same race between migration and
+change_protection_range() that led to the introduction of
+tlb_flush_pending.  The result of this race was data corruption, which
+means that this patch also addresses a theoretically possible data
+corruption.
+
+An actual data corruption was not observed, yet the race was was
+confirmed by adding assertion to check tlb_flush_pending is not set by
+two threads, adding artificial latency in change_protection_range() and
+using sysctl to reduce kernel.numa_balancing_scan_delay_ms.
+
+Link: http://lkml.kernel.org/r/20170802000818.4760-2-namit@vmware.com
+Fixes: 20841405940e (&quot;mm: fix TLB flush race between migration, and
+change_protection_range&quot;)
+<span class="signed-off-by">Signed-off-by: Nadav Amit &lt;namit@vmware.com&gt;</span>
+<span class="acked-by">Acked-by: Mel Gorman &lt;mgorman@suse.de&gt;</span>
+<span class="acked-by">Acked-by: Rik van Riel &lt;riel@redhat.com&gt;</span>
+<span class="acked-by">Acked-by: Minchan Kim &lt;minchan@kernel.org&gt;</span>
+Cc: Andy Lutomirski &lt;luto@kernel.org&gt;
+Cc: Hugh Dickins &lt;hughd@google.com&gt;
+Cc: &quot;David S. Miller&quot; &lt;davem@davemloft.net&gt;
+Cc: Andrea Arcangeli &lt;aarcange@redhat.com&gt;
+Cc: Heiko Carstens &lt;heiko.carstens@de.ibm.com&gt;
+Cc: Ingo Molnar &lt;mingo@redhat.com&gt;
+Cc: Jeff Dike &lt;jdike@addtoit.com&gt;
+Cc: Martin Schwidefsky &lt;schwidefsky@de.ibm.com&gt;
+Cc: Mel Gorman &lt;mgorman@techsingularity.net&gt;
+Cc: Russell King &lt;linux@armlinux.org.uk&gt;
+Cc: Sergey Senozhatsky &lt;sergey.senozhatsky@gmail.com&gt;
+Cc: Tony Luck &lt;tony.luck@intel.com&gt;
+Cc: Yoshinori Sato &lt;ysato@users.sourceforge.jp&gt;
+<span class="signed-off-by">Signed-off-by: Andrew Morton &lt;akpm@linux-foundation.org&gt;</span>
+<span class="signed-off-by">Signed-off-by: Linus Torvalds &lt;torvalds@linux-foundation.org&gt;</span>
+[bwh: Backported to 3.16:
+ - Drop change to dump_mm()
+ - Adjust context]
+<span class="signed-off-by">Signed-off-by: Ben Hutchings &lt;ben@decadent.org.uk&gt;</span>
+---
+</pre>
+</div>
+
+
+
+<h2>Patch</h2>
+<div class="patch">
+<pre class="content">
+<span class="p_header">--- a/include/linux/mm_types.h</span>
+<span class="p_header">+++ b/include/linux/mm_types.h</span>
+<span class="p_chunk">@@ -451,7 +451,7 @@</span> <span class="p_context"> struct mm_struct {</span>
+ 	 * can move process memory needs to flush the TLB when moving a
+ 	 * PROT_NONE or PROT_NUMA mapped page.
+ 	 */
+<span class="p_del">-	bool tlb_flush_pending;</span>
+<span class="p_add">+	atomic_t tlb_flush_pending;</span>
+ #endif
+ 	struct uprobes_state uprobes_state;
+ };
+<span class="p_chunk">@@ -479,33 +479,46 @@</span> <span class="p_context"> static inline cpumask_t *mm_cpumask(stru</span>
+ static inline bool mm_tlb_flush_pending(struct mm_struct *mm)
+ {
+ 	barrier();
+<span class="p_del">-	return mm-&gt;tlb_flush_pending;</span>
+<span class="p_add">+	return atomic_read(&amp;mm-&gt;tlb_flush_pending) &gt; 0;</span>
+ }
+<span class="p_del">-static inline void set_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void init_tlb_flush_pending(struct mm_struct *mm)</span>
+ {
+<span class="p_del">-	mm-&gt;tlb_flush_pending = true;</span>
+<span class="p_add">+	atomic_set(&amp;mm-&gt;tlb_flush_pending, 0);</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void inc_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+	atomic_inc(&amp;mm-&gt;tlb_flush_pending);</span>
+ 
+ 	/*
+<span class="p_del">-	 * Guarantee that the tlb_flush_pending store does not leak into the</span>
+<span class="p_add">+	 * Guarantee that the tlb_flush_pending increase does not leak into the</span>
+ 	 * critical section updating the page tables
+ 	 */
+ 	smp_mb__before_spinlock();
+ }
+<span class="p_add">+</span>
+ /* Clearing is done after a TLB flush, which also provides a barrier. */
+<span class="p_del">-static inline void clear_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="p_add">+static inline void dec_tlb_flush_pending(struct mm_struct *mm)</span>
+ {
+ 	barrier();
+<span class="p_del">-	mm-&gt;tlb_flush_pending = false;</span>
+<span class="p_add">+	atomic_dec(&amp;mm-&gt;tlb_flush_pending);</span>
+ }
+ #else
+ static inline bool mm_tlb_flush_pending(struct mm_struct *mm)
+ {
+ 	return false;
+ }
+<span class="p_del">-static inline void set_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void init_tlb_flush_pending(struct mm_struct *mm)</span>
+ {
+ }
+<span class="p_del">-static inline void clear_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void inc_tlb_flush_pending(struct mm_struct *mm)</span>
+<span class="p_add">+{</span>
+<span class="p_add">+}</span>
+<span class="p_add">+</span>
+<span class="p_add">+static inline void dec_tlb_flush_pending(struct mm_struct *mm)</span>
+ {
+ }
+ #endif
+<span class="p_header">--- a/kernel/fork.c</span>
+<span class="p_header">+++ b/kernel/fork.c</span>
+<span class="p_chunk">@@ -539,7 +539,7 @@</span> <span class="p_context"> static struct mm_struct *mm_init(struct</span>
+ 	spin_lock_init(&amp;mm-&gt;page_table_lock);
+ 	mm_init_aio(mm);
+ 	mm_init_owner(mm, p);
+<span class="p_del">-	clear_tlb_flush_pending(mm);</span>
+<span class="p_add">+	init_tlb_flush_pending(mm);</span>
+ 
+ 	if (current-&gt;mm) {
+ 		mm-&gt;flags = current-&gt;mm-&gt;flags &amp; MMF_INIT_MASK;
+<span class="p_header">--- a/mm/mprotect.c</span>
+<span class="p_header">+++ b/mm/mprotect.c</span>
+<span class="p_chunk">@@ -225,7 +225,7 @@</span> <span class="p_context"> static unsigned long change_protection_r</span>
+ 	BUG_ON(addr &gt;= end);
+ 	pgd = pgd_offset(mm, addr);
+ 	flush_cache_range(vma, addr, end);
+<span class="p_del">-	set_tlb_flush_pending(mm);</span>
+<span class="p_add">+	inc_tlb_flush_pending(mm);</span>
+ 	do {
+ 		next = pgd_addr_end(addr, end);
+ 		if (pgd_none_or_clear_bad(pgd))
+<span class="p_chunk">@@ -237,7 +237,7 @@</span> <span class="p_context"> static unsigned long change_protection_r</span>
+ 	/* Only flush the TLB if we actually modified any entries: */
+ 	if (pages)
+ 		flush_tlb_range(vma, start, end);
+<span class="p_del">-	clear_tlb_flush_pending(mm);</span>
+<span class="p_add">+	dec_tlb_flush_pending(mm);</span>
+ 
+ 	return pages;
+ }
+
+</pre>
+</div>
+
+
+
+
+  </div>
+  <div id="footer">
+   <a href="http://jk.ozlabs.org/projects/patchwork/">patchwork</a>
+   patch tracking system
+  </div>
+ </body>
+</html>
+
+
+
