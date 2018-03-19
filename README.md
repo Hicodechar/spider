@@ -14,7 +14,7 @@ scrapy crawl patch
 
 ## filtpath
 主要代码在：[代码](https://github.com/Hicodechar/spider/blob/master/filtpatch/filtpatch/spiders/filt.py) 中。
-filtpath用于读取文件 **myurl** 中的连接地址，从相应的网页中找到包含字符串**(空格)TLB(空格)**的所有链接，链接保存在文件 **TLB_url**中，所有网页下载保存在文件夹 **ans**中。
+filtpath用于读取文件 **myurl** 中的连接地址，从相应的网页中找到包含字符串 **(空格)TLB(空格)** 的所有链接，链接保存在文件 **TLB_url**中，所有网页下载保存在文件夹 **ans**中。
 #### filtpath爬虫运行方式
 首先进入到文件夹：filtpatch/filtpatch/spiders
 ```python
